@@ -1,5 +1,5 @@
 // Package logger provides structured logging with file and console output,
-// colour support, and log rotation.
+// colour support with automatic TTY detection, and log rotation.
 package logger
 
 import (
@@ -16,15 +16,21 @@ import (
 type Level int
 
 const (
-	INFO Level = iota
+	DEBUG Level = iota
+	INFO
+	SUCCESS
 	WARNING
 	ERROR
 )
 
 func (l Level) String() string {
 	switch l {
+	case DEBUG:
+		return "DEBUG"
 	case INFO:
 		return "INFO"
+	case SUCCESS:
+		return "SUCCESS"
 	case WARNING:
 		return "WARNING"
 	case ERROR:
@@ -44,17 +50,42 @@ type Logger struct {
 
 // ANSI colour codes
 const (
-	colourReset = "\033[0m"
-	colourInfo  = "\033[1;32m"
-	colourWarn  = "\033[1;33m"
-	colourError = "\033[1;31m"
-	colourLabel = "\033[1;36m"
-	colourValue = "\033[1;37m"
+	colourReset   = "\033[0m"
+	colourDebug   = "\033[2;37m"  // Dim gray
+	colourInfo    = "\033[0;36m"  // Cyan
+	colourSuccess = "\033[1;32m"  // Bold green
+	colourWarn    = "\033[1;33m"  // Bold yellow
+	colourError   = "\033[1;31m"  // Bold red
+	colourLabel   = "\033[1;36m"  // Bold cyan
+	colourValue   = "\033[1;37m"  // Bold white
 )
 
 var ansiRegex = regexp.MustCompile(`\x1B\[[0-9;]*[mK]`)
 
+// StripColour removes all ANSI escape sequences from a string.
+func StripColour(s string) string {
+	return ansiRegex.ReplaceAllString(s, "")
+}
+
+// IsTerminal reports whether the given file descriptor is connected to a
+// terminal (TTY). This is used to decide whether colour output is appropriate.
+// It works on Linux (including Synology DSM) by checking for the character
+// device mode bit, which is the portable Go approach and does not require
+// cgo or platform-specific ioctl calls.
+func IsTerminal(f *os.File) bool {
+	if f == nil {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
+}
+
 // New creates a new Logger instance.
+// enableColour controls whether ANSI colour codes are emitted to stderr.
+// Callers should typically pass IsTerminal(os.Stderr) to auto-detect.
 func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory %s: %w", logDir, err)
@@ -88,8 +119,12 @@ func (l *Logger) colourForLevel(level Level) string {
 		return ""
 	}
 	switch level {
+	case DEBUG:
+		return colourDebug
 	case INFO:
 		return colourInfo
+	case SUCCESS:
+		return colourSuccess
 	case WARNING:
 		return colourWarn
 	case ERROR:
@@ -117,13 +152,23 @@ func (l *Logger) Log(level Level, format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "%s%s%s\n", colour, message, l.reset())
 
 	// Write to file without colour
-	plain := ansiRegex.ReplaceAllString(message, "")
+	plain := StripColour(message)
 	fmt.Fprintln(l.logFile, plain)
+}
+
+// Debug logs at DEBUG level.
+func (l *Logger) Debug(format string, args ...interface{}) {
+	l.Log(DEBUG, format, args...)
 }
 
 // Info logs at INFO level.
 func (l *Logger) Info(format string, args ...interface{}) {
 	l.Log(INFO, format, args...)
+}
+
+// Success logs at SUCCESS level.
+func (l *Logger) Success(format string, args ...interface{}) {
+	l.Log(SUCCESS, format, args...)
 }
 
 // Warn logs at WARNING level.
@@ -164,7 +209,7 @@ func (l *Logger) FormatResult(result string) string {
 		return result
 	}
 	if result == "SUCCESS" {
-		return fmt.Sprintf("%s%s%s", colourInfo, result, colourReset)
+		return fmt.Sprintf("%s%s%s", colourSuccess, result, colourReset)
 	}
 	return fmt.Sprintf("%s%s%s", colourError, result, colourReset)
 }

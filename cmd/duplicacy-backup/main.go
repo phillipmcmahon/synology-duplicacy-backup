@@ -79,8 +79,8 @@ func run() int {
                 }
         }
 
-        // Detect colour support
-        enableColour := isTerminal(os.Stderr)
+        // Detect colour support (auto-detect TTY on stderr)
+        enableColour := logger.IsTerminal(os.Stderr)
 
         // Parse CLI flags
         f, err := parseFlags(os.Args[1:])
@@ -656,10 +656,4 @@ func joinDestination(destination, label string) string {
         return filepath.Join(destination, label)
 }
 
-func isTerminal(f *os.File) bool {
-        fi, err := f.Stat()
-        if err != nil {
-                return false
-        }
-        return (fi.Mode() & os.ModeCharDevice) != 0
-}
+
