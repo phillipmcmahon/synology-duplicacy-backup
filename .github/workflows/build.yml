@@ -1,0 +1,95 @@
+name: Build Synology Binaries
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            goarm: ''
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            goarm: ''
+            suffix: linux-arm64
+          - goos: linux
+            goarch: arm
+            goarm: '7'
+            suffix: linux-armv7
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so git describe works for version tags
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        if: matrix.suffix == 'linux-amd64'   # tests only need to run once
+        run: go test -v -race ./...
+
+      - name: Build binary (${{ matrix.suffix }})
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          CGO_ENABLED: '0'
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+          BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          LDFLAGS="-s -w -X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
+          SUFFIX="${{ matrix.suffix }}"
+
+          mkdir -p build
+          go build -ldflags "${LDFLAGS}" \
+            -o "build/duplicacy-backup-${SUFFIX}" \
+            ./cmd/duplicacy-backup/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duplicacy-backup-${{ matrix.suffix }}
+          path: build/duplicacy-backup-${{ matrix.suffix }}
+          if-no-files-found: error
+
+  # ── Release job — runs only on version tags ──────────────────────────
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect binaries
+        run: |
+          mkdir -p release
+          find artifacts -type f -name 'duplicacy-backup-*' -exec cp {} release/ \;
+          chmod +x release/*
+          ls -lh release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
