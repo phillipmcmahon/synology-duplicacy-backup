@@ -5,8 +5,8 @@ build/
 *.dll
 *.so
 *.dylib
-duplicacy-backup
-duplicacy-backup-*
+/duplicacy-backup
+/duplicacy-backup-*
 
 # Test binary
 *.test
