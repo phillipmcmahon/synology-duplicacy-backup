@@ -465,6 +465,17 @@ func run() int {
                         return exitCode
                 }
 
+                // Fail-closed: if revision count failed, block unless --force-prune
+                if preview.RevisionCountFailed {
+                        if f.forcePrune {
+                                log.Warn("Revision count failed; proceeding because --force-prune was supplied (percentage threshold not enforced)")
+                        } else {
+                                log.Error("Revision count is required for safe prune but failed; use --force-prune to override")
+                                exitCode = 1
+                                return exitCode
+                        }
+                }
+
                 // Display preview
                 log.PrintLine("Preview Deletes", fmt.Sprintf("%d", preview.DeleteCount))
                 log.PrintLine("Preview Total Revs", fmt.Sprintf("%d", preview.TotalRevisions))
@@ -480,8 +491,8 @@ func run() int {
                         log.Error("Safe prune preview exceeds delete count threshold: %d > %d", preview.DeleteCount, cfg.SafePruneMaxDeleteCount)
                         blocked = true
                 }
-                if preview.PercentEnforced && preview.DeletePercent > cfg.SafePruneMaxDeletePercent {
-                        log.Error("Safe prune preview exceeds delete percentage threshold: %d%% > %d%%", preview.DeletePercent, cfg.SafePruneMaxDeletePercent)
+                if preview.ExceedsPercent(cfg.SafePruneMaxDeletePercent) {
+                        log.Error("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%)", preview.DeleteCount, preview.TotalRevisions, cfg.SafePruneMaxDeletePercent)
                         blocked = true
                 }
 
