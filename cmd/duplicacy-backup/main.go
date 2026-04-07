@@ -286,7 +286,7 @@ func run() int {
         }
 
         // Load secrets for remote mode
-        backupTarget := filepath.Join(cfg.Destination, backupLabel)
+        backupTarget := joinDestination(cfg.Destination, backupLabel)
         var sec *secrets.Secrets
 
         // Resolve secrets directory: flag > env > default
@@ -640,6 +640,20 @@ func resolveDir(flagValue, envVar, defaultDir string) string {
                 return v
         }
         return defaultDir
+}
+
+// joinDestination appends a label to a destination path.
+// For URL-style destinations (containing "://"), it preserves the scheme
+// separator which filepath.Join would incorrectly collapse (e.g. s3:// → s3:/).
+func joinDestination(destination, label string) string {
+        if idx := strings.Index(destination, "://"); idx >= 0 {
+                // Split into scheme+authority and path portion after "://"
+                scheme := destination[:idx+3] // e.g. "s3://"
+                rest := destination[idx+3:]   // e.g. "EU@gateway.storjshare.io/bucket"
+                rest = strings.TrimRight(rest, "/")
+                return scheme + rest + "/" + label
+        }
+        return filepath.Join(destination, label)
 }
 
 func isTerminal(f *os.File) bool {
