@@ -55,15 +55,17 @@ ssh admin@synology 'chmod +x /usr/local/bin/duplicacy-backup'
 
 ### 3. Create Configuration
 
-Place your configuration file at `/root/.config/<source>-backup.conf`:
+Place your configuration file alongside the binary in a `.config/` subdirectory:
 
 ```bash
-# On the Synology
-mkdir -p /root/.config
+# On the Synology – assuming the binary is at /usr/local/bin/duplicacy-backup
+mkdir -p /usr/local/bin/.config
 
 # Create config (see examples/homes-backup.conf)
-vi /root/.config/homes-backup.conf
+vi /usr/local/bin/.config/homes-backup.conf
 ```
+
+The default config directory is `<binary-dir>/.config/`, so the config file travels with the binary. For example, if the binary is at `/volume1/homes/user/bin/duplicacy-backup`, the config file is expected at `/volume1/homes/user/bin/.config/homes-backup.conf`.
 
 > **Override:** Use `--config-dir <path>` or set `DUPLICACY_BACKUP_CONFIG_DIR` to use a different directory.
 
@@ -117,7 +119,7 @@ MODIFIERS:
     --force-prune            Override safe prune thresholds, or authorise --prune-deep
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
-    --config-dir <path>      Override config directory (default: /root/.config)
+    --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: /root/.secrets)
     --help                   Show this help message
 
@@ -163,13 +165,13 @@ duplicacy-backup --secrets-dir /opt/secrets --remote homes
 
 ### Config File Format
 
-INI-style with `[common]`, `[local]`, and `[remote]` sections. The binary looks for config files at:
+INI-style with `[common]`, `[local]`, and `[remote]` sections. The binary looks for config files relative to the executable's location:
 
 ```
-/root/.config/<source>-backup.conf
+<binary-dir>/.config/<source>-backup.conf
 ```
 
-Override with `--config-dir <path>` or `DUPLICACY_BACKUP_CONFIG_DIR` environment variable.
+This means the config directory travels with the binary — useful for portable Synology deployments. Override with `--config-dir <path>` or `DUPLICACY_BACKUP_CONFIG_DIR` environment variable.
 
 ### Config Keys
 

@@ -19,8 +19,7 @@ const (
         DefaultLocalOwner                  = "phillipmcmahon"
         DefaultLocalGroup                  = "users"
         DefaultLogRetentionDays            = 30
-        DefaultConfigDir                   = "/root/.config"
-        DefaultSecretsDir                  = "/root/.secrets"
+        DefaultSecretsDir = "/root/.secrets"
         DefaultSecretsPrefix               = "duplicacy"
         MaxThreads                         = 16
 )

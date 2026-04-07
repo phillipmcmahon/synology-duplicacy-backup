@@ -209,8 +209,8 @@ func run() int {
         log.PrintLine("Lock Path", lk.Path)
         log.PrintSeparator()
 
-        // Resolve config directory: flag > env > default
-        configDir := resolveDir(f.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", config.DefaultConfigDir)
+        // Resolve config directory: flag > env > default (executable dir + .config)
+        configDir := resolveDir(f.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", executableConfigDir())
         configFile := filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel))
 
         if _, err := os.Stat(configFile); os.IsNotExist(err) {
@@ -543,6 +543,7 @@ func parseFlags(args []string) (*flags, error) {
 }
 
 func printUsage() {
+        defaultCfgDir := executableConfigDir()
         fmt.Printf(`Usage: %s [OPTIONS] <source>
 
 DEFAULT BEHAVIOUR:
@@ -559,7 +560,7 @@ MODIFIERS:
     --force-prune            Override safe prune thresholds, or authorise --prune-deep
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
-    --config-dir <path>      Override config directory (default: %s)
+    --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
     --help                   Show this help message
 
@@ -573,7 +574,8 @@ SAFE PRUNE THRESHOLDS:
     Min revisions for %% check: %d (default %d)
 
 CONFIG FILE LOCATION:
-    %s/<source>-backup.conf
+    <binary-dir>/.config/<source>-backup.conf
+    Currently resolves to: %s/<source>-backup.conf
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
 CONFIG KEYS:
@@ -600,16 +602,33 @@ EXAMPLES:
     %s --config-dir /opt/etc homes
     %s --secrets-dir /opt/secrets --remote homes
 `, scriptName,
-                config.DefaultConfigDir, config.DefaultSecretsDir,
+                config.DefaultSecretsDir,
                 config.DefaultSafePruneMaxDeletePercent, config.DefaultSafePruneMaxDeletePercent,
                 config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
                 config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
-                config.DefaultConfigDir,
+                defaultCfgDir,
                 config.DefaultSecretsDir, config.DefaultSecretsPrefix,
                 rootVolume,
                 scriptName, scriptName, scriptName, scriptName, scriptName, scriptName, scriptName,
                 scriptName, scriptName,
         )
+}
+
+// executableConfigDir returns the directory containing the running binary plus
+// "/.config".  This lets config files travel alongside the binary, which is the
+// typical Synology deployment layout.  If the executable path cannot be
+// determined (e.g. in test harnesses) it falls back to "./.config".
+func executableConfigDir() string {
+        exe, err := os.Executable()
+        if err != nil {
+                return filepath.Join(".", ".config")
+        }
+        // Resolve symlinks so the real binary location is used.
+        exe, err = filepath.EvalSymlinks(exe)
+        if err != nil {
+                return filepath.Join(".", ".config")
+        }
+        return filepath.Join(filepath.Dir(exe), ".config")
 }
 
 // resolveDir returns the directory path from flag, env var, or default (in that priority order).
