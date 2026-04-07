@@ -55,15 +55,17 @@ ssh admin@synology 'chmod +x /usr/local/bin/duplicacy-backup'
 
 ### 3. Create Configuration
 
-Place your configuration file at `<binary-dir>/.config/<source>-backup.conf`:
+Place your configuration file at `/root/.config/<source>-backup.conf`:
 
 ```bash
 # On the Synology
-mkdir -p /usr/local/bin/.config
+mkdir -p /root/.config
 
 # Create config (see examples/homes-backup.conf)
-vi /usr/local/bin/.config/homes-backup.conf
+vi /root/.config/homes-backup.conf
 ```
+
+> **Override:** Use `--config-dir <path>` or set `DUPLICACY_BACKUP_CONFIG_DIR` to use a different directory.
 
 ### 4. Set Up Secrets (Remote Mode Only)
 
@@ -75,6 +77,8 @@ vi /root/.secrets/duplicacy-homes.env
 chown root:root /root/.secrets/duplicacy-homes.env
 chmod 600 /root/.secrets/duplicacy-homes.env
 ```
+
+> **Override:** Use `--secrets-dir <path>` or set `DUPLICACY_BACKUP_SECRETS_DIR` to use a different directory.
 
 ### 5. Run
 
@@ -113,7 +117,13 @@ MODIFIERS:
     --force-prune            Override safe prune thresholds, or authorise --prune-deep
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
+    --config-dir <path>      Override config directory (default: /root/.config)
+    --secrets-dir <path>     Override secrets directory (default: /root/.secrets)
     --help                   Show this help message
+
+ENVIRONMENT VARIABLES:
+    DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
+    DUPLICACY_BACKUP_SECRETS_DIR  Override secrets directory (--secrets-dir takes precedence)
 ```
 
 ### Examples
@@ -139,6 +149,12 @@ duplicacy-backup --fix-perms homes
 
 # Remote backup with dry-run
 duplicacy-backup --remote --dry-run homes
+
+# Use custom config directory
+duplicacy-backup --config-dir /opt/etc homes
+
+# Use custom secrets directory for remote
+duplicacy-backup --secrets-dir /opt/secrets --remote homes
 ```
 
 ---
@@ -150,8 +166,10 @@ duplicacy-backup --remote --dry-run homes
 INI-style with `[common]`, `[local]`, and `[remote]` sections. The binary looks for config files at:
 
 ```
-<executable-directory>/.config/<source>-backup.conf
+/root/.config/<source>-backup.conf
 ```
+
+Override with `--config-dir <path>` or `DUPLICACY_BACKUP_CONFIG_DIR` environment variable.
 
 ### Config Keys
 
