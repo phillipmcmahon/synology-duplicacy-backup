@@ -1,5 +1,7 @@
 # synology-duplicacy-backup
 
+[![Build Synology Binaries](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml/badge.svg)](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml)
+
 A compiled Go replacement for the `duplicacy-backup.sh` script. Performs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using **btrfs snapshots**, with support for local and remote (Storj S3) backup targets, safe pruning with threshold guards, and directory-based concurrency locking.
 
 Produces a **single static binary** — no dependencies, no shell interpreter, no runtime needed on the Synology.
