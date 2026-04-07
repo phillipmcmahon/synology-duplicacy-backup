@@ -102,6 +102,54 @@ func TestExecutableConfigDir(t *testing.T) {
 }
 
 
+func TestValidateLabel(t *testing.T) {
+        valid := []string{
+                "homes", "photos", "my-backup", "test_label", "A1", "a",
+                "homes-2024", "UPPER", "MiXeD_Case-99",
+        }
+        for _, label := range valid {
+                if err := validateLabel(label); err != nil {
+                        t.Errorf("validateLabel(%q) returned unexpected error: %v", label, err)
+                }
+        }
+
+        invalid := []struct {
+                label string
+                desc  string
+        }{
+                {"", "empty label"},
+                {"../etc", "parent directory traversal"},
+                {"foo/bar", "forward slash"},
+                {"foo\\bar", "backslash"},
+                {"...", "dots only"},
+                {".hidden", "starts with dot"},
+                {"-starts-with-hyphen", "starts with hyphen"},
+                {"_starts-with-underscore", "starts with underscore"},
+                {"has spaces", "contains space"},
+                {"label;rm", "contains semicolon"},
+                {"label\ttab", "contains tab"},
+                {"../../../etc/passwd", "deep path traversal"},
+                {"foo..bar", "contains double dot"},
+        }
+        for _, tt := range invalid {
+                if err := validateLabel(tt.label); err == nil {
+                        t.Errorf("validateLabel(%q) [%s] expected error, got nil", tt.label, tt.desc)
+                }
+        }
+}
+
+func TestParseFlags_RejectsTraversalLabel(t *testing.T) {
+        // parseFlags itself doesn't validate labels, but we verify the label is captured
+        // so that validateLabel can reject it in run()
+        f, err := parseFlags([]string{"../etc"})
+        if err != nil {
+                t.Fatalf("parseFlags should not reject positional args: %v", err)
+        }
+        if err := validateLabel(f.source); err == nil {
+                t.Error("expected validateLabel to reject '../etc' label")
+        }
+}
+
 func TestJoinDestination(t *testing.T) {
         tests := []struct {
                 name        string

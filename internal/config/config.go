@@ -81,7 +81,6 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
         seenSections := make(map[string]bool)
         currentSection := ""
         lineno := 0
-        warnings := []string{}
 
         scanner := bufio.NewScanner(f)
         for scanner.Scan() {
@@ -146,20 +145,18 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
         }
 
         if !seenSections["common"] {
-                warnings = append(warnings, "config file does not contain a [common] section")
+                return nil, fmt.Errorf("config file %s is missing required [common] section", path)
         }
         if !seenSections[targetSection] {
-                warnings = append(warnings, fmt.Sprintf("config file does not contain a [%s] section", targetSection))
+                return nil, fmt.Errorf("config file %s is missing required [%s] section for current mode", path, targetSection)
         }
-
-        // Store warnings in a special key (hacky but simple)
-        _ = warnings
 
         return result, nil
 }
 
 // Apply populates a Config struct from parsed key-value pairs.
-func (c *Config) Apply(values map[string]string) {
+// Returns an error if any numeric value is not a valid non-negative integer.
+func (c *Config) Apply(values map[string]string) error {
         if v, ok := values["DESTINATION"]; ok {
                 c.Destination = v
         }
@@ -176,20 +173,41 @@ func (c *Config) Apply(values map[string]string) {
                 c.Prune = v
         }
         if v, ok := values["LOG_RETENTION_DAYS"]; ok {
-                c.LogRetentionDays = atoi(v, DefaultLogRetentionDays)
+                n, err := strictAtoi(v)
+                if err != nil {
+                        return fmt.Errorf("LOG_RETENTION_DAYS: %w", err)
+                }
+                c.LogRetentionDays = n
         }
         if v, ok := values["THREADS"]; ok {
-                c.Threads = atoi(v, 0)
+                n, err := strictAtoi(v)
+                if err != nil {
+                        return fmt.Errorf("THREADS: %w", err)
+                }
+                c.Threads = n
         }
         if v, ok := values["SAFE_PRUNE_MAX_DELETE_PERCENT"]; ok {
-                c.SafePruneMaxDeletePercent = atoi(v, DefaultSafePruneMaxDeletePercent)
+                n, err := strictAtoi(v)
+                if err != nil {
+                        return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_PERCENT: %w", err)
+                }
+                c.SafePruneMaxDeletePercent = n
         }
         if v, ok := values["SAFE_PRUNE_MAX_DELETE_COUNT"]; ok {
-                c.SafePruneMaxDeleteCount = atoi(v, DefaultSafePruneMaxDeleteCount)
+                n, err := strictAtoi(v)
+                if err != nil {
+                        return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_COUNT: %w", err)
+                }
+                c.SafePruneMaxDeleteCount = n
         }
         if v, ok := values["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"]; ok {
-                c.SafePruneMinTotalForPercent = atoi(v, DefaultSafePruneMinTotalForPercent)
+                n, err := strictAtoi(v)
+                if err != nil {
+                        return fmt.Errorf("SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT: %w", err)
+                }
+                c.SafePruneMinTotalForPercent = n
         }
+        return nil
 }
 
 // ValidateRequired checks that required config keys are present based on mode.
@@ -258,13 +276,25 @@ func (c *Config) BuildPruneArgs() {
         c.PruneArgs = strings.Fields(c.Prune)
 }
 
-func atoi(s string, def int) int {
+// strictAtoi converts a string to a non-negative integer.
+// Returns an error if the string is empty, contains non-digit characters,
+// or represents a negative number. This ensures operators are notified
+// immediately when config values are invalid, rather than silently
+// falling back to defaults.
+func strictAtoi(s string) (int, error) {
+        if s == "" {
+                return 0, fmt.Errorf("value is empty; expected a non-negative integer")
+        }
+        // Reject explicitly negative values
+        if strings.HasPrefix(s, "-") {
+                return 0, fmt.Errorf("value %q is negative; expected a non-negative integer", s)
+        }
         n := 0
-        for _, ch := range s {
+        for i, ch := range s {
                 if ch < '0' || ch > '9' {
-                        return def
+                        return 0, fmt.Errorf("value %q is not a valid integer (invalid character %q at position %d)", s, ch, i)
                 }
                 n = n*10 + int(ch-'0')
         }
-        return n
+        return n, nil
 }

@@ -19,6 +19,7 @@ import (
         "os/exec"
         "os/signal"
         "path/filepath"
+        "regexp"
         "strings"
         "syscall"
         "time"
@@ -38,6 +39,31 @@ const (
         lockParent = "/var/lock"
         scriptName = "duplicacy-backup"
 )
+
+// labelPattern restricts backup labels to safe characters only.
+// This prevents path traversal attacks since labels are interpolated into
+// filesystem paths (config files, secrets, lock dirs, snapshots).
+var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+// validateLabel checks that label contains only safe characters and cannot
+// be used for path traversal. Labels are used in filesystem paths for config,
+// secrets, locks, and snapshots, so they must not contain path separators,
+// parent-directory references, or other dangerous characters.
+func validateLabel(label string) error {
+        if label == "" {
+                return fmt.Errorf("label must not be empty")
+        }
+        if strings.Contains(label, "/") || strings.Contains(label, "\\") || strings.Contains(label, "..") {
+                return fmt.Errorf("label %q contains path traversal characters (/, \\, or ..); "+
+                        "only alphanumeric characters, hyphens, and underscores are allowed", label)
+        }
+        if !labelPattern.MatchString(label) {
+                return fmt.Errorf("label %q contains invalid characters; "+
+                        "only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed, "+
+                        "and must start with an alphanumeric character", label)
+        }
+        return nil
+}
 
 // flags holds all CLI flags parsed from arguments.
 type flags struct {
@@ -86,6 +112,12 @@ func run() int {
         f, err := parseFlags(os.Args[1:])
         if err != nil {
                 fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+                return 1
+        }
+
+        // Validate label before any filesystem operations (security: prevent path traversal)
+        if err := validateLabel(f.source); err != nil {
+                fmt.Fprintf(os.Stderr, "[ERROR] Invalid source label: %v\n", err)
                 return 1
         }
 
@@ -233,7 +265,11 @@ func run() int {
                 exitCode = 1
                 return exitCode
         }
-        cfg.Apply(values)
+        if err := cfg.Apply(values); err != nil {
+                log.Error("Invalid config value: %v", err)
+                exitCode = 1
+                return exitCode
+        }
 
         log.Info("Config file %s parsed for [common] + [%s]", configFile, targetSection)
 
