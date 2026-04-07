@@ -180,7 +180,7 @@ This means the config directory travels with the binary — useful for portable 
 | `DESTINATION` | Yes | Backup target path or S3 URL |
 | `THREADS` | Yes (backup) | Number of threads (power of 2, max 16) |
 | `PRUNE` | Yes (prune) | Duplicacy prune retention arguments |
-| `FILTER` | No | Duplicacy filter patterns |
+| `FILTER` | No | Duplicacy filter pattern using regex syntax (`e:` prefix to exclude, `i:` to include) |
 | `LOCAL_OWNER` | No | Local repo owner (default: `phillipmcmahon`) |
 | `LOCAL_GROUP` | No | Local repo group (default: `users`) |
 | `LOG_RETENTION_DAYS` | No | Days to keep log files (default: `30`) |
@@ -193,7 +193,10 @@ This means the config directory travels with the binary — useful for portable 
 ```ini
 [common]
 PRUNE=-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28
-FILTER=-*/.Trash-*/-*/@eaDir/
+# Duplicacy filter pattern (regex syntax: "e:" = exclude, "i:" = include)
+# Use "|" to combine multiple patterns in a single expression.
+# See: https://github.com/gilbertchen/duplicacy/wiki/Include-Exclude-Patterns
+FILTER=e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\.DS_Store|\._.*|Thumbs\.db)$
 LOCAL_OWNER=myuser
 LOCAL_GROUP=users
 LOG_RETENTION_DAYS=30
