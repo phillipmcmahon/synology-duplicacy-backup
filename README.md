@@ -319,6 +319,20 @@ For remote backup + local prune in sequence:
 
 ---
 
+## Development
+
+All Go code **must** be formatted with `gofmt` — the CI lint job enforces this on every push and PR.
+
+```bash
+gofmt -w .          # auto-format all files
+go vet ./...        # static analysis
+go test -race ./... # run tests with race detector
+```
+
+A pre-commit hook is provided in `scripts/pre-commit` — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+
+---
+
 ## License
 
 MIT

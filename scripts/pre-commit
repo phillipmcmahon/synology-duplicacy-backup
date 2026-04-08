@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Git pre-commit hook — prevents committing unformatted Go code.
+# Install:  cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+  echo "ERROR: Go files not formatted. Run 'gofmt -w .' to fix:"
+  echo "$unformatted"
+  exit 1
+fi
+
+echo "go vet ./..."
+go vet ./...
+
+exit 0
