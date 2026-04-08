@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/user"
 	"regexp"
 	"strings"
 )
@@ -271,6 +272,16 @@ func (c *Config) ValidateOwnerGroup() error {
 	if strings.EqualFold(c.LocalGroup, "root") {
 		return fmt.Errorf("LOCAL_GROUP must not be 'root' for security reasons: backup files should be owned by a non-root group")
 	}
+
+	// Verify the specified user actually exists on the system.
+	if _, err := user.Lookup(c.LocalOwner); err != nil {
+		return fmt.Errorf("LOCAL_OWNER '%s' does not exist on this system: %w", c.LocalOwner, err)
+	}
+	// Verify the specified group actually exists on the system.
+	if _, err := user.LookupGroup(c.LocalGroup); err != nil {
+		return fmt.Errorf("LOCAL_GROUP '%s' does not exist on this system: %w", c.LocalGroup, err)
+	}
+
 	return nil
 }
 

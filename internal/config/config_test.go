@@ -541,28 +541,28 @@ func TestValidateThresholds_ZeroValues(t *testing.T) {
 // ─── ValidateOwnerGroup tests ────────────────────────────────────────────────
 
 func TestValidateOwnerGroup_Valid(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin", LocalGroup: "users"}
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
 	if err := cfg.ValidateOwnerGroup(); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
 
 func TestValidateOwnerGroup_InvalidOwner(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin/bad", LocalGroup: "users"}
+	cfg := &Config{LocalOwner: "admin/bad", LocalGroup: "nogroup"}
 	if err := cfg.ValidateOwnerGroup(); err == nil {
 		t.Fatal("expected error for invalid owner")
 	}
 }
 
 func TestValidateOwnerGroup_InvalidGroup(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin", LocalGroup: "us ers"}
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "us ers"}
 	if err := cfg.ValidateOwnerGroup(); err == nil {
 		t.Fatal("expected error for invalid group")
 	}
 }
 
 func TestValidateOwnerGroup_EmptyOwner(t *testing.T) {
-	cfg := &Config{LocalOwner: "", LocalGroup: "users"}
+	cfg := &Config{LocalOwner: "", LocalGroup: "nogroup"}
 	err := cfg.ValidateOwnerGroup()
 	if err == nil {
 		t.Fatal("expected error for empty owner")
@@ -575,7 +575,7 @@ func TestValidateOwnerGroup_EmptyOwner(t *testing.T) {
 // ─── ValidateOwnerGroup root-rejection tests ─────────────────────────────────
 
 func TestValidateOwnerGroup_RootOwnerRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "root", LocalGroup: "users"}
+	cfg := &Config{LocalOwner: "root", LocalGroup: "nogroup"}
 	err := cfg.ValidateOwnerGroup()
 	if err == nil {
 		t.Fatal("expected error for LOCAL_OWNER=root, got nil")
@@ -589,7 +589,7 @@ func TestValidateOwnerGroup_RootOwnerRejected(t *testing.T) {
 }
 
 func TestValidateOwnerGroup_RootGroupRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin", LocalGroup: "root"}
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "root"}
 	err := cfg.ValidateOwnerGroup()
 	if err == nil {
 		t.Fatal("expected error for LOCAL_GROUP=root, got nil")
@@ -607,11 +607,11 @@ func TestValidateOwnerGroup_RootCaseInsensitive(t *testing.T) {
 		owner string
 		group string
 	}{
-		{"Root", "users"},
-		{"ROOT", "users"},
-		{"rOoT", "users"},
-		{"admin", "Root"},
-		{"admin", "ROOT"},
+		{"Root", "nogroup"},
+		{"ROOT", "nogroup"},
+		{"rOoT", "nogroup"},
+		{"nobody", "Root"},
+		{"nobody", "ROOT"},
 	}
 	for _, tc := range cases {
 		cfg := &Config{LocalOwner: tc.owner, LocalGroup: tc.group}
@@ -623,20 +623,48 @@ func TestValidateOwnerGroup_RootCaseInsensitive(t *testing.T) {
 }
 
 func TestValidateOwnerGroup_ValidNonRootAccepted(t *testing.T) {
-	cases := []struct {
-		owner string
-		group string
-	}{
-		{"admin", "users"},
-		{"duplicacy", "staff"},
-		{"myuser", "mygroup"},
-		{"user123", "group456"},
+	// Use system users/groups that exist on the test system.
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
+	if err := cfg.ValidateOwnerGroup(); err != nil {
+		t.Errorf("unexpected error for owner=%q group=%q: %v", cfg.LocalOwner, cfg.LocalGroup, err)
 	}
-	for _, tc := range cases {
-		cfg := &Config{LocalOwner: tc.owner, LocalGroup: tc.group}
-		if err := cfg.ValidateOwnerGroup(); err != nil {
-			t.Errorf("unexpected error for owner=%q group=%q: %v", tc.owner, tc.group, err)
-		}
+}
+
+// ─── ValidateOwnerGroup user/group existence tests ───────────────────────────
+
+func TestValidateOwnerGroup_NonexistentUserRejected(t *testing.T) {
+	cfg := &Config{LocalOwner: "no_such_user_xyz_999", LocalGroup: "nogroup"}
+	err := cfg.ValidateOwnerGroup()
+	if err == nil {
+		t.Fatal("expected error for non-existent user, got nil")
+	}
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error should mention 'does not exist', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
+		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
+	}
+}
+
+func TestValidateOwnerGroup_NonexistentGroupRejected(t *testing.T) {
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "no_such_group_xyz_999"}
+	err := cfg.ValidateOwnerGroup()
+	if err == nil {
+		t.Fatal("expected error for non-existent group, got nil")
+	}
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error should mention 'does not exist', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
+		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
+	}
+}
+
+func TestValidateOwnerGroup_ExistingUserAndGroupAccepted(t *testing.T) {
+	// Use "nobody"/"nogroup" which exist on all Linux systems.
+	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
+	if err := cfg.ValidateOwnerGroup(); err != nil {
+		t.Errorf("unexpected error for existing owner=%q group=%q: %v", cfg.LocalOwner, cfg.LocalGroup, err)
 	}
 }
 
