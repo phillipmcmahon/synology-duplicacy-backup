@@ -249,7 +249,7 @@ func run() int {
 			status = "FAILED"
 		}
 
-		log.Info("============================================================")
+		log.PrintSeparator()
 		log.Info("Backup script completed:")
 		log.PrintLine("Result", log.FormatResult(status))
 		log.PrintLine("Code", fmt.Sprintf("%d", code))
@@ -279,12 +279,12 @@ func run() int {
 	}
 
 	// Header
-	log.Info("============================================================")
+	log.PrintSeparator()
 	log.Info("Backup Script Started - %s", time.Now().Format("2006-01-02 15:04:05"))
 	log.PrintLine("Script", scriptName)
 	log.PrintLine("PID", fmt.Sprintf("%d", os.Getpid()))
 	log.PrintLine("Lock Path", lk.Path)
-	log.Info("============================================================")
+	log.PrintSeparator()
 
 	// Resolve config directory: flag > env > default (executable dir + .config)
 	configDir := resolveDir(f.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", executableConfigDir())
