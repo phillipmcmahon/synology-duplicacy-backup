@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-08
+
+### Added
+- Overflow detection in `strictAtoi` for very large integer config values (CQ-3).
+- SHA256 checksum file (`SHA256SUMS.txt`) generated and included with release binaries (CI-1).
+- `go vet` and `gofmt` lint checks in CI pipeline (CI-2).
+- New tests: `TestStrictAtoi_ValidValues`, `TestStrictAtoi_RejectsInvalid`,
+  `TestStrictAtoi_OverflowDetection`, `TestRedactSecrets_RedactsCredentials`,
+  `TestRedactSecrets_PreservesNonSecretFields`, `TestRedactSecrets_NullKeysUnchanged`,
+  `TestWritePreferences_DryRun_RedactsSecrets`, `TestParseFlags_UnknownOption`.
+
+### Changed
+- Updated Go version from 1.19 to 1.24 in `go.mod`, CI workflow, and README (DEP-1).
+- `doCleanup` now logs warnings on `os.RemoveAll` failures instead of silently
+  ignoring them (ERR-2).
+
+### Fixed
+- `strictAtoi` integer overflow: parsing extremely large numeric strings no longer
+  silently wraps around; an explicit overflow error is returned (CQ-3).
+- Trailing blank line removed from `main.go` (CQ-4).
+- Unreachable `--help` and `--version` dead code removed from `parseFlags`;
+  these flags are already handled before `parseFlags` is called (CQ-5).
+- Secrets (S3 ID and secret) are now redacted in dry-run log output, preventing
+  credential leakage to terminal/log files (SEC-2).
+
+### Security
+- Dry-run mode no longer prints raw S3 credentials; values are replaced with
+  `"REDACTED"` in log output (SEC-2).
+
 ## [1.2.0] - 2026-04-08
 
 ### Added
