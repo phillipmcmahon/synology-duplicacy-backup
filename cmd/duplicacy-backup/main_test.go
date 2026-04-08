@@ -345,3 +345,107 @@ func TestParseFlags_UnknownOption(t *testing.T) {
 		}
 	}
 }
+
+// ─── Display logic derivation tests (v1.6.1) ────────────────────────────────
+// These tests document which display path should be taken based on flags.
+// The actual printing is in run(), but the branching logic is deterministic
+// from the parsed flags.
+
+// displayContext captures the fields that control config summary display.
+type displayContext struct {
+	fixPermsOnly bool // standalone fix-perms: minimal summary
+	fixPerms     bool // combined: show Local Owner/Group in full summary
+	remoteMode   bool // remote: never show Local Owner/Group
+}
+
+func deriveDisplayContext(args []string) (displayContext, error) {
+	f, err := parseFlags(args)
+	if err != nil {
+		return displayContext{}, err
+	}
+	doBackup := f.mode == "backup"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	return displayContext{
+		fixPermsOnly: f.fixPerms && !doBackup && !doPrune,
+		fixPerms:     f.fixPerms,
+		remoteMode:   f.remoteMode,
+	}, nil
+}
+
+func TestDisplayContext_FixPermsOnly_MinimalSummary(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !dc.fixPermsOnly {
+		t.Error("fixPermsOnly should be true for standalone --fix-perms")
+	}
+	if !dc.fixPerms {
+		t.Error("fixPerms should be true")
+	}
+}
+
+func TestDisplayContext_BackupOnly_NoOwnerGroup(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.fixPermsOnly {
+		t.Error("fixPermsOnly should be false for default backup")
+	}
+	if dc.fixPerms {
+		t.Error("fixPerms should be false — Local Owner/Group should NOT be displayed")
+	}
+}
+
+func TestDisplayContext_PruneOnly_NoOwnerGroup(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"--prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.fixPermsOnly {
+		t.Error("fixPermsOnly should be false for --prune")
+	}
+	if dc.fixPerms {
+		t.Error("fixPerms should be false — Local Owner/Group should NOT be displayed")
+	}
+}
+
+func TestDisplayContext_BackupWithFixPerms_ShowsOwnerGroup(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"--backup", "--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.fixPermsOnly {
+		t.Error("fixPermsOnly should be false when combined with --backup")
+	}
+	if !dc.fixPerms {
+		t.Error("fixPerms should be true — Local Owner/Group SHOULD be displayed")
+	}
+}
+
+func TestDisplayContext_PruneWithFixPerms_ShowsOwnerGroup(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"--prune", "--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.fixPermsOnly {
+		t.Error("fixPermsOnly should be false when combined with --prune")
+	}
+	if !dc.fixPerms {
+		t.Error("fixPerms should be true — Local Owner/Group SHOULD be displayed")
+	}
+}
+
+func TestDisplayContext_RemoteBackup_NoOwnerGroup(t *testing.T) {
+	dc, err := deriveDisplayContext([]string{"--remote", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.fixPerms {
+		t.Error("fixPerms should be false for remote mode")
+	}
+	if !dc.remoteMode {
+		t.Error("remoteMode should be true")
+	}
+}

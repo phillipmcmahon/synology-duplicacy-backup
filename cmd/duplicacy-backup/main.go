@@ -385,60 +385,75 @@ func run() int {
 		modeStr = "REMOTE"
 	}
 
+	// Determine operation mode string (printed early in the summary)
+	var opMode string
+	if fixPermsOnly {
+		opMode = "Fix permissions only"
+	} else if doBackup && f.fixPerms {
+		opMode = "Backup + fix permissions"
+	} else if doBackup {
+		opMode = "Backup only"
+	} else if doPrune && deepPruneMode {
+		opMode = "Prune deep"
+	} else if doPrune && f.fixPerms {
+		opMode = "Prune safe + fix permissions"
+	} else if doPrune {
+		opMode = "Prune safe"
+	}
+
 	log.Info("Configuration Summary:")
-	log.PrintLine("Config File", configFile)
-	log.PrintLine("Backup Label", backupLabel)
-	log.PrintLine("Mode", modeStr)
-	log.PrintLine("Source", snapshotSource)
-	log.PrintLine("Repository", repositoryPath)
-	log.PrintLine("Work Dir", filepath.Join(workRoot, "duplicacy"))
-	log.PrintLine("Destination", backupTarget)
-	if cfg.Threads > 0 {
-		log.PrintLine("Threads", fmt.Sprintf("%d", cfg.Threads))
-	} else {
-		log.PrintLine("Threads", "<n/a>")
-	}
-	if cfg.Filter != "" {
-		log.PrintLine("Filter", cfg.Filter)
-	} else {
-		log.PrintLine("Filter", "<none>")
-	}
-	if cfg.Prune != "" {
-		log.PrintLine("Prune Options", cfg.Prune)
-	} else {
-		log.PrintLine("Prune Options", "<none>")
-	}
-	if !f.remoteMode {
+	log.PrintLine("Operation Mode", opMode)
+
+	if fixPermsOnly {
+		// Minimal summary for standalone fix-perms: only show fields
+		// relevant to permission fixing, not backup/prune configuration.
+		log.PrintLine("Destination", backupTarget)
 		log.PrintLine("Local Owner", cfg.LocalOwner)
 		log.PrintLine("Local Group", cfg.LocalGroup)
-	}
-	log.PrintLine("Log Retention", fmt.Sprintf("%d", cfg.LogRetentionDays))
-	log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
-	log.PrintLine("Force Prune", fmt.Sprintf("%t", f.forcePrune))
-	log.PrintLine("Fix Perms", fmt.Sprintf("%t", f.fixPerms))
-	log.PrintLine("Prune Max %", fmt.Sprintf("%d", cfg.SafePruneMaxDeletePercent))
-	log.PrintLine("Prune Max Count", fmt.Sprintf("%d", cfg.SafePruneMaxDeleteCount))
-	log.PrintLine("Prune Min Total %", fmt.Sprintf("%d", cfg.SafePruneMinTotalForPercent))
+		log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
+	} else {
+		// Full summary for backup, prune, or combined operations.
+		log.PrintLine("Config File", configFile)
+		log.PrintLine("Backup Label", backupLabel)
+		log.PrintLine("Mode", modeStr)
+		log.PrintLine("Source", snapshotSource)
+		log.PrintLine("Repository", repositoryPath)
+		log.PrintLine("Work Dir", filepath.Join(workRoot, "duplicacy"))
+		log.PrintLine("Destination", backupTarget)
+		if cfg.Threads > 0 {
+			log.PrintLine("Threads", fmt.Sprintf("%d", cfg.Threads))
+		} else {
+			log.PrintLine("Threads", "<n/a>")
+		}
+		if cfg.Filter != "" {
+			log.PrintLine("Filter", cfg.Filter)
+		} else {
+			log.PrintLine("Filter", "<none>")
+		}
+		if cfg.Prune != "" {
+			log.PrintLine("Prune Options", cfg.Prune)
+		} else {
+			log.PrintLine("Prune Options", "<none>")
+		}
+		// Only show Local Owner/Group when --fix-perms is active
+		// (these fields are not relevant for plain backup or prune).
+		if f.fixPerms {
+			log.PrintLine("Local Owner", cfg.LocalOwner)
+			log.PrintLine("Local Group", cfg.LocalGroup)
+		}
+		log.PrintLine("Log Retention", fmt.Sprintf("%d", cfg.LogRetentionDays))
+		log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
+		log.PrintLine("Force Prune", fmt.Sprintf("%t", f.forcePrune))
+		log.PrintLine("Fix Perms", fmt.Sprintf("%t", f.fixPerms))
+		log.PrintLine("Prune Max %", fmt.Sprintf("%d", cfg.SafePruneMaxDeletePercent))
+		log.PrintLine("Prune Max Count", fmt.Sprintf("%d", cfg.SafePruneMaxDeleteCount))
+		log.PrintLine("Prune Min Total %", fmt.Sprintf("%d", cfg.SafePruneMinTotalForPercent))
 
-	if f.remoteMode && sec != nil {
-		log.PrintLine("Secrets File", secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel))
-		log.PrintLine("STORJ S3 ID", sec.MaskedID())
-		log.PrintLine("STORJ S3 Secret", sec.MaskedSecret())
-	}
-
-	// Print operation mode
-	if fixPermsOnly {
-		log.PrintLine("Operation Mode", "Fix permissions only")
-	} else if doBackup && f.fixPerms {
-		log.PrintLine("Operation Mode", "Backup + fix permissions")
-	} else if doBackup {
-		log.PrintLine("Operation Mode", "Backup only")
-	} else if doPrune && deepPruneMode {
-		log.PrintLine("Operation Mode", "Prune deep")
-	} else if doPrune && f.fixPerms {
-		log.PrintLine("Operation Mode", "Prune safe + fix permissions")
-	} else if doPrune {
-		log.PrintLine("Operation Mode", "Prune safe")
+		if f.remoteMode && sec != nil {
+			log.PrintLine("Secrets File", secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel))
+			log.PrintLine("STORJ S3 ID", sec.MaskedID())
+			log.PrintLine("STORJ S3 Secret", sec.MaskedSecret())
+		}
 	}
 
 	// BTRFS snapshot and Duplicacy setup – only needed for backup/prune

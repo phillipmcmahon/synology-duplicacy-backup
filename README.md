@@ -247,12 +247,28 @@ needed:
 | `duplicacy` binary check | `--backup` or `--prune` (any mode that invokes Duplicacy) | Standalone `--fix-perms` |
 | `btrfs` binary check | `--backup` (snapshot creation) | `--prune`, `--fix-perms` |
 | `LOCAL_OWNER`/`LOCAL_GROUP` look-up | `--fix-perms` (file ownership changes) | `--backup` only, `--prune` only |
+| `LOCAL_OWNER`/`LOCAL_GROUP` display | `--fix-perms` (standalone or combined) | `--backup` only, `--prune` only, `--remote` |
 
 This means:
 - **`--fix-perms homes`** does not require `duplicacy` to be installed.
 - **`--backup homes`** does not validate `LOCAL_OWNER`/`LOCAL_GROUP` existence
   on the system (though those fields are still required in the `[local]` config
   section for `--fix-perms` usage).
+
+### Minimal Summary for Standalone Fix-Perms
+
+When running `--fix-perms` without `--backup` or `--prune`, the configuration
+summary is trimmed to show only the fields relevant to permission fixing:
+
+| Shown | Hidden |
+|---|---|
+| Operation Mode | Config File, Backup Label, Mode |
+| Destination | Source, Repository, Work Dir |
+| Local Owner / Local Group | Threads, Filter, Prune Options |
+| Dry Run | Log Retention, Force Prune, Prune thresholds |
+
+When combining `--fix-perms` with `--backup` or `--prune`, the full summary
+is displayed including Local Owner and Local Group.
 
 ---
 

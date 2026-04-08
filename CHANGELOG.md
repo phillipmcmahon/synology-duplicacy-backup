@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-04-08
+
+### Changed
+- **Conditional display of Local Owner/Group:** The "Local Owner" and
+  "Local Group" fields are now only shown in the configuration summary when
+  `--fix-perms` is active. Plain backup and prune operations no longer display
+  these fields, keeping the output focused on relevant settings.
+- **Minimal summary for standalone fix-perms:** When running `--fix-perms`
+  alone (without `--backup` or `--prune`), the configuration summary is trimmed
+  to show only: Operation Mode, Destination, Local Owner, Local Group, and
+  Dry Run. Backup-specific settings (threads, filters, prune options,
+  thresholds, etc.) are hidden since they are not relevant.
+- **Operation Mode printed first:** The "Operation Mode" line now appears at
+  the top of the configuration summary for immediate visibility.
+
+### Added
+- New display-context tests: `TestDisplayContext_FixPermsOnly_MinimalSummary`,
+  `TestDisplayContext_BackupOnly_NoOwnerGroup`,
+  `TestDisplayContext_PruneOnly_NoOwnerGroup`,
+  `TestDisplayContext_BackupWithFixPerms_ShowsOwnerGroup`,
+  `TestDisplayContext_PruneWithFixPerms_ShowsOwnerGroup`,
+  `TestDisplayContext_RemoteBackup_NoOwnerGroup`.
+
+### Note
+- Patch release: output formatting changes only. No changes to validation
+  logic, command behaviour, or configuration file format.
+
 ## [1.6.0] - 2026-04-08
 
 ### Changed
