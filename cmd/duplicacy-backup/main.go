@@ -175,6 +175,14 @@ func run() int {
 	}
 	defer log.Close()
 
+	if f.mode == "" {
+		if f.fixPerms {
+			log.Info("No primary mode specified: using fix-perms only")
+		} else {
+			log.Info("No mode specified: defaulting to backup only")
+		}
+	}
+
 	// Derive paths
 	backupLabel := f.source
 	snapshotSource := filepath.Join(rootVolume, backupLabel)
@@ -208,9 +216,16 @@ func run() int {
 				log.Info("Deleting snapshot subvolume... %s", snapshotTarget)
 				if delErr := btrfs.DeleteSnapshot(log, snapshotTarget, f.dryRun); delErr != nil {
 					log.Warn("Failed to delete subvolume %s: %v", snapshotTarget, delErr)
-					// Also try rm -rf as fallback
+				}
+			}
+
+			if _, err := os.Stat(snapshotTarget); err == nil {
+				log.Info("Removing snapshot directory... %s", snapshotTarget)
+				if f.dryRun {
+					log.DryRun("rm -rf %s", snapshotTarget)
+				} else {
 					if rmErr := os.RemoveAll(snapshotTarget); rmErr != nil {
-						log.Warn("Fallback RemoveAll(%s) also failed: %v", snapshotTarget, rmErr)
+						log.Warn("Failed to remove snapshot directory %s", snapshotTarget)
 					}
 				}
 			}
@@ -234,7 +249,7 @@ func run() int {
 			status = "FAILED"
 		}
 
-		log.PrintSeparator()
+		log.Info("============================================================")
 		log.Info("Backup script completed:")
 		log.PrintLine("Result", log.FormatResult(status))
 		log.PrintLine("Code", fmt.Sprintf("%d", code))
@@ -251,7 +266,7 @@ func run() int {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 	go func() {
 		sig := <-sigChan
-		log.Warn("Received signal: %v - initiating cleanup...", sig)
+		log.Warn("Received signal: %v  initiating cleanup...", sig)
 		doCleanup(1)
 		os.Exit(1)
 	}()
@@ -264,12 +279,12 @@ func run() int {
 	}
 
 	// Header
-	log.PrintSeparator()
+	log.Info("============================================")
 	log.Info("Backup Script Started - %s", time.Now().Format("2006-01-02 15:04:05"))
 	log.PrintLine("Script", scriptName)
 	log.PrintLine("PID", fmt.Sprintf("%d", os.Getpid()))
 	log.PrintLine("Lock Path", lk.Path)
-	log.PrintSeparator()
+	log.Info("============================================")
 
 	// Resolve config directory: flag > env > default (executable dir + .config)
 	configDir := resolveDir(f.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", executableConfigDir())
@@ -291,12 +306,12 @@ func run() int {
 
 	values, err := config.ParseFile(configFile, targetSection)
 	if err != nil {
-		log.Error("Config parse error: %v", err)
+		log.Error("%v", err)
 		exitCode = 1
 		return exitCode
 	}
 	if err := cfg.Apply(values); err != nil {
-		log.Error("Invalid config value: %v", err)
+		log.Error("%v", err)
 		exitCode = 1
 		return exitCode
 	}
@@ -405,14 +420,13 @@ func run() int {
 	log.PrintLine("Operation Mode", opMode)
 
 	if fixPermsOnly {
-		// Minimal summary for standalone fix-perms: only show fields
-		// relevant to permission fixing, not backup/prune configuration.
+		// Match the bash script's standalone fix-perms summary layout.
 		log.PrintLine("Destination", backupTarget)
 		log.PrintLine("Local Owner", cfg.LocalOwner)
 		log.PrintLine("Local Group", cfg.LocalGroup)
 		log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
 	} else {
-		// Full summary for backup, prune, or combined operations.
+		// Match the bash script's full summary field ordering and labels.
 		log.PrintLine("Config File", configFile)
 		log.PrintLine("Backup Label", backupLabel)
 		log.PrintLine("Mode", modeStr)
@@ -447,9 +461,10 @@ func run() int {
 		log.PrintLine("Fix Perms", fmt.Sprintf("%t", f.fixPerms))
 		log.PrintLine("Prune Max %", fmt.Sprintf("%d", cfg.SafePruneMaxDeletePercent))
 		log.PrintLine("Prune Max Count", fmt.Sprintf("%d", cfg.SafePruneMaxDeleteCount))
-		log.PrintLine("Prune Min Total %", fmt.Sprintf("%d", cfg.SafePruneMinTotalForPercent))
+		log.PrintLine("Prune Min Total Revs", fmt.Sprintf("%d", cfg.SafePruneMinTotalForPercent))
 
 		if f.remoteMode && sec != nil {
+			log.PrintLine("Secrets Dir", secretsDir)
 			log.PrintLine("Secrets File", secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel))
 			log.PrintLine("STORJ S3 ID", sec.MaskedID())
 			log.PrintLine("STORJ S3 Secret", sec.MaskedSecret())
@@ -461,7 +476,7 @@ func run() int {
 		// Create btrfs snapshot for backup
 		if doBackup {
 			if err := btrfs.CreateSnapshot(log, snapshotSource, snapshotTarget, f.dryRun); err != nil {
-				log.Error("Failed to create snapshot: %v", err)
+				log.Error("Failed to create snapshot")
 				exitCode = 1
 				return exitCode
 			}
@@ -504,7 +519,7 @@ func run() int {
 		// Run backup
 		if doBackup {
 			if err := dup.RunBackup(cfg.Threads); err != nil {
-				log.Error("Backup failed: %v", err)
+				log.Error("Backup failed")
 				exitCode = 1
 				return exitCode
 			}
@@ -513,14 +528,14 @@ func run() int {
 		// Run prune
 		if doPrune {
 			if err := dup.ValidateRepo(); err != nil {
-				log.Error("Cannot perform prune operation - repository not ready: %v", err)
+				log.Error("Cannot perform prune operation - repository not ready")
 				exitCode = 1
 				return exitCode
 			}
 
 			preview, err := dup.SafePrunePreview(cfg.PruneArgs, cfg.SafePruneMinTotalForPercent)
 			if err != nil {
-				log.Error("Safe prune preview failed: %v", err)
+				log.Error("Safe prune preview failed")
 				exitCode = 1
 				return exitCode
 			}
@@ -567,14 +582,14 @@ func run() int {
 			}
 
 			if err := dup.RunPrune(cfg.PruneArgs); err != nil {
-				log.Error("Policy prune failed: %v", err)
+				log.Error("Policy prune failed")
 				exitCode = 1
 				return exitCode
 			}
 
 			if deepPruneMode {
 				if err := dup.RunDeepPrune(); err != nil {
-					log.Error("Deep prune failed: %v", err)
+					log.Error("Deep prune failed")
 					exitCode = 1
 					return exitCode
 				}
@@ -584,16 +599,11 @@ func run() int {
 
 	// Fix permissions for local mode (standalone or combined with backup/prune)
 	if f.fixPerms {
-		log.PrintSeparator()
-		log.Info("Fixing permissions on: %s", backupTarget)
-		fixStart := time.Now()
 		if err := permissions.Fix(log, backupTarget, cfg.LocalOwner, cfg.LocalGroup, f.dryRun); err != nil {
 			log.Error("%v", err)
 			exitCode = 1
 			return exitCode
 		}
-		elapsed := time.Since(fixStart).Truncate(time.Second)
-		log.Info("Permissions fixed in %s", elapsed)
 	}
 
 	log.Info("All operations completed")

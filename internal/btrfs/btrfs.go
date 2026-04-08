@@ -4,6 +4,7 @@ package btrfs
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -12,11 +13,6 @@ import (
 
 // CheckVolume verifies that a path is on a btrfs filesystem and is a valid subvolume.
 func CheckVolume(log *logger.Logger, path string, dryRun bool) error {
-	if dryRun {
-		log.DryRun("check btrfs volume: %s", path)
-		return nil
-	}
-
 	// Check filesystem type
 	out, err := exec.Command("stat", "-f", "-c", "%T", path).Output()
 	if err != nil {
@@ -45,8 +41,8 @@ func CreateSnapshot(log *logger.Logger, source, target string, dryRun bool) erro
 
 	log.Info("Creating snapshot target: %s from: %s", target, source)
 	cmd := exec.Command("btrfs", "subvolume", "snapshot", "-r", source, target)
-	cmd.Stdout = log.Writer(logger.INFO, "[BTRFS] ")
-	cmd.Stderr = log.Writer(logger.ERROR, "[BTRFS] ")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create snapshot: %w", err)
@@ -63,8 +59,8 @@ func DeleteSnapshot(log *logger.Logger, target string, dryRun bool) error {
 	}
 
 	cmd := exec.Command("btrfs", "subvolume", "delete", target)
-	cmd.Stdout = log.Writer(logger.INFO, "[BTRFS] ")
-	cmd.Stderr = log.Writer(logger.ERROR, "[BTRFS] ")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to delete subvolume %s: %w", target, err)

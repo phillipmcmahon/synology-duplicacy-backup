@@ -93,8 +93,7 @@ func (s *Setup) WritePreferences(sec *secrets.Secrets) error {
 
 	if s.DryRun {
 		s.Log.DryRun("write JSON preferences to %s", s.PrefsFile)
-		redacted := redactSecrets(json)
-		s.Log.Info("%s", redacted)
+		s.Log.Info("%s", json)
 		return nil
 	}
 
@@ -184,9 +183,9 @@ func (s *Setup) ValidateRepo() error {
 	cmd := exec.Command("duplicacy", "list", "-files")
 	cmd.Dir = s.DuplicacyRoot
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("duplicacy repository validation failed - may need initialization")
+		s.Log.Warn("Duplicacy repository validation failed - may need initialization")
+		return fmt.Errorf("repository not ready")
 	}
-
 	s.Log.Info("Duplicacy repository validated")
 	return nil
 }
@@ -204,12 +203,13 @@ func (s *Setup) GetTotalRevisionCount() (int, error) {
 	cmd.Stderr = &buf
 
 	if err := cmd.Run(); err != nil {
+		s.Log.Error("Failed to list revisions for percentage calculation (fail-closed)")
 		for _, line := range strings.Split(buf.String(), "\n") {
 			if line != "" {
-				s.Log.Warn("%s", line)
+				s.Log.Error("%s", line)
 			}
 		}
-		return 0, fmt.Errorf("failed to list revisions: %w", err)
+		return 0, fmt.Errorf("failed to list revisions")
 	}
 
 	output := buf.String()
@@ -273,6 +273,7 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 
 	if err := cmd.Run(); err != nil {
 		output := buf.String()
+		s.Log.Error("Safe prune preview failed")
 		for _, line := range strings.Split(output, "\n") {
 			if line != "" {
 				s.Log.Error("%s", line)
@@ -299,7 +300,6 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 	}
 
 	if err != nil {
-		s.Log.Warn("Unable to determine revision count: %v", err)
 		preview.RevisionCountFailed = true
 	} else {
 		preview.TotalRevisions = totalCount
@@ -341,11 +341,11 @@ func (s *Setup) RunDeepPrune() error {
 func (s *Setup) runDuplicacy(args []string) error {
 	cmd := exec.Command("duplicacy", args...)
 	cmd.Dir = s.DuplicacyRoot
-	cmd.Stdout = s.Log.Writer(logger.INFO, "[DUPLICACY] ")
-	cmd.Stderr = s.Log.Writer(logger.ERROR, "[DUPLICACY] ")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("duplicacy %s failed: %w", args[0], err)
+		return err
 	}
 	return nil
 }

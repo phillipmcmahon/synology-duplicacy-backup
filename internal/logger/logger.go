@@ -48,16 +48,12 @@ type Logger struct {
 	logDir       string
 }
 
-// ANSI colour codes — matched to the original bash script for strong visual
-// impact.  INFO uses bold green (the bash script's signature colour) so that
-// general messages, separators, and headers pop.  SUCCESS uses bold bright
-// green (high-intensity) to stand out further.  DEBUG stays subdued so it
-// doesn't compete with real output.
+// ANSI colour codes — matched to the original bash script.
 const (
 	colourReset   = "\033[0m"
 	colourDebug   = "\033[2;37m" // Dim gray – subdued, won't distract
 	colourInfo    = "\033[1;32m" // Bold green – matches bash COLOUR_INFO
-	colourSuccess = "\033[1;92m" // Bold bright green – high-intensity pop
+	colourSuccess = "\033[1;32m" // Bold green – matches bash success/result styling
 	colourWarn    = "\033[1;33m" // Bold yellow – matches bash COLOUR_WARN
 	colourError   = "\033[1;31m" // Bold red – matches bash COLOUR_ERROR
 	colourLabel   = "\033[1;36m" // Bold cyan – matches bash COLOUR_LABEL
@@ -225,11 +221,7 @@ func (l *Logger) PrintLine(label, value string) {
 
 // PrintSeparator prints a visual separator.
 func (l *Logger) PrintSeparator() {
-	if l.enableColour {
-		l.Info("%s====%s", colourInfo, colourReset)
-	} else {
-		l.Info("====")
-	}
+	l.Info("============================================================")
 }
 
 // CleanupOldLogs removes log files older than retentionDays.

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.2] - 2026-04-08
+
+### Changed
+- Aligned the Go binary's runtime output more closely with the original shell script
+- Matched summary labels, field selection, and operation-mode display more closely to the shell script
+- Adjusted fix-perms logging to mirror the shell script wording and line layout
+- Tuned logger separators and colour presentation to better match the shell script style
+- Streamed `duplicacy`, `btrfs`, and `chown` subprocess output without Go-specific wrapper prefixes
+- Updated several dry-run, cleanup, validation, and failure messages for closer shell script parity
+
+### Notes
+- This release focuses on output/style consistency between the Go implementation and the shell script
+- Supported runtime behaviour is intended to remain unchanged
+
+
 ## [1.6.1] - 2026-04-08
 
 ### Changed
