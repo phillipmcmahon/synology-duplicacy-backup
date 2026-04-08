@@ -109,21 +109,35 @@ jobs:
           fi
 
           BASENAME="duplicacy-backup_${VERSION}_${{ matrix.goos }}_${ARCH_SUFFIX}"
-          PKG_DIR="${BASENAME}"
 
           echo "basename=${BASENAME}" >> "$GITHUB_OUTPUT"
-          echo "pkg_dir=${PKG_DIR}" >> "$GITHUB_OUTPUT"
+
+          # Guard against accidental overwrite
+          if [ -e "${BASENAME}" ]; then
+            echo "Error: output file already exists: ${BASENAME}" >&2
+            exit 1
+          fi
+
+          if [ -e "${BASENAME}.tar.gz" ]; then
+            echo "Error: output archive already exists: ${BASENAME}.tar.gz" >&2
+            exit 1
+          fi
 
           go build \
             -ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}" \
             -o "${BASENAME}" \
             cmd/duplicacy-backup/main.go
 
-          mkdir -p "${PKG_DIR}"
-          cp "${BASENAME}" "${PKG_DIR}/"
-          cp README.md LICENSE "${PKG_DIR}/"
+          PKG_DIR="$(mktemp -d)"
+          trap 'rm -rf "${PKG_DIR}"' EXIT
 
-          tar -czf "${BASENAME}.tar.gz" "${PKG_DIR}"
+          PACKAGE_ROOT="${PKG_DIR}/${BASENAME}"
+          mkdir -p "${PACKAGE_ROOT}"
+
+          cp "${BASENAME}" "${PACKAGE_ROOT}/"
+          cp README.md LICENSE "${PACKAGE_ROOT}/"
+
+          tar -czf "${BASENAME}.tar.gz" -C "${PKG_DIR}" "${BASENAME}"
 
       - name: Upload raw binary
         uses: actions/upload-artifact@v6
