@@ -110,12 +110,6 @@ func run() int {
 		return 1
 	}
 
-	// Check that duplicacy is available (always required)
-	if _, err := exec.LookPath("duplicacy"); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Required command 'duplicacy' not found\n")
-		return 1
-	}
-
 	// Detect colour support (auto-detect TTY on stderr)
 	enableColour := logger.IsTerminal(os.Stderr)
 
@@ -137,6 +131,15 @@ func run() int {
 	doPrune := f.mode == "prune" || f.mode == "prune-deep"
 	deepPruneMode := f.mode == "prune-deep"
 	fixPermsOnly := f.fixPerms && !doBackup && !doPrune
+
+	// Check duplicacy binary – only needed for backup or prune operations.
+	// Skip for standalone --fix-perms which only calls chown/chmod.
+	if doBackup || doPrune {
+		if _, err := exec.LookPath("duplicacy"); err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] Required command 'duplicacy' not found\n")
+			return 1
+		}
+	}
 
 	// Check btrfs command – only needed for backup (snapshot create/delete)
 	if doBackup {
@@ -317,9 +320,10 @@ func run() int {
 		return exitCode
 	}
 
-	// LOCAL_OWNER and LOCAL_GROUP are only relevant for local operations.
-	// Skip validation in remote mode where file ownership is not applicable.
-	if !f.remoteMode {
+	// LOCAL_OWNER and LOCAL_GROUP are only needed when --fix-perms will
+	// actually change file ownership.  Skip the (potentially expensive)
+	// user/group look-ups for plain backup or prune runs.
+	if f.fixPerms {
 		if err := cfg.ValidateOwnerGroup(); err != nil {
 			log.Error("%v", err)
 			exitCode = 1

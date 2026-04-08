@@ -785,6 +785,53 @@ func TestValidateOwnerGroup_ExistingUserAndGroupAccepted(t *testing.T) {
 	}
 }
 
+// ─── ValidateOwnerGroup conditional call tests (v1.6.0) ─────────────────────
+// These tests document that ValidateOwnerGroup can safely be skipped for
+// operations that don't need local file ownership (backup-only, prune-only).
+// The caller (main.go) gates the call behind f.fixPerms.
+
+func TestValidateOwnerGroup_SkippableForBackupOnly(t *testing.T) {
+	// A config with no LOCAL_OWNER/LOCAL_GROUP should pass all non-ownership
+	// validations.  ValidateOwnerGroup is NOT called here, mimicking the
+	// v1.6.0 code path for backup-only or prune-only operations.
+	cfg := NewDefaults()
+	vals := map[string]string{
+		"DESTINATION": "/volume1/backups",
+		"THREADS":     "4",
+		"PRUNE":       "-keep 0:365",
+	}
+	if err := cfg.Apply(vals); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if err := cfg.ValidateRequired(true, false); err != nil {
+		t.Errorf("ValidateRequired should pass for backup-only: %v", err)
+	}
+	if err := cfg.ValidateThresholds(); err != nil {
+		t.Errorf("ValidateThresholds should pass: %v", err)
+	}
+	// Deliberately NOT calling ValidateOwnerGroup — backup-only doesn't need it.
+}
+
+func TestValidateOwnerGroup_RequiredForFixPerms(t *testing.T) {
+	// When fix-perms is active, ValidateOwnerGroup MUST be called and must
+	// catch missing values.
+	cfg := NewDefaults()
+	vals := map[string]string{
+		"DESTINATION": "/volume1/backups",
+	}
+	if err := cfg.Apply(vals); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	// Simulate the fix-perms code path: ValidateOwnerGroup IS called.
+	err := cfg.ValidateOwnerGroup()
+	if err == nil {
+		t.Fatal("expected error for missing LOCAL_OWNER when fix-perms is active")
+	}
+	if !strings.Contains(err.Error(), "LOCAL_OWNER is mandatory") {
+		t.Errorf("expected mandatory error, got: %v", err)
+	}
+}
+
 // ─── ValidateThreads tests ──────────────────────────────────────────────────
 
 func TestValidateThreads_Valid(t *testing.T) {

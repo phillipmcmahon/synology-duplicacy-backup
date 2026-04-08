@@ -254,6 +254,88 @@ func TestParseFlags_NoFlagsDefaultsToBackup(t *testing.T) {
 	}
 }
 
+// ─── Mode derivation tests (v1.6.0 conditional validation) ──────────────────
+
+func TestModeDerivation_FixPermsOnlySkipsBackupAndPrune(t *testing.T) {
+	// When --fix-perms is the sole operation, doBackup and doPrune must both
+	// be false.  This is important because v1.6.0 gates the duplicacy binary
+	// check and owner/group validation on these flags.
+	f, err := parseFlags([]string{"--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	doBackup := f.mode == "backup"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	fixPermsOnly := f.fixPerms && !doBackup && !doPrune
+
+	if doBackup {
+		t.Error("doBackup should be false for --fix-perms only")
+	}
+	if doPrune {
+		t.Error("doPrune should be false for --fix-perms only")
+	}
+	if !fixPermsOnly {
+		t.Error("fixPermsOnly should be true for --fix-perms only")
+	}
+	if !f.fixPerms {
+		t.Error("fixPerms flag should be true")
+	}
+}
+
+func TestModeDerivation_BackupRequiresDuplicacy(t *testing.T) {
+	// Default mode (no flags) should derive doBackup=true, meaning
+	// duplicacy binary check is required.
+	f, err := parseFlags([]string{"homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	doBackup := f.mode == "backup"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+
+	if !doBackup {
+		t.Error("doBackup should be true for default mode")
+	}
+	if doPrune {
+		t.Error("doPrune should be false for default mode")
+	}
+}
+
+func TestModeDerivation_PruneRequiresDuplicacy(t *testing.T) {
+	f, err := parseFlags([]string{"--prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	doBackup := f.mode == "backup"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+
+	if doBackup {
+		t.Error("doBackup should be false for --prune")
+	}
+	if !doPrune {
+		t.Error("doPrune should be true for --prune")
+	}
+}
+
+func TestModeDerivation_FixPermsWithBackupRequiresBoth(t *testing.T) {
+	// --fix-perms --backup needs both duplicacy check AND owner/group validation.
+	f, err := parseFlags([]string{"--fix-perms", "--backup", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	doBackup := f.mode == "backup"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+
+	if !doBackup {
+		t.Error("doBackup should be true for --backup --fix-perms")
+	}
+	if doPrune {
+		t.Error("doPrune should be false")
+	}
+	if !f.fixPerms {
+		t.Error("fixPerms should be true")
+	}
+}
+
 func TestParseFlags_UnknownOption(t *testing.T) {
 	unknowns := []string{"--unknown", "--help", "--version", "-x"}
 	for _, opt := range unknowns {

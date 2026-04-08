@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-04-08
+
+### Changed
+- **Conditional owner/group validation:** `ValidateOwnerGroup` (which checks
+  that `LOCAL_OWNER` and `LOCAL_GROUP` are valid, non-root, and exist on the
+  system) is now only called when `--fix-perms` is supplied. Plain backup and
+  prune operations no longer perform these potentially expensive user/group
+  look-ups, reducing startup overhead on systems where the backup user is
+  configured but not needed for the current operation.
+- **Conditional duplicacy binary check:** The `duplicacy` binary look-up
+  (`exec.LookPath`) is now only performed when `doBackup` or `doPrune` is true.
+  Standalone `--fix-perms` no longer requires `duplicacy` to be installed,
+  since it only calls `chown`/`chmod`.
+
+### Added
+- New mode-derivation tests: `TestModeDerivation_FixPermsOnlySkipsBackupAndPrune`,
+  `TestModeDerivation_BackupRequiresDuplicacy`,
+  `TestModeDerivation_PruneRequiresDuplicacy`,
+  `TestModeDerivation_FixPermsWithBackupRequiresBoth`.
+- New config validation tests: `TestValidateOwnerGroup_SkippableForBackupOnly`,
+  `TestValidateOwnerGroup_RequiredForFixPerms`.
+
+### Note
+- Minor version bump: validation behaviour has changed (validations are now
+  skipped in certain modes), but no breaking changes to existing workflows.
+  All operations that previously passed validation will continue to work.
+  Operations that previously failed due to missing `LOCAL_OWNER`/`LOCAL_GROUP`
+  in backup-only or prune-only mode will now succeed.
+
 ## [1.5.2] - 2026-04-08
 
 ### Changed

@@ -237,6 +237,25 @@ STORJ_S3_SECRET=your-secret-access-key
 
 ---
 
+## Conditional Validations
+
+To reduce startup overhead, certain validations only run when they are actually
+needed:
+
+| Validation | Runs When | Skipped When |
+|---|---|---|
+| `duplicacy` binary check | `--backup` or `--prune` (any mode that invokes Duplicacy) | Standalone `--fix-perms` |
+| `btrfs` binary check | `--backup` (snapshot creation) | `--prune`, `--fix-perms` |
+| `LOCAL_OWNER`/`LOCAL_GROUP` look-up | `--fix-perms` (file ownership changes) | `--backup` only, `--prune` only |
+
+This means:
+- **`--fix-perms homes`** does not require `duplicacy` to be installed.
+- **`--backup homes`** does not validate `LOCAL_OWNER`/`LOCAL_GROUP` existence
+  on the system (though those fields are still required in the `[local]` config
+  section for `--fix-perms` usage).
+
+---
+
 ## Safe Prune Thresholds
 
 The safe prune system prevents accidental mass deletion of revisions:
