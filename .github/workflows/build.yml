@@ -14,18 +14,21 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.24'
-      
+
       - name: Run go vet
         run: go vet ./...
-      
+
       - name: Check formatting
+        shell: bash
         run: |
           if [ -n "$(gofmt -l .)" ]; then
             echo "Go code is not formatted:"
@@ -36,14 +39,16 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.24'
-      
+
       - name: Run tests
         run: go test -v -race ./...
 
@@ -51,6 +56,8 @@ jobs:
     name: Build
     needs: [lint, test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -61,40 +68,74 @@ jobs:
           - goos: linux
             goarch: arm
             goarm: '7'
+
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.24'
-      
-      - name: Build
+
+      - name: Set version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF#refs/tags/}"
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binary and package
+        id: package
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          if [[ ! "$VERSION" =~ ^v ]]; then
-            VERSION="dev-${GITHUB_SHA::8}"
-          fi
-          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          
-          OUTPUT_NAME="duplicacy-backup-${{ matrix.goos }}-${{ matrix.goarch }}"
+          set -euo pipefail
+
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          ARCH_SUFFIX="${{ matrix.goarch }}"
           if [ -n "${{ matrix.goarm }}" ]; then
-            OUTPUT_NAME="${OUTPUT_NAME}v${{ matrix.goarm }}"
+            ARCH_SUFFIX="${ARCH_SUFFIX}v${{ matrix.goarm }}"
           fi
-          
-          go build -ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}" \
-            -o "${OUTPUT_NAME}" \
+
+          BASENAME="duplicacy-backup_${VERSION}_${{ matrix.goos }}_${ARCH_SUFFIX}"
+          PKG_DIR="${BASENAME}"
+
+          echo "basename=${BASENAME}" >> "$GITHUB_OUTPUT"
+          echo "pkg_dir=${PKG_DIR}" >> "$GITHUB_OUTPUT"
+
+          go build \
+            -ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}" \
+            -o "${BASENAME}" \
             cmd/duplicacy-backup/main.go
-      
-      - name: Upload artifact
+
+          mkdir -p "${PKG_DIR}"
+          cp "${BASENAME}" "${PKG_DIR}/"
+          cp README.md LICENSE "${PKG_DIR}/"
+
+          tar -czf "${BASENAME}.tar.gz" "${PKG_DIR}"
+
+      - name: Upload raw binary
         uses: actions/upload-artifact@v6
         with:
-          name: duplicacy-backup-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goarm && format('v{0}', matrix.goarm) || '' }}
-          path: duplicacy-backup-*
+          name: raw_${{ steps.package.outputs.basename }}
+          path: ${{ steps.package.outputs.basename }}
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v6
+        with:
+          name: tarball_${{ steps.package.outputs.basename }}
+          path: ${{ steps.package.outputs.basename }}.tar.gz
 
   release:
     name: Release
@@ -103,21 +144,34 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v6
         with:
           path: artifacts
-      
+
       - name: Prepare release assets
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p release
-          find artifacts -type f -name 'duplicacy-backup-*' -exec cp {} release/ \;
+
+          find artifacts -type f \
+            \( -name 'duplicacy-backup_*' -o -name '*.tar.gz' \) \
+            -exec cp {} release/ \;
+
           cd release
-          sha256sum duplicacy-backup-* > SHA256SUMS.txt
-      
+
+          for file in *; do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
+          sha256sum * > SHA256SUMS.txt
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
