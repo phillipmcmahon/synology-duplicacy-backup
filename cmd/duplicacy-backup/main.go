@@ -280,7 +280,7 @@ func run() int {
 
 	// Header
 	log.PrintSeparator()
-	log.Info("Backup Script Started - %s", time.Now().Format("2006-01-02 15:04:05"))
+	log.Info("Backup script started - %s", time.Now().Format("2006-01-02 15:04:05"))
 	log.PrintLine("Script", scriptName)
 	log.PrintLine("PID", fmt.Sprintf("%d", os.Getpid()))
 	log.PrintLine("Lock Path", lk.Path)
