@@ -354,6 +354,89 @@ For remote backup + local prune in sequence:
 
 ---
 
+## Verifying Release Downloads
+
+Each release includes:
+
+- the raw binary
+- a `.tar.gz` archive containing the binary, `README.md`, and `LICENSE`
+- a `.sha256` file for each asset
+- a combined `SHA256SUMS.txt` file
+
+Verifying downloads ensures the file has not been corrupted or tampered with.
+
+### Verify a Single Downloaded File
+
+Download the asset and its matching `.sha256` file, then run:
+
+```bash
+sha256sum -c duplicacy-backup_v1.2.3_linux_amd64.tar.gz.sha256
+```
+
+Expected output:
+
+```
+duplicacy-backup_v1.2.3_linux_amd64.tar.gz: OK
+```
+
+You can do the same for a raw binary:
+
+```bash
+sha256sum -c duplicacy-backup_v1.2.3_linux_amd64.sha256
+```
+
+### Verify Against the Full Checksum Manifest
+
+Download `SHA256SUMS.txt` and the asset you want to verify, then run:
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+Expected output:
+
+```
+duplicacy-backup_v1.2.3_linux_amd64.tar.gz: OK
+```
+
+### Inspect Archive Contents Before Extraction
+
+To list the contents of an archive without extracting it:
+
+```bash
+tar -tzf duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+```
+
+Expected layout:
+
+```
+duplicacy-backup_v1.2.3_linux_amd64/
+duplicacy-backup_v1.2.3_linux_amd64/duplicacy-backup_v1.2.3_linux_amd64
+duplicacy-backup_v1.2.3_linux_amd64/README.md
+duplicacy-backup_v1.2.3_linux_amd64/LICENSE
+```
+
+### Extract the Archive
+
+```bash
+tar -xzf duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+```
+
+### macOS Note
+
+macOS typically provides `shasum` rather than `sha256sum`. To print the hash of a downloaded file:
+
+```bash
+shasum -a 256 duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+```
+
+Then compare the output with either:
+
+- the matching `.sha256` file, or
+- the entry for that file in `SHA256SUMS.txt`
+
+---
+
 ## Development
 
 All Go code **must** be formatted with `gofmt` — the CI lint job enforces this on every push and PR.

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.0] - 2026-04-08
+
+### Added
+- **Release archives**: each release now includes `.tar.gz` archives containing
+  the binary, `README.md`, and `LICENSE` for every platform target.
+- **Per-asset checksums**: individual `.sha256` files are generated for every
+  release asset (raw binaries and archives) alongside the existing combined
+  `SHA256SUMS.txt`.
+- **Verification documentation**: new "Verifying Release Downloads" section in
+  `README.md` with step-by-step instructions for checksum verification, archive
+  inspection, and macOS usage notes.
+
+### Changed
+- Build workflow (`build.yml`) updated:
+  - Binary naming convention changed from `duplicacy-backup-{os}-{arch}` to
+    `duplicacy-backup_{version}_{os}_{arch}` to include the version tag.
+  - Added explicit `permissions: contents: read` to lint, test, and build jobs.
+  - Packaging step creates a directory archive with binary, README, and LICENSE.
+  - Release step generates individual `.sha256` files for every asset before
+    creating the combined `SHA256SUMS.txt`.
+
 ## [v1.6.6] - 2026-04-08
 
 ### Fixed
