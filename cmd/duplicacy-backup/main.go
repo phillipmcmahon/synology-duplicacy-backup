@@ -309,10 +309,14 @@ func run() int {
 		return exitCode
 	}
 
-	if err := cfg.ValidateOwnerGroup(); err != nil {
-		log.Error("%v", err)
-		exitCode = 1
-		return exitCode
+	// LOCAL_OWNER and LOCAL_GROUP are only relevant for local operations.
+	// Skip validation in remote mode where file ownership is not applicable.
+	if !f.remoteMode {
+		if err := cfg.ValidateOwnerGroup(); err != nil {
+			log.Error("%v", err)
+			exitCode = 1
+			return exitCode
+		}
 	}
 
 	cfg.BuildPruneArgs()

@@ -181,8 +181,8 @@ This means the config directory travels with the binary — useful for portable 
 | `THREADS` | Yes (backup) | Number of threads (power of 2, max 16) |
 | `PRUNE` | Yes (prune) | Duplicacy prune retention arguments |
 | `FILTER` | No | Duplicacy filter pattern using regex syntax (`e:` prefix to exclude, `i:` to include) |
-| `LOCAL_OWNER` | **Yes** | Owner of local backup files (e.g. `myuser`). **Must not be root** — the script runs as root but files should be owned by a regular user for security. |
-| `LOCAL_GROUP` | **Yes** | Group for local backup files (e.g. `users`). |
+| `LOCAL_OWNER` | **Yes** (local only) | Owner of local backup files (e.g. `myuser`). **Must not be root** — the script runs as root but files should be owned by a regular user for security. Only applies to `[common]` and `[local]` sections; not used or validated in remote mode. |
+| `LOCAL_GROUP` | **Yes** (local only) | Group for local backup files (e.g. `users`). Only applies to `[common]` and `[local]` sections; not used or validated in remote mode. |
 | `LOG_RETENTION_DAYS` | No | Days to keep log files (default: `30`) |
 | `SAFE_PRUNE_MAX_DELETE_PERCENT` | No | Max deletion percentage (default: `10`) |
 | `SAFE_PRUNE_MAX_DELETE_COUNT` | No | Max deletion count (default: `25`) |
@@ -197,15 +197,18 @@ PRUNE=-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28
 # Use "|" to combine multiple patterns in a single expression.
 # See: https://github.com/gilbertchen/duplicacy/wiki/Include-Exclude-Patterns
 FILTER=e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\.DS_Store|\._.*|Thumbs\.db)$
-LOCAL_OWNER=myuser
-LOCAL_GROUP=users
 LOG_RETENTION_DAYS=30
 
 [local]
 DESTINATION=/volume2/backups
 THREADS=4
+# LOCAL_OWNER and LOCAL_GROUP are LOCAL-only settings — they control file
+# ownership for local backup repositories and are not used in remote mode.
+LOCAL_OWNER=myuser
+LOCAL_GROUP=users
 
 [remote]
+# No LOCAL_OWNER/LOCAL_GROUP here — they are not applicable to remote targets.
 DESTINATION=s3://gateway.storjshare.io/my-backup-bucket
 THREADS=8
 ```

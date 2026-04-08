@@ -257,6 +257,100 @@ func TestParseFile_NonexistentFile(t *testing.T) {
 	}
 }
 
+// ─── ParseFile LOCAL_OWNER/LOCAL_GROUP section restriction tests ─────────────
+
+func TestParseFile_LocalOwnerRejectedInRemoteSection(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=s3://bucket
+[remote]
+THREADS=4
+LOCAL_OWNER=admin
+`)
+	_, err := ParseFile(p, "remote")
+	if err == nil {
+		t.Fatal("expected error for LOCAL_OWNER in [remote] section, got nil")
+	}
+	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
+		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not [remote]") {
+		t.Errorf("error should mention 'not [remote]', got: %v", err)
+	}
+}
+
+func TestParseFile_LocalGroupRejectedInRemoteSection(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=s3://bucket
+[remote]
+THREADS=4
+LOCAL_GROUP=users
+`)
+	_, err := ParseFile(p, "remote")
+	if err == nil {
+		t.Fatal("expected error for LOCAL_GROUP in [remote] section, got nil")
+	}
+	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
+		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not [remote]") {
+		t.Errorf("error should mention 'not [remote]', got: %v", err)
+	}
+}
+
+func TestParseFile_LocalOwnerAllowedInCommonSection(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=/volume1/backups
+LOCAL_OWNER=admin
+LOCAL_GROUP=users
+[local]
+THREADS=4
+`)
+	vals, err := ParseFile(p, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if vals["LOCAL_OWNER"] != "admin" {
+		t.Errorf("LOCAL_OWNER = %q, want admin", vals["LOCAL_OWNER"])
+	}
+}
+
+func TestParseFile_LocalOwnerAllowedInLocalSection(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=/volume1/backups
+[local]
+THREADS=4
+LOCAL_OWNER=admin
+LOCAL_GROUP=users
+`)
+	vals, err := ParseFile(p, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if vals["LOCAL_OWNER"] != "admin" {
+		t.Errorf("LOCAL_OWNER = %q, want admin", vals["LOCAL_OWNER"])
+	}
+}
+
+func TestParseFile_RemoteSectionDoesNotRequireOwnerGroup(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=s3://bucket
+PRUNE=-keep 0:365
+[remote]
+THREADS=8
+`)
+	vals, err := ParseFile(p, "remote")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// LOCAL_OWNER and LOCAL_GROUP should not be present
+	if _, ok := vals["LOCAL_OWNER"]; ok {
+		t.Error("LOCAL_OWNER should not be present for remote config")
+	}
+	if _, ok := vals["LOCAL_GROUP"]; ok {
+		t.Error("LOCAL_GROUP should not be present for remote config")
+	}
+}
+
 // ─── Apply tests ─────────────────────────────────────────────────────────────
 
 func TestApply_ValidNumericValues(t *testing.T) {
@@ -322,7 +416,7 @@ func TestApply_EmptyMapKeepsDefaults(t *testing.T) {
 	if err := cfg.Apply(map[string]string{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// LocalOwner and LocalGroup are mandatory with no defaults — they should remain empty.
+	// LocalOwner and LocalGroup are mandatory for local operations with no defaults — they should remain empty.
 	if cfg.LocalOwner != "" {
 		t.Errorf("LocalOwner = %q, want empty (no default)", cfg.LocalOwner)
 	}
@@ -395,12 +489,12 @@ func TestApply_EmptyNumericValue(t *testing.T) {
 
 func TestNewDefaults(t *testing.T) {
 	cfg := NewDefaults()
-	// LocalOwner and LocalGroup are mandatory — no defaults.
+	// LocalOwner and LocalGroup are mandatory for local mode — no defaults.
 	if cfg.LocalOwner != "" {
-		t.Errorf("LocalOwner = %q, want empty (mandatory, no default)", cfg.LocalOwner)
+		t.Errorf("LocalOwner = %q, want empty (mandatory for local, no default)", cfg.LocalOwner)
 	}
 	if cfg.LocalGroup != "" {
-		t.Errorf("LocalGroup = %q, want empty (mandatory, no default)", cfg.LocalGroup)
+		t.Errorf("LocalGroup = %q, want empty (mandatory for local, no default)", cfg.LocalGroup)
 	}
 	if cfg.LogRetentionDays != DefaultLogRetentionDays {
 		t.Errorf("LogRetentionDays = %d, want %d", cfg.LogRetentionDays, DefaultLogRetentionDays)

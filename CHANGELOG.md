@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-04-08
+
+### Changed
+- `LOCAL_OWNER` and `LOCAL_GROUP` are now explicitly scoped to LOCAL operations
+  only. They are validated and enforced only when running in local mode (default),
+  and are skipped entirely in remote mode (`--remote`).
+- The config parser now rejects `LOCAL_OWNER` and `LOCAL_GROUP` if they appear
+  in the `[remote]` section, preventing configuration confusion. These keys are
+  only permitted in `[common]` or `[local]` sections.
+- Moved `LOCAL_OWNER`/`LOCAL_GROUP` from `[common]` to `[local]` in the example
+  configuration file to better reflect their LOCAL-only scope.
+- Updated README documentation to clarify that these fields are local-only and
+  not relevant for remote backup targets.
+
+### Note
+- Patch release clarifying the scope of LOCAL_OWNER/LOCAL_GROUP. No breaking
+  changes — existing configurations with these keys in [common] continue to work.
+
 ## [1.4.0] - 2026-04-08
 
 ### Added
