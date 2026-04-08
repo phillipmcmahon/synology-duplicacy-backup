@@ -1,95 +1,122 @@
-name: Build Synology Binaries
+name: Build and Release
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
-    branches: [main]
-
-permissions:
-  contents: write
+    branches: [ main ]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      
+      - name: Run go vet
+        run: go vet ./...
+      
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go code is not formatted:"
+            gofmt -d .
+            exit 1
+          fi
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      
+      - name: Run tests
+        run: go test -v -race ./...
+
   build:
+    name: Build
+    needs: [lint, test]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - goos: linux
             goarch: amd64
-            goarm: ''
-            suffix: linux-amd64
           - goos: linux
             goarch: arm64
-            goarm: ''
-            suffix: linux-arm64
           - goos: linux
             goarch: arm
             goarm: '7'
-            suffix: linux-armv7
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # full history so git describe works for version tags
-
+      - uses: actions/checkout@v4
+      
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-
-      - name: Run tests
-        if: matrix.suffix == 'linux-amd64'   # tests only need to run once
-        run: go test -v -race ./...
-
-      - name: Build binary (${{ matrix.suffix }})
+          go-version: '1.24'
+      
+      - name: Build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
-          CGO_ENABLED: '0'
         run: |
-          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
-          BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-          LDFLAGS="-s -w -X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
-          SUFFIX="${{ matrix.suffix }}"
-
-          mkdir -p build
-          go build -ldflags "${LDFLAGS}" \
-            -o "build/duplicacy-backup-${SUFFIX}" \
-            ./cmd/duplicacy-backup/
-
-      - name: Upload build artifact
+          VERSION=${GITHUB_REF#refs/tags/}
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          OUTPUT_NAME="duplicacy-backup-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ -n "${{ matrix.goarm }}" ]; then
+            OUTPUT_NAME="${OUTPUT_NAME}v${{ matrix.goarm }}"
+          fi
+          
+          go build -ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}" \
+            -o "${OUTPUT_NAME}" \
+            cmd/duplicacy-backup/main.go
+      
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: duplicacy-backup-${{ matrix.suffix }}
-          path: build/duplicacy-backup-${{ matrix.suffix }}
-          if-no-files-found: error
+          name: duplicacy-backup-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goarm && format('v{0}', matrix.goarm) || '' }}
+          path: duplicacy-backup-*
 
-  # ── Release job — runs only on version tags ──────────────────────────
   release:
-    needs: build
+    name: Release
     if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Collect binaries
+      
+      - name: Prepare release assets
         run: |
           mkdir -p release
           find artifacts -type f -name 'duplicacy-backup-*' -exec cp {} release/ \;
-          chmod +x release/*
-          ls -lh release/
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+          cd release
+          sha256sum duplicacy-backup-* > SHA256SUMS.txt
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          generate_release_notes: true
           files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
