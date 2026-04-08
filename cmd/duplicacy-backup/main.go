@@ -407,9 +407,6 @@ func run() int {
 	if !f.remoteMode {
 		log.PrintLine("Local Owner", cfg.LocalOwner)
 		log.PrintLine("Local Group", cfg.LocalGroup)
-	} else {
-		log.PrintLine("Local Owner", "<n/a>")
-		log.PrintLine("Local Group", "<n/a>")
 	}
 	log.PrintLine("Log Retention", fmt.Sprintf("%d", cfg.LogRetentionDays))
 	log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
