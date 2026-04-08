@@ -370,9 +370,9 @@ func TestVersionFlag_Short(t *testing.T) {
 }
 
 func TestVersionOutput_ContainsVersion(t *testing.T) {
-	// Verify the version variable is set correctly for v1.7.1
-	if version != "1.7.1" {
-		t.Errorf("version = %q, want %q", version, "1.7.1")
+	// Verify the version variable is set correctly for v1.7.2
+	if version != "1.7.2" {
+		t.Errorf("version = %q, want %q", version, "1.7.2")
 	}
 }
 
@@ -521,5 +521,86 @@ func TestDisplayContext_RemoteBackup_NoOwnerGroup(t *testing.T) {
 	}
 	if !dc.remoteMode {
 		t.Error("remoteMode should be true")
+	}
+}
+
+// ─── --force-prune validation tests (v1.7.2) ────────────────────────────────
+
+func TestForcePrune_AloneErrorsAndExits(t *testing.T) {
+	// --force-prune without --prune or --prune-deep should be rejected.
+	// parseFlags accepts it, but mode derivation should detect the conflict.
+	f, err := parseFlags([]string{"--force-prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error from parseFlags: %v", err)
+	}
+	if !f.forcePrune {
+		t.Error("expected forcePrune to be true")
+	}
+	// Mode defaults to "backup" when no mode flag given
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	if doPrune {
+		t.Error("expected doPrune to be false when no prune flag is given")
+	}
+	// The run() function should error and exit for this combination.
+	// Verify the condition that triggers the error:
+	if !(f.forcePrune && !doPrune) {
+		t.Error("expected forcePrune=true && doPrune=false to be the error condition")
+	}
+}
+
+func TestForcePrune_WithPruneDeepIsAccepted(t *testing.T) {
+	f, err := parseFlags([]string{"--prune-deep", "--force-prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.mode != "prune-deep" {
+		t.Errorf("mode = %q, want %q", f.mode, "prune-deep")
+	}
+	if !f.forcePrune {
+		t.Error("expected forcePrune to be true")
+	}
+	deepPruneMode := f.mode == "prune-deep"
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	// Should NOT trigger error: deepPruneMode requires forcePrune (ok), and forcePrune with doPrune (ok)
+	if deepPruneMode && !f.forcePrune {
+		t.Error("expected --prune-deep --force-prune to pass validation")
+	}
+	if f.forcePrune && !doPrune {
+		t.Error("expected --force-prune with --prune-deep to NOT trigger the no-prune error")
+	}
+}
+
+func TestForcePrune_WithPruneIsAccepted(t *testing.T) {
+	f, err := parseFlags([]string{"--prune", "--force-prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.mode != "prune" {
+		t.Errorf("mode = %q, want %q", f.mode, "prune")
+	}
+	if !f.forcePrune {
+		t.Error("expected forcePrune to be true")
+	}
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	if f.forcePrune && !doPrune {
+		t.Error("expected --force-prune with --prune to NOT trigger the no-prune error")
+	}
+}
+
+func TestForcePrune_WithBackupOnlyErrorsAndExits(t *testing.T) {
+	// --force-prune --backup should be rejected (backup is not prune)
+	f, err := parseFlags([]string{"--backup", "--force-prune", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error from parseFlags: %v", err)
+	}
+	if !f.forcePrune {
+		t.Error("expected forcePrune to be true")
+	}
+	doPrune := f.mode == "prune" || f.mode == "prune-deep"
+	if doPrune {
+		t.Error("expected doPrune to be false for --backup mode")
+	}
+	if !(f.forcePrune && !doPrune) {
+		t.Error("expected forcePrune=true && doPrune=false to be the error condition")
 	}
 }

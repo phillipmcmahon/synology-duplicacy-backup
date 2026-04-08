@@ -38,7 +38,7 @@ import (
 //
 //	go build -ldflags "-X main.version=... -X main.buildTime=..."
 var (
-	version   = "1.7.1"
+	version   = "1.7.2"
 	buildTime = "unknown"
 )
 
@@ -171,7 +171,8 @@ func run() int {
 	runTimestamp := time.Now().Format("20060102-150405")
 
 	if f.forcePrune && !doPrune {
-		log.Warn("--force-prune has no effect unless used with --prune or --prune-deep")
+		log.Error("--force-prune requires --prune or --prune-deep")
+		return 1
 	}
 
 	if f.fixPerms && f.remoteMode {
