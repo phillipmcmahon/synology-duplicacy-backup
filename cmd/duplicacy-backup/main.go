@@ -33,6 +33,15 @@ import (
         "github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
+// version and buildTime are set at build time via -ldflags.
+// See Makefile for the injection pattern:
+//
+//      go build -ldflags "-X main.version=... -X main.buildTime=..."
+var (
+        version   = "dev"
+        buildTime = "unknown"
+)
+
 const (
         rootVolume = "/volume1"
         logDir     = "/var/log"
@@ -82,11 +91,15 @@ func main() {
 }
 
 func run() int {
-        // Check for --help before any privilege/dependency checks so that
-        // help text is always accessible regardless of environment.
+        // Check for --help and --version before any privilege/dependency checks
+        // so that help/version text is always accessible regardless of environment.
         for _, arg := range os.Args[1:] {
                 if arg == "--help" {
                         printUsage()
+                        return 0
+                }
+                if arg == "--version" {
+                        fmt.Printf("%s %s (built %s)\n", scriptName, version, buildTime)
                         return 0
                 }
         }
@@ -214,7 +227,9 @@ func run() int {
                 log.PrintSeparator()
         }
 
-        defer doCleanup(exitCode)
+        // Use a closure so that doCleanup receives the final value of exitCode,
+        // not the value at the time defer is evaluated (which would always be 0).
+        defer func() { doCleanup(exitCode) }()
 
         // Handle signals
         sigChan := make(chan os.Signal, 1)
@@ -568,6 +583,9 @@ func parseFlags(args []string) (*flags, error) {
                 case "--help":
                         printUsage()
                         os.Exit(0)
+                case "--version":
+                        fmt.Printf("%s %s (built %s)\n", scriptName, version, buildTime)
+                        os.Exit(0)
                 default:
                         if strings.HasPrefix(args[i], "-") {
                                 return nil, fmt.Errorf("unknown option %s", args[i])
@@ -609,6 +627,7 @@ MODIFIERS:
     --dry-run                Simulate actions without making changes
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
+    --version                Show version and build information
     --help                   Show this help message
 
 ENVIRONMENT VARIABLES:

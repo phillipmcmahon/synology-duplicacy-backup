@@ -16,8 +16,6 @@ const (
         DefaultSafePruneMaxDeletePercent   = 10
         DefaultSafePruneMaxDeleteCount     = 25
         DefaultSafePruneMinTotalForPercent = 20
-        DefaultLocalOwner                  = "phillipmcmahon"
-        DefaultLocalGroup                  = "users"
         DefaultLogRetentionDays            = 30
         DefaultSecretsDir = "/root/.secrets"
         DefaultSecretsPrefix               = "duplicacy"
@@ -57,10 +55,10 @@ type Config struct {
 }
 
 // NewDefaults returns a Config with all default values.
+// Note: LocalOwner and LocalGroup are mandatory and have no defaults —
+// they must be explicitly set in the configuration file.
 func NewDefaults() *Config {
         return &Config{
-                LocalOwner:                  DefaultLocalOwner,
-                LocalGroup:                  DefaultLocalGroup,
                 LogRetentionDays:            DefaultLogRetentionDays,
                 SafePruneMaxDeletePercent:   DefaultSafePruneMaxDeletePercent,
                 SafePruneMaxDeleteCount:     DefaultSafePruneMaxDeleteCount,
@@ -247,8 +245,17 @@ func (c *Config) ValidateThresholds() error {
         return nil
 }
 
-// ValidateOwnerGroup validates local owner and group names.
+// ValidateOwnerGroup validates that local owner and group are specified and
+// contain valid Unix username characters.  These fields are mandatory — the
+// backup runs as root but repository files must be owned by a non-root user
+// for security.
 func (c *Config) ValidateOwnerGroup() error {
+        if c.LocalOwner == "" {
+                return fmt.Errorf("LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser)")
+        }
+        if c.LocalGroup == "" {
+                return fmt.Errorf("LOCAL_GROUP is mandatory: set it in your .conf file to the group that should own backup files (e.g. LOCAL_GROUP=users)")
+        }
         if !ownerPattern.MatchString(c.LocalOwner) {
                 return fmt.Errorf("LOCAL_OWNER has invalid value '%s'", c.LocalOwner)
         }

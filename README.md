@@ -181,8 +181,8 @@ This means the config directory travels with the binary — useful for portable 
 | `THREADS` | Yes (backup) | Number of threads (power of 2, max 16) |
 | `PRUNE` | Yes (prune) | Duplicacy prune retention arguments |
 | `FILTER` | No | Duplicacy filter pattern using regex syntax (`e:` prefix to exclude, `i:` to include) |
-| `LOCAL_OWNER` | No | Local repo owner (default: `phillipmcmahon`) |
-| `LOCAL_GROUP` | No | Local repo group (default: `users`) |
+| `LOCAL_OWNER` | **Yes** | Owner of local backup files (e.g. `myuser`). **Must not be root** — the script runs as root but files should be owned by a regular user for security. |
+| `LOCAL_GROUP` | **Yes** | Group for local backup files (e.g. `users`). |
 | `LOG_RETENTION_DAYS` | No | Days to keep log files (default: `30`) |
 | `SAFE_PRUNE_MAX_DELETE_PERCENT` | No | Max deletion percentage (default: `10`) |
 | `SAFE_PRUNE_MAX_DELETE_COUNT` | No | Max deletion count (default: `25`) |
@@ -269,6 +269,8 @@ synology-duplicacy-backup/
 ├── examples/
 │   ├── homes-backup.conf        # Example configuration file
 │   └── duplicacy-homes.env.example  # Example secrets file
+├── CHANGELOG.md                 # Release history
+├── LICENSE                      # MIT license
 ├── Makefile                     # Build targets including Synology cross-compilation
 ├── go.mod                       # Go module definition
 ├── .gitignore
