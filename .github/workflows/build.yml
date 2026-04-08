@@ -91,7 +91,7 @@ jobs:
             cmd/duplicacy-backup/main.go
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: duplicacy-backup-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goarm && format('v{0}', matrix.goarm) || '' }}
           path: duplicacy-backup-*
