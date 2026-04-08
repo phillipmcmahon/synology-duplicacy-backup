@@ -282,7 +282,7 @@ synology-duplicacy-backup/
 ## Prerequisites
 
 ### Build Machine
-- Go 1.19+ (for cross-compilation)
+- Go 1.24+ (for cross-compilation)
 - `make`
 
 ### Synology NAS
