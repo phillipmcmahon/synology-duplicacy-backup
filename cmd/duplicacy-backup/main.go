@@ -38,7 +38,7 @@ import (
 //
 //	go build -ldflags "-X main.version=... -X main.buildTime=..."
 var (
-	version   = "1.7.2"
+	version   = "1.7.3"
 	buildTime = "unknown"
 )
 
@@ -438,7 +438,7 @@ func run() int {
 		log.PrintLine("Backup Label", backupLabel)
 		log.PrintLine("Mode", modeStr)
 		log.PrintLine("Source", snapshotSource)
-		log.PrintLine("Repository", repositoryPath)
+		log.PrintLine("Snapshot", repositoryPath)
 		log.PrintLine("Work Dir", filepath.Join(workRoot, "duplicacy"))
 		log.PrintLine("Destination", backupTarget)
 		if cfg.Threads > 0 {

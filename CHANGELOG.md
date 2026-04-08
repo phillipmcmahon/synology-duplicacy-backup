@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.3] - 2026-04-08
+
+### Fixed
+- **Config summary display**: Renamed misleading "Repository" label to "Snapshot"
+  in the config summary output. The "Repository" label was confusing because it
+  displayed the local BTRFS snapshot path (or source path in prune mode), not the
+  backup destination. The backup destination was already correctly shown as
+  "Destination". In prune-only mode, the old "Repository" field showed the same
+  value as "Source" (since no snapshot is created), which users mistakenly
+  interpreted as a bug. The new "Snapshot" label accurately describes the field.
+
 ## [v1.7.2] - 2026-04-08
 
 ### Fixed
