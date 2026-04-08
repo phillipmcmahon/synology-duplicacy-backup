@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-04-08
+
+### Changed
+- **BTRFS validation now conditional:** The `btrfs` command lookup and
+  `btrfs.CheckVolume` calls are now only performed when actually needed
+  (backup operations that create/delete BTRFS snapshots). Previously, BTRFS
+  validation ran unconditionally at startup and for all backup/prune modes,
+  even when BTRFS was not involved.
+  - `--remote --prune` no longer requires or validates BTRFS.
+  - `--fix-perms` standalone no longer requires the `btrfs` command.
+  - `--prune` (local or remote) no longer validates BTRFS volumes.
+  - Backup operations (`--backup` or default mode) continue to validate
+    BTRFS as before, since they create read-only snapshots.
+
 ## [1.5.0] - 2026-04-08
 
 ### Fixed
