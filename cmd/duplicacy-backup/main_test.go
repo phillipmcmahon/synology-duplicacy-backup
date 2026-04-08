@@ -204,6 +204,56 @@ func TestJoinDestination(t *testing.T) {
 	}
 }
 
+func TestParseFlags_FixPermsAloneDoesNotDefaultToBackup(t *testing.T) {
+	f, err := parseFlags([]string{"--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.mode != "" {
+		t.Errorf("mode = %q, want empty string (no backup/prune)", f.mode)
+	}
+	if !f.fixPerms {
+		t.Error("expected fixPerms to be true")
+	}
+}
+
+func TestParseFlags_FixPermsWithBackupSetsBothFlags(t *testing.T) {
+	f, err := parseFlags([]string{"--fix-perms", "--backup", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.mode != "backup" {
+		t.Errorf("mode = %q, want %q", f.mode, "backup")
+	}
+	if !f.fixPerms {
+		t.Error("expected fixPerms to be true")
+	}
+}
+
+func TestParseFlags_FixPermsWithRemoteSetsFlags(t *testing.T) {
+	// parseFlags itself accepts the combination; the hard error is in run()
+	f, err := parseFlags([]string{"--fix-perms", "--remote", "homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !f.fixPerms {
+		t.Error("expected fixPerms to be true")
+	}
+	if !f.remoteMode {
+		t.Error("expected remoteMode to be true")
+	}
+}
+
+func TestParseFlags_NoFlagsDefaultsToBackup(t *testing.T) {
+	f, err := parseFlags([]string{"homes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if f.mode != "backup" {
+		t.Errorf("mode = %q, want %q", f.mode, "backup")
+	}
+}
+
 func TestParseFlags_UnknownOption(t *testing.T) {
 	unknowns := []string{"--unknown", "--help", "--version", "-x"}
 	for _, opt := range unknowns {

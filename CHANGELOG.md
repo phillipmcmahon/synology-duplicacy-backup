@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-08
+
+### Fixed
+- **Hidden backup bug:** `--fix-perms` alone no longer triggers a full backup.
+  Previously, running `--fix-perms homes` would silently default to backup mode
+  and execute a complete Duplicacy backup before fixing permissions. Now
+  `--fix-perms` is a standalone operation when no explicit mode (`--backup`,
+  `--prune`, `--prune-deep`) is specified.
+- **Remote mode error:** `--fix-perms --remote` now exits with a hard error
+  instead of printing a warning and continuing. The error message reads:
+  `"--fix-perms is only valid for local backups; cannot be used with --remote"`.
+- **Redundant setup skipped:** When running `--fix-perms` standalone, BTRFS
+  snapshot creation and Duplicacy working environment setup are skipped entirely,
+  avoiding unnecessary operations and potential failures on systems without
+  Duplicacy repositories.
+
+### Added
+- Clear logging for permission fix operations: operation mode header
+  (`"Fix permissions only"`), target path display before execution, and elapsed
+  time reporting (`"Permissions fixed in Xs"`).
+- Combinable modes: `--fix-perms --backup` and `--fix-perms --prune` now work
+  together, running the requested operation followed by permission fixing.
+- New unit tests: `TestParseFlags_FixPermsAloneDoesNotDefaultToBackup`,
+  `TestParseFlags_FixPermsWithBackupSetsBothFlags`,
+  `TestParseFlags_FixPermsWithRemoteSetsFlags`,
+  `TestParseFlags_NoFlagsDefaultsToBackup`.
+
+### Changed
+- **Behaviour change:** `--fix-perms` without an explicit mode no longer implies
+  `--backup`. Users who relied on `--fix-perms homes` to perform both backup and
+  permission fixing must now use `--fix-perms --backup homes`.
+- Operation mode display now shows combined modes (e.g. `"Backup + fix
+  permissions"`, `"Prune safe + fix permissions"`, `"Fix permissions only"`).
+
 ## [1.4.2] - 2026-04-08
 
 ### Fixed

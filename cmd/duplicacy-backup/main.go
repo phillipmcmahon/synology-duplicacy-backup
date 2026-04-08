@@ -138,6 +138,7 @@ func run() int {
 	doBackup := f.mode == "backup"
 	doPrune := f.mode == "prune" || f.mode == "prune-deep"
 	deepPruneMode := f.mode == "prune-deep"
+	fixPermsOnly := f.fixPerms && !doBackup && !doPrune
 
 	// Validate flag combinations
 	if deepPruneMode && !f.forcePrune {
@@ -150,7 +151,8 @@ func run() int {
 	}
 
 	if f.fixPerms && f.remoteMode {
-		fmt.Fprintln(os.Stderr, "[WARNING] --fix-perms has no effect with --remote")
+		fmt.Fprintln(os.Stderr, "[ERROR] --fix-perms is only valid for local backups; cannot be used with --remote")
+		return 1
 	}
 
 	// Timestamps
@@ -329,18 +331,20 @@ func run() int {
 		}
 	}
 
-	// Check btrfs volumes
-	if err := btrfs.CheckVolume(log, rootVolume, f.dryRun); err != nil {
-		log.Error("%v", err)
-		exitCode = 1
-		return exitCode
-	}
-
-	if doBackup {
-		if err := btrfs.CheckVolume(log, snapshotSource, f.dryRun); err != nil {
+	// Check btrfs volumes – only needed for backup/prune operations
+	if doBackup || doPrune {
+		if err := btrfs.CheckVolume(log, rootVolume, f.dryRun); err != nil {
 			log.Error("%v", err)
 			exitCode = 1
 			return exitCode
+		}
+
+		if doBackup {
+			if err := btrfs.CheckVolume(log, snapshotSource, f.dryRun); err != nil {
+				log.Error("%v", err)
+				exitCode = 1
+				return exitCode
+			}
 		}
 	}
 
@@ -418,144 +422,158 @@ func run() int {
 	}
 
 	// Print operation mode
-	if doBackup {
+	if fixPermsOnly {
+		log.PrintLine("Operation Mode", "Fix permissions only")
+	} else if doBackup && f.fixPerms {
+		log.PrintLine("Operation Mode", "Backup + fix permissions")
+	} else if doBackup {
 		log.PrintLine("Operation Mode", "Backup only")
 	} else if doPrune && deepPruneMode {
 		log.PrintLine("Operation Mode", "Prune deep")
+	} else if doPrune && f.fixPerms {
+		log.PrintLine("Operation Mode", "Prune safe + fix permissions")
 	} else if doPrune {
 		log.PrintLine("Operation Mode", "Prune safe")
 	}
 
-	// Create btrfs snapshot for backup
-	if doBackup {
-		if err := btrfs.CreateSnapshot(log, snapshotSource, snapshotTarget, f.dryRun); err != nil {
-			log.Error("Failed to create snapshot: %v", err)
-			exitCode = 1
-			return exitCode
+	// BTRFS snapshot and Duplicacy setup – only needed for backup/prune
+	if doBackup || doPrune {
+		// Create btrfs snapshot for backup
+		if doBackup {
+			if err := btrfs.CreateSnapshot(log, snapshotSource, snapshotTarget, f.dryRun); err != nil {
+				log.Error("Failed to create snapshot: %v", err)
+				exitCode = 1
+				return exitCode
+			}
 		}
-	}
 
-	// Set up duplicacy working environment
-	dup := duplicacy.NewSetup(workRoot, repositoryPath, backupTarget, log, f.dryRun)
+		// Set up duplicacy working environment
+		dup := duplicacy.NewSetup(workRoot, repositoryPath, backupTarget, log, f.dryRun)
 
-	if err := dup.CreateDirs(); err != nil {
-		log.Error("%v", err)
-		exitCode = 1
-		return exitCode
-	}
-
-	// Write preferences
-	if err := dup.WritePreferences(sec); err != nil {
-		log.Error("Failed to write preferences: %v", err)
-		exitCode = 1
-		return exitCode
-	}
-
-	// Write filters for backup mode
-	if doBackup && cfg.Filter != "" {
-		if err := dup.WriteFilters(cfg.Filter); err != nil {
+		if err := dup.CreateDirs(); err != nil {
 			log.Error("%v", err)
 			exitCode = 1
 			return exitCode
 		}
-	}
 
-	// Set permissions on work directory
-	if err := dup.SetPermissions(); err != nil {
-		log.Error("%v", err)
-		exitCode = 1
-		return exitCode
-	}
-
-	log.Info("Changing to directory: %s", dup.DuplicacyRoot)
-
-	// Run backup
-	if doBackup {
-		if err := dup.RunBackup(cfg.Threads); err != nil {
-			log.Error("Backup failed: %v", err)
-			exitCode = 1
-			return exitCode
-		}
-	}
-
-	// Run prune
-	if doPrune {
-		if err := dup.ValidateRepo(); err != nil {
-			log.Error("Cannot perform prune operation - repository not ready: %v", err)
+		// Write preferences
+		if err := dup.WritePreferences(sec); err != nil {
+			log.Error("Failed to write preferences: %v", err)
 			exitCode = 1
 			return exitCode
 		}
 
-		preview, err := dup.SafePrunePreview(cfg.PruneArgs, cfg.SafePruneMinTotalForPercent)
-		if err != nil {
-			log.Error("Safe prune preview failed: %v", err)
+		// Write filters for backup mode
+		if doBackup && cfg.Filter != "" {
+			if err := dup.WriteFilters(cfg.Filter); err != nil {
+				log.Error("%v", err)
+				exitCode = 1
+				return exitCode
+			}
+		}
+
+		// Set permissions on work directory
+		if err := dup.SetPermissions(); err != nil {
+			log.Error("%v", err)
 			exitCode = 1
 			return exitCode
 		}
 
-		// Fail-closed: if revision count failed, block unless --force-prune
-		if preview.RevisionCountFailed {
-			if f.forcePrune {
-				log.Warn("Revision count failed; proceeding because --force-prune was supplied (percentage threshold not enforced)")
+		log.Info("Changing to directory: %s", dup.DuplicacyRoot)
+
+		// Run backup
+		if doBackup {
+			if err := dup.RunBackup(cfg.Threads); err != nil {
+				log.Error("Backup failed: %v", err)
+				exitCode = 1
+				return exitCode
+			}
+		}
+
+		// Run prune
+		if doPrune {
+			if err := dup.ValidateRepo(); err != nil {
+				log.Error("Cannot perform prune operation - repository not ready: %v", err)
+				exitCode = 1
+				return exitCode
+			}
+
+			preview, err := dup.SafePrunePreview(cfg.PruneArgs, cfg.SafePruneMinTotalForPercent)
+			if err != nil {
+				log.Error("Safe prune preview failed: %v", err)
+				exitCode = 1
+				return exitCode
+			}
+
+			// Fail-closed: if revision count failed, block unless --force-prune
+			if preview.RevisionCountFailed {
+				if f.forcePrune {
+					log.Warn("Revision count failed; proceeding because --force-prune was supplied (percentage threshold not enforced)")
+				} else {
+					log.Error("Revision count is required for safe prune but failed; use --force-prune to override")
+					exitCode = 1
+					return exitCode
+				}
+			}
+
+			// Display preview
+			log.PrintLine("Preview Deletes", fmt.Sprintf("%d", preview.DeleteCount))
+			log.PrintLine("Preview Total Revs", fmt.Sprintf("%d", preview.TotalRevisions))
+			if preview.PercentEnforced {
+				log.PrintLine("Preview Delete %", fmt.Sprintf("%d", preview.DeletePercent))
 			} else {
-				log.Error("Revision count is required for safe prune but failed; use --force-prune to override")
+				log.PrintLine("Preview Delete %", fmt.Sprintf("<not enforced; total revisions unavailable or below %d>", cfg.SafePruneMinTotalForPercent))
+			}
+
+			// Check thresholds
+			blocked := false
+			if preview.DeleteCount > cfg.SafePruneMaxDeleteCount {
+				log.Error("Safe prune preview exceeds delete count threshold: %d > %d", preview.DeleteCount, cfg.SafePruneMaxDeleteCount)
+				blocked = true
+			}
+			if preview.ExceedsPercent(cfg.SafePruneMaxDeletePercent) {
+				log.Error("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%)", preview.DeleteCount, preview.TotalRevisions, cfg.SafePruneMaxDeletePercent)
+				blocked = true
+			}
+
+			if blocked {
+				if f.forcePrune {
+					log.Warn("Proceeding despite safe prune threshold breach because --force-prune was supplied")
+				} else {
+					log.Error("Refusing to continue because safe prune thresholds were exceeded")
+					exitCode = 1
+					return exitCode
+				}
+			}
+
+			if err := dup.RunPrune(cfg.PruneArgs); err != nil {
+				log.Error("Policy prune failed: %v", err)
 				exitCode = 1
 				return exitCode
 			}
-		}
 
-		// Display preview
-		log.PrintLine("Preview Deletes", fmt.Sprintf("%d", preview.DeleteCount))
-		log.PrintLine("Preview Total Revs", fmt.Sprintf("%d", preview.TotalRevisions))
-		if preview.PercentEnforced {
-			log.PrintLine("Preview Delete %", fmt.Sprintf("%d", preview.DeletePercent))
-		} else {
-			log.PrintLine("Preview Delete %", fmt.Sprintf("<not enforced; total revisions unavailable or below %d>", cfg.SafePruneMinTotalForPercent))
-		}
-
-		// Check thresholds
-		blocked := false
-		if preview.DeleteCount > cfg.SafePruneMaxDeleteCount {
-			log.Error("Safe prune preview exceeds delete count threshold: %d > %d", preview.DeleteCount, cfg.SafePruneMaxDeleteCount)
-			blocked = true
-		}
-		if preview.ExceedsPercent(cfg.SafePruneMaxDeletePercent) {
-			log.Error("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%)", preview.DeleteCount, preview.TotalRevisions, cfg.SafePruneMaxDeletePercent)
-			blocked = true
-		}
-
-		if blocked {
-			if f.forcePrune {
-				log.Warn("Proceeding despite safe prune threshold breach because --force-prune was supplied")
-			} else {
-				log.Error("Refusing to continue because safe prune thresholds were exceeded")
-				exitCode = 1
-				return exitCode
+			if deepPruneMode {
+				if err := dup.RunDeepPrune(); err != nil {
+					log.Error("Deep prune failed: %v", err)
+					exitCode = 1
+					return exitCode
+				}
 			}
 		}
+	} // end doBackup || doPrune
 
-		if err := dup.RunPrune(cfg.PruneArgs); err != nil {
-			log.Error("Policy prune failed: %v", err)
-			exitCode = 1
-			return exitCode
-		}
-
-		if deepPruneMode {
-			if err := dup.RunDeepPrune(); err != nil {
-				log.Error("Deep prune failed: %v", err)
-				exitCode = 1
-				return exitCode
-			}
-		}
-	}
-
-	// Fix permissions for local mode
-	if !f.remoteMode && f.fixPerms {
+	// Fix permissions for local mode (standalone or combined with backup/prune)
+	if f.fixPerms {
+		log.PrintSeparator()
+		log.Info("Fixing permissions on: %s", backupTarget)
+		fixStart := time.Now()
 		if err := permissions.Fix(log, backupTarget, cfg.LocalOwner, cfg.LocalGroup, f.dryRun); err != nil {
 			log.Error("%v", err)
 			exitCode = 1
 			return exitCode
 		}
+		elapsed := time.Since(fixStart).Truncate(time.Second)
+		log.Info("Permissions fixed in %s", elapsed)
 	}
 
 	log.Info("All operations completed")
@@ -601,8 +619,9 @@ func parseFlags(args []string) (*flags, error) {
 		}
 	}
 
-	// Default mode is backup
-	if f.mode == "" {
+	// Default mode is backup – but only when --fix-perms is not the sole
+	// operation.  Running `--fix-perms homes` should NOT trigger a full backup.
+	if f.mode == "" && !f.fixPerms {
 		f.mode = "backup"
 	}
 

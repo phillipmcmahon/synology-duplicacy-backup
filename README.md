@@ -116,6 +116,7 @@ MODES:
 
 MODIFIERS:
     --fix-perms              Normalise local repository ownership and permissions
+                             (standalone or combined with --backup/--prune; local only)
     --force-prune            Override safe prune thresholds, or authorise --prune-deep
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
@@ -146,8 +147,11 @@ duplicacy-backup --prune --force-prune homes
 # Deep maintenance prune
 duplicacy-backup --prune-deep --force-prune homes
 
-# Fix local permissions
+# Fix local permissions only (standalone, no backup)
 duplicacy-backup --fix-perms homes
+
+# Backup and fix permissions
+duplicacy-backup --fix-perms --backup homes
 
 # Remote backup with dry-run
 duplicacy-backup --remote --dry-run homes
