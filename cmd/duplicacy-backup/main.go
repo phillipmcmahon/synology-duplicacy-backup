@@ -155,15 +155,6 @@ func run() int {
 		return 1
 	}
 
-	if f.forcePrune && !doPrune {
-		fmt.Fprintln(os.Stderr, "[WARNING] --force-prune has no effect unless used with --prune or --prune-deep")
-	}
-
-	if f.fixPerms && f.remoteMode {
-		fmt.Fprintln(os.Stderr, "[ERROR] --fix-perms is only valid for local backups; cannot be used with --remote")
-		return 1
-	}
-
 	// Timestamps
 	runTimestamp := time.Now().Format("20060102-150405")
 
@@ -174,6 +165,15 @@ func run() int {
 		return 1
 	}
 	defer log.Close()
+
+	if f.forcePrune && !doPrune {
+		log.Warn("--force-prune has no effect unless used with --prune or --prune-deep")
+	}
+
+	if f.fixPerms && f.remoteMode {
+		log.Error("--fix-perms is only valid for local backups; cannot be used with --remote")
+		return 1
+	}
 
 	if f.mode == "" {
 		if f.fixPerms {

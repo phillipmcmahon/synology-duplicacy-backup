@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.5] - 2026-04-08
+
+### Fixed
+- Fixed error message formatting for `--fix-perms` + `--remote` validation: moved the
+  check after logger initialisation so it now uses `log.Error()` instead of raw
+  `fmt.Fprintln`. The error message now displays with the standard timestamp prefix
+  and red colour formatting, consistent with all other error messages.
+- Also moved `--force-prune` warning to use `log.Warn()` for the same consistency.
+
+### Notes
+- No functional changes to validation logic itself — only the output formatting
+- Affected file: `cmd/duplicacy-backup/main.go`
+
 ## [v1.6.4] - 2026-04-08
 
 ### Fixed
