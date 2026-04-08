@@ -181,8 +181,8 @@ This means the config directory travels with the binary — useful for portable 
 | `THREADS` | Yes (backup) | Number of threads (power of 2, max 16) |
 | `PRUNE` | Yes (prune) | Duplicacy prune retention arguments |
 | `FILTER` | No | Duplicacy filter pattern using regex syntax (`e:` prefix to exclude, `i:` to include) |
-| `LOCAL_OWNER` | **Yes** (local only) | Owner of local backup files (e.g. `myuser`). **Must not be root** — the script runs as root but files should be owned by a regular user for security. Only applies to `[common]` and `[local]` sections; not used or validated in remote mode. |
-| `LOCAL_GROUP` | **Yes** (local only) | Group for local backup files (e.g. `users`). Only applies to `[common]` and `[local]` sections; not used or validated in remote mode. |
+| `LOCAL_OWNER` | **Yes** (local only) | Owner of local backup files (e.g. `myuser`). **Must not be root** — the script runs as root but files should be owned by a regular user for security. Only allowed in `[local]` section; rejected in `[common]` and `[remote]`. |
+| `LOCAL_GROUP` | **Yes** (local only) | Group for local backup files (e.g. `users`). Only allowed in `[local]` section; rejected in `[common]` and `[remote]`. |
 | `LOG_RETENTION_DAYS` | No | Days to keep log files (default: `30`) |
 | `SAFE_PRUNE_MAX_DELETE_PERCENT` | No | Max deletion percentage (default: `10`) |
 | `SAFE_PRUNE_MAX_DELETE_COUNT` | No | Max deletion count (default: `25`) |

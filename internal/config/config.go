@@ -37,8 +37,8 @@ var AllowedConfigKeys = map[string]bool{
 	"SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT": true,
 }
 
-// LocalOnlyKeys lists config keys that are only valid in [common] or [local]
-// sections. These keys are rejected if they appear in the [remote] section.
+// LocalOnlyKeys lists config keys that are only valid in the [local] section.
+// These keys are rejected if they appear in [common] or [remote] sections.
 var LocalOnlyKeys = map[string]bool{
 	"LOCAL_OWNER": true,
 	"LOCAL_GROUP": true,
@@ -137,10 +137,9 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
 		}
 
 		// LOCAL_OWNER and LOCAL_GROUP are only meaningful for local operations;
-		// reject them if they appear directly in the [remote] section to prevent
-		// configuration confusion.
-		if currentSection == "remote" && LocalOnlyKeys[key] {
-			return nil, fmt.Errorf("config key '%s' at line %d belongs in [common] or [local], not [remote]", key, lineno)
+		// reject them if they appear outside the [local] section.
+		if currentSection != "local" && LocalOnlyKeys[key] {
+			return nil, fmt.Errorf("config key '%s' at line %d is only allowed in [local] section, not [%s]", key, lineno, currentSection)
 		}
 
 		// Strip surrounding quotes
@@ -263,10 +262,10 @@ func (c *Config) ValidateThresholds() error {
 
 // ValidateOwnerGroup validates that local owner and group are specified and
 // contain valid Unix username characters.  These fields are mandatory for
-// LOCAL operations only — the backup runs as root but local repository files
-// must be owned by a non-root user for security.  This method should NOT be
-// called when operating in remote mode (--remote), as remote targets do not
-// use local file ownership.
+// LOCAL operations only and must appear in the [local] config section — the
+// backup runs as root but local repository files must be owned by a non-root
+// user for security.  This method should NOT be called when operating in
+// remote mode (--remote), as remote targets do not use local file ownership.
 func (c *Config) ValidateOwnerGroup() error {
 	if c.LocalOwner == "" {
 		return fmt.Errorf("LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser)")

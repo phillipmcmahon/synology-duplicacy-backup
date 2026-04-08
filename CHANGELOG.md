@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-04-08
+
+### Fixed
+- `LOCAL_OWNER` and `LOCAL_GROUP` are now restricted to the `[local]` section
+  only. Previously they were also accepted in `[common]`, but since they only
+  apply to local operations this was misleading. The config parser now rejects
+  them in both `[common]` and `[remote]` sections with a clear error message.
+- Remote mode (`--remote`) output now shows `<n/a>` for "Local Owner" and
+  "Local Group" fields instead of empty/undefined values, providing clean and
+  sensible output when these fields are not applicable.
+
+### Changed
+- Updated example configuration and README documentation to reflect that
+  `LOCAL_OWNER`/`LOCAL_GROUP` must only appear in `[local]` section.
+
+### Note
+- **Breaking change for configs with LOCAL_OWNER/LOCAL_GROUP in [common]:**
+  Move these keys to the `[local]` section. The parser will now reject them
+  in `[common]` with a clear error message indicating the required section.
+
 ## [1.4.1] - 2026-04-08
 
 ### Changed

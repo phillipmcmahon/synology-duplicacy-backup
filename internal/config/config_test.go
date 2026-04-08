@@ -273,8 +273,8 @@ LOCAL_OWNER=admin
 	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
 		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "not [remote]") {
-		t.Errorf("error should mention 'not [remote]', got: %v", err)
+	if !strings.Contains(err.Error(), "only allowed in [local]") {
+		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
 	}
 }
 
@@ -292,12 +292,12 @@ LOCAL_GROUP=users
 	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
 		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "not [remote]") {
-		t.Errorf("error should mention 'not [remote]', got: %v", err)
+	if !strings.Contains(err.Error(), "only allowed in [local]") {
+		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
 	}
 }
 
-func TestParseFile_LocalOwnerAllowedInCommonSection(t *testing.T) {
+func TestParseFile_LocalOwnerRejectedInCommonSection(t *testing.T) {
 	p := writeTempConfig(t, `[common]
 DESTINATION=/volume1/backups
 LOCAL_OWNER=admin
@@ -305,12 +305,35 @@ LOCAL_GROUP=users
 [local]
 THREADS=4
 `)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := ParseFile(p, "local")
+	if err == nil {
+		t.Fatal("expected error for LOCAL_OWNER in [common] section, got nil")
 	}
-	if vals["LOCAL_OWNER"] != "admin" {
-		t.Errorf("LOCAL_OWNER = %q, want admin", vals["LOCAL_OWNER"])
+	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
+		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "only allowed in [local]") {
+		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
+	}
+}
+
+func TestParseFile_LocalGroupRejectedInCommonSection(t *testing.T) {
+	p := writeTempConfig(t, `[common]
+DESTINATION=/volume1/backups
+LOCAL_GROUP=users
+[local]
+THREADS=4
+LOCAL_OWNER=admin
+`)
+	_, err := ParseFile(p, "local")
+	if err == nil {
+		t.Fatal("expected error for LOCAL_GROUP in [common] section, got nil")
+	}
+	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
+		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "only allowed in [local]") {
+		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
 	}
 }
 
