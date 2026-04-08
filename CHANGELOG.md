@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.6] - 2026-04-08
+
+### Fixed
+- Comprehensive fix for all error/warning message formatting. Moved logger
+  initialisation to occur immediately after colour detection — before flag
+  parsing, label validation, dependency checks, and flag-combination validation.
+  This ensures **every** error and warning message now goes through the logger,
+  gaining consistent timestamp prefixes, colour formatting, and log-file capture.
+- Previously affected messages (now fixed):
+  - `[ERROR] Must be run as root.`
+  - `[ERROR] unknown option --reset` (and all flag-parsing errors)
+  - `[ERROR] Invalid source label: ...`
+  - `[ERROR] Required command 'duplicacy' not found`
+  - `[ERROR] Required command 'btrfs' not found (needed for backup snapshots)`
+  - `[ERROR] --prune-deep requires --force-prune`
+- The only remaining raw-stderr message is the logger-init-failure fallback,
+  which is unavoidable since the logger itself failed to initialise.
+
+### Notes
+- No functional changes to validation logic — only output formatting
+- Affected file: `cmd/duplicacy-backup/main.go`
+
 ## [v1.6.5] - 2026-04-08
 
 ### Fixed

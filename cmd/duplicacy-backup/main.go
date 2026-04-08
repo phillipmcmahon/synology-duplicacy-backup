@@ -104,25 +104,35 @@ func run() int {
 		}
 	}
 
-	// Must be root
-	if os.Geteuid() != 0 {
-		fmt.Fprintln(os.Stderr, "[ERROR] Must be run as root.")
-		return 1
-	}
-
 	// Detect colour support (auto-detect TTY on stderr)
 	enableColour := logger.IsTerminal(os.Stderr)
+
+	// Initialise logger early so that ALL error/warning messages benefit
+	// from consistent formatting (timestamps, colour, log-file capture).
+	// Only the logger-init-failure message below must fall back to raw stderr.
+	log, err := logger.New(logDir, scriptName, enableColour)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed to initialise logger: %v\n", err)
+		return 1
+	}
+	defer log.Close()
+
+	// Must be root
+	if os.Geteuid() != 0 {
+		log.Error("Must be run as root.")
+		return 1
+	}
 
 	// Parse CLI flags
 	f, err := parseFlags(os.Args[1:])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+		log.Error("%v", err)
 		return 1
 	}
 
 	// Validate label before any filesystem operations (security: prevent path traversal)
 	if err := validateLabel(f.source); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Invalid source label: %v\n", err)
+		log.Error("Invalid source label: %v", err)
 		return 1
 	}
 
@@ -136,7 +146,7 @@ func run() int {
 	// Skip for standalone --fix-perms which only calls chown/chmod.
 	if doBackup || doPrune {
 		if _, err := exec.LookPath("duplicacy"); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Required command 'duplicacy' not found\n")
+			log.Error("Required command 'duplicacy' not found")
 			return 1
 		}
 	}
@@ -144,27 +154,19 @@ func run() int {
 	// Check btrfs command – only needed for backup (snapshot create/delete)
 	if doBackup {
 		if _, err := exec.LookPath("btrfs"); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Required command 'btrfs' not found (needed for backup snapshots)\n")
+			log.Error("Required command 'btrfs' not found (needed for backup snapshots)")
 			return 1
 		}
 	}
 
 	// Validate flag combinations
 	if deepPruneMode && !f.forcePrune {
-		fmt.Fprintln(os.Stderr, "[ERROR] --prune-deep requires --force-prune")
+		log.Error("--prune-deep requires --force-prune")
 		return 1
 	}
 
 	// Timestamps
 	runTimestamp := time.Now().Format("20060102-150405")
-
-	// Set up logger
-	log, err := logger.New(logDir, scriptName, enableColour)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Failed to initialise logger: %v\n", err)
-		return 1
-	}
-	defer log.Close()
 
 	if f.forcePrune && !doPrune {
 		log.Warn("--force-prune has no effect unless used with --prune or --prune-deep")
