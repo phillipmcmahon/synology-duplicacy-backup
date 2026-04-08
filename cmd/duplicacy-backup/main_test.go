@@ -370,9 +370,9 @@ func TestVersionFlag_Short(t *testing.T) {
 }
 
 func TestVersionOutput_ContainsVersion(t *testing.T) {
-	// Verify the version variable is set correctly for v1.7.3
-	if version != "1.7.3" {
-		t.Errorf("version = %q, want %q", version, "1.7.3")
+	// Verify the version variable is set correctly for v1.7.4
+	if version != "1.7.4" {
+		t.Errorf("version = %q, want %q", version, "1.7.4")
 	}
 }
 

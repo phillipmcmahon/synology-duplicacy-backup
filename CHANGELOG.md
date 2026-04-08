@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.4] - 2026-04-08
+
+### Fixed
+- **Snapshot field hidden in non-backup modes**: The "Snapshot" field in the
+  configuration summary is now only displayed when a BTRFS snapshot is actually
+  created (i.e., during backup operations). Previously, prune and other
+  non-backup modes showed `Snapshot: /volume1/homes` which was identical to the
+  `Source` field and misleading — no snapshot exists in those modes. The field is
+  now omitted entirely when no snapshot is created, eliminating user confusion.
+
 ## [v1.7.3] - 2026-04-08
 
 ### Fixed
