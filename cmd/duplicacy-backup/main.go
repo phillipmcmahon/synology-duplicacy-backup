@@ -458,12 +458,7 @@ func run() int {
 		} else {
 			log.PrintLine("Prune Options", "<none>")
 		}
-		// Only show Local Owner/Group when --fix-perms is active
-		// (these fields are not relevant for plain backup or prune).
-		if f.fixPerms {
-			log.PrintLine("Local Owner", cfg.LocalOwner)
-			log.PrintLine("Local Group", cfg.LocalGroup)
-		}
+		
 		log.PrintLine("Log Retention", fmt.Sprintf("%d", cfg.LogRetentionDays))
 		log.PrintLine("Dry Run", fmt.Sprintf("%t", f.dryRun))
 		log.PrintLine("Force Prune", fmt.Sprintf("%t", f.forcePrune))
@@ -472,6 +467,13 @@ func run() int {
 		log.PrintLine("Prune Max Count", fmt.Sprintf("%d", cfg.SafePruneMaxDeleteCount))
 		log.PrintLine("Prune Min Total Revs", fmt.Sprintf("%d", cfg.SafePruneMinTotalForPercent))
 
+        // Only show Local Owner/Group when --fix-perms is active
+		// (these fields are not relevant for plain backup or prune).
+		if f.fixPerms {
+			log.PrintLine("Local Owner", cfg.LocalOwner)
+			log.PrintLine("Local Group", cfg.LocalGroup)
+		}
+		
 		if f.remoteMode && sec != nil {
 			log.PrintLine("Secrets Dir", secretsDir)
 			log.PrintLine("Secrets File", secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel))
