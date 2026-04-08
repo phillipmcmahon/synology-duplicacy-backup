@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-08
+
+### Changed
+- CI/CD workflow enhancements now active (linting, SHA256 checksums).
+
+### Note
+- Patch release with no code changes. This release validates the enhanced CI/CD
+  pipeline introduced in v1.3.0, including `go vet`/`gofmt` lint checks and
+  SHA256SUMS.txt generation with published release binaries.
+
 ## [1.3.0] - 2026-04-08
 
 ### Added
