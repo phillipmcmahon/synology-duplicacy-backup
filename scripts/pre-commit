@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Ensure Go tools are in PATH (adjust if Go is installed elsewhere)
+export PATH="/usr/local/go/bin:$PATH"
+
 unformatted=$(gofmt -l .)
 if [ -n "$unformatted" ]; then
   echo "ERROR: Go files not formatted. Run 'gofmt -w .' to fix:"
