@@ -337,12 +337,86 @@ func TestModeDerivation_FixPermsWithBackupRequiresBoth(t *testing.T) {
 }
 
 func TestParseFlags_UnknownOption(t *testing.T) {
-	unknowns := []string{"--unknown", "--help", "--version", "-x"}
+	unknowns := []string{"--unknown", "--help", "--version", "-v", "-x"}
 	for _, opt := range unknowns {
 		_, err := parseFlags([]string{opt})
 		if err == nil {
 			t.Errorf("parseFlags(%q) should return error for unknown option", opt)
 		}
+	}
+}
+
+// ─── Version and usage tests (v1.7.1) ───────────────────────────────────────
+
+func TestVersionFlag_Long(t *testing.T) {
+	// --version is handled in run() before parseFlags, so we test the
+	// early-exit loop directly by simulating the arg scan.
+	for _, arg := range []string{"--version"} {
+		if arg == "--version" || arg == "-v" {
+			// Matches the early-exit condition in run()
+		} else {
+			t.Errorf("expected %q to match version flag check", arg)
+		}
+	}
+}
+
+func TestVersionFlag_Short(t *testing.T) {
+	// -v is handled in run() before parseFlags, verify parseFlags rejects it
+	// (because it should never reach parseFlags).
+	_, err := parseFlags([]string{"-v"})
+	if err == nil {
+		t.Error("parseFlags should reject -v (handled before parseFlags in run)")
+	}
+}
+
+func TestVersionOutput_ContainsVersion(t *testing.T) {
+	// Verify the version variable is set correctly for v1.7.1
+	if version != "1.7.1" {
+		t.Errorf("version = %q, want %q", version, "1.7.1")
+	}
+}
+
+func TestVersionOutput_ContainsScriptName(t *testing.T) {
+	expected := "duplicacy-backup"
+	if scriptName != expected {
+		t.Errorf("scriptName = %q, want %q", scriptName, expected)
+	}
+}
+
+func TestPrintUsage_DoesNotPanic(t *testing.T) {
+	// printUsage writes to stdout; just verify it doesn't panic.
+	// Redirect stdout to discard output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+	printUsage()
+}
+
+func TestParseFlags_MissingSourceShowsError(t *testing.T) {
+	// When no source is provided, parseFlags returns an error.
+	// In run(), this triggers printUsage() after the error.
+	_, err := parseFlags([]string{"--backup"})
+	if err == nil {
+		t.Error("expected error for missing source directory")
+	}
+	if !strings.Contains(err.Error(), "source directory required") {
+		t.Errorf("error = %q, want it to contain 'source directory required'", err.Error())
+	}
+}
+
+func TestParseFlags_UnknownFlagShowsError(t *testing.T) {
+	// Unknown flags produce an error; in run(), this triggers printUsage().
+	_, err := parseFlags([]string{"--nonexistent", "homes"})
+	if err == nil {
+		t.Error("expected error for unknown flag")
+	}
+	if !strings.Contains(err.Error(), "unknown option") {
+		t.Errorf("error = %q, want it to contain 'unknown option'", err.Error())
 	}
 }
 

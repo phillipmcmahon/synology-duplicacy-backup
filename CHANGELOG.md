@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.1] - 2026-04-08
+
+### Added
+- **`--version` / `-v` flag**: displays version and build information, a standard
+  CLI feature that works without root privileges or any dependencies.
+- **Usage help on errors**: when invalid flags or missing arguments are provided,
+  the full usage help is now printed after the error message, guiding users to
+  correct their command.
+
+### Changed
+- Version constant set to `1.7.1` in source (overridden by `-ldflags` at build
+  time for release binaries).
+- `README.md` updated to document the new `--version` / `-v` flag.
+
 ## [v1.7.0] - 2026-04-08
 
 ### Added

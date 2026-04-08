@@ -122,6 +122,7 @@ MODIFIERS:
     --dry-run                Simulate actions without making changes
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: /root/.secrets)
+    --version, -v            Show version and build information
     --help                   Show this help message
 
 ENVIRONMENT VARIABLES:

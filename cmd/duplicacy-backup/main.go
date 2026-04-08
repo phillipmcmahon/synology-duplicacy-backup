@@ -38,7 +38,7 @@ import (
 //
 //	go build -ldflags "-X main.version=... -X main.buildTime=..."
 var (
-	version   = "dev"
+	version   = "1.7.1"
 	buildTime = "unknown"
 )
 
@@ -98,7 +98,7 @@ func run() int {
 			printUsage()
 			return 0
 		}
-		if arg == "--version" {
+		if arg == "--version" || arg == "-v" {
 			fmt.Printf("%s %s (built %s)\n", scriptName, version, buildTime)
 			return 0
 		}
@@ -127,6 +127,8 @@ func run() int {
 	f, err := parseFlags(os.Args[1:])
 	if err != nil {
 		log.Error("%v", err)
+		fmt.Fprintln(os.Stderr)
+		printUsage()
 		return 1
 	}
 
@@ -687,7 +689,7 @@ MODIFIERS:
     --dry-run                Simulate actions without making changes
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
-    --version                Show version and build information
+    --version, -v            Show version and build information
     --help                   Show this help message
 
 ENVIRONMENT VARIABLES:
