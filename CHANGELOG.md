@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.4] - 2026-04-08
+
+### Fixed
+- Added missing operation mode string for "Prune deep + fix permissions" combination.
+  Previously, when running `--prune-deep --fix-perms`, the operation mode display
+  fell through to "Prune deep" without acknowledging the fix-perms flag. The new
+  `else if` branch ensures the combined mode is correctly reported.
+
+### Notes
+- Single-line fix in `cmd/duplicacy-backup/main.go` operation mode derivation logic
+- No functional changes to backup, prune, or permission operations themselves
+
 ## [v1.6.3] - 2026-04-08
 
 ### Changed

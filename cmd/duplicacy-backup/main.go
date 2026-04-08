@@ -408,6 +408,8 @@ func run() int {
 		opMode = "Backup + fix permissions"
 	} else if doBackup {
 		opMode = "Backup only"
+	} else if doPrune && deepPruneMode && f.fixPerms {
+		opMode = "Prune deep + fix permissions"
 	} else if doPrune && deepPruneMode {
 		opMode = "Prune deep"
 	} else if doPrune && f.fixPerms {
