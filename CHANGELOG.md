@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Config and secrets migrated to TOML**: Legacy INI config files
+  (`<label>-backup.conf`) and `.env` secrets files (`duplicacy-<label>.env`)
+  are replaced by TOML-only files:
+  - config: `<label>-backup.toml`
+  - secrets: `duplicacy-<label>.toml`
+- **Schema keys renamed to lower snake case**: Config keys now use TOML-style
+  names such as `destination`, `threads`, `local_owner`, and
+  `safe_prune_max_delete_percent`. Remote secrets now use `storj_s3_id` and
+  `storj_s3_secret`.
+
+### Migration
+- Convert and rename both files before upgrading. Example:
+  - `homes-backup.conf` -> `homes-backup.toml`
+  - `duplicacy-homes.env` -> `duplicacy-homes.toml`
+  - `DESTINATION=/backups` -> `destination = "/backups"`
+  - `STORJ_S3_ID=...` -> `storj_s3_id = "..."`
+
 ## [v1.10.3] - 2026-04-09
 
 ### Changed

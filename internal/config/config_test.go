@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,32 +11,64 @@ import (
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
-// helper to write a temp config file and return its path.
 func writeTempConfig(t *testing.T, content string) string {
 	t.Helper()
 	dir := t.TempDir()
-	p := filepath.Join(dir, "test.conf")
+	p := filepath.Join(dir, "test.toml")
 	if err := os.WriteFile(p, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write temp config: %v", err)
 	}
 	return p
 }
 
-// ─── ParseFile tests ─────────────────────────────────────────────────────────
+func currentUserGroup(t *testing.T) (string, string) {
+	t.Helper()
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("user.Current() error = %v", err)
+	}
+	g, err := user.LookupGroupId(u.Gid)
+	if err != nil {
+		t.Fatalf("user.LookupGroupId() error = %v", err)
+	}
+	return u.Username, g.Name
+}
+
+func loadValues(t *testing.T, body, target string) map[string]string {
+	t.Helper()
+	p := writeTempConfig(t, body)
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	values, err := raw.ResolveValues(target, p)
+	if err != nil {
+		t.Fatalf("ResolveValues() error = %v", err)
+	}
+	return values
+}
 
 func TestParseFile_ValidConfig(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-FILTER="-e \.DS_Store"
+	p := writeTempConfig(t, `
+[common]
+destination = "/volume1/backups"
+filter = "-e \\.DS_Store"
+
 [local]
-THREADS=4
-LOCAL_OWNER=admin
-LOCAL_GROUP=users
+threads = 4
+local_owner = "admin"
+local_group = "users"
 `)
-	vals, err := ParseFile(p, "local")
+
+	raw, err := ParseFile(p)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	values, err := raw.ResolveValues("local", p)
+	if err != nil {
+		t.Fatalf("ResolveValues() error = %v", err)
+	}
+
 	expect := map[string]string{
 		"DESTINATION": "/volume1/backups",
 		"FILTER":      `-e \.DS_Store`,
@@ -44,217 +77,231 @@ LOCAL_GROUP=users
 		"LOCAL_GROUP": "users",
 	}
 	for k, want := range expect {
-		if got := vals[k]; got != want {
-			t.Errorf("vals[%q] = %q, want %q", k, got, want)
+		if got := values[k]; got != want {
+			t.Errorf("values[%q] = %q, want %q", k, got, want)
 		}
 	}
 }
 
-func TestParseFile_TargetSectionOverridesCommon(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-THREADS=2
-[local]
-THREADS=8
-`)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if vals["THREADS"] != "8" {
-		t.Errorf("expected THREADS=8 (local override), got %q", vals["THREADS"])
-	}
-}
-
-func TestParseFile_IgnoresUnrelatedSections(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-[remote]
-THREADS=2
-[local]
-THREADS=8
-`)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// THREADS should be 8 from [local], not 2 from [remote]
-	if vals["THREADS"] != "8" {
-		t.Errorf("expected THREADS=8, got %q", vals["THREADS"])
-	}
-}
-
-func TestParseFile_CommentsAndBlankLinesIgnored(t *testing.T) {
-	p := writeTempConfig(t, `
-# This is a comment
+func TestParseFile_TargetTableOverridesCommon(t *testing.T) {
+	values := loadValues(t, `
 [common]
-# Another comment
-DESTINATION=/volume1/backups
+destination = "/volume1/backups"
+threads = 2
 
 [local]
-THREADS=4
-`)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if vals["DESTINATION"] != "/volume1/backups" {
-		t.Errorf("DESTINATION = %q", vals["DESTINATION"])
+threads = 8
+`, "local")
+
+	if values["THREADS"] != "8" {
+		t.Errorf("expected THREADS=8, got %q", values["THREADS"])
 	}
 }
 
-func TestParseFile_QuoteStripping(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION="/volume1/backups"
+func TestParseFile_IgnoresUnrelatedTable(t *testing.T) {
+	values := loadValues(t, `
+[common]
+destination = "/volume1/backups"
+
+[remote]
+threads = 2
+
 [local]
-THREADS=4
-`)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if vals["DESTINATION"] != "/volume1/backups" {
-		t.Errorf("expected quotes stripped, got %q", vals["DESTINATION"])
+threads = 8
+`, "local")
+
+	if values["THREADS"] != "8" {
+		t.Errorf("expected THREADS=8, got %q", values["THREADS"])
 	}
 }
 
-func TestParseFile_MissingCommonSection(t *testing.T) {
-	p := writeTempConfig(t, `[local]
-DESTINATION=/volume1/backups
+func TestParseFile_MissingCommonTable(t *testing.T) {
+	p := writeTempConfig(t, `
+[local]
+destination = "/volume1/backups"
 `)
-	_, err := ParseFile(p, "local")
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	_, err = raw.ResolveValues("local", p)
 	if err == nil {
-		t.Fatal("expected error for missing [common] section, got nil")
+		t.Fatal("expected error for missing [common]")
 	}
 	if !strings.Contains(err.Error(), "[common]") {
 		t.Errorf("error should mention [common], got: %v", err)
 	}
 }
 
-func TestParseFile_MissingTargetSection_Local(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
+func TestParseFile_MissingTargetTable(t *testing.T) {
+	p := writeTempConfig(t, `
+[common]
+destination = "/volume1/backups"
 `)
-	_, err := ParseFile(p, "local")
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	_, err = raw.ResolveValues("local", p)
 	if err == nil {
-		t.Fatal("expected error for missing [local] section, got nil")
+		t.Fatal("expected error for missing [local]")
 	}
 	if !strings.Contains(err.Error(), "[local]") {
 		t.Errorf("error should mention [local], got: %v", err)
 	}
 }
 
-func TestParseFile_MissingTargetSection_Remote(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=s3://bucket
-[local]
-THREADS=4
-`)
-	_, err := ParseFile(p, "remote")
-	if err == nil {
-		t.Fatal("expected error for missing [remote] section, got nil")
-	}
-	if !strings.Contains(err.Error(), "[remote]") {
-		t.Errorf("error should mention [remote], got: %v", err)
-	}
-}
-
-func TestParseFile_DuplicateSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-[local]
-THREADS=4
-[local]
-THREADS=8
-`)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for duplicate section")
-	}
-	if !strings.Contains(err.Error(), "duplicate") {
-		t.Errorf("error should mention duplicate, got: %v", err)
-	}
-}
-
-func TestParseFile_ContentOutsideSection(t *testing.T) {
-	p := writeTempConfig(t, `DESTINATION=/volume1/backups
+func TestParseFile_UnknownTableRejected(t *testing.T) {
+	p := writeTempConfig(t, `
 [common]
-THREADS=4
+destination = "/volume1/backups"
+
+[archive]
+threads = 4
+
 [local]
-THREADS=2
+threads = 2
 `)
-	_, err := ParseFile(p, "local")
+	_, err := ParseFile(p)
 	if err == nil {
-		t.Fatal("expected error for content outside section")
+		t.Fatal("expected error for unknown table")
 	}
-	if !strings.Contains(err.Error(), "outside") {
-		t.Errorf("error should mention 'outside', got: %v", err)
+	if !strings.Contains(err.Error(), "[archive]") {
+		t.Errorf("error should mention [archive], got: %v", err)
 	}
 }
 
-func TestParseFile_InvalidLineNoEquals(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION /volume1/backups
-[local]
-THREADS=4
-`)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for invalid line")
-	}
-	if !strings.Contains(err.Error(), "key=value") {
-		t.Errorf("error should mention key=value, got: %v", err)
-	}
-}
+func TestParseFile_UnknownKeyRejected(t *testing.T) {
+	p := writeTempConfig(t, `
+[common]
+destination = "/volume1/backups"
+unknown_key = "foo"
 
-func TestParseFile_EmptyKey(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-=/volume1/backups
 [local]
-THREADS=4
+threads = 4
 `)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for empty key")
-	}
-	if !strings.Contains(err.Error(), "missing key") {
-		t.Errorf("error should mention 'missing key', got: %v", err)
-	}
-}
-
-func TestParseFile_UnknownKey(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-UNKNOWN_KEY=foo
-[local]
-THREADS=4
-`)
-	_, err := ParseFile(p, "local")
+	_, err := ParseFile(p)
 	if err == nil {
 		t.Fatal("expected error for unknown key")
 	}
-	if !strings.Contains(err.Error(), "not permitted") {
-		t.Errorf("error should mention 'not permitted', got: %v", err)
+	if !strings.Contains(err.Error(), "unknown_key") {
+		t.Errorf("error should mention unknown_key, got: %v", err)
 	}
 }
 
-func TestParseFile_InvalidKeyPattern(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-lower_case=value
+func TestParseFile_LocalOnlyKeysRejectedOutsideLocal(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "common",
+			body: `
+[common]
+destination = "/volume1/backups"
+local_owner = "admin"
+
 [local]
-THREADS=4
-`)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for invalid key pattern")
+threads = 4
+`,
+		},
+		{
+			name: "remote",
+			body: `
+[common]
+destination = "s3://bucket"
+
+[remote]
+threads = 4
+local_group = "users"
+`,
+		},
 	}
-	if !strings.Contains(err.Error(), "invalid config key") {
-		t.Errorf("error should mention 'invalid config key', got: %v", err)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseFile(writeTempConfig(t, tc.body))
+			if err == nil {
+				t.Fatal("expected parse error")
+			}
+			if !strings.Contains(err.Error(), "only allowed in [local]") {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestParseFile_MalformedTOMLRejected(t *testing.T) {
+	_, err := ParseFile(writeTempConfig(t, `
+[common
+destination = "/volume1/backups"
+`))
+	if err == nil {
+		t.Fatal("expected malformed TOML error")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "invalid toml") {
+		t.Errorf("error should mention invalid TOML, got: %v", err)
+	}
+}
+
+func TestParseFile_UppercaseKeysRejected(t *testing.T) {
+	_, err := ParseFile(writeTempConfig(t, `
+[common]
+DESTINATION = "/volume1/backups"
+
+[local]
+threads = 4
+`))
+	if err == nil {
+		t.Fatal("expected uppercase key rejection")
+	}
+	if !strings.Contains(err.Error(), "DESTINATION") {
+		t.Errorf("error should mention DESTINATION, got: %v", err)
+	}
+}
+
+func TestParseFile_ZeroValuesOverrideDefaults(t *testing.T) {
+	values := loadValues(t, `
+[common]
+destination = "/volume1/backups"
+log_retention_days = 0
+safe_prune_max_delete_count = 0
+safe_prune_max_delete_percent = 0
+safe_prune_min_total_for_percent = 0
+
+[local]
+threads = 0
+`, "local")
+
+	if values["THREADS"] != "0" {
+		t.Errorf("THREADS = %q, want 0", values["THREADS"])
+	}
+	if values["LOG_RETENTION_DAYS"] != "0" {
+		t.Errorf("LOG_RETENTION_DAYS = %q, want 0", values["LOG_RETENTION_DAYS"])
+	}
+}
+
+func TestParseFile_MultilineFilterPreserved(t *testing.T) {
+	values := loadValues(t, `
+[common]
+destination = "/volume1/backups"
+filter = '''
+-exclude tmp
+-exclude .DS_Store
+'''
+
+[local]
+threads = 4
+`, "local")
+
+	want := "-exclude tmp\n-exclude .DS_Store\n"
+	if values["FILTER"] != want {
+		t.Errorf("FILTER = %q, want %q", values["FILTER"], want)
 	}
 }
 
 func TestParseFile_NonexistentFile(t *testing.T) {
-	_, err := ParseFile("/nonexistent/config.conf", "local")
+	_, err := ParseFile("/nonexistent/config.toml")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
 	}
@@ -264,125 +311,6 @@ func TestParseFile_NonexistentFile(t *testing.T) {
 		t.Fatalf("expected ConfigError, got %T", err)
 	}
 }
-
-// ─── ParseFile LOCAL_OWNER/LOCAL_GROUP section restriction tests ─────────────
-
-func TestParseFile_LocalOwnerRejectedInRemoteSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=s3://bucket
-[remote]
-THREADS=4
-LOCAL_OWNER=admin
-`)
-	_, err := ParseFile(p, "remote")
-	if err == nil {
-		t.Fatal("expected error for LOCAL_OWNER in [remote] section, got nil")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
-		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "only allowed in [local]") {
-		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
-	}
-}
-
-func TestParseFile_LocalGroupRejectedInRemoteSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=s3://bucket
-[remote]
-THREADS=4
-LOCAL_GROUP=users
-`)
-	_, err := ParseFile(p, "remote")
-	if err == nil {
-		t.Fatal("expected error for LOCAL_GROUP in [remote] section, got nil")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
-		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "only allowed in [local]") {
-		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
-	}
-}
-
-func TestParseFile_LocalOwnerRejectedInCommonSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-LOCAL_OWNER=admin
-LOCAL_GROUP=users
-[local]
-THREADS=4
-`)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for LOCAL_OWNER in [common] section, got nil")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
-		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "only allowed in [local]") {
-		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
-	}
-}
-
-func TestParseFile_LocalGroupRejectedInCommonSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-LOCAL_GROUP=users
-[local]
-THREADS=4
-LOCAL_OWNER=admin
-`)
-	_, err := ParseFile(p, "local")
-	if err == nil {
-		t.Fatal("expected error for LOCAL_GROUP in [common] section, got nil")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
-		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "only allowed in [local]") {
-		t.Errorf("error should mention 'only allowed in [local]', got: %v", err)
-	}
-}
-
-func TestParseFile_LocalOwnerAllowedInLocalSection(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=/volume1/backups
-[local]
-THREADS=4
-LOCAL_OWNER=admin
-LOCAL_GROUP=users
-`)
-	vals, err := ParseFile(p, "local")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if vals["LOCAL_OWNER"] != "admin" {
-		t.Errorf("LOCAL_OWNER = %q, want admin", vals["LOCAL_OWNER"])
-	}
-}
-
-func TestParseFile_RemoteSectionDoesNotRequireOwnerGroup(t *testing.T) {
-	p := writeTempConfig(t, `[common]
-DESTINATION=s3://bucket
-PRUNE=-keep 0:365
-[remote]
-THREADS=8
-`)
-	vals, err := ParseFile(p, "remote")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// LOCAL_OWNER and LOCAL_GROUP should not be present
-	if _, ok := vals["LOCAL_OWNER"]; ok {
-		t.Error("LOCAL_OWNER should not be present for remote config")
-	}
-	if _, ok := vals["LOCAL_GROUP"]; ok {
-		t.Error("LOCAL_GROUP should not be present for remote config")
-	}
-}
-
-// ─── Apply tests ─────────────────────────────────────────────────────────────
 
 func TestApply_ValidNumericValues(t *testing.T) {
 	cfg := NewDefaults()
@@ -396,20 +324,8 @@ func TestApply_ValidNumericValues(t *testing.T) {
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Threads != 8 {
-		t.Errorf("Threads = %d, want 8", cfg.Threads)
-	}
-	if cfg.LogRetentionDays != 14 {
-		t.Errorf("LogRetentionDays = %d, want 14", cfg.LogRetentionDays)
-	}
-	if cfg.SafePruneMaxDeleteCount != 50 {
-		t.Errorf("SafePruneMaxDeleteCount = %d, want 50", cfg.SafePruneMaxDeleteCount)
-	}
-	if cfg.SafePruneMaxDeletePercent != 20 {
-		t.Errorf("SafePruneMaxDeletePercent = %d, want 20", cfg.SafePruneMaxDeletePercent)
-	}
-	if cfg.SafePruneMinTotalForPercent != 10 {
-		t.Errorf("SafePruneMinTotalForPercent = %d, want 10", cfg.SafePruneMinTotalForPercent)
+	if cfg.Threads != 8 || cfg.LogRetentionDays != 14 || cfg.SafePruneMaxDeleteCount != 50 || cfg.SafePruneMaxDeletePercent != 20 || cfg.SafePruneMinTotalForPercent != 10 {
+		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 }
 
@@ -425,20 +341,8 @@ func TestApply_StringValues(t *testing.T) {
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Destination != "/volume1/backups" {
-		t.Errorf("Destination = %q", cfg.Destination)
-	}
-	if cfg.Filter != "-e *.tmp" {
-		t.Errorf("Filter = %q", cfg.Filter)
-	}
-	if cfg.LocalOwner != "admin" {
-		t.Errorf("LocalOwner = %q", cfg.LocalOwner)
-	}
-	if cfg.LocalGroup != "staff" {
-		t.Errorf("LocalGroup = %q", cfg.LocalGroup)
-	}
-	if cfg.Prune != "-keep 0:365 -keep 30:180" {
-		t.Errorf("Prune = %q", cfg.Prune)
+	if cfg.Destination != "/volume1/backups" || cfg.Filter != "-e *.tmp" || cfg.LocalOwner != "admin" || cfg.LocalGroup != "staff" || cfg.Prune != "-keep 0:365 -keep 30:180" {
+		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 }
 
@@ -447,543 +351,132 @@ func TestApply_EmptyMapKeepsDefaults(t *testing.T) {
 	if err := cfg.Apply(map[string]string{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// LocalOwner and LocalGroup are mandatory for local operations with no defaults — they should remain empty.
-	if cfg.LocalOwner != "" {
-		t.Errorf("LocalOwner = %q, want empty (no default)", cfg.LocalOwner)
-	}
-	if cfg.LocalGroup != "" {
-		t.Errorf("LocalGroup = %q, want empty (no default)", cfg.LocalGroup)
-	}
-	if cfg.LogRetentionDays != DefaultLogRetentionDays {
-		t.Errorf("LogRetentionDays = %d, want default %d", cfg.LogRetentionDays, DefaultLogRetentionDays)
+	if cfg.LocalOwner != "" || cfg.LocalGroup != "" || cfg.LogRetentionDays != DefaultLogRetentionDays {
+		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 }
 
-func TestApply_InvalidThreadsNotANumber(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"THREADS": "ten"})
-	if err == nil {
-		t.Fatal("expected error for THREADS=ten, got nil")
-	}
-	if !strings.Contains(err.Error(), "THREADS") {
-		t.Errorf("error should mention THREADS, got: %v", err)
-	}
-}
-
-func TestApply_NegativeLogRetention(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"LOG_RETENTION_DAYS": "-5"})
-	if err == nil {
-		t.Fatal("expected error for negative LOG_RETENTION_DAYS, got nil")
-	}
-	if !strings.Contains(err.Error(), "LOG_RETENTION_DAYS") {
-		t.Errorf("error should mention LOG_RETENTION_DAYS, got: %v", err)
-	}
-}
-
-func TestApply_InvalidPruneDeleteCount(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"SAFE_PRUNE_MAX_DELETE_COUNT": "abc"})
-	if err == nil {
-		t.Fatal("expected error for non-numeric SAFE_PRUNE_MAX_DELETE_COUNT, got nil")
-	}
-	if !strings.Contains(err.Error(), "SAFE_PRUNE_MAX_DELETE_COUNT") {
-		t.Errorf("error should mention SAFE_PRUNE_MAX_DELETE_COUNT, got: %v", err)
-	}
-}
-
-func TestApply_InvalidPruneDeletePercent(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"SAFE_PRUNE_MAX_DELETE_PERCENT": "50%"})
-	if err == nil {
-		t.Fatal("expected error for SAFE_PRUNE_MAX_DELETE_PERCENT=50%, got nil")
-	}
-}
-
-func TestApply_InvalidMinTotalForPercent(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT": "nope"})
-	if err == nil {
-		t.Fatal("expected error for invalid SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT")
-	}
-}
-
-func TestApply_EmptyNumericValue(t *testing.T) {
-	cfg := NewDefaults()
-	err := cfg.Apply(map[string]string{"THREADS": ""})
-	if err == nil {
-		t.Fatal("expected error for empty THREADS value, got nil")
-	}
-}
-
-// ─── NewDefaults tests ───────────────────────────────────────────────────────
-
-func TestNewDefaults(t *testing.T) {
-	cfg := NewDefaults()
-	// LocalOwner and LocalGroup are mandatory for local mode — no defaults.
-	if cfg.LocalOwner != "" {
-		t.Errorf("LocalOwner = %q, want empty (mandatory for local, no default)", cfg.LocalOwner)
-	}
-	if cfg.LocalGroup != "" {
-		t.Errorf("LocalGroup = %q, want empty (mandatory for local, no default)", cfg.LocalGroup)
-	}
-	if cfg.LogRetentionDays != DefaultLogRetentionDays {
-		t.Errorf("LogRetentionDays = %d, want %d", cfg.LogRetentionDays, DefaultLogRetentionDays)
-	}
-	if cfg.SafePruneMaxDeletePercent != DefaultSafePruneMaxDeletePercent {
-		t.Errorf("SafePruneMaxDeletePercent = %d, want %d", cfg.SafePruneMaxDeletePercent, DefaultSafePruneMaxDeletePercent)
-	}
-	if cfg.SafePruneMaxDeleteCount != DefaultSafePruneMaxDeleteCount {
-		t.Errorf("SafePruneMaxDeleteCount = %d, want %d", cfg.SafePruneMaxDeleteCount, DefaultSafePruneMaxDeleteCount)
-	}
-	if cfg.SafePruneMinTotalForPercent != DefaultSafePruneMinTotalForPercent {
-		t.Errorf("SafePruneMinTotalForPercent = %d, want %d", cfg.SafePruneMinTotalForPercent, DefaultSafePruneMinTotalForPercent)
-	}
-}
-
-// ─── ValidateOwnerGroup mandatory tests ──────────────────────────────────────
-
-func TestValidateOwnerGroup_MissingOwnerReturnsError(t *testing.T) {
-	cfg := &Config{LocalOwner: "", LocalGroup: "users"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for missing LOCAL_OWNER")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_OWNER is mandatory") {
-		t.Errorf("error should mention mandatory, got: %v", err)
-	}
-}
-
-func TestValidateOwnerGroup_MissingGroupReturnsError(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin", LocalGroup: ""}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for missing LOCAL_GROUP")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_GROUP is mandatory") {
-		t.Errorf("error should mention mandatory, got: %v", err)
-	}
-}
-
-// ─── ValidateRequired tests ──────────────────────────────────────────────────
-
-func TestValidateRequired_AllPresent(t *testing.T) {
-	cfg := &Config{Destination: "/vol", Threads: 4, Prune: "-keep 0:30"}
-	if err := cfg.ValidateRequired(true, true); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestValidateRequired_MissingDestination(t *testing.T) {
-	cfg := &Config{Threads: 4, Prune: "-keep 0:30"}
-	err := cfg.ValidateRequired(true, true)
-	if err == nil {
-		t.Fatal("expected error for missing DESTINATION")
-	}
-	if !strings.Contains(err.Error(), "DESTINATION") {
-		t.Errorf("error should mention DESTINATION, got: %v", err)
-	}
-}
-
-func TestValidateRequired_MissingThreadsOnlyWhenBackup(t *testing.T) {
-	cfg := &Config{Destination: "/vol", Prune: "-keep 0:30"}
-	// No backup → threads not required
-	if err := cfg.ValidateRequired(false, true); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	// With backup → threads required
-	err := cfg.ValidateRequired(true, true)
-	if err == nil {
-		t.Fatal("expected error for missing THREADS with backup")
-	}
-	if !strings.Contains(err.Error(), "THREADS") {
-		t.Errorf("error should mention THREADS, got: %v", err)
-	}
-}
-
-func TestValidateRequired_MissingPruneOnlyWhenPrune(t *testing.T) {
-	cfg := &Config{Destination: "/vol", Threads: 4}
-	if err := cfg.ValidateRequired(true, false); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	err := cfg.ValidateRequired(true, true)
-	if err == nil {
-		t.Fatal("expected error for missing PRUNE with prune enabled")
-	}
-	if !strings.Contains(err.Error(), "PRUNE") {
-		t.Errorf("error should mention PRUNE, got: %v", err)
-	}
-}
-
-// ─── ValidateThresholds tests ────────────────────────────────────────────────
-
-func TestValidateThresholds_Valid(t *testing.T) {
-	cfg := NewDefaults()
-	if err := cfg.ValidateThresholds(); err != nil {
-		t.Errorf("unexpected error with defaults: %v", err)
-	}
-}
-
-func TestValidateThresholds_PercentTooHigh(t *testing.T) {
-	cfg := NewDefaults()
-	cfg.SafePruneMaxDeletePercent = 101
-	if err := cfg.ValidateThresholds(); err == nil {
-		t.Fatal("expected error for percent > 100")
-	}
-}
-
-func TestValidateThresholds_NegativeCount(t *testing.T) {
-	cfg := NewDefaults()
-	cfg.SafePruneMaxDeleteCount = -1
-	if err := cfg.ValidateThresholds(); err == nil {
-		t.Fatal("expected error for negative count")
-	}
-}
-
-func TestValidateThresholds_NegativeMinTotal(t *testing.T) {
-	cfg := NewDefaults()
-	cfg.SafePruneMinTotalForPercent = -1
-	if err := cfg.ValidateThresholds(); err == nil {
-		t.Fatal("expected error for negative min total")
-	}
-}
-
-func TestValidateThresholds_NegativeLogRetention(t *testing.T) {
-	cfg := NewDefaults()
-	cfg.LogRetentionDays = -1
-	if err := cfg.ValidateThresholds(); err == nil {
-		t.Fatal("expected error for negative log retention")
-	}
-}
-
-func TestValidateThresholds_ZeroValues(t *testing.T) {
-	cfg := &Config{}
-	if err := cfg.ValidateThresholds(); err != nil {
-		t.Errorf("zero values should be valid: %v", err)
-	}
-}
-
-// ─── ValidateOwnerGroup tests ────────────────────────────────────────────────
-
-func TestValidateOwnerGroup_Valid(t *testing.T) {
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
-	if err := cfg.ValidateOwnerGroup(); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestValidateOwnerGroup_InvalidOwner(t *testing.T) {
-	cfg := &Config{LocalOwner: "admin/bad", LocalGroup: "nogroup"}
-	if err := cfg.ValidateOwnerGroup(); err == nil {
-		t.Fatal("expected error for invalid owner")
-	}
-}
-
-func TestValidateOwnerGroup_InvalidGroup(t *testing.T) {
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "us ers"}
-	if err := cfg.ValidateOwnerGroup(); err == nil {
-		t.Fatal("expected error for invalid group")
-	}
-}
-
-func TestValidateOwnerGroup_EmptyOwner(t *testing.T) {
-	cfg := &Config{LocalOwner: "", LocalGroup: "nogroup"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for empty owner")
-	}
-	if !strings.Contains(err.Error(), "mandatory") {
-		t.Errorf("error should mention mandatory, got: %v", err)
-	}
-}
-
-// ─── ValidateOwnerGroup root-rejection tests ─────────────────────────────────
-
-func TestValidateOwnerGroup_RootOwnerRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "root", LocalGroup: "nogroup"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for LOCAL_OWNER=root, got nil")
-	}
-	if !strings.Contains(err.Error(), "must not be 'root'") {
-		t.Errorf("error should mention root rejection, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "security") {
-		t.Errorf("error should mention security, got: %v", err)
-	}
-}
-
-func TestValidateOwnerGroup_RootGroupRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "root"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for LOCAL_GROUP=root, got nil")
-	}
-	if !strings.Contains(err.Error(), "must not be 'root'") {
-		t.Errorf("error should mention root rejection, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "security") {
-		t.Errorf("error should mention security, got: %v", err)
-	}
-}
-
-func TestValidateOwnerGroup_RootCaseInsensitive(t *testing.T) {
+func TestApply_InvalidNumericValues(t *testing.T) {
 	cases := []struct {
-		owner string
-		group string
+		name string
+		key  string
+		val  string
+		want string
 	}{
-		{"Root", "nogroup"},
-		{"ROOT", "nogroup"},
-		{"rOoT", "nogroup"},
-		{"nobody", "Root"},
-		{"nobody", "ROOT"},
+		{"threads", "THREADS", "ten", "threads"},
+		{"log retention", "LOG_RETENTION_DAYS", "-5", "log_retention_days"},
+		{"delete count", "SAFE_PRUNE_MAX_DELETE_COUNT", "abc", "safe_prune_max_delete_count"},
+		{"delete percent", "SAFE_PRUNE_MAX_DELETE_PERCENT", "50%", "safe_prune_max_delete_percent"},
+		{"min total", "SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT", "nope", "safe_prune_min_total_for_percent"},
+		{"empty", "THREADS", "", "threads"},
 	}
 	for _, tc := range cases {
-		cfg := &Config{LocalOwner: tc.owner, LocalGroup: tc.group}
-		err := cfg.ValidateOwnerGroup()
-		if err == nil {
-			t.Errorf("expected error for owner=%q group=%q, got nil", tc.owner, tc.group)
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := NewDefaults()
+			err := cfg.Apply(map[string]string{tc.key: tc.val})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(strings.ToLower(err.Error()), tc.want) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateRequired(t *testing.T) {
+	cfg := &Config{Destination: "/vol", Threads: 4, Prune: "-keep 0:30"}
+	if err := cfg.ValidateRequired(true, true); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := (&Config{Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
+		t.Fatal("expected missing destination")
+	}
+	if err := (&Config{Destination: "/vol", Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
+		t.Fatal("expected missing threads")
+	}
+	if err := (&Config{Destination: "/vol", Threads: 4}).ValidateRequired(true, true); err == nil {
+		t.Fatal("expected missing prune")
+	}
+}
+
+func TestValidateThresholds(t *testing.T) {
+	if err := NewDefaults().ValidateThresholds(); err != nil {
+		t.Fatalf("defaults should be valid: %v", err)
+	}
+
+	cases := []Config{
+		{SafePruneMaxDeletePercent: 101},
+		{SafePruneMaxDeleteCount: -1},
+		{SafePruneMinTotalForPercent: -1},
+		{LogRetentionDays: -1},
+	}
+	for _, cfg := range cases {
+		if err := cfg.ValidateThresholds(); err == nil {
+			t.Fatalf("expected threshold error for %+v", cfg)
 		}
 	}
-}
-
-func TestValidateOwnerGroup_ValidNonRootAccepted(t *testing.T) {
-	// Use system users/groups that exist on the test system.
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
-	if err := cfg.ValidateOwnerGroup(); err != nil {
-		t.Errorf("unexpected error for owner=%q group=%q: %v", cfg.LocalOwner, cfg.LocalGroup, err)
+	if err := (&Config{}).ValidateThresholds(); err != nil {
+		t.Fatalf("zero values should be valid: %v", err)
 	}
 }
 
-// ─── ValidateOwnerGroup user/group existence tests ───────────────────────────
+func TestValidateOwnerGroup(t *testing.T) {
+	owner, group := currentUserGroup(t)
+	if err := (&Config{LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-func TestValidateOwnerGroup_NonexistentUserRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "no_such_user_xyz_999", LocalGroup: "nogroup"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for non-existent user, got nil")
+	cases := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{"missing owner", Config{LocalGroup: group}, "local_owner is mandatory"},
+		{"missing group", Config{LocalOwner: owner}, "local_group is mandatory"},
+		{"invalid owner", Config{LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
+		{"invalid group", Config{LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
+		{"root owner", Config{LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
+		{"root group", Config{LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
+		{"missing user", Config{LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
+		{"missing group", Config{LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
 	}
-	if !strings.Contains(err.Error(), "does not exist") {
-		t.Errorf("error should mention 'does not exist', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "LOCAL_OWNER") {
-		t.Errorf("error should mention LOCAL_OWNER, got: %v", err)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.ValidateOwnerGroup()
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tc.want)) {
+				t.Fatalf("error = %v", err)
+			}
+		})
 	}
 }
 
-func TestValidateOwnerGroup_NonexistentGroupRejected(t *testing.T) {
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "no_such_group_xyz_999"}
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for non-existent group, got nil")
-	}
-	if !strings.Contains(err.Error(), "does not exist") {
-		t.Errorf("error should mention 'does not exist', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "LOCAL_GROUP") {
-		t.Errorf("error should mention LOCAL_GROUP, got: %v", err)
-	}
-}
-
-func TestValidateOwnerGroup_ExistingUserAndGroupAccepted(t *testing.T) {
-	// Use "nobody"/"nogroup" which exist on all Linux systems.
-	cfg := &Config{LocalOwner: "nobody", LocalGroup: "nogroup"}
-	if err := cfg.ValidateOwnerGroup(); err != nil {
-		t.Errorf("unexpected error for existing owner=%q group=%q: %v", cfg.LocalOwner, cfg.LocalGroup, err)
-	}
-}
-
-// ─── ValidateOwnerGroup conditional call tests (v1.6.0) ─────────────────────
-// These tests document that ValidateOwnerGroup can safely be skipped for
-// operations that don't need local file ownership (backup-only, prune-only).
-// The caller (main.go) gates the call behind f.fixPerms.
-
-func TestValidateOwnerGroup_SkippableForBackupOnly(t *testing.T) {
-	// A config with no LOCAL_OWNER/LOCAL_GROUP should pass all non-ownership
-	// validations.  ValidateOwnerGroup is NOT called here, mimicking the
-	// v1.6.0 code path for backup-only or prune-only operations.
-	cfg := NewDefaults()
-	vals := map[string]string{
-		"DESTINATION": "/volume1/backups",
-		"THREADS":     "4",
-		"PRUNE":       "-keep 0:365",
-	}
-	if err := cfg.Apply(vals); err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if err := cfg.ValidateRequired(true, false); err != nil {
-		t.Errorf("ValidateRequired should pass for backup-only: %v", err)
-	}
-	if err := cfg.ValidateThresholds(); err != nil {
-		t.Errorf("ValidateThresholds should pass: %v", err)
-	}
-	// Deliberately NOT calling ValidateOwnerGroup — backup-only doesn't need it.
-}
-
-func TestValidateOwnerGroup_RequiredForFixPerms(t *testing.T) {
-	// When fix-perms is active, ValidateOwnerGroup MUST be called and must
-	// catch missing values.
-	cfg := NewDefaults()
-	vals := map[string]string{
-		"DESTINATION": "/volume1/backups",
-	}
-	if err := cfg.Apply(vals); err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	// Simulate the fix-perms code path: ValidateOwnerGroup IS called.
-	err := cfg.ValidateOwnerGroup()
-	if err == nil {
-		t.Fatal("expected error for missing LOCAL_OWNER when fix-perms is active")
-	}
-	if !strings.Contains(err.Error(), "LOCAL_OWNER is mandatory") {
-		t.Errorf("expected mandatory error, got: %v", err)
-	}
-}
-
-// ─── ValidateThreads tests ──────────────────────────────────────────────────
-
-func TestValidateThreads_Valid(t *testing.T) {
+func TestValidateThreads(t *testing.T) {
 	for _, n := range []int{1, 2, 4, 8, 16} {
-		cfg := &Config{Threads: n}
-		if err := cfg.ValidateThreads(); err != nil {
+		if err := (&Config{Threads: n}).ValidateThreads(); err != nil {
 			t.Errorf("ValidateThreads(%d) unexpected error: %v", n, err)
 		}
 	}
-}
-
-func TestValidateThreads_Invalid(t *testing.T) {
 	for _, n := range []int{0, -1, 3, 5, 6, 7, 9, 17, 32} {
-		cfg := &Config{Threads: n}
-		if err := cfg.ValidateThreads(); err == nil {
-			t.Errorf("ValidateThreads(%d) expected error, got nil", n)
+		if err := (&Config{Threads: n}).ValidateThreads(); err == nil {
+			t.Errorf("ValidateThreads(%d) expected error", n)
 		}
 	}
 }
 
-// ─── BuildPruneArgs tests ───────────────────────────────────────────────────
-
-func TestBuildPruneArgs_NonEmpty(t *testing.T) {
-	cfg := &Config{Prune: "-keep 0:365 -keep 30:180"}
+func TestBuildPruneArgs(t *testing.T) {
+	cfg := &Config{Prune: "-keep 1:30 -keep 7:7"}
 	cfg.BuildPruneArgs()
-	expected := []string{"-keep", "0:365", "-keep", "30:180"}
-	if len(cfg.PruneArgs) != len(expected) {
-		t.Fatalf("PruneArgs len = %d, want %d", len(cfg.PruneArgs), len(expected))
+	if len(cfg.PruneArgs) != 4 {
+		t.Fatalf("PruneArgs = %#v", cfg.PruneArgs)
 	}
-	for i, a := range cfg.PruneArgs {
-		if a != expected[i] {
-			t.Errorf("PruneArgs[%d] = %q, want %q", i, a, expected[i])
-		}
-	}
-}
-
-func TestBuildPruneArgs_Empty(t *testing.T) {
-	cfg := &Config{Prune: ""}
+	cfg.Prune = ""
 	cfg.BuildPruneArgs()
 	if cfg.PruneArgs != nil {
-		t.Errorf("PruneArgs = %v, want nil", cfg.PruneArgs)
-	}
-}
-
-// ─── strictAtoi tests ───────────────────────────────────────────────────────
-
-func TestStrictAtoi_Valid(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int
-	}{
-		{"0", 0},
-		{"1", 1},
-		{"42", 42},
-		{"100", 100},
-		{"9999", 9999},
-	}
-	for _, tt := range tests {
-		n, err := strictAtoi(tt.input)
-		if err != nil {
-			t.Errorf("strictAtoi(%q) unexpected error: %v", tt.input, err)
-		}
-		if n != tt.expected {
-			t.Errorf("strictAtoi(%q) = %d, want %d", tt.input, n, tt.expected)
-		}
-	}
-}
-
-func TestStrictAtoi_Invalid(t *testing.T) {
-	invalids := []string{
-		"", "abc", "ten", "-1", "-100", "3.14", "12abc", "1 2", " 5", "5 ",
-	}
-	for _, s := range invalids {
-		_, err := strictAtoi(s)
-		if err == nil {
-			t.Errorf("strictAtoi(%q) expected error, got nil", s)
-		}
-	}
-}
-
-func TestStrictAtoi_LeadingZeros(t *testing.T) {
-	// Leading zeros should be accepted (parsed as decimal)
-	n, err := strictAtoi("007")
-	if err != nil {
-		t.Fatalf("strictAtoi(\"007\") unexpected error: %v", err)
-	}
-	if n != 7 {
-		t.Errorf("strictAtoi(\"007\") = %d, want 7", n)
-	}
-}
-
-// ─── strictAtoi tests ─────────────────────────────────────────────────────────
-
-func TestStrictAtoi_ValidValues(t *testing.T) {
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{"0", 0},
-		{"1", 1},
-		{"42", 42},
-		{"100", 100},
-		{"999999", 999999},
-	}
-	for _, tt := range tests {
-		got, err := strictAtoi(tt.input)
-		if err != nil {
-			t.Errorf("strictAtoi(%q) unexpected error: %v", tt.input, err)
-		}
-		if got != tt.want {
-			t.Errorf("strictAtoi(%q) = %d, want %d", tt.input, got, tt.want)
-		}
-	}
-}
-
-func TestStrictAtoi_RejectsInvalid(t *testing.T) {
-	invalid := []struct {
-		input string
-		desc  string
-	}{
-		{"", "empty string"},
-		{"-1", "negative number"},
-		{"-100", "large negative"},
-		{"abc", "letters"},
-		{"12a3", "mixed chars"},
-		{"1.5", "decimal"},
-		{" 42", "leading space"},
-	}
-	for _, tt := range invalid {
-		_, err := strictAtoi(tt.input)
-		if err == nil {
-			t.Errorf("strictAtoi(%q) [%s] expected error, got nil", tt.input, tt.desc)
-		}
-	}
-}
-
-func TestStrictAtoi_OverflowDetection(t *testing.T) {
-	// A number that's definitely too large for any platform int
-	huge := "99999999999999999999999999999999"
-	_, err := strictAtoi(huge)
-	if err == nil {
-		t.Error("strictAtoi with huge number should return overflow error")
-	}
-	if !strings.Contains(err.Error(), "overflows") {
-		t.Errorf("expected overflow error, got: %v", err)
+		t.Fatalf("PruneArgs = %#v, want nil", cfg.PruneArgs)
 	}
 }

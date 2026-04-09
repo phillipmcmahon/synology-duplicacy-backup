@@ -66,6 +66,8 @@ duplicacy-backup --remote --dry-run homes
 
 ## Notes
 
+- config files are TOML files named `<label>-backup.toml`
+- remote secrets files are TOML files named `duplicacy-<label>.toml`
 - `--fix-perms` is local-only and cannot be combined with `--remote`
 - `--prune-deep` requires `--force-prune`
 - `--force-prune` requires `--prune` or `--prune-deep`

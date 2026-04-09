@@ -63,12 +63,12 @@ func TestSnapshotError_Format(t *testing.T) {
 
 func TestSecretsError_Format(t *testing.T) {
 	cause := errors.New("file not found")
-	e := NewSecretsError("load", cause, "path", "/root/.secrets/duplicacy-homes.env")
+	e := NewSecretsError("load", cause, "path", "/root/.secrets/duplicacy-homes.toml")
 	got := e.Error()
 	if !strings.HasPrefix(got, "secrets/load: file not found") {
 		t.Errorf("unexpected format: %s", got)
 	}
-	if !strings.Contains(got, "path=/root/.secrets/duplicacy-homes.env") {
+	if !strings.Contains(got, "path=/root/.secrets/duplicacy-homes.toml") {
 		t.Errorf("missing context: %s", got)
 	}
 }

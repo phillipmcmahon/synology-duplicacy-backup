@@ -46,8 +46,8 @@ func currentUserGroup(t *testing.T) (string, string) {
 
 func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
-	configFile := filepath.Join(dir, "homes-backup.conf")
-	if err := os.WriteFile(configFile, []byte("[common]\nDESTINATION=/backups\nTHREADS=4\n[local]\n"), 0644); err != nil {
+	configFile := filepath.Join(dir, "homes-backup.toml")
+	if err := os.WriteFile(configFile, []byte("[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n"), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -95,8 +95,8 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	dir := t.TempDir()
 	owner, group := currentUserGroup(t)
-	configFile := filepath.Join(dir, "homes-backup.conf")
-	content := "[common]\nDESTINATION=/backups\n[local]\nLOCAL_OWNER=" + owner + "\nLOCAL_GROUP=" + group + "\n"
+	configFile := filepath.Join(dir, "homes-backup.toml")
+	content := "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \"" + owner + "\"\nlocal_group = \"" + group + "\"\n"
 	if err := os.WriteFile(configFile, []byte(content), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -123,5 +123,39 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	}
 	if len(plan.Summary) != 5 {
 		t.Fatalf("summary lines = %d, want 5", len(plan.Summary))
+	}
+}
+
+func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("remote secrets access validation requires root-owned test file")
+	}
+
+	configDir := t.TempDir()
+	secretsDir := t.TempDir()
+	configFile := filepath.Join(configDir, "homes-backup.toml")
+	configBody := "[common]\ndestination = \"s3://bucket\"\nthreads = 4\n[remote]\n"
+	if err := os.WriteFile(configFile, []byte(configBody), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
+	secretsBody := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	if err := os.WriteFile(secretsFile, []byte(secretsBody), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	req := &Request{Mode: "backup", Source: "homes", DoBackup: true, RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+
+	plan, err := planner.Build(req)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if plan.Secrets == nil {
+		t.Fatal("expected secrets to be loaded for remote plan")
+	}
+	if plan.SecretsFile != secretsFile {
+		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
 	}
 }
