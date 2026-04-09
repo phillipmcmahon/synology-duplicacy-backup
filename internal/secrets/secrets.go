@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 // MinStorjS3IDLen is the minimum length for STORJ_S3_ID.
@@ -42,21 +44,21 @@ func ValidateFileAccess(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("secrets file not found: %s", path)
+			return apperrors.NewSecretsError("stat", fmt.Errorf("secrets file not found: %s", path), "path", path)
 		}
-		return fmt.Errorf("cannot stat secrets file: %w", err)
+		return apperrors.NewSecretsError("stat", fmt.Errorf("cannot stat secrets file: %w", err), "path", path)
 	}
 
 	// Check permissions (600)
 	perm := info.Mode().Perm()
 	if perm != 0600 {
-		return fmt.Errorf("secrets file permissions are %04o, expected 0600: %s", perm, path)
+		return apperrors.NewSecretsError("permissions", fmt.Errorf("secrets file permissions are %04o, expected 0600: %s", perm, path), "path", path)
 	}
 
 	// Check ownership (root:root)
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 		if stat.Uid != 0 || stat.Gid != 0 {
-			return fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path)
+			return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path), "path", path)
 		}
 	}
 	return nil
@@ -81,7 +83,7 @@ func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 		}
 
 		if !strings.Contains(line, "=") {
-			return nil, fmt.Errorf("secrets file has invalid line at %d: %s", lineno, line)
+			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets file has invalid line at %d: %s", lineno, line), "source", source)
 		}
 
 		parts := strings.SplitN(line, "=", 2)
@@ -89,11 +91,11 @@ func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 		value := strings.TrimSpace(parts[1])
 
 		if key == "" {
-			return nil, fmt.Errorf("secrets file has malformed key=value pair with missing key at line %d", lineno)
+			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets file has malformed key=value pair with missing key at line %d", lineno), "source", source)
 		}
 
 		if !allowedSecretKeys[key] {
-			return nil, fmt.Errorf("unexpected key '%s' in secrets file at line %d", key, lineno)
+			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key '%s' in secrets file at line %d", key, lineno), "source", source)
 		}
 
 		// Strip surrounding quotes
@@ -105,7 +107,7 @@ func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading secrets file: %w", err)
+		return nil, apperrors.NewSecretsError("read", fmt.Errorf("error reading secrets file: %w", err), "source", source)
 	}
 
 	s := &Secrets{
@@ -114,10 +116,10 @@ func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 	}
 
 	if s.StorjS3ID == "" {
-		return nil, fmt.Errorf("required secret 'STORJ_S3_ID' is missing after loading %s", source)
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'STORJ_S3_ID' is missing after loading %s", source), "source", source)
 	}
 	if s.StorjS3Secret == "" {
-		return nil, fmt.Errorf("required secret 'STORJ_S3_SECRET' is missing after loading %s", source)
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'STORJ_S3_SECRET' is missing after loading %s", source), "source", source)
 	}
 
 	return s, nil
@@ -133,7 +135,7 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("secrets file is not readable: %s", path)
+		return nil, apperrors.NewSecretsError("open", fmt.Errorf("secrets file is not readable: %s", path), "path", path)
 	}
 	defer f.Close()
 
@@ -143,10 +145,10 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 // Validate checks minimum length requirements for secrets.
 func (s *Secrets) Validate() error {
 	if len(s.StorjS3ID) < MinStorjS3IDLen {
-		return fmt.Errorf("STORJ_S3_ID must be at least %d characters (was %d)", MinStorjS3IDLen, len(s.StorjS3ID))
+		return apperrors.NewSecretsError("validate", fmt.Errorf("STORJ_S3_ID must be at least %d characters (was %d)", MinStorjS3IDLen, len(s.StorjS3ID)))
 	}
 	if len(s.StorjS3Secret) < MinStorjS3SecretLen {
-		return fmt.Errorf("STORJ_S3_SECRET must be at least %d characters (was %d)", MinStorjS3SecretLen, len(s.StorjS3Secret))
+		return apperrors.NewSecretsError("validate", fmt.Errorf("STORJ_S3_SECRET must be at least %d characters (was %d)", MinStorjS3SecretLen, len(s.StorjS3Secret)))
 	}
 	return nil
 }

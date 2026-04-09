@@ -1,12 +1,15 @@
 package lock
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 func requireLinuxProc(t *testing.T) {
@@ -158,6 +161,28 @@ func TestAcquire_StaleLockInvalidPID(t *testing.T) {
 		t.Fatalf("Acquire (invalid PID) failed: %v", err)
 	}
 	defer lk.Release()
+}
+
+func TestAcquire_CreateParentFailureReturnsLockError(t *testing.T) {
+	dir := t.TempDir()
+	fileParent := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(fileParent, []byte("x"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	lk := New(filepath.Join(fileParent, "child"), "test-parent-failure")
+	err := lk.Acquire()
+	if err == nil {
+		t.Fatal("expected error when lock parent cannot be created")
+	}
+
+	var lockErr *apperrors.LockError
+	if !errors.As(err, &lockErr) {
+		t.Fatalf("expected LockError, got %T", err)
+	}
+	if lockErr.Phase != "create-parent" {
+		t.Fatalf("LockError phase = %q, want create-parent", lockErr.Phase)
+	}
 }
 
 // ─── Release tests ──────────────────────────────────────────────────────────

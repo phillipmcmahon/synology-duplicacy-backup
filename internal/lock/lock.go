@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 // Lock represents a directory-based process lock.
@@ -32,7 +34,7 @@ func New(lockParent, label string) *Lock {
 func (l *Lock) Acquire() error {
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(l.Path), 0755); err != nil {
-		return fmt.Errorf("failed to create lock parent directory: %w", err)
+		return apperrors.NewLockError("create-parent", fmt.Errorf("failed to create lock parent directory: %w", err), "path", filepath.Dir(l.Path))
 	}
 
 	// Try to create the lock directory atomically
@@ -44,7 +46,7 @@ func (l *Lock) Acquire() error {
 	existingPID, err := l.readPID()
 	if err == nil && existingPID > 0 {
 		if processExists(existingPID) {
-			return fmt.Errorf("another backup is already running (PID: %d)", existingPID)
+			return apperrors.NewLockError("held", fmt.Errorf("another backup is already running (PID: %d)", existingPID), "pid", strconv.Itoa(existingPID))
 		}
 	}
 
@@ -52,7 +54,7 @@ func (l *Lock) Acquire() error {
 	os.RemoveAll(l.Path)
 
 	if err := os.Mkdir(l.Path, 0755); err != nil {
-		return fmt.Errorf("failed to acquire lock after removing stale lock")
+		return apperrors.NewLockError("stale-retry", fmt.Errorf("failed to acquire lock after removing stale lock"), "path", l.Path)
 	}
 
 	return l.writePID()

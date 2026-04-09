@@ -90,5 +90,29 @@ func OperatorMessage(err error) string {
 		return "Permission normalisation failed."
 	}
 
+	var configErr *apperrors.ConfigError
+	if errors.As(err, &configErr) {
+		if configErr.Cause != nil {
+			return configErr.Cause.Error()
+		}
+		return configErr.Error()
+	}
+
+	var secretsErr *apperrors.SecretsError
+	if errors.As(err, &secretsErr) {
+		if secretsErr.Cause != nil {
+			return secretsErr.Cause.Error()
+		}
+		return secretsErr.Error()
+	}
+
+	var lockErr *apperrors.LockError
+	if errors.As(err, &lockErr) {
+		if lockErr.Cause != nil {
+			return fmt.Sprintf("Lock acquisition failed: %s", lockErr.Cause.Error())
+		}
+		return "Lock acquisition failed."
+	}
+
 	return err.Error()
 }
