@@ -69,6 +69,11 @@ func OperatorMessage(err error) string {
 			return normaliseOperatorSentence("Policy prune failed.")
 		case "deep-prune":
 			return normaliseOperatorSentence("Deep prune failed.")
+		case "revision-count":
+			if pruneErr.Cause != nil {
+				return normaliseOperatorSentence(pruneErr.Cause.Error())
+			}
+			return normaliseOperatorSentence(pruneErr.Error())
 		default:
 			return normaliseOperatorSentence(pruneErr.Error())
 		}
@@ -81,6 +86,11 @@ func OperatorMessage(err error) string {
 			return normaliseOperatorSentence("Failed to create snapshot.")
 		case "delete":
 			return normaliseOperatorSentence("Failed to delete snapshot subvolume.")
+		case "check-volume":
+			if snapshotErr.Cause != nil {
+				return normaliseOperatorSentence(snapshotErr.Cause.Error())
+			}
+			return normaliseOperatorSentence(snapshotErr.Error())
 		default:
 			return normaliseOperatorSentence(snapshotErr.Error())
 		}
@@ -150,9 +160,13 @@ func normaliseOperatorSentence(message string) string {
 		return ""
 	}
 	switch message[len(message)-1] {
-	case '.', '!', '?':
+	case '.', '!', '?', ':':
 		return message
 	default:
 		return message + "."
 	}
+}
+
+func statusLinef(format string, args ...interface{}) string {
+	return normaliseOperatorSentence(fmt.Sprintf(format, args...))
 }

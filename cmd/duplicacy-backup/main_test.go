@@ -128,7 +128,7 @@ func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(--nope) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "unknown option --nope") {
+		if !strings.Contains(stderr, "unknown option --nope.") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -156,7 +156,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found") {
+		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.conf.") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -179,7 +179,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Lock acquisition failed") {
+		if !strings.Contains(stderr, "Lock acquisition failed:") || !strings.Contains(stderr, "not a directory.") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -197,6 +197,9 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 		if !strings.Contains(stderr, "Backup phase completed (dry-run).") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if !strings.Contains(stderr, "All operations completed.") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 	})
 }
 
@@ -211,6 +214,9 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 			}
 		})
 		if !strings.Contains(stderr, "Permission normalisation completed (dry-run).") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "All operations completed.") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})

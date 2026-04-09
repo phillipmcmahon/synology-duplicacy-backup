@@ -19,14 +19,29 @@ func TestOperatorMessage(t *testing.T) {
 			want: "Backup failed.",
 		},
 		{
+			name: "backup write preferences translated",
+			err:  apperrors.NewBackupError("write-preferences", errors.New("failed to write preferences file: permission denied")),
+			want: "Failed to write preferences.",
+		},
+		{
 			name: "prune validate repo",
 			err:  apperrors.NewPruneError("validate-repo", errors.New("boom")),
 			want: "Cannot perform prune operation — repository not ready.",
 		},
 		{
+			name: "prune revision count fallback cause",
+			err:  apperrors.NewPruneError("revision-count", errors.New("failed to list revisions for percentage calculation (fail-closed)")),
+			want: "failed to list revisions for percentage calculation (fail-closed).",
+		},
+		{
 			name: "message error",
 			err:  NewMessageError("Refusing to continue because safe prune thresholds were exceeded."),
 			want: "Refusing to continue because safe prune thresholds were exceeded.",
+		},
+		{
+			name: "snapshot check volume cause",
+			err:  apperrors.NewSnapshotError("check-volume", errors.New("path is not on a btrfs filesystem")),
+			want: "path is not on a btrfs filesystem.",
 		},
 		{
 			name: "config required fields",

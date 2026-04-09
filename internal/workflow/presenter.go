@@ -22,7 +22,7 @@ func NewPresenter(meta Metadata, rt Runtime, log *logger.Logger) *Presenter {
 
 func (p *Presenter) PrintHeader(lockPath string) {
 	p.log.PrintSeparator()
-	p.log.Info("Backup script started - %s", p.rt.Now().Format("2006-01-02 15:04:05"))
+	p.log.Info("%s", statusLinef("Backup script started - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Script", p.meta.ScriptName)
 	p.log.PrintLine("PID", fmt.Sprintf("%d", p.rt.Getpid()))
 	p.log.PrintLine("Lock Path", lockPath)
@@ -30,7 +30,7 @@ func (p *Presenter) PrintHeader(lockPath string) {
 }
 
 func (p *Presenter) PrintSummary(plan *Plan) {
-	p.log.Info("Configuration Summary:")
+	p.log.Info("%s", statusLinef("Configuration Summary:"))
 	for _, line := range plan.Summary {
 		p.log.PrintLine(line.Label, line.Value)
 	}
@@ -69,7 +69,7 @@ func (p *Presenter) PrintCompletion(exitCode int) {
 		status = "FAILED"
 	}
 	p.log.PrintSeparator()
-	p.log.Info("Backup script completed:")
+	p.log.Info("%s", statusLinef("Backup script completed:"))
 	p.log.PrintLine("Result", p.log.FormatResult(status))
 	p.log.PrintLine("Code", fmt.Sprintf("%d", exitCode))
 	p.log.PrintLine("Timestamp", p.rt.Now().Format("2006-01-02 15:04:05"))
