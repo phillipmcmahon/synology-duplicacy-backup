@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
@@ -1748,4 +1749,860 @@ func TestApp_InstallSignalHandler_SetsUpHandler(t *testing.T) {
 	// We can verify the handler was installed by checking that signal.Reset
 	// doesn't panic.  The goroutine is non-blocking so the test continues.
 	signal.Reset(syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
+}
+
+// ─── Additional tests for improved coverage ─────────────────────────────────
+
+// ---------------------------------------------------------------------------
+// TestApp_PrintCommandOutput
+// ---------------------------------------------------------------------------
+
+func TestApp_PrintCommandOutput_BothStreams(t *testing.T) {
+	a := testApp(t)
+	// Should not panic
+	a.printCommandOutput("stdout line 1\nstdout line 2\n", "stderr line 1\n")
+}
+
+func TestApp_PrintCommandOutput_EmptyStreams(t *testing.T) {
+	a := testApp(t)
+	// Should not panic with empty strings
+	a.printCommandOutput("", "")
+}
+
+func TestApp_PrintCommandOutput_StdoutOnly(t *testing.T) {
+	a := testApp(t)
+	a.printCommandOutput("output line\n", "")
+}
+
+func TestApp_PrintCommandOutput_StderrOnly(t *testing.T) {
+	a := testApp(t)
+	a.printCommandOutput("", "error line\n")
+}
+
+func TestApp_PrintCommandOutput_EmptyLinesSkipped(t *testing.T) {
+	a := testApp(t)
+	// Empty lines should be skipped in output
+	a.printCommandOutput("line1\n\n\nline2\n", "err1\n\nerr2\n")
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_Execute — covers the dispatch logic
+// ---------------------------------------------------------------------------
+
+func TestApp_Execute_BackupMode_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.flags.dryRun = true
+	a.flags.fixPerms = false
+
+	// Set up config needed by prepareDuplicacySetup
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Threads = 4
+	a.cfg.Filter = ""
+	a.backupTarget = "/backup/dest/testlabel"
+
+	// In dry-run mode, execute should succeed without real commands
+	err := a.execute()
+	if err != nil {
+		t.Fatalf("execute() dry-run error: %v", err)
+	}
+
+	// dup should be set after prepareDuplicacySetup
+	if a.dup == nil {
+		t.Error("dup should be set after execute()")
+	}
+}
+
+func TestApp_Execute_PruneMode_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.deepPruneMode = false
+	a.flags.dryRun = true
+	a.flags.fixPerms = false
+	a.flags.mode = "prune"
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Prune = "-keep 0:365 -keep 30:30 -keep 7:7"
+	a.cfg.PruneArgs = []string{"-keep", "0:365", "-keep", "30:30", "-keep", "7:7"}
+	a.backupTarget = "/backup/dest/testlabel"
+
+	err := a.execute()
+	if err != nil {
+		t.Fatalf("execute() dry-run prune error: %v", err)
+	}
+}
+
+func TestApp_Execute_BackupWithFixPerms_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.flags.dryRun = true
+	a.flags.fixPerms = true
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Threads = 4
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "testgroup"
+	a.backupTarget = "/backup/dest/testlabel"
+
+	err := a.execute()
+	if err != nil {
+		t.Fatalf("execute() backup+fix-perms dry-run error: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_PrepareDuplicacySetup
+// ---------------------------------------------------------------------------
+
+func TestApp_PrepareDuplicacySetup_DryRun_Backup(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.flags.dryRun = true
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Filter = "+include_dir/*\n-exclude_dir/*"
+	a.backupTarget = "/backup/dest/testlabel"
+
+	err := a.prepareDuplicacySetup()
+	if err != nil {
+		t.Fatalf("prepareDuplicacySetup() dry-run error: %v", err)
+	}
+
+	if a.dup == nil {
+		t.Error("dup should be set")
+	}
+}
+
+func TestApp_PrepareDuplicacySetup_DryRun_Prune(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.flags.dryRun = true
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.backupTarget = "/backup/dest/testlabel"
+
+	err := a.prepareDuplicacySetup()
+	if err != nil {
+		t.Fatalf("prepareDuplicacySetup() dry-run prune error: %v", err)
+	}
+}
+
+func TestApp_PrepareDuplicacySetup_NoFilter_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.flags.dryRun = true
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Filter = "" // No filter
+	a.backupTarget = "/backup/dest/testlabel"
+
+	err := a.prepareDuplicacySetup()
+	if err != nil {
+		t.Fatalf("prepareDuplicacySetup() no-filter error: %v", err)
+	}
+}
+
+func TestApp_PrepareDuplicacySetup_RealDirs(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.flags.dryRun = false
+
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/backup/dest"
+	a.cfg.Filter = ""
+	a.backupTarget = "/backup/dest/testlabel"
+	a.workRoot = filepath.Join(t.TempDir(), "workroot")
+
+	err := a.prepareDuplicacySetup()
+	if err != nil {
+		t.Fatalf("prepareDuplicacySetup() real dirs error: %v", err)
+	}
+
+	// Verify that directories were actually created
+	if a.dup == nil {
+		t.Fatal("dup should be set")
+	}
+	if _, err := os.Stat(a.dup.DuplicacyDir); os.IsNotExist(err) {
+		t.Error("DuplicacyDir should have been created")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_RunBackupPhase
+// ---------------------------------------------------------------------------
+
+func TestApp_RunBackupPhase_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = true
+	a.cfg = config.NewDefaults()
+	a.cfg.Threads = 4
+
+	a.dup = &duplicacy.Setup{
+		DryRun: true,
+		Runner: execpkg.NewMockRunner(),
+	}
+
+	err := a.runBackupPhase()
+	if err != nil {
+		t.Fatalf("runBackupPhase() dry-run error: %v", err)
+	}
+}
+
+func TestApp_RunBackupPhase_Success(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.Threads = 4
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Backup completed\n"},
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runBackupPhase()
+	if err != nil {
+		t.Fatalf("runBackupPhase() error: %v", err)
+	}
+
+	// Verify the mock was called
+	if len(mock.Invocations) != 1 {
+		t.Errorf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Cmd != "duplicacy" {
+		t.Errorf("expected cmd 'duplicacy', got %q", mock.Invocations[0].Cmd)
+	}
+}
+
+func TestApp_RunBackupPhase_Failure(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.Threads = 4
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Err: fmt.Errorf("backup failed")},
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runBackupPhase()
+	if err == nil {
+		t.Fatal("runBackupPhase() should return error on failure")
+	}
+	if !strings.Contains(err.Error(), "Backup failed") {
+		t.Errorf("error should mention 'Backup failed', got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_RunPrunePhase
+// ---------------------------------------------------------------------------
+
+func TestApp_RunPrunePhase_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = true
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	a.dup = &duplicacy.Setup{
+		DryRun: true,
+		Runner: execpkg.NewMockRunner(),
+	}
+
+	err := a.runPrunePhase()
+	if err != nil {
+		t.Fatalf("runPrunePhase() dry-run error: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_Success(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.flags.forcePrune = false
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	// Mock: validate-repo, prune-preview, list-revisions, policy-prune
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Listing files...\n"},                       // ValidateRepo
+		execpkg.MockResult{Stdout: "Deleting revision 1\n"},                    // SafePrunePreview (prune dry-run)
+		execpkg.MockResult{Stdout: "Listing revision 1\nListing revision 2\n"}, // GetTotalRevisionCount
+		execpkg.MockResult{Stdout: "Prune completed\n"},                        // RunPrune
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err != nil {
+		t.Fatalf("runPrunePhase() error: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_ValidateRepoFails(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Err: fmt.Errorf("repo invalid")}, // ValidateRepo fails
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err == nil {
+		t.Fatal("runPrunePhase() should fail when repo validation fails")
+	}
+	if !strings.Contains(err.Error(), "repository not ready") {
+		t.Errorf("error should mention repo not ready, got: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_ThresholdExceeded_Blocked(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.flags.forcePrune = false
+	a.cfg = config.NewDefaults()
+	a.cfg.SafePruneMaxDeleteCount = 1 // Very low threshold
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	// Mock: validate-repo succeeds, preview shows 5 deletions, 10 total revisions
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "OK\n"}, // ValidateRepo
+		execpkg.MockResult{Stdout: "Deleting revision 1\nDeleting revision 2\nDeleting revision 3\n"},                                                                                                                                           // SafePrunePreview
+		execpkg.MockResult{Stdout: "Listing revision 1\nListing revision 2\nListing revision 3\nListing revision 4\nListing revision 5\nListing revision 6\nListing revision 7\nListing revision 8\nListing revision 9\nListing revision 10\n"}, // GetTotalRevisionCount
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err == nil {
+		t.Fatal("runPrunePhase() should fail when threshold exceeded without --force-prune")
+	}
+	if !strings.Contains(err.Error(), "safe prune thresholds") {
+		t.Errorf("error should mention thresholds, got: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_ThresholdExceeded_ForceOverride(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.flags.forcePrune = true
+	a.cfg = config.NewDefaults()
+	a.cfg.SafePruneMaxDeleteCount = 1 // Very low threshold
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "OK\n"}, // ValidateRepo
+		execpkg.MockResult{Stdout: "Deleting revision 1\nDeleting revision 2\nDeleting revision 3\n"},                                                                                                                                           // SafePrunePreview
+		execpkg.MockResult{Stdout: "Listing revision 1\nListing revision 2\nListing revision 3\nListing revision 4\nListing revision 5\nListing revision 6\nListing revision 7\nListing revision 8\nListing revision 9\nListing revision 10\n"}, // GetTotalRevisionCount
+		execpkg.MockResult{Stdout: "Prune done\n"}, // RunPrune
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err != nil {
+		t.Fatalf("runPrunePhase() with --force-prune should succeed: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_DeepPrune_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = true
+	a.deepPruneMode = true
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	a.dup = &duplicacy.Setup{
+		DryRun: true,
+		Runner: execpkg.NewMockRunner(),
+	}
+
+	err := a.runPrunePhase()
+	if err != nil {
+		t.Fatalf("runPrunePhase() deep dry-run error: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_RevisionCountFailed_NoForce(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.flags.forcePrune = false
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "OK\n"},               // ValidateRepo
+		execpkg.MockResult{Stdout: "no deletions\n"},     // SafePrunePreview
+		execpkg.MockResult{Err: fmt.Errorf("list fail")}, // GetTotalRevisionCount fails
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err == nil {
+		t.Fatal("runPrunePhase() should fail when revision count fails without --force-prune")
+	}
+	if !strings.Contains(err.Error(), "Revision count") {
+		t.Errorf("error should mention revision count, got: %v", err)
+	}
+}
+
+func TestApp_RunPrunePhase_RevisionCountFailed_WithForce(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.flags.forcePrune = true
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "OK\n"},               // ValidateRepo
+		execpkg.MockResult{Stdout: "no deletions\n"},     // SafePrunePreview
+		execpkg.MockResult{Err: fmt.Errorf("list fail")}, // GetTotalRevisionCount fails
+		execpkg.MockResult{Stdout: "Prune done\n"},       // RunPrune
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err != nil {
+		t.Fatalf("runPrunePhase() with --force-prune should handle revision count failure: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_RunFixPermsPhase
+// ---------------------------------------------------------------------------
+
+func TestApp_RunFixPermsPhase_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = true
+	a.cfg = config.NewDefaults()
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "testgroup"
+	a.backupTarget = "/backup/target"
+
+	err := a.runFixPermsPhase()
+	if err != nil {
+		t.Fatalf("runFixPermsPhase() dry-run error: %v", err)
+	}
+}
+
+func TestApp_RunFixPermsPhase_Success(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "testgroup"
+
+	targetDir := t.TempDir()
+	a.backupTarget = targetDir
+
+	// Create mock runner that succeeds for chown
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{}, // chown succeeds
+	)
+	a.runner = mock
+
+	err := a.runFixPermsPhase()
+	if err != nil {
+		t.Fatalf("runFixPermsPhase() error: %v", err)
+	}
+}
+
+func TestApp_RunFixPermsPhase_ChownFails(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "testgroup"
+
+	targetDir := t.TempDir()
+	a.backupTarget = targetDir
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Err: fmt.Errorf("chown failed")},
+	)
+	a.runner = mock
+
+	err := a.runFixPermsPhase()
+	if err == nil {
+		t.Fatal("runFixPermsPhase() should fail when chown fails")
+	}
+	if !strings.Contains(err.Error(), "Permission normalisation failed") {
+		t.Errorf("error should mention permission normalisation, got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_Cleanup — edge cases
+// ---------------------------------------------------------------------------
+
+func TestApp_Cleanup_BackupMode_NoSnapshot(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	// snapshotTarget doesn't exist, so cleanup should skip deletion
+	a.snapshotTarget = filepath.Join(t.TempDir(), "nonexistent-snapshot")
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-cleanup")
+	a.lk.Acquire()
+	a.lockAcquired = true
+
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true after cleanup()")
+	}
+}
+
+func TestApp_Cleanup_BackupMode_WithSnapshot_DryRun(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.flags.dryRun = true
+
+	// Create a fake snapshot directory
+	snapshotDir := filepath.Join(t.TempDir(), "snapshot")
+	os.MkdirAll(snapshotDir, 0755)
+	a.snapshotTarget = snapshotDir
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-cleanup-dryrun")
+
+	a.cleanup()
+	// In dry-run, directory should still exist (btrfs delete is just logged)
+	if _, err := os.Stat(snapshotDir); os.IsNotExist(err) {
+		t.Error("snapshot dir should still exist in dry-run mode")
+	}
+}
+
+func TestApp_Cleanup_WithDup(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+
+	workDir := filepath.Join(t.TempDir(), "workdir")
+	os.MkdirAll(workDir, 0755)
+	a.dup = &duplicacy.Setup{WorkRoot: workDir}
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-cleanup-dup")
+
+	a.cleanup()
+	if _, err := os.Stat(workDir); !os.IsNotExist(err) {
+		t.Error("work directory should have been removed after cleanup")
+	}
+}
+
+func TestApp_Cleanup_WorkRootFallback(t *testing.T) {
+	a := testApp(t)
+	a.dup = nil
+	a.flags.dryRun = false
+
+	workDir := filepath.Join(t.TempDir(), "workroot-fallback")
+	os.MkdirAll(workDir, 0755)
+	a.workRoot = workDir
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-cleanup-fallback")
+
+	a.cleanup()
+	if _, err := os.Stat(workDir); !os.IsNotExist(err) {
+		t.Error("workRoot should have been removed when dup is nil")
+	}
+}
+
+func TestApp_Cleanup_SuccessStatus(t *testing.T) {
+	a := testApp(t)
+	a.exitCode = 0
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-success")
+
+	a.cleanup()
+	// No panic = success
+}
+
+func TestApp_Cleanup_FailedStatus(t *testing.T) {
+	a := testApp(t)
+	a.exitCode = 1
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-failed")
+
+	a.cleanup()
+	// No panic = success
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_LoadConfig — additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestApp_LoadConfig_RemoteMode(t *testing.T) {
+	a := testApp(t)
+	a.flags.remoteMode = true
+	a.flags.fixPerms = false
+	a.doBackup = false
+	a.doPrune = true
+
+	cfgDir := t.TempDir()
+	a.configDir = cfgDir
+	a.configFile = filepath.Join(cfgDir, "testlabel-backup.conf")
+
+	// Write a config file with [common] and [remote] sections
+	cfgContent := `[common]
+DESTINATION = s3://gateway.storjshare.io/bucket
+PRUNE = -keep 0:365
+
+[remote]
+THREADS = 4
+`
+	os.WriteFile(a.configFile, []byte(cfgContent), 0644)
+
+	err := a.loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig() remote mode error: %v", err)
+	}
+
+	if a.cfg == nil {
+		t.Fatal("cfg should not be nil after loadConfig()")
+	}
+}
+
+func TestApp_LoadConfig_ParseError(t *testing.T) {
+	a := testApp(t)
+	a.flags.remoteMode = false
+	a.doBackup = true
+
+	cfgDir := t.TempDir()
+	a.configDir = cfgDir
+	a.configFile = filepath.Join(cfgDir, "testlabel-backup.conf")
+
+	// Write invalid config
+	cfgContent := `INVALID LINE OUTSIDE SECTION
+`
+	os.WriteFile(a.configFile, []byte(cfgContent), 0644)
+
+	err := a.loadConfig()
+	if err == nil {
+		t.Fatal("loadConfig() should fail on parse error")
+	}
+}
+
+func TestApp_LoadConfig_ValidationError(t *testing.T) {
+	a := testApp(t)
+	a.flags.remoteMode = false
+	a.doBackup = true
+
+	cfgDir := t.TempDir()
+	a.configDir = cfgDir
+	a.configFile = filepath.Join(cfgDir, "testlabel-backup.conf")
+
+	// Missing DESTINATION (required)
+	cfgContent := `[common]
+THREADS = 4
+
+[local]
+`
+	os.WriteFile(a.configFile, []byte(cfgContent), 0644)
+
+	err := a.loadConfig()
+	if err == nil {
+		t.Fatal("loadConfig() should fail when DESTINATION is missing")
+	}
+	if !strings.Contains(err.Error(), "DESTINATION") {
+		t.Errorf("error should mention DESTINATION, got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_LoadSecrets — additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestApp_LoadSecrets_RemoteValidationFails(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("requires root for secrets ownership check")
+	}
+
+	a := testApp(t)
+	a.flags.remoteMode = true
+	a.backupLabel = "testlabel"
+
+	secretsDir := t.TempDir()
+	a.secretsDir = secretsDir
+
+	// Write secrets with short ID/secret that will fail validation
+	content := "STORJ_S3_ID=short\nSTORJ_S3_SECRET=short\n"
+	p := filepath.Join(secretsDir, "duplicacy-testlabel.env")
+	os.WriteFile(p, []byte(content), 0600)
+
+	err := a.loadSecrets()
+	if err == nil {
+		t.Fatal("loadSecrets() should fail when validation fails")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Additional parseFlags edge cases
+// ---------------------------------------------------------------------------
+
+func TestParseFlags_DuplicateModeFails(t *testing.T) {
+	_, err := parseFlags([]string{"--backup", "--prune", "homes"})
+	if err == nil {
+		t.Fatal("expected error for duplicate mode flags")
+	}
+	if !strings.Contains(err.Error(), "only one mode") {
+		t.Errorf("error should mention 'only one mode', got: %v", err)
+	}
+}
+
+func TestParseFlags_AllModifiers(t *testing.T) {
+	f, err := parseFlags([]string{"--prune", "--force-prune", "--remote", "--dry-run", "--fix-perms", "homes"})
+	if err != nil {
+		t.Fatalf("parseFlags() error: %v", err)
+	}
+	if !f.forcePrune {
+		t.Error("forcePrune should be true")
+	}
+	if !f.remoteMode {
+		t.Error("remoteMode should be true")
+	}
+	if !f.dryRun {
+		t.Error("dryRun should be true")
+	}
+	if !f.fixPerms {
+		t.Error("fixPerms should be true")
+	}
+}
+
+func TestParseFlags_MultiplePositionalArgs(t *testing.T) {
+	f, err := parseFlags([]string{"homes"})
+	if err != nil {
+		t.Fatalf("parseFlags() error: %v", err)
+	}
+	if f.source != "homes" {
+		t.Errorf("source = %q, want %q", f.source, "homes")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Additional validateLabel edge cases
+// ---------------------------------------------------------------------------
+
+func TestValidateLabel_WithDots(t *testing.T) {
+	err := validateLabel("label..traversal")
+	if err == nil {
+		t.Fatal("expected error for label with ..")
+	}
+}
+
+func TestValidateLabel_WithSlash(t *testing.T) {
+	err := validateLabel("label/path")
+	if err == nil {
+		t.Fatal("expected error for label with /")
+	}
+}
+
+func TestValidateLabel_WithBackslash(t *testing.T) {
+	err := validateLabel("label\\path")
+	if err == nil {
+		t.Fatal("expected error for label with \\")
+	}
+}
+
+func TestValidateLabel_StartingWithHyphen(t *testing.T) {
+	err := validateLabel("-invalid")
+	if err == nil {
+		t.Fatal("expected error for label starting with hyphen")
+	}
+}
+
+func TestValidateLabel_StartingWithUnderscore(t *testing.T) {
+	err := validateLabel("_invalid")
+	if err == nil {
+		t.Fatal("expected error for label starting with underscore")
+	}
+}
+
+func TestValidateLabel_WithSpaces(t *testing.T) {
+	err := validateLabel("has spaces")
+	if err == nil {
+		t.Fatal("expected error for label with spaces")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// joinDestination additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestJoinDestination_URLWithTrailingSlash(t *testing.T) {
+	result := joinDestination("s3://bucket/path/", "homes")
+	if result != "s3://bucket/path/homes" {
+		t.Errorf("joinDestination = %q, want %q", result, "s3://bucket/path/homes")
+	}
+}
+
+func TestJoinDestination_URLMultipleSlashes(t *testing.T) {
+	result := joinDestination("s3://bucket/path///", "homes")
+	if result != "s3://bucket/path/homes" {
+		t.Errorf("joinDestination = %q, want %q", result, "s3://bucket/path/homes")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_PrintHeader
+// ---------------------------------------------------------------------------
+
+func TestApp_PrintHeader_DoesNotPanic_WithLock(t *testing.T) {
+	a := testApp(t)
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-header")
+	a.printHeader()
+}
+
+// ---------------------------------------------------------------------------
+// TestApp_Execute_PrunePreviewFails
+// ---------------------------------------------------------------------------
+
+func TestApp_RunPrunePhase_PreviewFails(t *testing.T) {
+	a := testApp(t)
+	a.flags.dryRun = false
+	a.cfg = config.NewDefaults()
+	a.cfg.PruneArgs = []string{"-keep", "0:365"}
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "OK\n"},                    // ValidateRepo
+		execpkg.MockResult{Err: fmt.Errorf("preview failed")}, // SafePrunePreview fails
+	)
+
+	workRoot := t.TempDir()
+	a.dup = duplicacy.NewSetup(workRoot, "/repo", "/target", false, mock)
+
+	err := a.runPrunePhase()
+	if err == nil {
+		t.Fatal("runPrunePhase() should fail when prune preview fails")
+	}
+	if !strings.Contains(err.Error(), "Safe prune preview failed") {
+		t.Errorf("unexpected error: %v", err)
+	}
 }
