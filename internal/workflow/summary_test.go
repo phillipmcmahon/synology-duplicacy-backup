@@ -3,21 +3,15 @@ package workflow
 import (
 	"testing"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 	plan := &Plan{
-		Request: &Request{
-			FixPerms:     true,
-			FixPermsOnly: true,
-			DryRun:       true,
-		},
-		Config: &config.Config{
-			LocalOwner: "backupuser",
-			LocalGroup: "users",
-		},
+		FixPermsOnly:  true,
+		DryRun:        true,
+		LocalOwner:    "backupuser",
+		LocalGroup:    "users",
 		BackupTarget:  "/backups/homes",
 		OperationMode: "Fix permissions only",
 	}
@@ -43,19 +37,13 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 
 func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 	plan := &Plan{
-		Request: &Request{
-			Mode:       "backup",
-			DoBackup:   true,
-			RemoteMode: true,
-		},
-		Config: &config.Config{
-			Destination:                 "/backups",
-			Threads:                     4,
-			LogRetentionDays:            30,
-			SafePruneMaxDeletePercent:   10,
-			SafePruneMaxDeleteCount:     25,
-			SafePruneMinTotalForPercent: 20,
-		},
+		DoBackup:                    true,
+		RemoteMode:                  true,
+		Threads:                     4,
+		LogRetentionDays:            30,
+		SafePruneMaxDeletePercent:   10,
+		SafePruneMaxDeleteCount:     25,
+		SafePruneMinTotalForPercent: 20,
 		Secrets: &secrets.Secrets{
 			StorjS3ID:     "1234567890123456789012345678",
 			StorjS3Secret: "12345678901234567890123456789012345678901234567890123",
@@ -68,6 +56,7 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		ConfigFile:     "/config/homes-backup.conf",
 		SecretsDir:     "/root/.secrets",
 		SecretsFile:    "/root/.secrets/duplicacy-homes.env",
+		ModeDisplay:    "REMOTE",
 		OperationMode:  "Backup only",
 	}
 

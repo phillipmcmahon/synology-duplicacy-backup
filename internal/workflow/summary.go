@@ -31,22 +31,22 @@ func OperationMode(req *Request) string {
 func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{{Label: "Operation Mode", Value: plan.OperationMode}}
 
-	if plan.Request.FixPermsOnly {
+	if plan.FixPermsOnly {
 		return append(lines,
 			SummaryLine{Label: "Destination", Value: plan.BackupTarget},
-			SummaryLine{Label: "Local Owner", Value: plan.Config.LocalOwner},
-			SummaryLine{Label: "Local Group", Value: plan.Config.LocalGroup},
-			SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.Request.DryRun)},
+			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
+			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
+			SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
 		)
 	}
 
 	lines = append(lines,
 		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Backup Label", Value: plan.BackupLabel},
-		SummaryLine{Label: "Mode", Value: plan.ModeLabel()},
+		SummaryLine{Label: "Mode", Value: plan.ModeDisplay},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
 	)
-	if plan.Request.DoBackup {
+	if plan.DoBackup {
 		lines = append(lines, SummaryLine{Label: "Snapshot", Value: plan.RepositoryPath})
 	}
 	lines = append(lines,
@@ -54,42 +54,42 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		SummaryLine{Label: "Destination", Value: plan.BackupTarget},
 	)
 
-	if plan.Config.Threads > 0 {
-		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", plan.Config.Threads)})
+	if plan.Threads > 0 {
+		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", plan.Threads)})
 	} else {
 		lines = append(lines, SummaryLine{Label: "Threads", Value: "<n/a>"})
 	}
 
-	if plan.Config.Filter != "" {
-		lines = append(lines, SummaryLine{Label: "Filter", Value: plan.Config.Filter})
+	if plan.Filter != "" {
+		lines = append(lines, SummaryLine{Label: "Filter", Value: plan.Filter})
 	} else {
 		lines = append(lines, SummaryLine{Label: "Filter", Value: "<none>"})
 	}
 
-	if plan.Config.Prune != "" {
-		lines = append(lines, SummaryLine{Label: "Prune Options", Value: plan.Config.Prune})
+	if plan.PruneOptions != "" {
+		lines = append(lines, SummaryLine{Label: "Prune Options", Value: plan.PruneOptions})
 	} else {
 		lines = append(lines, SummaryLine{Label: "Prune Options", Value: "<none>"})
 	}
 
 	lines = append(lines,
-		SummaryLine{Label: "Log Retention", Value: fmt.Sprintf("%d", plan.Config.LogRetentionDays)},
-		SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.Request.DryRun)},
-		SummaryLine{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.Request.ForcePrune)},
-		SummaryLine{Label: "Fix Perms", Value: fmt.Sprintf("%t", plan.Request.FixPerms)},
-		SummaryLine{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.Config.SafePruneMaxDeletePercent)},
-		SummaryLine{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.Config.SafePruneMaxDeleteCount)},
-		SummaryLine{Label: "Prune Min Total Revs", Value: fmt.Sprintf("%d", plan.Config.SafePruneMinTotalForPercent)},
+		SummaryLine{Label: "Log Retention", Value: fmt.Sprintf("%d", plan.LogRetentionDays)},
+		SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
+		SummaryLine{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.ForcePrune)},
+		SummaryLine{Label: "Fix Perms", Value: fmt.Sprintf("%t", plan.FixPerms)},
+		SummaryLine{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeletePercent)},
+		SummaryLine{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeleteCount)},
+		SummaryLine{Label: "Prune Min Total Revs", Value: fmt.Sprintf("%d", plan.SafePruneMinTotalForPercent)},
 	)
 
-	if plan.Request.FixPerms {
+	if plan.FixPerms {
 		lines = append(lines,
-			SummaryLine{Label: "Local Owner", Value: plan.Config.LocalOwner},
-			SummaryLine{Label: "Local Group", Value: plan.Config.LocalGroup},
+			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
+			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
 		)
 	}
 
-	if plan.Request.RemoteMode && plan.Secrets != nil {
+	if plan.RemoteMode && plan.Secrets != nil {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},

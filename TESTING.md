@@ -81,6 +81,8 @@ Planner tests cover:
 - config loading
 - operation-mode derivation
 - backup-target derivation
+- summary precomputation
+- execution-ready plan fields
 - btrfs validation during backup planning
 - minimal fix-perms-only planning
 
@@ -89,6 +91,11 @@ Executor tests cover:
 - operation-mode rendering for combined flows
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
+
+Workflow tests also cover:
+
+- operator-message translation
+- summary layout for fixed-perms-only and remote flows
 
 ### `internal/btrfs`
 
@@ -130,3 +137,7 @@ they actually belong to.
 The test split is also meant to keep `cmd/duplicacy-backup` small. As more
 workflow behavior moves under `internal/workflow`, most new coordinator tests
 should be added there unless they are specifically about the real entrypoint.
+
+As the plan gets richer, new tests should prefer asserting plan fields and
+workflow translations directly instead of reconstructing execution behavior from
+raw request/config state in the `cmd` package.

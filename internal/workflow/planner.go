@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
@@ -37,6 +38,18 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.Config = cfg
 	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
 	plan.OperationMode = OperationMode(req)
+	plan.Threads = cfg.Threads
+	plan.Filter = cfg.Filter
+	plan.FilterLines = splitNonEmptyLines(cfg.Filter)
+	plan.PruneOptions = cfg.Prune
+	plan.PruneArgs = append([]string(nil), cfg.PruneArgs...)
+	plan.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
+	plan.LocalOwner = cfg.LocalOwner
+	plan.LocalGroup = cfg.LocalGroup
+	plan.LogRetentionDays = cfg.LogRetentionDays
+	plan.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
+	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
+	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
 	if req.RemoteMode {
 		sec, err := p.loadSecrets(plan)
@@ -45,6 +58,8 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 		}
 		plan.Secrets = sec
 	}
+
+	plan.Summary = SummaryLines(plan)
 
 	return plan, nil
 }
@@ -83,18 +98,30 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 	secretsDir := ResolveDir(p.rt, req.SecretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
 
 	return &Plan{
-		Request:        req,
-		BackupLabel:    backupLabel,
-		RunTimestamp:   runTimestamp,
-		SnapshotSource: snapshotSource,
-		SnapshotTarget: snapshotTarget,
-		RepositoryPath: repositoryPath,
-		WorkRoot:       workRoot,
-		DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
-		ConfigDir:      configDir,
-		ConfigFile:     filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel)),
-		SecretsDir:     secretsDir,
-		SecretsFile:    secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel),
+		Request:             req,
+		DoBackup:            req.DoBackup,
+		DoPrune:             req.DoPrune,
+		DeepPruneMode:       req.DeepPruneMode,
+		FixPerms:            req.FixPerms,
+		FixPermsOnly:        req.FixPermsOnly,
+		ForcePrune:          req.ForcePrune,
+		RemoteMode:          req.RemoteMode,
+		DryRun:              req.DryRun,
+		NeedsDuplicacySetup: req.DoBackup || req.DoPrune,
+		NeedsSnapshot:       req.DoBackup,
+		DefaultNotice:       req.DefaultNotice,
+		ModeDisplay:         modeDisplay(req.RemoteMode),
+		BackupLabel:         backupLabel,
+		RunTimestamp:        runTimestamp,
+		SnapshotSource:      snapshotSource,
+		SnapshotTarget:      snapshotTarget,
+		RepositoryPath:      repositoryPath,
+		WorkRoot:            workRoot,
+		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
+		ConfigDir:           configDir,
+		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel)),
+		SecretsDir:          secretsDir,
+		SecretsFile:         secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel),
 	}
 }
 
@@ -150,6 +177,27 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 
 	p.log.Info("Configuration loaded successfully.")
 	return cfg, nil
+}
+
+func splitNonEmptyLines(value string) []string {
+	if value == "" {
+		return nil
+	}
+	lines := strings.Split(value, "\n")
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line != "" {
+			result = append(result, line)
+		}
+	}
+	return result
+}
+
+func modeDisplay(remote bool) string {
+	if remote {
+		return "REMOTE"
+	}
+	return "LOCAL"
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {

@@ -12,6 +12,21 @@ type Plan struct {
 	Config  *config.Config
 	Secrets *secrets.Secrets
 
+	DoBackup      bool
+	DoPrune       bool
+	DeepPruneMode bool
+	FixPerms      bool
+	FixPermsOnly  bool
+	ForcePrune    bool
+	RemoteMode    bool
+	DryRun        bool
+
+	NeedsDuplicacySetup bool
+	NeedsSnapshot       bool
+
+	DefaultNotice string
+	ModeDisplay   string
+
 	BackupLabel    string
 	RunTimestamp   string
 	SnapshotSource string
@@ -27,17 +42,28 @@ type Plan struct {
 	SecretsFile string
 
 	OperationMode string
+	Summary       []SummaryLine
+
+	Threads                     int
+	Filter                      string
+	FilterLines                 []string
+	PruneOptions                string
+	PruneArgs                   []string
+	PruneArgsDisplay            string
+	LocalOwner                  string
+	LocalGroup                  string
+	LogRetentionDays            int
+	SafePruneMaxDeletePercent   int
+	SafePruneMaxDeleteCount     int
+	SafePruneMinTotalForPercent int
 }
 
 func (p *Plan) IsRemote() bool {
-	return p.Request != nil && p.Request.RemoteMode
+	return p.RemoteMode
 }
 
 func (p *Plan) ModeLabel() string {
-	if p.IsRemote() {
-		return "REMOTE"
-	}
-	return "LOCAL"
+	return p.ModeDisplay
 }
 
 func (p *Plan) WorkDir() string {
