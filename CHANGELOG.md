@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.1] - 2026-04-09
+
+### Fixed
+- **P3 follow-up: help text now reflects effective config dir** — `printUsage()`
+  now uses the new `effectiveConfigDir()` function, which mirrors the runtime
+  `resolveDir()` logic by checking `DUPLICACY_BACKUP_CONFIG_DIR` before falling
+  back to the executable-relative default. The label changed from "Default:" to
+  "Effective default:" for clarity.
+
+### Added
+- **`effectiveConfigDir()` function** — encapsulates the env-var-aware config
+  directory resolution, keeping the help text and runtime in sync and preventing
+  future drift.
+- **Comprehensive tests for P1 and P3 fixes** — `run()` level integration tests
+  (`TestRun_HelpReturnsZero`, `TestRun_VersionReturnsZero`), `effectiveConfigDir`
+  unit tests, help output content verification, and version output format checks.
+
 ## [v1.8.0] - 2026-04-09
 
 ### Added

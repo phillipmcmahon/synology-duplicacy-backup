@@ -1329,6 +1329,170 @@ func TestNewApp_HelpDoesNotPanic(t *testing.T) {
 	}
 }
 
+// ─── P1 fix: run() level integration tests ──────────────────────────────────
+
+func TestRun_HelpReturnsZero(t *testing.T) {
+	// Verify the full run() flow: --help → parseAppFlags returns exitHandled →
+	// run() converts to exit code 0.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	origArgs := os.Args
+	os.Args = []string{"duplicacy-backup", "--help"}
+	defer func() {
+		os.Args = origArgs
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	code := run()
+	if code != 0 {
+		t.Errorf("run() with --help returned %d, want 0", code)
+	}
+}
+
+func TestRun_VersionReturnsZero(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	origArgs := os.Args
+	os.Args = []string{"duplicacy-backup", "--version"}
+	defer func() {
+		os.Args = origArgs
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	code := run()
+	if code != 0 {
+		t.Errorf("run() with --version returned %d, want 0", code)
+	}
+}
+
+// ─── P3 fix: effectiveConfigDir and help text accuracy ──────────────────────
+
+func TestEffectiveConfigDir_DefaultMatchesExecutableConfigDir(t *testing.T) {
+	// When no env var is set, effectiveConfigDir should return the same
+	// value as executableConfigDir.
+	os.Unsetenv("DUPLICACY_BACKUP_CONFIG_DIR")
+	got := effectiveConfigDir()
+	want := executableConfigDir()
+	if got != want {
+		t.Errorf("effectiveConfigDir() = %q, want %q (same as executableConfigDir)", got, want)
+	}
+}
+
+func TestEffectiveConfigDir_RespectsEnvVar(t *testing.T) {
+	const override = "/custom/override/config"
+	os.Setenv("DUPLICACY_BACKUP_CONFIG_DIR", override)
+	defer os.Unsetenv("DUPLICACY_BACKUP_CONFIG_DIR")
+
+	got := effectiveConfigDir()
+	if got != override {
+		t.Errorf("effectiveConfigDir() = %q, want %q (from env var)", got, override)
+	}
+}
+
+func TestPrintUsage_ContainsEffectiveDefault(t *testing.T) {
+	// Verify the help text uses "Effective default:" wording.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printUsage()
+
+	w.Close()
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	os.Stdout = old
+	r.Close()
+
+	output := string(buf[:n])
+	if !strings.Contains(output, "Effective default:") {
+		t.Error("help text should contain 'Effective default:'")
+	}
+}
+
+func TestPrintUsage_ReflectsEnvOverride(t *testing.T) {
+	const override = "/env-override/config"
+	os.Setenv("DUPLICACY_BACKUP_CONFIG_DIR", override)
+	defer os.Unsetenv("DUPLICACY_BACKUP_CONFIG_DIR")
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printUsage()
+
+	w.Close()
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	os.Stdout = old
+	r.Close()
+
+	output := string(buf[:n])
+	if !strings.Contains(output, override) {
+		t.Errorf("help text should reflect DUPLICACY_BACKUP_CONFIG_DIR=%q, got:\n%s", override, output)
+	}
+}
+
+func TestHelpOutput_ContainsUsageAndExamples(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printUsage()
+
+	w.Close()
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	os.Stdout = old
+	r.Close()
+
+	output := string(buf[:n])
+
+	required := []string{
+		"Usage:", "--backup", "--prune", "--help", "--version",
+		"ENVIRONMENT VARIABLES:", "DUPLICACY_BACKUP_CONFIG_DIR",
+		"EXAMPLES:", "CONFIG FILE LOCATION:",
+	}
+	for _, s := range required {
+		if !strings.Contains(output, s) {
+			t.Errorf("help text should contain %q", s)
+		}
+	}
+}
+
+func TestVersionOutput_ContainsExpectedFormat(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	a := &app{log: testLogger(t)}
+	code := a.parseAppFlags([]string{"--version"})
+
+	w.Close()
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	os.Stdout = old
+	r.Close()
+
+	if code != exitHandled {
+		t.Fatalf("expected exitHandled, got %d", code)
+	}
+	output := string(buf[:n])
+	if !strings.Contains(output, scriptName) {
+		t.Errorf("version output should contain %q, got: %s", scriptName, output)
+	}
+	if !strings.Contains(output, version) {
+		t.Errorf("version output should contain %q, got: %s", version, output)
+	}
+}
+
 // ─── Sub-initializer tests (Phase 2 refactoring) ────────────────────────────
 
 // ---------------------------------------------------------------------------
