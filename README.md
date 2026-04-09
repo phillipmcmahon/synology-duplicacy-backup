@@ -389,19 +389,44 @@ mock := exec.NewMockRunner(
 )
 
 // Pass mock to any function that accepts exec.Runner
-err := btrfs.CheckVolume(mock, log, "/volume1", false)
+err := btrfs.CheckVolume(mock, "/volume1", false)
 
 // Assert invocations
 assert(mock.Invocations[0].Cmd == "stat")
 assert(mock.Invocations[1].Cmd == "btrfs")
 ```
 
+### Output Ownership (Phase 3)
+
+Internal packages (`btrfs`, `duplicacy`, `permissions`) **never log directly**. They return structured errors and raw command output; the coordinator in `main.go` owns all operator-facing messages.
+
+| Package | Returns | Coordinator responsibility |
+|---|---|---|
+| `btrfs` | `*errors.SnapshotError` | Log phase messages around snapshot create/delete |
+| `duplicacy` | `(stdout, stderr string, error)` | Pipe output through logger, wrap errors with context |
+| `permissions` | `*errors.PermissionsError` | Log phase messages around permission fixing |
+
+Structured error types live in `internal/errors` and carry phase, field, cause, and context:
+
+```go
+err := btrfs.CreateSnapshot(runner, src, dst, false)
+if err != nil {
+    var snapErr *errors.SnapshotError
+    if errors.As(err, &snapErr) {
+        log.Error("Snapshot creation failed for %s: %v", snapErr.Field, snapErr.Cause)
+    }
+}
+```
+
+See [MESSAGE_STYLE_GUIDE.md](MESSAGE_STYLE_GUIDE.md) for the message formatting conventions.
+
 ### Design goals
 
 - **`run()` readable in one screen** — the entire orchestration is visible at a glance
 - **Single concern per phase** — each method does one thing
+- **Output ownership** — internal packages return data; the coordinator formats all user-facing messages
 - **Testable** — unit tests can construct an `*app` with stubbed fields and inject a `MockRunner` for command isolation
-- **No behaviour changes** — pure refactoring of the original monolithic `run()`
+- **Structured errors** — typed errors with context enable precise error handling at the coordinator level
 
 ---
 
@@ -423,6 +448,9 @@ synology-duplicacy-backup/
 │   ├── duplicacy/
 │   │   ├── duplicacy.go         # Duplicacy CLI wrapper (backup, prune, list)
 │   │   └── duplicacy_test.go    # Unit tests with MockRunner
+│   ├── errors/
+│   │   ├── errors.go            # Structured error types (BackupError, SnapshotError, etc.)
+│   │   └── errors_test.go       # Unit tests for error types
 │   ├── exec/
 │   │   ├── runner.go            # Runner interface, CommandRunner, and MockRunner
 │   │   ├── runner_test.go       # Unit tests for runner implementations
