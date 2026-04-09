@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v2.0.0] - 2026-04-09
 
 ### Changed
 - **Config and secrets migrated to TOML**: Legacy INI config files
@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `duplicacy-homes.env` -> `duplicacy-homes.toml`
   - `DESTINATION=/backups` -> `destination = "/backups"`
   - `STORJ_S3_ID=...` -> `storj_s3_id = "..."`
+
+### Notes
+- **Version constant** updated to `2.0.0` in source (overridden by `-ldflags`
+  at build time for release binaries).
 
 ## [v1.10.3] - 2026-04-09
 
