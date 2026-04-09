@@ -149,13 +149,15 @@ func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_InvalidFormat_NoEquals(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
+// ---------------------------------------------------------------------------
+// ParseSecrets tests – exercise the parser directly via an io.Reader so
+// that no root ownership is required.  This replaces the previous
+// LoadSecretsFile-based parser tests that were skipped on non-root machines.
+// ---------------------------------------------------------------------------
 
-	p := writeTempSecrets(t, "INVALID LINE WITHOUT EQUALS\n", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_InvalidFormat_NoEquals(t *testing.T) {
+	r := strings.NewReader("INVALID LINE WITHOUT EQUALS\n")
+	_, err := ParseSecrets(r, "test")
 	if err == nil {
 		t.Fatal("expected error for invalid format")
 	}
@@ -164,13 +166,9 @@ func TestLoadSecretsFile_InvalidFormat_NoEquals(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_UnknownKey(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
-	p := writeTempSecrets(t, "UNKNOWN_KEY=value\n", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_UnknownKey(t *testing.T) {
+	r := strings.NewReader("UNKNOWN_KEY=value\n")
+	_, err := ParseSecrets(r, "test")
 	if err == nil {
 		t.Fatal("expected error for unknown key")
 	}
@@ -179,13 +177,9 @@ func TestLoadSecretsFile_UnknownKey(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_EmptyKey(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
-	p := writeTempSecrets(t, "=value\n", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_EmptyKey(t *testing.T) {
+	r := strings.NewReader("=value\n")
+	_, err := ParseSecrets(r, "test")
 	if err == nil {
 		t.Fatal("expected error for empty key")
 	}
@@ -194,13 +188,9 @@ func TestLoadSecretsFile_EmptyKey(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_MissingStorjID(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
-	p := writeTempSecrets(t, "STORJ_S3_SECRET="+validSecret()+"\n", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_MissingStorjID(t *testing.T) {
+	r := strings.NewReader("STORJ_S3_SECRET=" + validSecret() + "\n")
+	_, err := ParseSecrets(r, "test")
 	if err == nil {
 		t.Fatal("expected error for missing STORJ_S3_ID")
 	}
@@ -209,13 +199,9 @@ func TestLoadSecretsFile_MissingStorjID(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_MissingStorjSecret(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
-	p := writeTempSecrets(t, "STORJ_S3_ID="+validID()+"\n", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_MissingStorjSecret(t *testing.T) {
+	r := strings.NewReader("STORJ_S3_ID=" + validID() + "\n")
+	_, err := ParseSecrets(r, "test")
 	if err == nil {
 		t.Fatal("expected error for missing STORJ_S3_SECRET")
 	}
@@ -224,15 +210,9 @@ func TestLoadSecretsFile_MissingStorjSecret(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_CommentsAndBlankLines(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
+func TestParseSecrets_CommentsAndBlankLines(t *testing.T) {
 	content := "# This is a comment\n\nSTORJ_S3_ID=" + validID() + "\n# Another comment\nSTORJ_S3_SECRET=" + validSecret() + "\n"
-	p := writeTempSecrets(t, content, 0600)
-
-	sec, err := LoadSecretsFile(p)
+	sec, err := ParseSecrets(strings.NewReader(content), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -244,15 +224,9 @@ func TestLoadSecretsFile_CommentsAndBlankLines(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_QuoteStripping(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
+func TestParseSecrets_QuoteStripping(t *testing.T) {
 	content := "STORJ_S3_ID=\"" + validID() + "\"\nSTORJ_S3_SECRET=\"" + validSecret() + "\"\n"
-	p := writeTempSecrets(t, content, 0600)
-
-	sec, err := LoadSecretsFile(p)
+	sec, err := ParseSecrets(strings.NewReader(content), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -261,30 +235,19 @@ func TestLoadSecretsFile_QuoteStripping(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_EmptyFile(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
-	p := writeTempSecrets(t, "", 0600)
-	_, err := LoadSecretsFile(p)
+func TestParseSecrets_EmptyInput(t *testing.T) {
+	_, err := ParseSecrets(strings.NewReader(""), "test")
 	if err == nil {
-		t.Fatal("expected error for empty file")
+		t.Fatal("expected error for empty input")
 	}
 	if !strings.Contains(err.Error(), "STORJ_S3_ID") {
 		t.Errorf("error should mention missing key, got: %v", err)
 	}
 }
 
-func TestLoadSecretsFile_WhitespaceHandling(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
+func TestParseSecrets_WhitespaceHandling(t *testing.T) {
 	content := "  STORJ_S3_ID = " + validID() + "  \n  STORJ_S3_SECRET = " + validSecret() + "  \n"
-	p := writeTempSecrets(t, content, 0600)
-
-	sec, err := LoadSecretsFile(p)
+	sec, err := ParseSecrets(strings.NewReader(content), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -293,16 +256,10 @@ func TestLoadSecretsFile_WhitespaceHandling(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_PartialQuotes(t *testing.T) {
-	if !isRoot() {
-		t.Skip("Skipping: requires root for ownership check")
-	}
-
+func TestParseSecrets_PartialQuotes(t *testing.T) {
 	// Only opening quote - should NOT be stripped
 	content := "STORJ_S3_ID=\"" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
-	p := writeTempSecrets(t, content, 0600)
-
-	sec, err := LoadSecretsFile(p)
+	sec, err := ParseSecrets(strings.NewReader(content), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,9 +269,84 @@ func TestLoadSecretsFile_PartialQuotes(t *testing.T) {
 	}
 }
 
+func TestParseSecrets_ValidContent(t *testing.T) {
+	sec, err := ParseSecrets(strings.NewReader(validSecretContent()), "test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sec.StorjS3ID != validID() {
+		t.Errorf("StorjS3ID = %q, want %q", sec.StorjS3ID, validID())
+	}
+	if sec.StorjS3Secret != validSecret() {
+		t.Errorf("StorjS3Secret = %q, want %q", sec.StorjS3Secret, validSecret())
+	}
+}
+
+func TestParseSecrets_DuplicateKey(t *testing.T) {
+	// Second value should win
+	content := "STORJ_S3_ID=" + validID() + "\nSTORJ_S3_ID=NEWVALUE_FOR_DUPLICATE_TEST_XX\nSTORJ_S3_SECRET=" + validSecret() + "\n"
+	sec, err := ParseSecrets(strings.NewReader(content), "test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sec.StorjS3ID != "NEWVALUE_FOR_DUPLICATE_TEST_XX" {
+		t.Errorf("StorjS3ID = %q, want last value", sec.StorjS3ID)
+	}
+}
+
+func TestParseSecrets_SourceInErrorMessage(t *testing.T) {
+	_, err := ParseSecrets(strings.NewReader(""), "my-secrets.env")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "my-secrets.env") {
+		t.Errorf("error should include source name, got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ValidateFileAccess tests
+// ---------------------------------------------------------------------------
+
+func TestValidateFileAccess_MissingFile(t *testing.T) {
+	err := ValidateFileAccess("/nonexistent/secrets.env")
+	if err == nil {
+		t.Fatal("expected error for missing file")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+func TestValidateFileAccess_WrongPermissions(t *testing.T) {
+	p := writeTempSecrets(t, "data", 0644)
+	err := ValidateFileAccess(p)
+	if err == nil {
+		t.Fatal("expected error for wrong permissions")
+	}
+	if !strings.Contains(err.Error(), "0644") {
+		t.Errorf("error should mention actual permissions, got: %v", err)
+	}
+}
+
+func TestValidateFileAccess_OwnershipCheck(t *testing.T) {
+	p := writeTempSecrets(t, "data", 0600)
+	err := ValidateFileAccess(p)
+	if isRoot() {
+		if err != nil {
+			t.Fatalf("unexpected error as root: %v", err)
+		}
+	} else {
+		if err == nil {
+			t.Fatal("expected error for non-root ownership")
+		}
+		if !strings.Contains(err.Error(), "ownership") {
+			t.Errorf("error should mention ownership, got: %v", err)
+		}
+	}
+}
+
 func TestLoadSecretsFile_StatError(t *testing.T) {
-	// Try a path that exists but can't be stat'd normally
-	// Use a path that's guaranteed to fail in a different way
 	dir := t.TempDir()
 	p := filepath.Join(dir, "nonexistent.env")
 	_, err := LoadSecretsFile(p)

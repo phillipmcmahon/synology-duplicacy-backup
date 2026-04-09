@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.2] - 2026-04-09
+
+### Fixed
+- **P2: RunInDir test fails on symlinked temp roots** — `runner_test.go` now
+  normalises both the `pwd` output and the expected directory through
+  `filepath.EvalSymlinks` before comparison, preventing false failures when
+  `/tmp` is a symlink (e.g. macOS, some Linux distros).
+- **P3: Secrets parser coverage artificially low** — Extracted `ParseSecrets()`
+  and `ValidateFileAccess()` from `LoadSecretsFile()` in `internal/secrets`.
+  Parser tests now exercise `ParseSecrets` directly via `io.Reader`, removing
+  the root-only skip guards.  Coverage rose from ~50 % to 86 %.
+- **P3: Integration tests incomplete** — Added seven new coordinator
+  end-to-end tests (`TestIntegration_RunCoordinator_*`) exercising the full
+  `acquireLock → loadConfig → loadSecrets → execute → cleanup` pipeline for
+  prune, backup, and fix-perms dry-run modes, plus error-propagation and
+  idempotent-cleanup scenarios.
+
+### Added
+- **`secrets.ParseSecrets(r io.Reader, source string)`** — exported parser
+  function testable without file ownership checks.
+- **`secrets.ValidateFileAccess(path string)`** — exported access-control
+  validator, separated from parsing for independent testing.
+- **`TestParseSecrets_*` test suite** — 13 parser tests that run on any
+  machine (no root required), plus `TestParseSecrets_DuplicateKey` and
+  `TestParseSecrets_SourceInErrorMessage` for additional edge coverage.
+- **`TestValidateFileAccess_*` tests** — dedicated unit tests for the new
+  access-validation function.
+- **`itestApp()` helper** — reusable factory for coordinator integration
+  tests, reducing boilerplate.
+
 ## [v1.8.1] - 2026-04-09
 
 ### Fixed
