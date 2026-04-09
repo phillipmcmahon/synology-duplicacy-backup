@@ -221,7 +221,7 @@ type PrunePreview struct {
 	TotalRevisions      int
 	DeletePercent       int // Approximate (truncated) – for display only
 	PercentEnforced     bool
-	RevisionCountFailed bool // True when revision listing failed
+	RevisionCountFailed bool   // True when revision listing failed
 	Output              string // Combined stdout+stderr from the preview command
 	RevisionOutput      string // Combined stdout+stderr from revision listing
 }
