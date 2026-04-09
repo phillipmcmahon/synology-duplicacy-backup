@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.2] - 2026-04-09
+
+### Changed
+- **Release packaging simplified**: GitHub releases now publish only the
+  packaged `.tar.gz` archives rather than separate raw binary downloads. The
+  tarballs are now the canonical install unit and include the versioned binary,
+  `install.sh`, `README.md`, and `LICENSE`.
+- **Checksum generation cleaned up**: Per-file `.sha256` files and
+  `SHA256SUMS.txt` are now generated only for the actual tarball release
+  artifacts, avoiding hashes for checksum files or intermediate raw binaries.
+- **Version constant** updated to `1.10.2` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v1.10.1] - 2026-04-09
 
 ### Added

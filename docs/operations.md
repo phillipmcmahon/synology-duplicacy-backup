@@ -94,7 +94,6 @@ Example: remote backup followed by local prune
 
 Releases include:
 
-- raw binaries
 - `.tar.gz` archives
 - per-file `.sha256` files
 - `SHA256SUMS.txt`

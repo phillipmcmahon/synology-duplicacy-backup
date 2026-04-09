@@ -141,12 +141,6 @@ jobs:
 
           tar -czf "${BASENAME}.tar.gz" -C "${PKG_DIR}" "${BASENAME}"
 
-      - name: Upload raw binary
-        uses: actions/upload-artifact@v6
-        with:
-          name: raw_${{ steps.package.outputs.basename }}
-          path: ${{ steps.package.outputs.basename }}
-
       - name: Upload tarball
         uses: actions/upload-artifact@v6
         with:
@@ -177,16 +171,16 @@ jobs:
           mkdir -p release
 
           find artifacts -type f \
-            \( -name 'duplicacy-backup_*' -o -name '*.tar.gz' \) \
+            -name '*.tar.gz' \
             -exec cp {} release/ \;
 
           cd release
 
-          for file in *; do
+          for file in *.tar.gz; do
             sha256sum "$file" > "${file}.sha256"
           done
 
-          sha256sum * > SHA256SUMS.txt
+          sha256sum *.tar.gz > SHA256SUMS.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
