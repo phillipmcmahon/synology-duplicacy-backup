@@ -8,38 +8,24 @@ import (
 	"strings"
 	"testing"
 
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
-
-// newTestLogger creates a logger in a temp dir for tests.
-func newTestLogger(t *testing.T) *logger.Logger {
-	t.Helper()
-	dir := t.TempDir()
-	log, err := logger.New(dir, "test", false)
-	if err != nil {
-		t.Fatalf("failed to create test logger: %v", err)
-	}
-	t.Cleanup(func() { log.Close() })
-	return log
-}
 
 // newTestSetup creates a Setup with a mock runner for tests.
 func newTestSetup(t *testing.T, dryRun bool, results ...execpkg.MockResult) (*Setup, *execpkg.MockRunner) {
 	t.Helper()
-	log := newTestLogger(t)
 	mock := execpkg.NewMockRunner(results...)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, dryRun, mock)
+	s := NewSetup(t.TempDir(), "/data/source", "/target", dryRun, mock)
 	return s, mock
 }
 
 // ─── NewSetup tests ─────────────────────────────────────────────────────────
 
 func TestNewSetup_PathConstruction(t *testing.T) {
-	log := newTestLogger(t)
 	mock := execpkg.NewMockRunner()
-	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, false, mock)
+	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", false, mock)
 
 	if s.WorkRoot != "/tmp/work" {
 		t.Errorf("WorkRoot = %q", s.WorkRoot)
@@ -71,9 +57,8 @@ func TestNewSetup_PathConstruction(t *testing.T) {
 }
 
 func TestNewSetup_DryRunFlag(t *testing.T) {
-	log := newTestLogger(t)
 	mock := execpkg.NewMockRunner()
-	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, true, mock)
+	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", true, mock)
 	if !s.DryRun {
 		t.Error("DryRun should be true")
 	}
@@ -97,10 +82,9 @@ func TestCreateDirs_ActualCreation(t *testing.T) {
 }
 
 func TestCreateDirs_DryRun(t *testing.T) {
-	log := newTestLogger(t)
 	mock := execpkg.NewMockRunner()
 	workRoot := filepath.Join(t.TempDir(), "nonexistent")
-	s := NewSetup(workRoot, "/data/source", "/target", log, true, mock)
+	s := NewSetup(workRoot, "/data/source", "/target", true, mock)
 
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs (dry-run) failed: %v", err)
@@ -290,7 +274,8 @@ func TestSetPermissions_DryRun(t *testing.T) {
 func TestRunBackup_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
-	if err := s.RunBackup(4); err != nil {
+	_, _, err := s.RunBackup(4)
+	if err != nil {
 		t.Fatalf("RunBackup (dry-run): %v", err)
 	}
 }
@@ -300,8 +285,12 @@ func TestRunBackup_DryRun(t *testing.T) {
 func TestRunBackup_UsesRunner(t *testing.T) {
 	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "backup done\n"})
 
-	if err := s.RunBackup(4); err != nil {
+	stdout, _, err := s.RunBackup(4)
+	if err != nil {
 		t.Fatalf("RunBackup: %v", err)
+	}
+	if stdout != "backup done\n" {
+		t.Errorf("stdout = %q, want %q", stdout, "backup done\n")
 	}
 	if len(mock.Invocations) != 1 {
 		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
@@ -318,9 +307,13 @@ func TestRunBackup_UsesRunner(t *testing.T) {
 func TestRunBackup_Error(t *testing.T) {
 	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("backup failed")})
 
-	err := s.RunBackup(4)
+	_, _, err := s.RunBackup(4)
 	if err == nil {
 		t.Fatal("expected error from RunBackup")
+	}
+	var backupErr *apperrors.BackupError
+	if !errors.As(err, &backupErr) {
+		t.Errorf("expected *BackupError, got %T", err)
 	}
 }
 
@@ -355,6 +348,10 @@ func TestValidateRepo_Failure(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from ValidateRepo")
 	}
+	var pruneErr *apperrors.PruneError
+	if !errors.As(err, &pruneErr) {
+		t.Errorf("expected *PruneError, got %T", err)
+	}
 }
 
 // ─── GetTotalRevisionCount DryRun test ──────────────────────────────────────
@@ -362,7 +359,7 @@ func TestValidateRepo_Failure(t *testing.T) {
 func TestGetTotalRevisionCount_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
-	count, err := s.GetTotalRevisionCount()
+	count, _, err := s.GetTotalRevisionCount()
 	if err != nil {
 		t.Fatalf("GetTotalRevisionCount (dry-run): %v", err)
 	}
@@ -376,7 +373,7 @@ func TestGetTotalRevisionCount_UsesRunner(t *testing.T) {
 		execpkg.MockResult{Stdout: "Listing all revisions for storage storj:\nrevision 1\nrevision 2\nrevision 3\n"},
 	)
 
-	count, err := s.GetTotalRevisionCount()
+	count, _, err := s.GetTotalRevisionCount()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -393,7 +390,7 @@ func TestGetTotalRevisionCount_FailsClosedOnError(t *testing.T) {
 		execpkg.MockResult{Err: errors.New("list failed")},
 	)
 
-	count, err := s.GetTotalRevisionCount()
+	count, _, err := s.GetTotalRevisionCount()
 	if err == nil {
 		t.Fatal("expected error when duplicacy list fails, got nil")
 	}
@@ -447,7 +444,8 @@ func TestSafePrunePreview_UsesRunner(t *testing.T) {
 func TestRunPrune_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
-	if err := s.RunPrune([]string{"-keep", "0:365"}); err != nil {
+	_, _, err := s.RunPrune([]string{"-keep", "0:365"})
+	if err != nil {
 		t.Fatalf("RunPrune (dry-run): %v", err)
 	}
 }
@@ -455,7 +453,8 @@ func TestRunPrune_DryRun(t *testing.T) {
 func TestRunPrune_UsesRunner(t *testing.T) {
 	s, mock := newTestSetup(t, false, execpkg.MockResult{})
 
-	if err := s.RunPrune([]string{"-keep", "0:365"}); err != nil {
+	_, _, err := s.RunPrune([]string{"-keep", "0:365"})
+	if err != nil {
 		t.Fatalf("RunPrune: %v", err)
 	}
 	if len(mock.Invocations) != 1 {
@@ -471,7 +470,8 @@ func TestRunPrune_UsesRunner(t *testing.T) {
 func TestRunDeepPrune_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
-	if err := s.RunDeepPrune(); err != nil {
+	_, _, err := s.RunDeepPrune()
+	if err != nil {
 		t.Fatalf("RunDeepPrune (dry-run): %v", err)
 	}
 }
@@ -479,7 +479,8 @@ func TestRunDeepPrune_DryRun(t *testing.T) {
 func TestRunDeepPrune_UsesRunner(t *testing.T) {
 	s, mock := newTestSetup(t, false, execpkg.MockResult{})
 
-	if err := s.RunDeepPrune(); err != nil {
+	_, _, err := s.RunDeepPrune()
+	if err != nil {
 		t.Fatalf("RunDeepPrune: %v", err)
 	}
 	if len(mock.Invocations) != 1 {
@@ -500,7 +501,9 @@ func TestCleanup_RemovesWorkRoot(t *testing.T) {
 	subdir := filepath.Join(workRoot, "sub")
 	os.MkdirAll(subdir, 0755)
 
-	s.Cleanup()
+	if err := s.Cleanup(); err != nil {
+		t.Fatalf("Cleanup failed: %v", err)
+	}
 
 	if _, err := os.Stat(workRoot); !os.IsNotExist(err) {
 		t.Error("WorkRoot should be removed after Cleanup")
@@ -509,7 +512,9 @@ func TestCleanup_RemovesWorkRoot(t *testing.T) {
 
 func TestCleanup_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
-	s.Cleanup()
+	if err := s.Cleanup(); err != nil {
+		t.Fatalf("Cleanup (dry-run) failed: %v", err)
+	}
 
 	if _, err := os.Stat(s.WorkRoot); err != nil {
 		t.Error("WorkRoot should NOT be removed in dry-run mode")
@@ -517,10 +522,11 @@ func TestCleanup_DryRun(t *testing.T) {
 }
 
 func TestCleanup_EmptyWorkRoot(t *testing.T) {
-	log := newTestLogger(t)
-	s := &Setup{WorkRoot: "", Log: log}
+	s := &Setup{WorkRoot: ""}
 	// Should be a no-op, not panic
-	s.Cleanup()
+	if err := s.Cleanup(); err != nil {
+		t.Fatalf("Cleanup with empty WorkRoot should not error: %v", err)
+	}
 }
 
 // ─── Regex tests ────────────────────────────────────────────────────────────
@@ -719,7 +725,7 @@ func TestRedactSecrets_NullKeysUnchanged(t *testing.T) {
 	}
 }
 
-func TestWritePreferences_DryRun_RedactsSecrets(t *testing.T) {
+func TestWritePreferences_DryRun_DoesNotWriteFile(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
 	sec := &secrets.Secrets{
@@ -734,5 +740,107 @@ func TestWritePreferences_DryRun_RedactsSecrets(t *testing.T) {
 	// Verify no prefs file written in dry-run mode
 	if _, err := os.Stat(s.PrefsFile); !os.IsNotExist(err) {
 		t.Error("prefs file should not exist in dry-run mode")
+	}
+}
+
+// ─── Structured error type tests ────────────────────────────────────────────
+
+func TestRunBackup_Error_StructuredType(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("backup failed")})
+
+	_, _, err := s.RunBackup(4)
+	var backupErr *apperrors.BackupError
+	if !errors.As(err, &backupErr) {
+		t.Fatalf("expected *BackupError, got %T", err)
+	}
+	if backupErr.Phase != "run" {
+		t.Errorf("phase = %q, want run", backupErr.Phase)
+	}
+	if backupErr.Context["threads"] != "4" {
+		t.Errorf("context threads = %q, want 4", backupErr.Context["threads"])
+	}
+}
+
+func TestRunPrune_Error_StructuredType(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("prune failed")})
+
+	_, _, err := s.RunPrune([]string{"-keep", "0:365"})
+	var pruneErr *apperrors.PruneError
+	if !errors.As(err, &pruneErr) {
+		t.Fatalf("expected *PruneError, got %T", err)
+	}
+	if pruneErr.Phase != "run" {
+		t.Errorf("phase = %q, want run", pruneErr.Phase)
+	}
+}
+
+func TestRunDeepPrune_Error_StructuredType(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("deep prune failed")})
+
+	_, _, err := s.RunDeepPrune()
+	var pruneErr *apperrors.PruneError
+	if !errors.As(err, &pruneErr) {
+		t.Fatalf("expected *PruneError, got %T", err)
+	}
+	if pruneErr.Phase != "deep-prune" {
+		t.Errorf("phase = %q, want deep-prune", pruneErr.Phase)
+	}
+}
+
+// ─── Output return tests ────────────────────────────────────────────────────
+
+func TestRunBackup_ReturnsOutput(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "backup output\n", Stderr: "backup warnings\n"})
+
+	stdout, stderr, err := s.RunBackup(4)
+	if err != nil {
+		t.Fatalf("RunBackup: %v", err)
+	}
+	if stdout != "backup output\n" {
+		t.Errorf("stdout = %q", stdout)
+	}
+	if stderr != "backup warnings\n" {
+		t.Errorf("stderr = %q", stderr)
+	}
+}
+
+func TestRunPrune_ReturnsOutput(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "prune output\n"})
+
+	stdout, _, err := s.RunPrune([]string{"-keep", "0:365"})
+	if err != nil {
+		t.Fatalf("RunPrune: %v", err)
+	}
+	if stdout != "prune output\n" {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
+func TestRunDeepPrune_ReturnsOutput(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "deep prune output\n"})
+
+	stdout, _, err := s.RunDeepPrune()
+	if err != nil {
+		t.Fatalf("RunDeepPrune: %v", err)
+	}
+	if stdout != "deep prune output\n" {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
+func TestGetTotalRevisionCount_ReturnsOutput(t *testing.T) {
+	s, _ := newTestSetup(t, false,
+		execpkg.MockResult{Stdout: "revision 1\nrevision 2\n"},
+	)
+
+	count, output, err := s.GetTotalRevisionCount()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("count = %d, want 2", count)
+	}
+	if !strings.Contains(output, "revision 1") {
+		t.Errorf("output should contain revision listing: %s", output)
 	}
 }

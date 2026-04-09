@@ -406,8 +406,8 @@ func TestVersionFlag_Short(t *testing.T) {
 }
 
 func TestVersionOutput_ContainsVersion(t *testing.T) {
-        if version != "1.7.5" {
-                t.Errorf("version = %q, want %q", version, "1.7.5")
+        if version != "1.8.0" {
+                t.Errorf("version = %q, want %q", version, "1.8.0")
         }
 }
 

@@ -4,6 +4,10 @@
 // All external command execution is delegated to an [exec.Runner] so that
 // tests can substitute a [exec.MockRunner] and verify behaviour without
 // requiring the real duplicacy binary.
+//
+// Functions return structured error types from [errors] with rich context
+// instead of logging directly.  The coordinator is responsible for all
+// operator-facing output.
 package duplicacy
 
 import (
@@ -15,8 +19,8 @@ import (
 	"strconv"
 	"strings"
 
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -32,14 +36,13 @@ type Setup struct {
 	FilterFile     string // .duplicacy/filters
 	RepositoryPath string // Snapshot source or target
 	BackupTarget   string // Storage destination
-	Log            *logger.Logger
 	DryRun         bool
 	Runner         execpkg.Runner // Command runner for external process execution
 }
 
 // NewSetup creates a new duplicacy working environment.
 // The runner parameter is used for all external command execution (duplicacy CLI).
-func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger, dryRun bool, runner execpkg.Runner) *Setup {
+func NewSetup(workRoot, repositoryPath, backupTarget string, dryRun bool, runner execpkg.Runner) *Setup {
 	duplicacyRoot := filepath.Join(workRoot, "duplicacy")
 	duplicacyDir := filepath.Join(duplicacyRoot, ".duplicacy")
 
@@ -51,7 +54,6 @@ func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger,
 		FilterFile:     filepath.Join(duplicacyDir, "filters"),
 		RepositoryPath: repositoryPath,
 		BackupTarget:   backupTarget,
-		Log:            log,
 		DryRun:         dryRun,
 		Runner:         runner,
 	}
@@ -60,12 +62,11 @@ func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger,
 // CreateDirs creates the duplicacy working directories.
 func (s *Setup) CreateDirs() error {
 	if s.DryRun {
-		s.Log.DryRun("mkdir -p %s", s.DuplicacyDir)
 		return nil
 	}
 
 	if err := os.MkdirAll(s.DuplicacyDir, 0770); err != nil {
-		return fmt.Errorf("failed to create duplicacy directories: %w", err)
+		return apperrors.NewBackupError("create-dirs", fmt.Errorf("failed to create duplicacy directories: %w", err), "path", s.DuplicacyDir)
 	}
 	return nil
 }
@@ -99,12 +100,13 @@ func (s *Setup) WritePreferences(sec *secrets.Secrets) error {
 `, s.RepositoryPath, s.BackupTarget, keysContent)
 
 	if s.DryRun {
-		s.Log.DryRun("write JSON preferences to %s", s.PrefsFile)
-		s.Log.Info("%s", json)
 		return nil
 	}
 
-	return os.WriteFile(s.PrefsFile, []byte(json), 0660)
+	if err := os.WriteFile(s.PrefsFile, []byte(json), 0660); err != nil {
+		return apperrors.NewBackupError("write-preferences", fmt.Errorf("failed to write preferences file: %w", err), "path", s.PrefsFile)
+	}
+	return nil
 }
 
 // secretPattern matches JSON key-value pairs whose keys contain "secret", "id",
@@ -118,37 +120,26 @@ func redactSecrets(s string) string {
 }
 
 // WriteFilters writes the duplicacy filter file.
+// Returns nil if filter is empty (no file is written).
 func (s *Setup) WriteFilters(filter string) error {
 	if filter == "" {
 		return nil
 	}
 
-	s.Log.Info("Creating filter definitions")
-
 	if s.DryRun {
-		s.Log.DryRun("Write filters to %s", s.FilterFile)
-		for _, line := range strings.Split(filter, "\n") {
-			s.Log.Info("  %s", line)
-		}
 		return nil
 	}
 
 	if err := os.WriteFile(s.FilterFile, []byte(filter+"\n"), 0660); err != nil {
-		return fmt.Errorf("failed to write filter file: %w", err)
+		return apperrors.NewBackupError("write-filters", fmt.Errorf("failed to write filter file: %w", err), "path", s.FilterFile)
 	}
 
-	s.Log.Info("Active filters:")
-	for _, line := range strings.Split(filter, "\n") {
-		s.Log.Info("  %s", line)
-	}
 	return nil
 }
 
 // SetPermissions sets directory (770) and file (660) permissions on the work directory.
 func (s *Setup) SetPermissions() error {
 	if s.DryRun {
-		s.Log.DryRun("find %s -type d -exec chmod 770 {} +", s.DuplicacyRoot)
-		s.Log.DryRun("find %s -type f -exec chmod 660 {} +", s.DuplicacyRoot)
 		return nil
 	}
 
@@ -162,68 +153,58 @@ func (s *Setup) SetPermissions() error {
 		return os.Chmod(path, 0660)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to set permissions in %s: %w", s.DuplicacyRoot, err)
+		return apperrors.NewBackupError("set-permissions", fmt.Errorf("failed to set permissions: %w", err), "path", s.DuplicacyRoot)
 	}
 	return nil
 }
 
 // RunBackup executes `duplicacy backup -stats -threads N`.
-func (s *Setup) RunBackup(threads int) error {
+// Stdout and stderr from the duplicacy command are returned for the
+// coordinator to display.
+func (s *Setup) RunBackup(threads int) (string, string, error) {
 	args := []string{"backup", "-stats", "-threads", strconv.Itoa(threads)}
 
 	if s.DryRun {
-		s.Log.DryRun("duplicacy %s", strings.Join(args, " "))
-		return nil
+		return "", "", nil
 	}
 
-	s.Log.Info("Starting backup")
-	return s.runDuplicacy(args)
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	if err != nil {
+		return stdout, stderr, apperrors.NewBackupError("run", fmt.Errorf("backup command failed: %w", err), "threads", strconv.Itoa(threads))
+	}
+	return stdout, stderr, nil
 }
 
 // ValidateRepo runs `duplicacy list -files` to verify the repo is valid.
 func (s *Setup) ValidateRepo() error {
 	if s.DryRun {
-		s.Log.DryRun("duplicacy list -files")
 		return nil
 	}
 
 	_, _, err := s.Runner.Run(context.Background(), "duplicacy", "list", "-files")
 	if err != nil {
-		s.Log.Warn("Duplicacy repository validation failed - may need initialization")
-		return fmt.Errorf("repository not ready")
+		return apperrors.NewPruneError("validate-repo", fmt.Errorf("repository validation failed - may need initialization"))
 	}
-	s.Log.Info("Duplicacy repository validated")
 	return nil
 }
 
 // GetTotalRevisionCount returns the number of unique revisions via `duplicacy list`.
-func (s *Setup) GetTotalRevisionCount() (int, error) {
+// On error it returns 0 and a structured error; the combined output is returned
+// for the coordinator to log if needed.
+func (s *Setup) GetTotalRevisionCount() (int, string, error) {
 	if s.DryRun {
-		return 0, nil
+		return 0, "", nil
 	}
 
 	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", "list")
+	combined := stdout + stderr
 	if err != nil {
-		s.Log.Error("Failed to list revisions for percentage calculation (fail-closed)")
-		combined := stdout + stderr
-		for _, line := range strings.Split(combined, "\n") {
-			if line != "" {
-				s.Log.Error("%s", line)
-			}
-		}
-		return 0, fmt.Errorf("failed to list revisions")
-	}
-
-	output := stdout + stderr
-	for _, line := range strings.Split(output, "\n") {
-		if line != "" {
-			s.Log.Info("[REVISION-LIST] %s", line)
-		}
+		return 0, combined, apperrors.NewPruneError("revision-count", fmt.Errorf("failed to list revisions for percentage calculation (fail-closed)"))
 	}
 
 	// Count unique revision numbers
 	seen := make(map[int]bool)
-	for _, match := range revisionRegex.FindAllStringSubmatch(output, -1) {
+	for _, match := range revisionRegex.FindAllStringSubmatch(combined, -1) {
 		if len(match) > 1 {
 			if n, err := strconv.Atoi(match[1]); err == nil {
 				seen[n] = true
@@ -231,7 +212,7 @@ func (s *Setup) GetTotalRevisionCount() (int, error) {
 		}
 	}
 
-	return len(seen), nil
+	return len(seen), combined, nil
 }
 
 // PrunePreview holds the results of a safe prune dry-run preview.
@@ -241,6 +222,8 @@ type PrunePreview struct {
 	DeletePercent       int // Approximate (truncated) – for display only
 	PercentEnforced     bool
 	RevisionCountFailed bool // True when revision listing failed
+	Output              string // Combined stdout+stderr from the preview command
+	RevisionOutput      string // Combined stdout+stderr from revision listing
 }
 
 // ExceedsPercent reports whether the deletion ratio exceeds maxPercent
@@ -256,47 +239,35 @@ func (p *PrunePreview) ExceedsPercent(maxPercent int) bool {
 }
 
 // SafePrunePreview runs a prune dry-run and counts deletions.
+// The combined output from both the prune preview and revision listing
+// is included in the returned PrunePreview for the coordinator to display.
 func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*PrunePreview, error) {
 	if s.DryRun {
-		s.Log.DryRun("duplicacy prune %s -dry-run", strings.Join(pruneArgs, " "))
 		return &PrunePreview{}, nil
 	}
-
-	s.Log.Info("Running safe prune preview")
 
 	args := append([]string{"prune"}, pruneArgs...)
 	args = append(args, "-dry-run")
 
 	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	combined := stdout + stderr
 	if err != nil {
-		combined := stdout + stderr
-		s.Log.Error("Safe prune preview failed")
-		for _, line := range strings.Split(combined, "\n") {
-			if line != "" {
-				s.Log.Error("%s", line)
-			}
-		}
-		return nil, fmt.Errorf("safe prune preview failed")
-	}
-
-	output := stdout + stderr
-	for _, line := range strings.Split(output, "\n") {
-		if line != "" {
-			s.Log.Info("[SAFE-PRUNE-PREVIEW] %s", line)
-		}
+		return nil, apperrors.NewPruneError("safe-preview", fmt.Errorf("safe prune preview failed"), "args", strings.Join(args, " "))
 	}
 
 	// Count deletion lines
-	deleteCount := len(deleteRegex.FindAllString(output, -1))
+	deleteCount := len(deleteRegex.FindAllString(combined, -1))
 
 	// Get total revision count
-	totalCount, err := s.GetTotalRevisionCount()
+	totalCount, revOutput, revErr := s.GetTotalRevisionCount()
 
 	preview := &PrunePreview{
-		DeleteCount: deleteCount,
+		DeleteCount:    deleteCount,
+		Output:         combined,
+		RevisionOutput: revOutput,
 	}
 
-	if err != nil {
+	if revErr != nil {
 		preview.RevisionCountFailed = true
 	} else {
 		preview.TotalRevisions = totalCount
@@ -310,57 +281,48 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 }
 
 // RunPrune executes `duplicacy prune` with the given arguments.
-func (s *Setup) RunPrune(pruneArgs []string) error {
+// Stdout and stderr are returned for the coordinator to display.
+func (s *Setup) RunPrune(pruneArgs []string) (string, string, error) {
 	args := append([]string{"prune"}, pruneArgs...)
 
 	if s.DryRun {
-		s.Log.DryRun("duplicacy %s", strings.Join(args, " "))
-		return nil
+		return "", "", nil
 	}
 
-	s.Log.Info("Starting policy prune")
-	return s.runDuplicacy(args)
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	if err != nil {
+		return stdout, stderr, apperrors.NewPruneError("run", fmt.Errorf("prune command failed: %w", err), "args", strings.Join(args, " "))
+	}
+	return stdout, stderr, nil
 }
 
 // RunDeepPrune executes `duplicacy prune -exhaustive -exclusive`.
-func (s *Setup) RunDeepPrune() error {
+// Stdout and stderr are returned for the coordinator to display.
+func (s *Setup) RunDeepPrune() (string, string, error) {
 	args := []string{"prune", "-exhaustive", "-exclusive"}
 
 	if s.DryRun {
-		s.Log.DryRun("duplicacy %s", strings.Join(args, " "))
+		return "", "", nil
+	}
+
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	if err != nil {
+		return stdout, stderr, apperrors.NewPruneError("deep-prune", fmt.Errorf("deep prune command failed: %w", err))
+	}
+	return stdout, stderr, nil
+}
+
+// Cleanup removes the work root directory.  Returns an error if removal
+// fails; returns nil on success or if WorkRoot is empty.
+func (s *Setup) Cleanup() error {
+	if s.WorkRoot == "" {
 		return nil
 	}
-
-	s.Log.Warn("Starting deep prune maintenance step: duplicacy prune -exhaustive -exclusive")
-	return s.runDuplicacy(args)
-}
-
-// runDuplicacy executes a duplicacy command via the runner.  Stdout and stderr
-// are printed to the console for real-time visibility of long-running commands.
-func (s *Setup) runDuplicacy(args []string) error {
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
-	if stdout != "" {
-		fmt.Print(stdout)
+	if s.DryRun {
+		return nil
 	}
-	if stderr != "" {
-		fmt.Print(stderr)
-	}
-	if err != nil {
-		return err
+	if err := os.RemoveAll(s.WorkRoot); err != nil {
+		return fmt.Errorf("failed to remove work directory %s: %w", s.WorkRoot, err)
 	}
 	return nil
-}
-
-// Cleanup removes the work root directory.
-func (s *Setup) Cleanup() {
-	if s.WorkRoot != "" {
-		s.Log.Info("Removing duplicacy work directory... %s", s.WorkRoot)
-		if s.DryRun {
-			s.Log.DryRun("rm -rf %s", s.WorkRoot)
-			return
-		}
-		if err := os.RemoveAll(s.WorkRoot); err != nil {
-			s.Log.Warn("Failed to remove work directory %s: %v", s.WorkRoot, err)
-		}
-	}
 }

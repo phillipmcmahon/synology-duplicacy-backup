@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0] - 2026-04-09
+
+### Added
+- **Structured error types** (`internal/errors`): New package providing typed
+  errors (`BackupError`, `PruneError`, `SnapshotError`, `PermissionsError`,
+  `ConfigError`, `SecretsError`, `LockError`) with phase, field, cause, and
+  context map for precise error handling at the coordinator level.
+- **Message style guide** (`MESSAGE_STYLE_GUIDE.md`): Documents the conventions
+  for operator-facing messages — sentence case with punctuation, phase bracketing,
+  dry-run prefixes, and structured error usage.
+
+### Changed
+- **Output ownership consolidation** (Phase 3): Internal packages (`btrfs`,
+  `duplicacy`, `permissions`) no longer accept a `*logger.Logger` parameter or
+  log directly. They return structured errors and raw command output (stdout,
+  stderr). The coordinator in `main.go` now owns all operator-facing messages.
+- **`duplicacy.RunBackup`**, **`RunPrune`**, **`RunDeepPrune`** now return
+  `(stdout, stderr string, error)` instead of just `error`.
+- **`duplicacy.GetTotalRevisionCount`** now returns `(int, string, error)`,
+  including the raw command output.
+- **`duplicacy.Cleanup`** now returns `error` instead of nothing.
+- **`duplicacy.PrunePreview`** struct gains `Output` and `RevisionOutput`
+  fields for raw command output.
+- **`btrfs.CheckVolume`**, **`CreateSnapshot`**, **`DeleteSnapshot`** no longer
+  accept a logger parameter; they return `*errors.SnapshotError`.
+- **`permissions.Fix`** no longer accepts a logger parameter; returns
+  `*errors.PermissionsError`.
+- **`duplicacy.NewSetup`** no longer accepts a logger parameter.
+- Phase messages (start/end) are now emitted by the coordinator around each
+  operation phase.
+
 ## [v1.7.5] - 2026-04-09
 
 ### Fixed
