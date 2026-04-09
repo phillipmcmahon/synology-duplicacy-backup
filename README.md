@@ -297,17 +297,40 @@ The program follows a **coordinator pattern** centred on the `app` struct in `cm
 newApp → acquireLock → loadConfig → loadSecrets → printHeader → printSummary → execute → cleanup
 ```
 
+`newApp()` itself is decomposed into five sub-initializers:
+
+```
+initLogger → parseAppFlags → validateEnvironment → derivePaths → installSignalHandler
+```
+
 Each method has a **single concern** and logs + returns errors to the caller. The caller (`run`) checks the error and sets the exit code. This makes the control flow readable in one screen and each phase independently testable.
 
 #### The `app` struct
 
 The `app` struct holds all state for a single run — mode booleans, derived paths, loaded config, secrets, lock, and duplicacy setup. This eliminates deeply-nested closures and makes every dependency explicit.
 
+#### Initialization Sequence (`newApp`)
+
+`newApp(args)` decomposes startup into five focused sub-initializers called in a fixed sequence:
+
+```
+initLogger → parseAppFlags → validateEnvironment → derivePaths → installSignalHandler
+```
+
+| Sub-initializer | Responsibility |
+|---|---|
+| `initLogger()` | Create structured logger (colour auto-detect, log-file capture). Falls back to raw stderr on failure. |
+| `parseAppFlags(args)` | Handle `--help`/`--version` early exits, parse CLI flags, derive mode booleans (`doBackup`, `doPrune`, etc.) |
+| `validateEnvironment()` | Check root privilege, validate label safety, verify binary dependencies (`duplicacy`, `btrfs`), enforce flag combination rules |
+| `derivePaths()` | Compute snapshot/work/config/secrets paths, create `CommandRunner` and `Lock` |
+| `installSignalHandler()` | Set up SIGINT/SIGHUP/SIGTERM handler for graceful cleanup |
+
+Each sub-initializer has a **single responsibility**, follows a **consistent error pattern** (return `int` exit code or `error`), and is **independently testable** — unit tests can construct a partial `*app` and call any sub-initializer in isolation.
+
 #### Phase methods (on `*app`)
 
 | Method | Responsibility |
 |---|---|
-| `newApp(args)` | Parse flags, validate environment, derive paths, install signal handler |
 | `acquireLock()` | Create and acquire directory-based PID lock |
 | `loadConfig()` | Parse INI config, validate, build prune args, check btrfs volumes |
 | `loadSecrets()` | Load secrets file (remote mode only) |
