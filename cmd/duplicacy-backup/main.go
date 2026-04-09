@@ -43,6 +43,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/permissions"
@@ -101,15 +102,16 @@ type app struct {
 	configFile string
 	secretsDir string
 
-	// Loaded configuration, secrets, lock, and duplicacy setup.
-	cfg *config.Config
-	sec *secrets.Secrets
-	lk  *lock.Lock
-	dup *duplicacy.Setup
+	// Loaded configuration, secrets, lock, duplicacy setup, and command runner.
+	cfg    *config.Config
+	sec    *secrets.Secrets
+	lk     *lock.Lock
+	dup    *duplicacy.Setup
+	runner execpkg.Runner // Shared command runner for all external process execution
 
 	// Exit bookkeeping.
-	exitCode  int
-	cleanedUp bool
+	exitCode     int
+	cleanedUp    bool
 	lockAcquired bool
 }
 
@@ -301,6 +303,9 @@ func newApp(args []string) (*app, int) {
 	configFile := filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel))
 	secretsDir := resolveDir(f.secretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
 
+	// Create the shared command runner used by btrfs, duplicacy, and permissions.
+	runner := execpkg.NewCommandRunner(log, f.dryRun)
+
 	a := &app{
 		log:   log,
 		flags: f,
@@ -321,7 +326,8 @@ func newApp(args []string) (*app, int) {
 		configFile: configFile,
 		secretsDir: secretsDir,
 
-		lk: lock.New(lockParent, backupLabel),
+		lk:     lock.New(lockParent, backupLabel),
+		runner: runner,
 	}
 
 	// Install signal handling – the handler calls cleanup and exits.
@@ -410,10 +416,10 @@ func (a *app) loadConfig() error {
 
 	// Check btrfs volumes – only needed for backup (snapshot creation)
 	if a.doBackup {
-		if err := btrfs.CheckVolume(a.log, rootVolume, a.flags.dryRun); err != nil {
+		if err := btrfs.CheckVolume(a.runner, a.log, rootVolume, a.flags.dryRun); err != nil {
 			return err
 		}
-		if err := btrfs.CheckVolume(a.log, a.snapshotSource, a.flags.dryRun); err != nil {
+		if err := btrfs.CheckVolume(a.runner, a.log, a.snapshotSource, a.flags.dryRun); err != nil {
 			return err
 		}
 	}
@@ -575,13 +581,13 @@ func (a *app) execute() error {
 func (a *app) prepareDuplicacySetup() error {
 	// Create btrfs snapshot for backup
 	if a.doBackup {
-		if err := btrfs.CreateSnapshot(a.log, a.snapshotSource, a.snapshotTarget, a.flags.dryRun); err != nil {
+		if err := btrfs.CreateSnapshot(a.runner, a.log, a.snapshotSource, a.snapshotTarget, a.flags.dryRun); err != nil {
 			return fmt.Errorf("Failed to create snapshot")
 		}
 	}
 
 	// Set up duplicacy working environment
-	dup := duplicacy.NewSetup(a.workRoot, a.repositoryPath, a.backupTarget, a.log, a.flags.dryRun)
+	dup := duplicacy.NewSetup(a.workRoot, a.repositoryPath, a.backupTarget, a.log, a.flags.dryRun, a.runner)
 
 	if err := dup.CreateDirs(); err != nil {
 		return err
@@ -683,7 +689,7 @@ func (a *app) runPrunePhase() error {
 // runFixPermsPhase normalises ownership and permissions on the local backup
 // target directory.
 func (a *app) runFixPermsPhase() error {
-	return permissions.Fix(a.log, a.backupTarget, a.cfg.LocalOwner, a.cfg.LocalGroup, a.flags.dryRun)
+	return permissions.Fix(a.runner, a.log, a.backupTarget, a.cfg.LocalOwner, a.cfg.LocalGroup, a.flags.dryRun)
 }
 
 // ---------------------------------------------------------------------------
@@ -706,7 +712,7 @@ func (a *app) cleanup() {
 	if a.doBackup {
 		if _, err := os.Stat(a.snapshotTarget); err == nil {
 			a.log.Info("Deleting snapshot subvolume... %s", a.snapshotTarget)
-			if delErr := btrfs.DeleteSnapshot(a.log, a.snapshotTarget, a.flags.dryRun); delErr != nil {
+			if delErr := btrfs.DeleteSnapshot(a.runner, a.log, a.snapshotTarget, a.flags.dryRun); delErr != nil {
 				a.log.Warn("Failed to delete subvolume %s: %v", a.snapshotTarget, delErr)
 			}
 		}

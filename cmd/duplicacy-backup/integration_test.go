@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
@@ -74,7 +75,8 @@ THREADS=4
 		configDir:  confDir,
 		secretsDir: t.TempDir(),
 
-		lk: lock.New(lockDir, "homes"),
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
 	}
 	a.configFile = writeConfig(t, confDir, "homes", confContent)
 
@@ -142,7 +144,8 @@ FILTER=e:^(.*/)?(@eaDir)/$
 		configDir:  confDir,
 		secretsDir: t.TempDir(),
 
-		lk: lock.New(lockDir, "homes"),
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
 	}
 	a.configFile = writeConfig(t, confDir, "homes", confContent)
 
@@ -198,7 +201,8 @@ THREADS=4
 		configDir:  confDir,
 		secretsDir: t.TempDir(),
 
-		lk: lock.New(lockDir, "homes"),
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
 	}
 	a.configFile = writeConfig(t, confDir, "homes", confContent)
 
@@ -253,7 +257,8 @@ THREADS=4
 		configDir:  confDir,
 		secretsDir: t.TempDir(),
 
-		lk: lock.New(lockDir, "homes"),
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
 	}
 	a.configFile = writeConfig(t, confDir, "homes", confContent)
 
@@ -304,7 +309,8 @@ func TestIntegration_FailSetsExitCodeForCleanup(t *testing.T) {
 		workRoot:       filepath.Join(t.TempDir(), "work"),
 		repositoryPath: "/volume1/homes-20260409-120000",
 
-		lk: lock.New(lockDir, "homes"),
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
 	}
 
 	// Simulate a failure

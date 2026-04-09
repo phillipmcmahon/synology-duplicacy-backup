@@ -2,11 +2,13 @@ package duplicacy
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
@@ -23,11 +25,21 @@ func newTestLogger(t *testing.T) *logger.Logger {
 	return log
 }
 
+// newTestSetup creates a Setup with a mock runner for tests.
+func newTestSetup(t *testing.T, dryRun bool, results ...execpkg.MockResult) (*Setup, *execpkg.MockRunner) {
+	t.Helper()
+	log := newTestLogger(t)
+	mock := execpkg.NewMockRunner(results...)
+	s := NewSetup(t.TempDir(), "/data/source", "/target", log, dryRun, mock)
+	return s, mock
+}
+
 // ─── NewSetup tests ─────────────────────────────────────────────────────────
 
 func TestNewSetup_PathConstruction(t *testing.T) {
 	log := newTestLogger(t)
-	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, false)
+	mock := execpkg.NewMockRunner()
+	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, false, mock)
 
 	if s.WorkRoot != "/tmp/work" {
 		t.Errorf("WorkRoot = %q", s.WorkRoot)
@@ -53,11 +65,15 @@ func TestNewSetup_PathConstruction(t *testing.T) {
 	if s.DryRun {
 		t.Error("DryRun should be false")
 	}
+	if s.Runner == nil {
+		t.Error("Runner should not be nil")
+	}
 }
 
 func TestNewSetup_DryRunFlag(t *testing.T) {
 	log := newTestLogger(t)
-	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, true)
+	mock := execpkg.NewMockRunner()
+	s := NewSetup("/tmp/work", "/data/source", "s3://bucket", log, true, mock)
 	if !s.DryRun {
 		t.Error("DryRun should be true")
 	}
@@ -66,10 +82,7 @@ func TestNewSetup_DryRunFlag(t *testing.T) {
 // ─── CreateDirs tests ────────────────────────────────────────────────────────
 
 func TestCreateDirs_ActualCreation(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, false)
-
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs failed: %v", err)
 	}
@@ -85,8 +98,9 @@ func TestCreateDirs_ActualCreation(t *testing.T) {
 
 func TestCreateDirs_DryRun(t *testing.T) {
 	log := newTestLogger(t)
+	mock := execpkg.NewMockRunner()
 	workRoot := filepath.Join(t.TempDir(), "nonexistent")
-	s := NewSetup(workRoot, "/data/source", "/target", log, true)
+	s := NewSetup(workRoot, "/data/source", "/target", log, true, mock)
 
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs (dry-run) failed: %v", err)
@@ -100,9 +114,7 @@ func TestCreateDirs_DryRun(t *testing.T) {
 // ─── WritePreferences tests ─────────────────────────────────────────────────
 
 func TestWritePreferences_WithSecrets(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "s3://bucket", log, false)
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs: %v", err)
 	}
@@ -132,7 +144,7 @@ func TestWritePreferences_WithSecrets(t *testing.T) {
 	if prefs[0]["repository"] != "/data/source" {
 		t.Errorf("repository = %v", prefs[0]["repository"])
 	}
-	if prefs[0]["storage"] != "s3://bucket" {
+	if prefs[0]["storage"] != "/target" {
 		t.Errorf("storage = %v", prefs[0]["storage"])
 	}
 	keys, ok := prefs[0]["keys"].(map[string]interface{})
@@ -145,9 +157,7 @@ func TestWritePreferences_WithSecrets(t *testing.T) {
 }
 
 func TestWritePreferences_WithoutSecrets(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/local/target", log, false)
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs: %v", err)
 	}
@@ -169,9 +179,7 @@ func TestWritePreferences_WithoutSecrets(t *testing.T) {
 }
 
 func TestWritePreferences_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.WritePreferences(nil); err != nil {
 		t.Fatalf("WritePreferences (dry-run): %v", err)
@@ -185,9 +193,7 @@ func TestWritePreferences_DryRun(t *testing.T) {
 // ─── WriteFilters tests ─────────────────────────────────────────────────────
 
 func TestWriteFilters_NonEmpty(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, false)
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs: %v", err)
 	}
@@ -207,9 +213,7 @@ func TestWriteFilters_NonEmpty(t *testing.T) {
 }
 
 func TestWriteFilters_Empty(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, false)
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs: %v", err)
 	}
@@ -224,9 +228,7 @@ func TestWriteFilters_Empty(t *testing.T) {
 }
 
 func TestWriteFilters_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.WriteFilters("some filter"); err != nil {
 		t.Fatalf("WriteFilters (dry-run): %v", err)
@@ -240,9 +242,7 @@ func TestWriteFilters_DryRun(t *testing.T) {
 // ─── SetPermissions tests ───────────────────────────────────────────────────
 
 func TestSetPermissions_SetsCorrectPerms(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, false)
+	s, _ := newTestSetup(t, false)
 	if err := s.CreateDirs(); err != nil {
 		t.Fatalf("CreateDirs: %v", err)
 	}
@@ -277,9 +277,7 @@ func TestSetPermissions_SetsCorrectPerms(t *testing.T) {
 }
 
 func TestSetPermissions_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	// Should not fail even if dirs don't exist
 	if err := s.SetPermissions(); err != nil {
@@ -290,30 +288,79 @@ func TestSetPermissions_DryRun(t *testing.T) {
 // ─── RunBackup DryRun test ──────────────────────────────────────────────────
 
 func TestRunBackup_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.RunBackup(4); err != nil {
 		t.Fatalf("RunBackup (dry-run): %v", err)
 	}
 }
 
+// ─── RunBackup with mock runner ─────────────────────────────────────────────
+
+func TestRunBackup_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "backup done\n"})
+
+	if err := s.RunBackup(4); err != nil {
+		t.Fatalf("RunBackup: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	inv := mock.Invocations[0]
+	if inv.Cmd != "duplicacy" {
+		t.Errorf("cmd = %q, want duplicacy", inv.Cmd)
+	}
+	if inv.Args[0] != "backup" {
+		t.Errorf("args[0] = %q, want backup", inv.Args[0])
+	}
+}
+
+func TestRunBackup_Error(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("backup failed")})
+
+	err := s.RunBackup(4)
+	if err == nil {
+		t.Fatal("expected error from RunBackup")
+	}
+}
+
 // ─── ValidateRepo DryRun test ───────────────────────────────────────────────
 
 func TestValidateRepo_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.ValidateRepo(); err != nil {
 		t.Fatalf("ValidateRepo (dry-run): %v", err)
 	}
 }
 
+func TestValidateRepo_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	if err := s.ValidateRepo(); err != nil {
+		t.Fatalf("ValidateRepo: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Cmd != "duplicacy" {
+		t.Errorf("cmd = %q, want duplicacy", mock.Invocations[0].Cmd)
+	}
+}
+
+func TestValidateRepo_Failure(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("list failed")})
+
+	err := s.ValidateRepo()
+	if err == nil {
+		t.Fatal("expected error from ValidateRepo")
+	}
+}
+
 // ─── GetTotalRevisionCount DryRun test ──────────────────────────────────────
 
 func TestGetTotalRevisionCount_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	count, err := s.GetTotalRevisionCount()
 	if err != nil {
@@ -324,11 +371,41 @@ func TestGetTotalRevisionCount_DryRun(t *testing.T) {
 	}
 }
 
+func TestGetTotalRevisionCount_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false,
+		execpkg.MockResult{Stdout: "Listing all revisions for storage storj:\nrevision 1\nrevision 2\nrevision 3\n"},
+	)
+
+	count, err := s.GetTotalRevisionCount()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("count = %d, want 3", count)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+}
+
+func TestGetTotalRevisionCount_FailsClosedOnError(t *testing.T) {
+	s, _ := newTestSetup(t, false,
+		execpkg.MockResult{Err: errors.New("list failed")},
+	)
+
+	count, err := s.GetTotalRevisionCount()
+	if err == nil {
+		t.Fatal("expected error when duplicacy list fails, got nil")
+	}
+	if count != 0 {
+		t.Errorf("expected count=0 on error, got %d", count)
+	}
+}
+
 // ─── SafePrunePreview DryRun test ───────────────────────────────────────────
 
 func TestSafePrunePreview_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	preview, err := s.SafePrunePreview([]string{"-keep", "0:365"}, 20)
 	if err != nil {
@@ -339,38 +416,90 @@ func TestSafePrunePreview_DryRun(t *testing.T) {
 	}
 }
 
+func TestSafePrunePreview_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false,
+		// First call: prune -dry-run
+		execpkg.MockResult{Stdout: "Deleting snapshot data at revision 1\nDeleting snapshot data at revision 2\n"},
+		// Second call: list (for GetTotalRevisionCount)
+		execpkg.MockResult{Stdout: "revision 1\nrevision 2\nrevision 3\nrevision 4\nrevision 5\nrevision 6\nrevision 7\nrevision 8\nrevision 9\nrevision 10\nrevision 11\nrevision 12\nrevision 13\nrevision 14\nrevision 15\nrevision 16\nrevision 17\nrevision 18\nrevision 19\nrevision 20\n"},
+	)
+
+	preview, err := s.SafePrunePreview([]string{"-keep", "0:365"}, 20)
+	if err != nil {
+		t.Fatalf("SafePrunePreview: %v", err)
+	}
+	if preview.DeleteCount != 2 {
+		t.Errorf("DeleteCount = %d, want 2", preview.DeleteCount)
+	}
+	if preview.TotalRevisions != 20 {
+		t.Errorf("TotalRevisions = %d, want 20", preview.TotalRevisions)
+	}
+	if !preview.PercentEnforced {
+		t.Error("PercentEnforced should be true")
+	}
+	if len(mock.Invocations) != 2 {
+		t.Fatalf("expected 2 invocations, got %d", len(mock.Invocations))
+	}
+}
+
 // ─── RunPrune DryRun test ───────────────────────────────────────────────────
 
 func TestRunPrune_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.RunPrune([]string{"-keep", "0:365"}); err != nil {
 		t.Fatalf("RunPrune (dry-run): %v", err)
 	}
 }
 
+func TestRunPrune_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	if err := s.RunPrune([]string{"-keep", "0:365"}); err != nil {
+		t.Fatalf("RunPrune: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Cmd != "duplicacy" {
+		t.Errorf("cmd = %q, want duplicacy", mock.Invocations[0].Cmd)
+	}
+}
+
 // ─── RunDeepPrune DryRun test ───────────────────────────────────────────────
 
 func TestRunDeepPrune_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 
 	if err := s.RunDeepPrune(); err != nil {
 		t.Fatalf("RunDeepPrune (dry-run): %v", err)
 	}
 }
 
+func TestRunDeepPrune_UsesRunner(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	if err := s.RunDeepPrune(); err != nil {
+		t.Fatalf("RunDeepPrune: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	inv := mock.Invocations[0]
+	if inv.Args[0] != "prune" || inv.Args[1] != "-exhaustive" {
+		t.Errorf("unexpected args: %v", inv.Args)
+	}
+}
+
 // ─── Cleanup tests ──────────────────────────────────────────────────────────
 
 func TestCleanup_RemovesWorkRoot(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
+	s, _ := newTestSetup(t, false)
+	workRoot := s.WorkRoot
 	// Create a subdirectory to ensure it exists
 	subdir := filepath.Join(workRoot, "sub")
 	os.MkdirAll(subdir, 0755)
 
-	s := NewSetup(workRoot, "/data/source", "/target", log, false)
 	s.Cleanup()
 
 	if _, err := os.Stat(workRoot); !os.IsNotExist(err) {
@@ -379,12 +508,10 @@ func TestCleanup_RemovesWorkRoot(t *testing.T) {
 }
 
 func TestCleanup_DryRun(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "/target", log, true)
+	s, _ := newTestSetup(t, true)
 	s.Cleanup()
 
-	if _, err := os.Stat(workRoot); err != nil {
+	if _, err := os.Stat(s.WorkRoot); err != nil {
 		t.Error("WorkRoot should NOT be removed in dry-run mode")
 	}
 }
@@ -539,24 +666,6 @@ func TestPrunePreview_RevisionCountFailed(t *testing.T) {
 	}
 }
 
-// ─── GetTotalRevisionCount failure test ─────────────────────────────────────
-
-func TestGetTotalRevisionCount_FailsClosedOnError(t *testing.T) {
-	// When duplicacy is not installed / list fails, GetTotalRevisionCount
-	// must return an error (fail closed) rather than (0, nil).
-	log := newTestLogger(t)
-	s := NewSetup(t.TempDir(), "/data/source", "/target", log, false)
-
-	// duplicacy is not installed in test env, so cmd.Run will fail
-	count, err := s.GetTotalRevisionCount()
-	if err == nil {
-		t.Fatal("expected error when duplicacy list fails, got nil")
-	}
-	if count != 0 {
-		t.Errorf("expected count=0 on error, got %d", count)
-	}
-}
-
 // ─── redactSecrets tests ────────────────────────────────────────────────────
 
 func TestRedactSecrets_RedactsCredentials(t *testing.T) {
@@ -611,9 +720,7 @@ func TestRedactSecrets_NullKeysUnchanged(t *testing.T) {
 }
 
 func TestWritePreferences_DryRun_RedactsSecrets(t *testing.T) {
-	log := newTestLogger(t)
-	workRoot := t.TempDir()
-	s := NewSetup(workRoot, "/data/source", "s3://bucket", log, true)
+	s, _ := newTestSetup(t, true)
 
 	sec := &secrets.Secrets{
 		StorjS3ID:     "AKIAIOSFODNN7EXAMPLE",

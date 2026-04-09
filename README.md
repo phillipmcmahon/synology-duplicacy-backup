@@ -332,11 +332,52 @@ The `app` struct holds all state for a single run — mode booleans, derived pat
 | `executableConfigDir` | Locate config dir relative to the binary |
 | `printUsage` | Emit help text |
 
+### Command Execution (`internal/exec`)
+
+All external process execution (btrfs, duplicacy, chown) is centralised behind the `exec.Runner` interface:
+
+```go
+type Runner interface {
+    Run(ctx context.Context, cmd string, args ...string) (stdout, stderr string, err error)
+    RunWithInput(ctx context.Context, input string, cmd string, args ...string) (stdout, stderr string, err error)
+}
+```
+
+| Type | Purpose |
+|---|---|
+| `CommandRunner` | Production implementation — wraps `os/exec` with context, logging, dry-run support |
+| `MockRunner` | Test double — records invocations and replays pre-configured results (FIFO) |
+
+The `app` struct creates a single `CommandRunner` in `newApp()` and passes it to `btrfs`, `duplicacy`, and `permissions` packages. This design:
+
+- **Eliminates direct `os/exec` calls** in domain packages
+- **Enables unit testing** without real binaries on `PATH` — tests inject a `MockRunner`
+- **Provides consistent logging** — every command is logged before execution
+- **Supports dry-run** at the runner level — commands are logged but not executed
+- **Adds context support** — callers can enforce timeouts or cancellation
+
+#### Using MockRunner in tests
+
+```go
+mock := exec.NewMockRunner(
+    exec.MockResult{Stdout: "btrfs\n"},  // first call returns this
+    exec.MockResult{},                    // second call succeeds silently
+    exec.MockResult{Err: errors.New("fail")}, // third call fails
+)
+
+// Pass mock to any function that accepts exec.Runner
+err := btrfs.CheckVolume(mock, log, "/volume1", false)
+
+// Assert invocations
+assert(mock.Invocations[0].Cmd == "stat")
+assert(mock.Invocations[1].Cmd == "btrfs")
+```
+
 ### Design goals
 
 - **`run()` readable in one screen** — the entire orchestration is visible at a glance
 - **Single concern per phase** — each method does one thing
-- **Testable** — unit tests can construct an `*app` with stubbed fields and test any method in isolation
+- **Testable** — unit tests can construct an `*app` with stubbed fields and inject a `MockRunner` for command isolation
 - **No behaviour changes** — pure refactoring of the original monolithic `run()`
 
 ---
@@ -352,17 +393,24 @@ synology-duplicacy-backup/
 │       └── integration_test.go  # Integration tests for multi-phase pipelines
 ├── internal/
 │   ├── btrfs/
-│   │   └── btrfs.go             # BTRFS volume checks and snapshot management
+│   │   ├── btrfs.go             # BTRFS volume checks and snapshot management
+│   │   └── btrfs_test.go        # Unit tests with MockRunner
 │   ├── config/
 │   │   └── config.go            # INI config parser and validation
 │   ├── duplicacy/
-│   │   └── duplicacy.go         # Duplicacy CLI wrapper (backup, prune, list)
+│   │   ├── duplicacy.go         # Duplicacy CLI wrapper (backup, prune, list)
+│   │   └── duplicacy_test.go    # Unit tests with MockRunner
+│   ├── exec/
+│   │   ├── runner.go            # Runner interface, CommandRunner, and MockRunner
+│   │   ├── runner_test.go       # Unit tests for runner implementations
+│   │   └── integration_test.go  # Integration tests for command execution
 │   ├── lock/
 │   │   └── lock.go              # Directory-based PID locking
 │   ├── logger/
 │   │   └── logger.go            # Structured logging with colour and rotation
 │   ├── permissions/
-│   │   └── permissions.go       # Local repo ownership/permission fixing
+│   │   ├── permissions.go       # Local repo ownership/permission fixing
+│   │   └── permissions_test.go  # Unit tests with MockRunner
 │   └── secrets/
 │       └── secrets.go           # Secrets file loading and validation
 ├── examples/

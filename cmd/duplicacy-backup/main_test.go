@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
@@ -28,6 +29,7 @@ func testLogger(t *testing.T) *logger.Logger {
 
 // testApp returns a minimal *app suitable for unit-testing individual methods.
 // Callers can override fields as needed before calling the method under test.
+// A MockRunner is installed so that any accidental command execution is safe.
 func testApp(t *testing.T) *app {
 	t.Helper()
 	return &app{
@@ -43,6 +45,7 @@ func testApp(t *testing.T) *app {
 
 		configDir:  t.TempDir(),
 		secretsDir: t.TempDir(),
+		runner:     execpkg.NewMockRunner(),
 	}
 }
 
