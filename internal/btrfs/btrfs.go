@@ -25,6 +25,10 @@ import (
 // Returns a [*errors.SnapshotError] on failure with context including the
 // checked path.
 func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
+	if dryRun {
+		return nil
+	}
+
 	ctx := context.Background()
 
 	// Check filesystem type
