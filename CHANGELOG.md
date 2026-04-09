@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.5] - 2026-04-09
+
+### Fixed
+- **Prune preview deletion counting**: Fixed the deletion counting regex to
+  correctly detect "Deleting snapshot data at revision X" lines from Duplicacy's
+  prune dry-run output. Previously, the regex only matched "Deleting revision X"
+  but Duplicacy outputs "Deleting snapshot data at revision X", causing the
+  "Preview Deletes" count to always show 0. The regex now correctly handles any
+  text between the delete verb and "revision", matching all known Duplicacy
+  output formats.
+
 ## [v1.7.4] - 2026-04-08
 
 ### Fixed
