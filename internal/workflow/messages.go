@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
@@ -31,29 +32,29 @@ func OperatorMessage(err error) string {
 
 	var msgErr *MessageError
 	if errors.As(err, &msgErr) {
-		return msgErr.Message
+		return normaliseOperatorSentence(msgErr.Message)
 	}
 
 	var requestErr *RequestError
 	if errors.As(err, &requestErr) {
-		return requestErr.Error()
+		return normaliseOperatorSentence(requestErr.Error())
 	}
 
 	var backupErr *apperrors.BackupError
 	if errors.As(err, &backupErr) {
 		switch backupErr.Phase {
 		case "create-dirs":
-			return "Failed to create Duplicacy directories."
+			return normaliseOperatorSentence("Failed to create Duplicacy directories.")
 		case "write-preferences":
-			return "Failed to write preferences."
+			return normaliseOperatorSentence("Failed to write preferences.")
 		case "write-filters":
-			return "Failed to write filter file."
+			return normaliseOperatorSentence("Failed to write filter file.")
 		case "set-permissions":
-			return "Failed to set permissions in the Duplicacy work directory."
+			return normaliseOperatorSentence("Failed to set permissions in the Duplicacy work directory.")
 		case "run":
-			return "Backup failed."
+			return normaliseOperatorSentence("Backup failed.")
 		default:
-			return backupErr.Error()
+			return normaliseOperatorSentence(backupErr.Error())
 		}
 	}
 
@@ -61,15 +62,15 @@ func OperatorMessage(err error) string {
 	if errors.As(err, &pruneErr) {
 		switch pruneErr.Phase {
 		case "validate-repo":
-			return "Cannot perform prune operation — repository not ready."
+			return normaliseOperatorSentence("Cannot perform prune operation — repository not ready.")
 		case "safe-preview":
-			return "Safe prune preview failed."
+			return normaliseOperatorSentence("Safe prune preview failed.")
 		case "run":
-			return "Policy prune failed."
+			return normaliseOperatorSentence("Policy prune failed.")
 		case "deep-prune":
-			return "Deep prune failed."
+			return normaliseOperatorSentence("Deep prune failed.")
 		default:
-			return pruneErr.Error()
+			return normaliseOperatorSentence(pruneErr.Error())
 		}
 	}
 
@@ -77,42 +78,81 @@ func OperatorMessage(err error) string {
 	if errors.As(err, &snapshotErr) {
 		switch snapshotErr.Phase {
 		case "create":
-			return "Failed to create snapshot."
+			return normaliseOperatorSentence("Failed to create snapshot.")
 		case "delete":
-			return "Failed to delete snapshot subvolume."
+			return normaliseOperatorSentence("Failed to delete snapshot subvolume.")
 		default:
-			return snapshotErr.Error()
+			return normaliseOperatorSentence(snapshotErr.Error())
 		}
 	}
 
 	var permissionsErr *apperrors.PermissionsError
 	if errors.As(err, &permissionsErr) {
-		return "Permission normalisation failed."
+		return normaliseOperatorSentence("Permission normalisation failed.")
 	}
 
 	var configErr *apperrors.ConfigError
 	if errors.As(err, &configErr) {
-		if configErr.Cause != nil {
-			return configErr.Cause.Error()
-		}
-		return configErr.Error()
+		return normaliseOperatorSentence(operatorConfigMessage(configErr))
 	}
 
 	var secretsErr *apperrors.SecretsError
 	if errors.As(err, &secretsErr) {
-		if secretsErr.Cause != nil {
-			return secretsErr.Cause.Error()
-		}
-		return secretsErr.Error()
+		return normaliseOperatorSentence(operatorSecretsMessage(secretsErr))
 	}
 
 	var lockErr *apperrors.LockError
 	if errors.As(err, &lockErr) {
 		if lockErr.Cause != nil {
-			return fmt.Sprintf("Lock acquisition failed: %s", lockErr.Cause.Error())
+			return normaliseOperatorSentence(fmt.Sprintf("Lock acquisition failed: %s", lockErr.Cause.Error()))
 		}
-		return "Lock acquisition failed."
+		return normaliseOperatorSentence("Lock acquisition failed.")
 	}
 
+	return normaliseOperatorSentence(err.Error())
+}
+
+func operatorConfigMessage(err *apperrors.ConfigError) string {
+	switch err.Field {
+	case "open",
+		"read",
+		"section-common",
+		"section-target",
+		"required",
+		"threads",
+		"log-retention-days",
+		"safe-prune-max-delete-percent",
+		"safe-prune-max-delete-count",
+		"safe-prune-min-total-for-percent",
+		"local-owner",
+		"local-group",
+		"parse":
+		if err.Cause != nil {
+			return err.Cause.Error()
+		}
+	}
 	return err.Error()
+}
+
+func operatorSecretsMessage(err *apperrors.SecretsError) string {
+	switch err.Phase {
+	case "stat", "permissions", "ownership", "parse", "read", "required", "open", "validate":
+		if err.Cause != nil {
+			return err.Cause.Error()
+		}
+	}
+	return err.Error()
+}
+
+func normaliseOperatorSentence(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return ""
+	}
+	switch message[len(message)-1] {
+	case '.', '!', '?':
+		return message
+	default:
+		return message + "."
+	}
 }
