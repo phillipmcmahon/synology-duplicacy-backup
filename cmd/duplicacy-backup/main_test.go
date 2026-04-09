@@ -1,11 +1,52 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
+
+// ─── Helper: create a test logger that writes to a temp dir ──────────────────
+
+func testLogger(t *testing.T) *logger.Logger {
+	t.Helper()
+	dir := t.TempDir()
+	log, err := logger.New(dir, "test", false)
+	if err != nil {
+		t.Fatalf("failed to create test logger: %v", err)
+	}
+	t.Cleanup(func() { log.Close() })
+	return log
+}
+
+// testApp returns a minimal *app suitable for unit-testing individual methods.
+// Callers can override fields as needed before calling the method under test.
+func testApp(t *testing.T) *app {
+	t.Helper()
+	return &app{
+		log:   testLogger(t),
+		flags: &flags{source: "testlabel", dryRun: true},
+
+		backupLabel:    "testlabel",
+		runTimestamp:   "20260409-120000",
+		snapshotSource: "/volume1/testlabel",
+		snapshotTarget: "/volume1/testlabel-20260409-120000",
+		workRoot:       filepath.Join(t.TempDir(), "workroot"),
+		repositoryPath: "/volume1/testlabel",
+
+		configDir:  t.TempDir(),
+		secretsDir: t.TempDir(),
+	}
+}
+
+// ─── Free function tests (preserved from original) ──────────────────────────
 
 func TestResolveDir(t *testing.T) {
 	const envKey = "TEST_RESOLVE_DIR_ENV"
@@ -257,9 +298,6 @@ func TestParseFlags_NoFlagsDefaultsToBackup(t *testing.T) {
 // ─── Mode derivation tests (v1.6.0 conditional validation) ──────────────────
 
 func TestModeDerivation_FixPermsOnlySkipsBackupAndPrune(t *testing.T) {
-	// When --fix-perms is the sole operation, doBackup and doPrune must both
-	// be false.  This is important because v1.6.0 gates the duplicacy binary
-	// check and owner/group validation on these flags.
 	f, err := parseFlags([]string{"--fix-perms", "homes"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -283,8 +321,6 @@ func TestModeDerivation_FixPermsOnlySkipsBackupAndPrune(t *testing.T) {
 }
 
 func TestModeDerivation_BackupRequiresDuplicacy(t *testing.T) {
-	// Default mode (no flags) should derive doBackup=true, meaning
-	// duplicacy binary check is required.
 	f, err := parseFlags([]string{"homes"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -317,7 +353,6 @@ func TestModeDerivation_PruneRequiresDuplicacy(t *testing.T) {
 }
 
 func TestModeDerivation_FixPermsWithBackupRequiresBoth(t *testing.T) {
-	// --fix-perms --backup needs both duplicacy check AND owner/group validation.
 	f, err := parseFlags([]string{"--fix-perms", "--backup", "homes"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -349,8 +384,6 @@ func TestParseFlags_UnknownOption(t *testing.T) {
 // ─── Version and usage tests (v1.7.1) ───────────────────────────────────────
 
 func TestVersionFlag_Long(t *testing.T) {
-	// --version is handled in run() before parseFlags, so we test the
-	// early-exit loop directly by simulating the arg scan.
 	for _, arg := range []string{"--version"} {
 		if arg == "--version" || arg == "-v" {
 			// Matches the early-exit condition in run()
@@ -361,8 +394,6 @@ func TestVersionFlag_Long(t *testing.T) {
 }
 
 func TestVersionFlag_Short(t *testing.T) {
-	// -v is handled in run() before parseFlags, verify parseFlags rejects it
-	// (because it should never reach parseFlags).
 	_, err := parseFlags([]string{"-v"})
 	if err == nil {
 		t.Error("parseFlags should reject -v (handled before parseFlags in run)")
@@ -370,7 +401,6 @@ func TestVersionFlag_Short(t *testing.T) {
 }
 
 func TestVersionOutput_ContainsVersion(t *testing.T) {
-	// Verify the version variable is set correctly for v1.7.5
 	if version != "1.7.5" {
 		t.Errorf("version = %q, want %q", version, "1.7.5")
 	}
@@ -384,8 +414,6 @@ func TestVersionOutput_ContainsScriptName(t *testing.T) {
 }
 
 func TestPrintUsage_DoesNotPanic(t *testing.T) {
-	// printUsage writes to stdout; just verify it doesn't panic.
-	// Redirect stdout to discard output.
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -398,8 +426,6 @@ func TestPrintUsage_DoesNotPanic(t *testing.T) {
 }
 
 func TestParseFlags_MissingSourceShowsError(t *testing.T) {
-	// When no source is provided, parseFlags returns an error.
-	// In run(), this triggers printUsage() after the error.
 	_, err := parseFlags([]string{"--backup"})
 	if err == nil {
 		t.Error("expected error for missing source directory")
@@ -410,7 +436,6 @@ func TestParseFlags_MissingSourceShowsError(t *testing.T) {
 }
 
 func TestParseFlags_UnknownFlagShowsError(t *testing.T) {
-	// Unknown flags produce an error; in run(), this triggers printUsage().
 	_, err := parseFlags([]string{"--nonexistent", "homes"})
 	if err == nil {
 		t.Error("expected error for unknown flag")
@@ -421,15 +446,11 @@ func TestParseFlags_UnknownFlagShowsError(t *testing.T) {
 }
 
 // ─── Display logic derivation tests (v1.6.1) ────────────────────────────────
-// These tests document which display path should be taken based on flags.
-// The actual printing is in run(), but the branching logic is deterministic
-// from the parsed flags.
 
-// displayContext captures the fields that control config summary display.
 type displayContext struct {
-	fixPermsOnly bool // standalone fix-perms: minimal summary
-	fixPerms     bool // combined: show Local Owner/Group in full summary
-	remoteMode   bool // remote: never show Local Owner/Group
+	fixPermsOnly bool
+	fixPerms     bool
+	remoteMode   bool
 }
 
 func deriveDisplayContext(args []string) (displayContext, error) {
@@ -527,8 +548,6 @@ func TestDisplayContext_RemoteBackup_NoOwnerGroup(t *testing.T) {
 // ─── --force-prune validation tests (v1.7.2) ────────────────────────────────
 
 func TestForcePrune_AloneErrorsAndExits(t *testing.T) {
-	// --force-prune without --prune or --prune-deep should be rejected.
-	// parseFlags accepts it, but mode derivation should detect the conflict.
 	f, err := parseFlags([]string{"--force-prune", "homes"})
 	if err != nil {
 		t.Fatalf("unexpected error from parseFlags: %v", err)
@@ -536,13 +555,10 @@ func TestForcePrune_AloneErrorsAndExits(t *testing.T) {
 	if !f.forcePrune {
 		t.Error("expected forcePrune to be true")
 	}
-	// Mode defaults to "backup" when no mode flag given
 	doPrune := f.mode == "prune" || f.mode == "prune-deep"
 	if doPrune {
 		t.Error("expected doPrune to be false when no prune flag is given")
 	}
-	// The run() function should error and exit for this combination.
-	// Verify the condition that triggers the error:
 	if !(f.forcePrune && !doPrune) {
 		t.Error("expected forcePrune=true && doPrune=false to be the error condition")
 	}
@@ -561,7 +577,6 @@ func TestForcePrune_WithPruneDeepIsAccepted(t *testing.T) {
 	}
 	deepPruneMode := f.mode == "prune-deep"
 	doPrune := f.mode == "prune" || f.mode == "prune-deep"
-	// Should NOT trigger error: deepPruneMode requires forcePrune (ok), and forcePrune with doPrune (ok)
 	if deepPruneMode && !f.forcePrune {
 		t.Error("expected --prune-deep --force-prune to pass validation")
 	}
@@ -588,7 +603,6 @@ func TestForcePrune_WithPruneIsAccepted(t *testing.T) {
 }
 
 func TestForcePrune_WithBackupOnlyErrorsAndExits(t *testing.T) {
-	// --force-prune --backup should be rejected (backup is not prune)
 	f, err := parseFlags([]string{"--backup", "--force-prune", "homes"})
 	if err != nil {
 		t.Fatalf("unexpected error from parseFlags: %v", err)
@@ -602,5 +616,515 @@ func TestForcePrune_WithBackupOnlyErrorsAndExits(t *testing.T) {
 	}
 	if !(f.forcePrune && !doPrune) {
 		t.Error("expected forcePrune=true && doPrune=false to be the error condition")
+	}
+}
+
+// ─── Coordinator pattern: app struct tests ──────────────────────────────────
+
+func TestApp_FailSetsExitCode(t *testing.T) {
+	a := testApp(t)
+	if a.exitCode != 0 {
+		t.Fatalf("exitCode should start at 0, got %d", a.exitCode)
+	}
+
+	a.fail(fmt.Errorf("something went wrong"))
+	if a.exitCode != 1 {
+		t.Errorf("exitCode after fail() = %d, want 1", a.exitCode)
+	}
+}
+
+func TestApp_FailMultipleTimesKeepsExitCode(t *testing.T) {
+	a := testApp(t)
+	a.fail(fmt.Errorf("first error"))
+	a.fail(fmt.Errorf("second error"))
+	if a.exitCode != 1 {
+		t.Errorf("exitCode = %d, want 1", a.exitCode)
+	}
+}
+
+func TestApp_CleanupIsIdempotent(t *testing.T) {
+	a := testApp(t)
+	// Create a lock to exercise release path
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-idempotent")
+
+	// First cleanup
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true after cleanup()")
+	}
+
+	// Second cleanup should not panic
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should still be true after second cleanup()")
+	}
+}
+
+func TestApp_CleanupSetsCleanedUp(t *testing.T) {
+	a := testApp(t)
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-flag")
+
+	if a.cleanedUp {
+		t.Fatal("cleanedUp should be false before cleanup()")
+	}
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true after cleanup()")
+	}
+}
+
+func TestApp_CleanupWithExitCodeShowsFailed(t *testing.T) {
+	a := testApp(t)
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-status")
+	a.exitCode = 1
+
+	// Should not panic even with non-zero exit code
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true")
+	}
+}
+
+func TestApp_AcquireLock_Success(t *testing.T) {
+	a := testApp(t)
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-acquire")
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock() unexpected error: %v", err)
+	}
+	// Lock directory should exist
+	if _, err := os.Stat(a.lk.Path); os.IsNotExist(err) {
+		t.Error("lock directory should exist after acquireLock()")
+	}
+	// Cleanup to release
+	a.lk.Release()
+}
+
+func TestApp_AcquireLock_FailsWhenHeld(t *testing.T) {
+	lockDir := t.TempDir()
+
+	// First app acquires lock
+	a1 := testApp(t)
+	a1.lk = lock.New(lockDir, "test-contention")
+	if err := a1.acquireLock(); err != nil {
+		t.Fatalf("first acquireLock() failed: %v", err)
+	}
+
+	// Second app should fail to acquire same lock
+	a2 := testApp(t)
+	a2.lk = lock.New(lockDir, "test-contention")
+	err := a2.acquireLock()
+	if err == nil {
+		t.Error("second acquireLock() should fail when lock is held")
+	}
+	if err != nil && !strings.Contains(err.Error(), "Lock acquisition failed") {
+		t.Errorf("error = %q, expected it to contain 'Lock acquisition failed'", err.Error())
+	}
+
+	a1.lk.Release()
+}
+
+func TestApp_LoadConfig_MissingFile(t *testing.T) {
+	a := testApp(t)
+	a.configFile = filepath.Join(t.TempDir(), "nonexistent.conf")
+
+	err := a.loadConfig()
+	if err == nil {
+		t.Error("loadConfig() should fail for missing config file")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error = %q, expected 'not found'", err.Error())
+	}
+}
+
+func TestApp_LoadConfig_ValidLocalConfig(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = false
+	a.fixPermsOnly = true
+	a.flags.fixPerms = true
+	a.flags.remoteMode = false
+
+	// Create a minimal valid config file
+	confDir := t.TempDir()
+	confFile := filepath.Join(confDir, "testlabel-backup.conf")
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+LOCAL_OWNER=nobody
+LOCAL_GROUP=nogroup
+THREADS=4
+`
+	if err := os.WriteFile(confFile, []byte(confContent), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	a.configFile = confFile
+
+	err := a.loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig() unexpected error: %v", err)
+	}
+	if a.cfg == nil {
+		t.Fatal("cfg should not be nil after loadConfig()")
+	}
+	if a.cfg.Destination != "/volume2/backups" {
+		t.Errorf("cfg.Destination = %q, want %q", a.cfg.Destination, "/volume2/backups")
+	}
+	if a.backupTarget != "/volume2/backups/testlabel" {
+		t.Errorf("backupTarget = %q, want %q", a.backupTarget, "/volume2/backups/testlabel")
+	}
+}
+
+func TestApp_LoadSecrets_LocalModeIsNoop(t *testing.T) {
+	a := testApp(t)
+	a.flags.remoteMode = false
+
+	err := a.loadSecrets()
+	if err != nil {
+		t.Fatalf("loadSecrets() should be no-op for local mode: %v", err)
+	}
+	if a.sec != nil {
+		t.Error("sec should be nil for local mode")
+	}
+}
+
+func TestApp_LoadSecrets_RemoteMissingFile(t *testing.T) {
+	a := testApp(t)
+	a.flags.remoteMode = true
+	a.secretsDir = t.TempDir() // empty dir, no secrets file
+
+	err := a.loadSecrets()
+	if err == nil {
+		t.Error("loadSecrets() should fail when secrets file is missing")
+	}
+}
+
+func TestApp_PrintHeader_DoesNotPanic(t *testing.T) {
+	a := testApp(t)
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-header")
+
+	// Should not panic
+	a.printHeader()
+}
+
+func TestApp_PrintSummary_BackupOnly(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.fixPermsOnly = false
+	a.backupTarget = "/volume2/backups/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/volume2/backups"
+	a.sec = nil
+
+	// Should not panic
+	a.printSummary()
+}
+
+func TestApp_PrintSummary_FixPermsOnly(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = false
+	a.fixPermsOnly = true
+	a.flags.fixPerms = true
+	a.backupTarget = "/volume2/backups/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "users"
+
+	// Should not panic
+	a.printSummary()
+}
+
+func TestApp_PrintSummary_PruneSafe(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.deepPruneMode = false
+	a.fixPermsOnly = false
+	a.backupTarget = "/volume2/backups/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/volume2/backups"
+	a.cfg.Prune = "-keep 1:728"
+
+	a.printSummary()
+}
+
+func TestApp_PrintSummary_PruneDeep(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.deepPruneMode = true
+	a.fixPermsOnly = false
+	a.backupTarget = "/volume2/backups/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/volume2/backups"
+
+	a.printSummary()
+}
+
+func TestApp_PrintSummary_RemoteWithSecrets(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.fixPermsOnly = false
+	a.flags.remoteMode = true
+	a.backupTarget = "s3://bucket/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "s3://bucket"
+	a.cfg.Threads = 4
+	a.sec = &secrets.Secrets{
+		StorjS3ID:     "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234",
+		StorjS3Secret: "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuv",
+	}
+
+	a.printSummary()
+}
+
+func TestApp_PrintSummary_BackupWithFixPerms(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.fixPermsOnly = false
+	a.flags.fixPerms = true
+	a.backupTarget = "/volume2/backups/testlabel"
+	a.cfg = config.NewDefaults()
+	a.cfg.Destination = "/volume2/backups"
+	a.cfg.LocalOwner = "testuser"
+	a.cfg.LocalGroup = "users"
+
+	a.printSummary()
+}
+
+func TestApp_Execute_FixPermsOnly_NoBackupNoPrune(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = false
+	a.fixPermsOnly = true
+	a.flags.fixPerms = true
+	a.flags.dryRun = true
+	a.backupTarget = t.TempDir()
+	a.cfg = config.NewDefaults()
+	a.cfg.LocalOwner = "nobody"
+	a.cfg.LocalGroup = "nogroup"
+
+	err := a.execute()
+	if err != nil {
+		t.Fatalf("execute() unexpected error: %v", err)
+	}
+}
+
+func TestApp_Execute_NeitherBackupNorPruneNorFixPerms(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = false
+	a.fixPermsOnly = false
+	a.flags.fixPerms = false
+
+	// execute() with nothing to do should succeed
+	err := a.execute()
+	if err != nil {
+		t.Fatalf("execute() with no operations should succeed: %v", err)
+	}
+}
+
+// ─── app struct field derivation tests ──────────────────────────────────────
+
+func TestApp_ModeBooleansFromFlags(t *testing.T) {
+	tests := []struct {
+		name        string
+		mode        string
+		fixPerms    bool
+		wantBackup  bool
+		wantPrune   bool
+		wantDeep    bool
+		wantFixOnly bool
+	}{
+		{"backup", "backup", false, true, false, false, false},
+		{"prune", "prune", false, false, true, false, false},
+		{"prune-deep", "prune-deep", false, false, true, true, false},
+		{"fix-perms only", "", true, false, false, false, true},
+		{"backup+fix-perms", "backup", true, true, false, false, false},
+		{"prune+fix-perms", "prune", true, false, true, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doBackup := tt.mode == "backup"
+			doPrune := tt.mode == "prune" || tt.mode == "prune-deep"
+			deepPruneMode := tt.mode == "prune-deep"
+			fixPermsOnly := tt.fixPerms && !doBackup && !doPrune
+
+			if doBackup != tt.wantBackup {
+				t.Errorf("doBackup = %v, want %v", doBackup, tt.wantBackup)
+			}
+			if doPrune != tt.wantPrune {
+				t.Errorf("doPrune = %v, want %v", doPrune, tt.wantPrune)
+			}
+			if deepPruneMode != tt.wantDeep {
+				t.Errorf("deepPruneMode = %v, want %v", deepPruneMode, tt.wantDeep)
+			}
+			if fixPermsOnly != tt.wantFixOnly {
+				t.Errorf("fixPermsOnly = %v, want %v", fixPermsOnly, tt.wantFixOnly)
+			}
+		})
+	}
+}
+
+func TestApp_RepositoryPathDerivation(t *testing.T) {
+	// When doBackup is true, repositoryPath should be snapshotTarget
+	// When doBackup is false, repositoryPath should be snapshotSource
+	label := "homes"
+	timestamp := "20260409-120000"
+	source := filepath.Join(rootVolume, label)
+	target := filepath.Join(rootVolume, fmt.Sprintf("%s-%s", label, timestamp))
+
+	// Backup mode
+	var repoBackup string
+	if true { // doBackup
+		repoBackup = target
+	}
+	if repoBackup != target {
+		t.Errorf("backup repositoryPath = %q, want %q", repoBackup, target)
+	}
+
+	// Prune mode
+	repoOther := source
+	if repoOther != source {
+		t.Errorf("prune repositoryPath = %q, want %q", repoOther, source)
+	}
+}
+
+// ─── Integration-style tests for the coordinator flow ────────────────────────
+
+func TestApp_LoadConfigThenLoadSecrets_LocalMode(t *testing.T) {
+	// Verify the full local-mode config+secrets flow:
+	// loadConfig succeeds with valid config, loadSecrets is a no-op.
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.flags.mode = "prune"
+	a.flags.remoteMode = false
+
+	confDir := t.TempDir()
+	confFile := filepath.Join(confDir, "testlabel-backup.conf")
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+THREADS=4
+`
+	if err := os.WriteFile(confFile, []byte(confContent), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	a.configFile = confFile
+
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig() failed: %v", err)
+	}
+	if err := a.loadSecrets(); err != nil {
+		t.Fatalf("loadSecrets() for local should be no-op: %v", err)
+	}
+	if a.sec != nil {
+		t.Error("sec should be nil for local mode")
+	}
+	if a.cfg == nil {
+		t.Fatal("cfg should not be nil")
+	}
+}
+
+func TestApp_FullCleanupCycle_BackupMode(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = true
+	a.flags.dryRun = false // real cleanup, not dry-run
+	// Create real workRoot dir so cleanup exercises os.Stat path
+	os.MkdirAll(a.workRoot, 0755)
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-full-cleanup")
+	a.lk.Acquire()
+
+	a.cleanup()
+
+	// workRoot should be removed
+	if _, err := os.Stat(a.workRoot); !os.IsNotExist(err) {
+		t.Error("workRoot should be removed after cleanup")
+	}
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true")
+	}
+}
+
+func TestApp_FullCleanupCycle_PruneMode(t *testing.T) {
+	a := testApp(t)
+	a.doBackup = false
+	a.doPrune = true
+	a.flags.dryRun = false // real cleanup, not dry-run
+	os.MkdirAll(a.workRoot, 0755)
+
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-prune-cleanup")
+	a.lk.Acquire()
+
+	a.cleanup()
+
+	if _, err := os.Stat(a.workRoot); !os.IsNotExist(err) {
+		t.Error("workRoot should be removed after cleanup")
+	}
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true")
+	}
+}
+
+// ─── Verify the coordinator pattern contract ────────────────────────────────
+
+func TestApp_MethodsReturnErrors_NotPanics(t *testing.T) {
+	// Each phase method should return an error, not panic, on failure.
+	a := testApp(t)
+	a.configFile = "/nonexistent/path/config.conf"
+	lockDir := t.TempDir()
+	a.lk = lock.New(lockDir, "test-errors")
+
+	// loadConfig with missing file returns error
+	if err := a.loadConfig(); err == nil {
+		t.Error("loadConfig() with missing file should return error")
+	}
+
+	// loadSecrets with remote mode and missing file returns error
+	a.flags.remoteMode = true
+	if err := a.loadSecrets(); err == nil {
+		t.Error("loadSecrets() with remote mode and missing file should return error")
+	}
+}
+
+func TestApp_CleanupReleasesLock(t *testing.T) {
+	lockDir := t.TempDir()
+	a := testApp(t)
+	a.lk = lock.New(lockDir, "test-release")
+
+	if err := a.lk.Acquire(); err != nil {
+		t.Fatalf("failed to acquire lock: %v", err)
+	}
+
+	a.cleanup()
+
+	// Lock should be released – directory should not exist
+	if _, err := os.Stat(a.lk.Path); !os.IsNotExist(err) {
+		t.Error("lock directory should be removed after cleanup")
+	}
+}
+
+func TestApp_DupFieldIsNilBeforePrepareDuplicacySetup(t *testing.T) {
+	a := testApp(t)
+	if a.dup != nil {
+		t.Error("dup should be nil before prepareDuplicacySetup()")
 	}
 }

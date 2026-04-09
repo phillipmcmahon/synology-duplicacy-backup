@@ -287,13 +287,69 @@ Use `--force-prune` to override these thresholds when needed.
 
 ---
 
+## Architecture
+
+### Coordinator Pattern
+
+The program follows a **coordinator pattern** centred on the `app` struct in `cmd/duplicacy-backup/main.go`. The top-level `run()` function creates an `*app` via `newApp()`, then calls a series of clearly-bounded methods in sequence:
+
+```
+newApp → acquireLock → loadConfig → loadSecrets → printHeader → printSummary → execute → cleanup
+```
+
+Each method has a **single concern** and logs + returns errors to the caller. The caller (`run`) checks the error and sets the exit code. This makes the control flow readable in one screen and each phase independently testable.
+
+#### The `app` struct
+
+The `app` struct holds all state for a single run — mode booleans, derived paths, loaded config, secrets, lock, and duplicacy setup. This eliminates deeply-nested closures and makes every dependency explicit.
+
+#### Phase methods (on `*app`)
+
+| Method | Responsibility |
+|---|---|
+| `newApp(args)` | Parse flags, validate environment, derive paths, install signal handler |
+| `acquireLock()` | Create and acquire directory-based PID lock |
+| `loadConfig()` | Parse INI config, validate, build prune args, check btrfs volumes |
+| `loadSecrets()` | Load secrets file (remote mode only) |
+| `printHeader()` | Emit startup banner |
+| `printSummary()` | Emit configuration summary |
+| `execute()` | Dispatch to backup/prune/fix-perms phase methods |
+| `prepareDuplicacySetup()` | Create snapshot, init duplicacy working env |
+| `runBackupPhase()` | Execute duplicacy backup |
+| `runPrunePhase()` | Preview, enforce thresholds, execute prune |
+| `runFixPermsPhase()` | Normalise ownership/permissions |
+| `cleanup()` | Idempotent: delete snapshot, remove work dir, release lock, print result |
+| `fail(err)` | Log error and set exitCode to 1 |
+
+#### Free functions (no `app` state needed)
+
+| Function | Purpose |
+|---|---|
+| `parseFlags` | Parse CLI arguments into a `flags` struct |
+| `validateLabel` | Reject unsafe label characters (path traversal prevention) |
+| `resolveDir` | Priority resolution: flag > env var > default |
+| `joinDestination` | Append label to a destination, preserving URL schemes |
+| `executableConfigDir` | Locate config dir relative to the binary |
+| `printUsage` | Emit help text |
+
+### Design goals
+
+- **`run()` readable in one screen** — the entire orchestration is visible at a glance
+- **Single concern per phase** — each method does one thing
+- **Testable** — unit tests can construct an `*app` with stubbed fields and test any method in isolation
+- **No behaviour changes** — pure refactoring of the original monolithic `run()`
+
+---
+
 ## Directory Structure
 
 ```
 synology-duplicacy-backup/
 ├── cmd/
 │   └── duplicacy-backup/
-│       └── main.go              # Entry point and CLI orchestration
+│       ├── main.go              # Entry point and coordinator (app struct)
+│       ├── main_test.go         # Unit tests for coordinator + free functions
+│       └── integration_test.go  # Integration tests for multi-phase pipelines
 ├── internal/
 │   ├── btrfs/
 │   │   └── btrfs.go             # BTRFS volume checks and snapshot management
