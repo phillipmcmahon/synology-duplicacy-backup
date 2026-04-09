@@ -1,17 +1,21 @@
 // Package duplicacy wraps the duplicacy CLI for backup, prune, and list operations.
 // It manages preferences file generation, filter files, and command execution.
+//
+// All external command execution is delegated to an [exec.Runner] so that
+// tests can substitute a [exec.MockRunner] and verify behaviour without
+// requiring the real duplicacy binary.
 package duplicacy
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
+	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
@@ -30,10 +34,12 @@ type Setup struct {
 	BackupTarget   string // Storage destination
 	Log            *logger.Logger
 	DryRun         bool
+	Runner         execpkg.Runner // Command runner for external process execution
 }
 
 // NewSetup creates a new duplicacy working environment.
-func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger, dryRun bool) *Setup {
+// The runner parameter is used for all external command execution (duplicacy CLI).
+func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger, dryRun bool, runner execpkg.Runner) *Setup {
 	duplicacyRoot := filepath.Join(workRoot, "duplicacy")
 	duplicacyDir := filepath.Join(duplicacyRoot, ".duplicacy")
 
@@ -47,6 +53,7 @@ func NewSetup(workRoot, repositoryPath, backupTarget string, log *logger.Logger,
 		BackupTarget:   backupTarget,
 		Log:            log,
 		DryRun:         dryRun,
+		Runner:         runner,
 	}
 }
 
@@ -180,9 +187,8 @@ func (s *Setup) ValidateRepo() error {
 		return nil
 	}
 
-	cmd := exec.Command("duplicacy", "list", "-files")
-	cmd.Dir = s.DuplicacyRoot
-	if err := cmd.Run(); err != nil {
+	_, _, err := s.Runner.Run(context.Background(), "duplicacy", "list", "-files")
+	if err != nil {
 		s.Log.Warn("Duplicacy repository validation failed - may need initialization")
 		return fmt.Errorf("repository not ready")
 	}
@@ -196,15 +202,11 @@ func (s *Setup) GetTotalRevisionCount() (int, error) {
 		return 0, nil
 	}
 
-	var buf bytes.Buffer
-	cmd := exec.Command("duplicacy", "list")
-	cmd.Dir = s.DuplicacyRoot
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-
-	if err := cmd.Run(); err != nil {
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", "list")
+	if err != nil {
 		s.Log.Error("Failed to list revisions for percentage calculation (fail-closed)")
-		for _, line := range strings.Split(buf.String(), "\n") {
+		combined := stdout + stderr
+		for _, line := range strings.Split(combined, "\n") {
 			if line != "" {
 				s.Log.Error("%s", line)
 			}
@@ -212,7 +214,7 @@ func (s *Setup) GetTotalRevisionCount() (int, error) {
 		return 0, fmt.Errorf("failed to list revisions")
 	}
 
-	output := buf.String()
+	output := stdout + stderr
 	for _, line := range strings.Split(output, "\n") {
 		if line != "" {
 			s.Log.Info("[REVISION-LIST] %s", line)
@@ -265,16 +267,11 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 	args := append([]string{"prune"}, pruneArgs...)
 	args = append(args, "-dry-run")
 
-	var buf bytes.Buffer
-	cmd := exec.Command("duplicacy", args...)
-	cmd.Dir = s.DuplicacyRoot
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-
-	if err := cmd.Run(); err != nil {
-		output := buf.String()
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	if err != nil {
+		combined := stdout + stderr
 		s.Log.Error("Safe prune preview failed")
-		for _, line := range strings.Split(output, "\n") {
+		for _, line := range strings.Split(combined, "\n") {
 			if line != "" {
 				s.Log.Error("%s", line)
 			}
@@ -282,7 +279,7 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 		return nil, fmt.Errorf("safe prune preview failed")
 	}
 
-	output := buf.String()
+	output := stdout + stderr
 	for _, line := range strings.Split(output, "\n") {
 		if line != "" {
 			s.Log.Info("[SAFE-PRUNE-PREVIEW] %s", line)
@@ -338,13 +335,17 @@ func (s *Setup) RunDeepPrune() error {
 	return s.runDuplicacy(args)
 }
 
+// runDuplicacy executes a duplicacy command via the runner.  Stdout and stderr
+// are printed to the console for real-time visibility of long-running commands.
 func (s *Setup) runDuplicacy(args []string) error {
-	cmd := exec.Command("duplicacy", args...)
-	cmd.Dir = s.DuplicacyRoot
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	if stdout != "" {
+		fmt.Print(stdout)
+	}
+	if stderr != "" {
+		fmt.Print(stderr)
+	}
+	if err != nil {
 		return err
 	}
 	return nil
