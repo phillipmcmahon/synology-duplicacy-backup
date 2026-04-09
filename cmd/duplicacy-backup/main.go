@@ -25,8 +25,8 @@
 // consistent, human-readable output.
 //
 // Free functions ([parseFlags], [validateLabel], [resolveDir], [joinDestination],
-// [executableConfigDir], [printUsage]) remain package-level because they are
-// pure or side-effect-free and do not need access to app state.
+// [executableConfigDir], [effectiveConfigDir], [printUsage]) remain package-level
+// because they are pure or side-effect-free and do not need access to app state.
 //
 // Command model:
 //
@@ -1102,9 +1102,23 @@ func parseFlags(args []string) (*flags, error) {
 	return f, nil
 }
 
+// effectiveConfigDir returns the config directory that would be used at
+// runtime when no --config-dir flag is given.  It mirrors the resolution
+// logic in [resolveDir]: environment variable first, then the
+// executable-relative default.
+//
+// This is used by [printUsage] so that the help text shows the same path
+// the application would actually use, keeping help and runtime in sync.
+func effectiveConfigDir() string {
+	if v := os.Getenv("DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
+		return v
+	}
+	return executableConfigDir()
+}
+
 // printUsage writes the full help text to stdout.
 func printUsage() {
-	defaultCfgDir := executableConfigDir()
+	cfgDir := effectiveConfigDir()
 	fmt.Printf(`Usage: %s [OPTIONS] <source>
 
 DEFAULT BEHAVIOUR:
@@ -1137,7 +1151,7 @@ SAFE PRUNE THRESHOLDS:
 
 CONFIG FILE LOCATION:
     <binary-dir>/.config/<source>-backup.conf
-    Default: %s/<source>-backup.conf
+    Effective default: %s/<source>-backup.conf
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
 CONFIG KEYS:
@@ -1168,7 +1182,7 @@ EXAMPLES:
 		config.DefaultSafePruneMaxDeletePercent, config.DefaultSafePruneMaxDeletePercent,
 		config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
 		config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
-		defaultCfgDir,
+		cfgDir,
 		config.DefaultSecretsDir, config.DefaultSecretsPrefix,
 		rootVolume,
 		scriptName, scriptName, scriptName, scriptName, scriptName, scriptName, scriptName,
