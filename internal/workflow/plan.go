@@ -25,7 +25,6 @@ type Plan struct {
 	ConfigFile  string
 	SecretsDir  string
 	SecretsFile string
-	LockPath    string
 
 	OperationMode string
 }

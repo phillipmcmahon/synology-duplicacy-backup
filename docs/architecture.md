@@ -2,7 +2,7 @@
 
 ## Overview
 
-The application now follows an explicit `Request -> Plan -> Execute` flow.
+The application follows an explicit `Request -> Plan -> Execute` flow.
 
 That split keeps the entrypoint small, keeps planning non-mutating, and makes
 tests easier to write around stable boundaries instead of one large
@@ -32,8 +32,8 @@ It is responsible for:
 - validating flag combinations
 - validating the backup label
 
-The `Request` type is intentionally small. It describes what the user asked for,
-not what the application has resolved from the filesystem or config yet.
+The `Request` type is intentionally small. It describes what the user asked
+for, not what the application has resolved from the filesystem or config yet.
 
 ## Plan
 
@@ -69,6 +69,20 @@ It is responsible for:
 
 This keeps operator-facing runtime behavior in one place and makes phase order
 easy to follow.
+
+## Why This Shape
+
+The main goal of the refactor was simplicity, not framework-building.
+
+The codebase now has:
+
+- a thin entrypoint in `cmd/duplicacy-backup`
+- one orchestration package in `internal/workflow`
+- unchanged domain packages for config, secrets, btrfs, duplicacy, locking,
+  permissions, logging, and process execution
+
+That gives the application clear boundaries without over-splitting the design
+into many small packages.
 
 ## Main Packages
 

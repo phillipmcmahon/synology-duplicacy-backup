@@ -4,10 +4,6 @@ import (
 	"fmt"
 )
 
-// ExitHandled indicates that the request was fully handled during parsing,
-// such as --help or --version, and the process should exit cleanly.
-const ExitHandled = -1
-
 // RequestError describes a request-parsing or request-validation failure.
 // ShowUsage marks errors that should be followed by usage text.
 type RequestError struct {
