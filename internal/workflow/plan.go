@@ -3,13 +3,10 @@ package workflow
 import (
 	"path/filepath"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 type Plan struct {
-	Request *Request
-	Config  *config.Config
 	Secrets *secrets.Secrets
 
 	DoBackup      bool
@@ -47,6 +44,7 @@ type Plan struct {
 	Threads                     int
 	Filter                      string
 	FilterLines                 []string
+	OwnerGroup                  string
 	PruneOptions                string
 	PruneArgs                   []string
 	PruneArgsDisplay            string
@@ -56,6 +54,23 @@ type Plan struct {
 	SafePruneMaxDeletePercent   int
 	SafePruneMaxDeleteCount     int
 	SafePruneMinTotalForPercent int
+
+	SnapshotCreateCommand    string
+	SnapshotDeleteCommand    string
+	WorkDirCreateCommand     string
+	PreferencesWriteCommand  string
+	FiltersWriteCommand      string
+	WorkDirDirPermsCommand   string
+	WorkDirFilePermsCommand  string
+	BackupCommand            string
+	ValidateRepoCommand      string
+	PrunePreviewCommand      string
+	PolicyPruneCommand       string
+	DeepPruneCommand         string
+	FixPermsChownCommand     string
+	FixPermsDirPermsCommand  string
+	FixPermsFilePermsCommand string
+	WorkDirRemoveCommand     string
 }
 
 func (p *Plan) IsRemote() bool {

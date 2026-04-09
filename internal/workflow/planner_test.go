@@ -78,6 +78,12 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	if plan.PruneArgsDisplay != "" {
 		t.Fatalf("PruneArgsDisplay = %q, want empty", plan.PruneArgsDisplay)
 	}
+	if plan.BackupCommand != "duplicacy backup -stats -threads 4" {
+		t.Fatalf("BackupCommand = %q", plan.BackupCommand)
+	}
+	if plan.SnapshotCreateCommand == "" || plan.WorkDirCreateCommand == "" {
+		t.Fatalf("expected execution-ready commands, got %+v", plan)
+	}
 	if len(plan.Summary) == 0 {
 		t.Fatal("expected summary lines to be precomputed")
 	}
@@ -108,6 +114,12 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	}
 	if plan.ModeDisplay != "LOCAL" {
 		t.Fatalf("ModeDisplay = %q", plan.ModeDisplay)
+	}
+	if plan.OwnerGroup != owner+":"+group {
+		t.Fatalf("OwnerGroup = %q", plan.OwnerGroup)
+	}
+	if plan.FixPermsChownCommand == "" {
+		t.Fatal("expected fix-perms command to be precomputed")
 	}
 	if len(plan.Summary) != 5 {
 		t.Fatalf("summary lines = %d, want 5", len(plan.Summary))

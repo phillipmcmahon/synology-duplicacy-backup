@@ -54,6 +54,7 @@ It is responsible for:
   - dry-run and mode flags
   - prune/filter display values
   - ownership and threshold values
+  - execution-ready command strings and cleanup inputs
 
 The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
@@ -76,9 +77,10 @@ It is responsible for:
 This keeps operator-facing runtime behavior in one place and makes phase order
 easy to follow.
 
-`Executor` now delegates presentation work to a small presenter and relies on
-the plan for most execution decisions rather than repeatedly reaching back into
-raw request/config data.
+`Executor` now delegates presentation work to a small presenter, cleanup to
+focused workflow helpers, and prune preview policy to dedicated workflow code.
+It relies on the plan for execution decisions rather than repeatedly reaching
+back into raw request/config data.
 
 ## Why This Shape
 

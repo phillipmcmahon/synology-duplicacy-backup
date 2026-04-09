@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
@@ -47,22 +47,21 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{
-		Request: &Request{
-			FixPerms:      true,
-			FixPermsOnly:  true,
-			DryRun:        true,
-			DefaultNotice: "No primary mode specified: using fix-perms only.",
-		},
-		Config: &config.Config{
-			Destination:      "/backups",
-			LocalOwner:       u.Username,
-			LocalGroup:       g.Name,
-			LogRetentionDays: 30,
-		},
-		BackupLabel:   "homes",
-		BackupTarget:  "/backups/homes",
-		WorkRoot:      filepath.Join(t.TempDir(), "work"),
-		OperationMode: "Fix permissions only",
+		FixPerms:                 true,
+		FixPermsOnly:             true,
+		DryRun:                   true,
+		DefaultNotice:            "No primary mode specified: using fix-perms only.",
+		LogRetentionDays:         30,
+		LocalOwner:               u.Username,
+		LocalGroup:               g.Name,
+		OwnerGroup:               u.Username + ":" + g.Name,
+		BackupLabel:              "homes",
+		BackupTarget:             "/backups/homes",
+		WorkRoot:                 filepath.Join(t.TempDir(), "work"),
+		OperationMode:            "Fix permissions only",
+		FixPermsChownCommand:     "chown -R " + u.Username + ":" + g.Name + " /backups/homes",
+		FixPermsDirPermsCommand:  "find /backups/homes -type d -exec chmod 770 {} +",
+		FixPermsFilePermsCommand: "find /backups/homes -type f -exec chmod 660 {} +",
 	}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testExecutorLogger(t), execpkg.NewMockRunner(), plan)
@@ -71,5 +70,27 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(lockParent, "backup-homes.lock.d")); !os.IsNotExist(err) {
 		t.Fatalf("expected lock directory cleanup, stat err = %v", err)
+	}
+}
+
+func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T) {
+	plan := &Plan{
+		SafePruneMaxDeleteCount:   1,
+		SafePruneMaxDeletePercent: 10,
+	}
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testExecutorLogger(t), execpkg.NewMockRunner(), plan)
+
+	preview := &duplicacy.PrunePreview{
+		DeleteCount:     2,
+		TotalRevisions:  10,
+		PercentEnforced: true,
+	}
+
+	err := executor.enforcePrunePreview(preview)
+	if err == nil {
+		t.Fatal("expected prune threshold error")
+	}
+	if got := OperatorMessage(err); got != "Refusing to continue because safe prune thresholds were exceeded." {
+		t.Fatalf("OperatorMessage() = %q", got)
 	}
 }

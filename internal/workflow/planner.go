@@ -35,12 +35,12 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	plan.Config = cfg
 	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
 	plan.FilterLines = splitNonEmptyLines(cfg.Filter)
+	plan.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
 	plan.PruneOptions = cfg.Prune
 	plan.PruneArgs = append([]string(nil), cfg.PruneArgs...)
 	plan.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
@@ -59,6 +59,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 		plan.Secrets = sec
 	}
 
+	p.populateCommands(plan)
 	plan.Summary = SummaryLines(plan)
 
 	return plan, nil
@@ -98,7 +99,6 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 	secretsDir := ResolveDir(p.rt, req.SecretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
 
 	return &Plan{
-		Request:             req,
 		DoBackup:            req.DoBackup,
 		DoPrune:             req.DoPrune,
 		DeepPruneMode:       req.DeepPruneMode,
@@ -134,7 +134,7 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 
 	cfg := config.NewDefaults()
 	targetSection := "local"
-	if plan.Request.RemoteMode {
+	if plan.RemoteMode {
 		targetSection = "remote"
 	}
 
@@ -148,28 +148,28 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 
 	p.log.Info("Configuration parsed for [common] + [%s].", targetSection)
 
-	if err := cfg.ValidateRequired(plan.Request.DoBackup, plan.Request.DoPrune); err != nil {
+	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
 	}
 	if err := cfg.ValidateThresholds(); err != nil {
 		return nil, err
 	}
-	if plan.Request.FixPerms {
+	if plan.FixPerms {
 		if err := cfg.ValidateOwnerGroup(); err != nil {
 			return nil, err
 		}
 	}
 	cfg.BuildPruneArgs()
-	if plan.Request.DoBackup {
+	if plan.DoBackup {
 		if err := cfg.ValidateThreads(); err != nil {
 			return nil, err
 		}
-		if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.Request.DryRun); err != nil {
+		if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
 			return nil, err
 		}
 		p.log.Info("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
 
-		if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.Request.DryRun); err != nil {
+		if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
 			return nil, err
 		}
 		p.log.Info("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
@@ -177,6 +177,31 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 
 	p.log.Info("Configuration loaded successfully.")
 	return cfg, nil
+}
+
+func (p *Planner) populateCommands(plan *Plan) {
+	plan.SnapshotCreateCommand = fmt.Sprintf("btrfs subvolume snapshot -r %s %s", plan.SnapshotSource, plan.SnapshotTarget)
+	plan.SnapshotDeleteCommand = fmt.Sprintf("btrfs subvolume delete %s", plan.SnapshotTarget)
+	plan.WorkDirCreateCommand = fmt.Sprintf("mkdir -p %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy"))
+	plan.PreferencesWriteCommand = fmt.Sprintf("write JSON preferences to %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy", "preferences"))
+	plan.FiltersWriteCommand = fmt.Sprintf("write filters to %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy", "filters"))
+	plan.WorkDirDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.DuplicacyRoot)
+	plan.WorkDirFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.DuplicacyRoot)
+	plan.BackupCommand = fmt.Sprintf("duplicacy backup -stats -threads %d", plan.Threads)
+	plan.ValidateRepoCommand = "duplicacy list -files"
+	plan.PrunePreviewCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s -dry-run", plan.PruneArgsDisplay))
+	if plan.PrunePreviewCommand == "duplicacy prune  -dry-run" {
+		plan.PrunePreviewCommand = "duplicacy prune -dry-run"
+	}
+	plan.PolicyPruneCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s", plan.PruneArgsDisplay))
+	if plan.PolicyPruneCommand == "duplicacy prune" || plan.PolicyPruneCommand == "duplicacy prune " {
+		plan.PolicyPruneCommand = "duplicacy prune"
+	}
+	plan.DeepPruneCommand = "duplicacy prune -exhaustive -exclusive"
+	plan.FixPermsChownCommand = fmt.Sprintf("chown -R %s %s", plan.OwnerGroup, plan.BackupTarget)
+	plan.FixPermsDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.BackupTarget)
+	plan.FixPermsFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.BackupTarget)
+	plan.WorkDirRemoveCommand = fmt.Sprintf("rm -rf %s", plan.WorkRoot)
 }
 
 func splitNonEmptyLines(value string) []string {

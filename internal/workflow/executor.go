@@ -1,16 +1,13 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/permissions"
 )
 
 type Executor struct {
@@ -116,7 +113,7 @@ func (e *Executor) prepareDuplicacySetup() error {
 	if e.plan.NeedsSnapshot {
 		e.log.Info("%s", statusLinef("Creating btrfs snapshot: %s → %s.", e.plan.SnapshotSource, e.plan.SnapshotTarget))
 		if e.plan.DryRun {
-			e.log.DryRun("btrfs subvolume snapshot -r %s %s", e.plan.SnapshotSource, e.plan.SnapshotTarget)
+			e.log.DryRun("%s", e.plan.SnapshotCreateCommand)
 		} else if err := btrfs.CreateSnapshot(e.runner, e.plan.SnapshotSource, e.plan.SnapshotTarget, false); err != nil {
 			return err
 		} else {
@@ -129,14 +126,14 @@ func (e *Executor) prepareDuplicacySetup() error {
 		return err
 	}
 	if e.plan.DryRun {
-		e.log.DryRun("mkdir -p %s", dup.DuplicacyDir)
+		e.log.DryRun("%s", e.plan.WorkDirCreateCommand)
 	}
 
 	if err := dup.WritePreferences(e.plan.Secrets); err != nil {
 		return err
 	}
 	if e.plan.DryRun {
-		e.log.DryRun("write JSON preferences to %s", dup.PrefsFile)
+		e.log.DryRun("%s", e.plan.PreferencesWriteCommand)
 	}
 
 	if e.plan.DoBackup && e.plan.Filter != "" {
@@ -145,7 +142,7 @@ func (e *Executor) prepareDuplicacySetup() error {
 			return err
 		}
 		if e.plan.DryRun {
-			e.log.DryRun("write filters to %s", dup.FilterFile)
+			e.log.DryRun("%s", e.plan.FiltersWriteCommand)
 		} else {
 			e.log.Info("%s", statusLinef("Active filters:"))
 		}
@@ -158,8 +155,8 @@ func (e *Executor) prepareDuplicacySetup() error {
 		return err
 	}
 	if e.plan.DryRun {
-		e.log.DryRun("find %s -type d -exec chmod 770 {} +", dup.DuplicacyRoot)
-		e.log.DryRun("find %s -type f -exec chmod 660 {} +", dup.DuplicacyRoot)
+		e.log.DryRun("%s", e.plan.WorkDirDirPermsCommand)
+		e.log.DryRun("%s", e.plan.WorkDirFilePermsCommand)
 	}
 
 	e.log.Info("%s", statusLinef("Changing to directory: %s.", dup.DuplicacyRoot))
@@ -170,7 +167,7 @@ func (e *Executor) prepareDuplicacySetup() error {
 func (e *Executor) runBackupPhase() error {
 	e.log.Info("%s", statusLinef("Starting backup phase."))
 	if e.plan.DryRun {
-		e.log.DryRun("duplicacy backup -stats -threads %d", e.plan.Threads)
+		e.log.DryRun("%s", e.plan.BackupCommand)
 		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)."))
 		return nil
 	}
@@ -182,172 +179,6 @@ func (e *Executor) runBackupPhase() error {
 	}
 	e.log.Info("%s", statusLinef("Backup phase completed successfully."))
 	return nil
-}
-
-func (e *Executor) runPrunePhase() error {
-	e.log.Info("%s", statusLinef("Starting prune phase."))
-
-	if e.plan.DryRun {
-		e.log.DryRun("duplicacy list -files")
-	} else {
-		if err := e.dup.ValidateRepo(); err != nil {
-			return err
-		}
-		e.log.Info("%s", statusLinef("Duplicacy repository validated."))
-	}
-
-	if e.plan.DryRun {
-		e.log.DryRun("duplicacy prune %s -dry-run", e.plan.PruneArgsDisplay)
-	}
-	preview, err := e.dup.SafePrunePreview(e.plan.PruneArgs, e.plan.SafePruneMinTotalForPercent)
-	if err != nil {
-		return err
-	}
-
-	if preview.Output != "" {
-		for _, line := range strings.Split(preview.Output, "\n") {
-			if line != "" {
-				e.log.Info("[SAFE-PRUNE-PREVIEW] %s", line)
-			}
-		}
-	}
-	if preview.RevisionOutput != "" {
-		for _, line := range strings.Split(preview.RevisionOutput, "\n") {
-			if line != "" {
-				e.log.Info("[REVISION-LIST] %s", line)
-			}
-		}
-	}
-
-	if preview.RevisionCountFailed {
-		if e.plan.Request.ForcePrune {
-			e.log.Warn("%s", statusLinef("Revision count failed; proceeding because --force-prune was supplied (percentage threshold not enforced)."))
-		} else {
-			return NewMessageError("Revision count is required for safe prune but failed; use --force-prune to override.")
-		}
-	}
-
-	e.view.PrintPrunePreview(preview, e.plan.SafePruneMinTotalForPercent)
-
-	blocked := false
-	if preview.DeleteCount > e.plan.SafePruneMaxDeleteCount {
-		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete count threshold: %d > %d.", preview.DeleteCount, e.plan.SafePruneMaxDeleteCount))
-		blocked = true
-	}
-	if preview.ExceedsPercent(e.plan.SafePruneMaxDeletePercent) {
-		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%).", preview.DeleteCount, preview.TotalRevisions, e.plan.SafePruneMaxDeletePercent))
-		blocked = true
-	}
-	if blocked {
-		if e.plan.ForcePrune {
-			e.log.Warn("%s", statusLinef("Proceeding despite safe prune threshold breach because --force-prune was supplied."))
-		} else {
-			return NewMessageError("Refusing to continue because safe prune thresholds were exceeded.")
-		}
-	}
-
-	e.log.Info("%s", statusLinef("Starting policy prune."))
-	if e.plan.DryRun {
-		e.log.DryRun("duplicacy prune %s", e.plan.PruneArgsDisplay)
-	} else {
-		stdout, stderr, err := e.dup.RunPrune(e.plan.PruneArgs)
-		e.view.PrintCommandOutput(stdout, stderr)
-		if err != nil {
-			return err
-		}
-	}
-	e.log.Info("%s", statusLinef("Policy prune completed."))
-
-	if e.plan.DeepPruneMode {
-		e.log.Warn("%s", statusLinef("Starting deep prune maintenance step: duplicacy prune -exhaustive -exclusive."))
-		if e.plan.DryRun {
-			e.log.DryRun("duplicacy prune -exhaustive -exclusive")
-		} else {
-			stdout, stderr, err := e.dup.RunDeepPrune()
-			e.view.PrintCommandOutput(stdout, stderr)
-			if err != nil {
-				return err
-			}
-		}
-		e.log.Info("%s", statusLinef("Deep prune completed."))
-	}
-
-	e.log.Info("%s", statusLinef("Prune phase completed successfully."))
-	return nil
-}
-
-func (e *Executor) runFixPermsPhase() error {
-	e.log.Info("%s", statusLinef("Starting permission normalisation on %s.", e.plan.BackupTarget))
-	e.log.PrintLine("Fix Perms Path", e.plan.BackupTarget)
-	e.log.PrintLine("Fix Perms Owner", e.plan.LocalOwner)
-	e.log.PrintLine("Fix Perms Group", e.plan.LocalGroup)
-
-	if e.plan.DryRun {
-		ownerGroup := fmt.Sprintf("%s:%s", e.plan.LocalOwner, e.plan.LocalGroup)
-		e.log.DryRun("chown -R %s %s", ownerGroup, e.plan.BackupTarget)
-		e.log.DryRun("find %s -type d -exec chmod 770 {} +", e.plan.BackupTarget)
-		e.log.DryRun("find %s -type f -exec chmod 660 {} +", e.plan.BackupTarget)
-		e.log.Info("%s", statusLinef("Permission normalisation completed (dry-run)."))
-		return nil
-	}
-
-	if err := permissions.Fix(e.runner, e.plan.BackupTarget, e.plan.LocalOwner, e.plan.LocalGroup, false); err != nil {
-		return err
-	}
-	e.log.Info("%s", statusLinef("Permission normalisation completed successfully."))
-	return nil
-}
-
-func (e *Executor) cleanup() {
-	if e.cleanedUp {
-		return
-	}
-	e.cleanedUp = true
-
-	e.log.Info("%s", statusLinef("Starting cleanup."))
-
-	if e.plan.NeedsSnapshot {
-		if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-			e.log.Info("%s", statusLinef("Deleting snapshot subvolume: %s.", e.plan.SnapshotTarget))
-			if e.plan.DryRun {
-				e.log.DryRun("btrfs subvolume delete %s", e.plan.SnapshotTarget)
-			} else if delErr := btrfs.DeleteSnapshot(e.runner, e.plan.SnapshotTarget, false); delErr != nil {
-				e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v.", e.plan.SnapshotTarget, delErr))
-			}
-		}
-
-		if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-			e.log.Info("%s", statusLinef("Removing snapshot directory: %s.", e.plan.SnapshotTarget))
-			if e.plan.DryRun {
-				e.log.DryRun("rm -rf %s", e.plan.SnapshotTarget)
-			} else if rmErr := os.RemoveAll(e.plan.SnapshotTarget); rmErr != nil {
-				e.log.Warn("%s", statusLinef("Failed to remove snapshot directory %s: %v.", e.plan.SnapshotTarget, rmErr))
-			}
-		}
-	}
-
-	if e.dup != nil {
-		e.log.Info("%s", statusLinef("Removing duplicacy work directory: %s.", e.dup.WorkRoot))
-		if e.plan.DryRun {
-			e.log.DryRun("rm -rf %s", e.dup.WorkRoot)
-		} else if err := e.dup.Cleanup(); err != nil {
-			e.log.Warn("%s", statusLinef("Failed to remove work directory: %v.", err))
-		}
-	} else if _, err := os.Stat(e.plan.WorkRoot); err == nil {
-		e.log.Info("%s", statusLinef("Removing duplicacy work directory: %s.", e.plan.WorkRoot))
-		if e.plan.DryRun {
-			e.log.DryRun("rm -rf %s", e.plan.WorkRoot)
-		} else if rmErr := os.RemoveAll(e.plan.WorkRoot); rmErr != nil {
-			e.log.Warn("%s", statusLinef("Failed to remove work directory %s: %v.", e.plan.WorkRoot, rmErr))
-		}
-	}
-
-	if e.lockAcquired {
-		e.lock.Release()
-	}
-
-	e.view.PrintCompletion(e.exitCode)
-	e.log.Close()
 }
 
 func (e *Executor) fail(err error) {

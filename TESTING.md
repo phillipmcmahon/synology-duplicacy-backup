@@ -83,6 +83,7 @@ Planner tests cover:
 - backup-target derivation
 - summary precomputation
 - execution-ready plan fields
+- execution-ready command strings
 - btrfs validation during backup planning
 - minimal fix-perms-only planning
 
@@ -91,6 +92,7 @@ Executor tests cover:
 - operation-mode rendering for combined flows
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
+- cleanup and prune-policy behavior through focused workflow helpers
 
 Workflow tests also cover:
 
