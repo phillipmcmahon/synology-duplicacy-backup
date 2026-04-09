@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -66,6 +67,50 @@ func testApp(t *testing.T) *app {
 		secretsDir: t.TempDir(),
 		runner:     execpkg.NewMockRunner(),
 	}
+}
+
+func captureOutput(t *testing.T, fn func()) (string, string) {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+
+	os.Stdout = stdoutW
+	os.Stderr = stderrW
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+		stdoutR.Close()
+		stderrR.Close()
+	}()
+
+	fn()
+
+	if err := stdoutW.Close(); err != nil {
+		t.Fatalf("closing stdout writer: %v", err)
+	}
+	if err := stderrW.Close(); err != nil {
+		t.Fatalf("closing stderr writer: %v", err)
+	}
+
+	stdoutBytes, err := io.ReadAll(stdoutR)
+	if err != nil {
+		t.Fatalf("reading stdout: %v", err)
+	}
+	stderrBytes, err := io.ReadAll(stderrR)
+	if err != nil {
+		t.Fatalf("reading stderr: %v", err)
+	}
+
+	return string(stdoutBytes), string(stderrBytes)
 }
 
 // ─── Free function tests (preserved from original) ──────────────────────────
@@ -1490,6 +1535,102 @@ func TestVersionOutput_ContainsExpectedFormat(t *testing.T) {
 	}
 	if !strings.Contains(output, version) {
 		t.Errorf("version output should contain %q, got: %s", version, output)
+	}
+}
+
+func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
+	captureOutput(t, func() {
+		if code := runWithArgs([]string{"--help"}); code != 0 {
+			t.Errorf("runWithArgs(--help) = %d, want 0", code)
+		}
+	})
+}
+
+func TestRunWithArgs_VersionReturnsZero(t *testing.T) {
+	captureOutput(t, func() {
+		if code := runWithArgs([]string{"--version"}); code != 0 {
+			t.Errorf("runWithArgs(--version) = %d, want 0", code)
+		}
+	})
+}
+
+func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
+	captureOutput(t, func() {
+		if code := runWithArgs([]string{"--nonexistent"}); code != 1 {
+			t.Errorf("runWithArgs(--nonexistent) = %d, want 1", code)
+		}
+	})
+}
+
+func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	captureOutput(t, func() {
+		if code := runWithArgs([]string{"homes"}); code != 1 {
+			t.Errorf("runWithArgs(non-root) = %d, want 1", code)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigLoadFailureReturnsTranslatedError(t *testing.T) {
+	oldGeteuid := geteuid
+	oldNewLock := newLock
+	geteuid = func() int { return 0 }
+	defer func() {
+		geteuid = oldGeteuid
+		newLock = oldNewLock
+	}()
+
+	lockDir := t.TempDir()
+	newLock = func(lockParent, label string) *lock.Lock {
+		return lock.New(lockDir, label)
+	}
+
+	configDir := t.TempDir()
+	expected := "Configuration file not found: " + filepath.Join(configDir, "homes-backup.conf") + "."
+
+	_, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+			t.Errorf("runWithArgs(config load failure) = %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, expected) {
+		t.Fatalf("stderr = %q, want it to contain %q", stderr, expected)
+	}
+}
+
+func TestRunWithArgs_LockAcquisitionFailureReturnsTranslatedError(t *testing.T) {
+	oldGeteuid := geteuid
+	oldNewLock := newLock
+	geteuid = func() int { return 0 }
+	defer func() {
+		geteuid = oldGeteuid
+		newLock = oldNewLock
+	}()
+
+	blockingFile := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0644); err != nil {
+		t.Fatalf("WriteFile(%q): %v", blockingFile, err)
+	}
+
+	newLock = func(lockParent, label string) *lock.Lock {
+		lk := lock.New(t.TempDir(), label)
+		lk.Path = filepath.Join(blockingFile, "backup-"+label+".lock.d")
+		lk.PIDFile = filepath.Join(lk.Path, "pid")
+		return lk
+	}
+
+	_, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"--fix-perms", "homes"}); code != 1 {
+			t.Errorf("runWithArgs(lock acquisition failure) = %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, "Lock acquisition failed: failed to create lock parent directory") {
+		t.Fatalf("stderr = %q, want it to contain translated lock acquisition failure", stderr)
 	}
 }
 

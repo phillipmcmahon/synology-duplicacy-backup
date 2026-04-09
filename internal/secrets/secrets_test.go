@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,12 @@ func validSecretContent() string {
 // isRoot reports whether the current process is running as root.
 func isRoot() bool {
 	return os.Getuid() == 0
+}
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("boom")
 }
 
 // ─── GetSecretsFilePath tests ───────────────────────────────────────────────
@@ -355,6 +362,16 @@ func TestLoadSecretsFile_StatError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Errorf("error should mention not found, got: %v", err)
+	}
+}
+
+func TestParseSecrets_ReaderError(t *testing.T) {
+	_, err := ParseSecrets(errReader{}, "test.env")
+	if err == nil {
+		t.Fatal("expected reader error")
+	}
+	if !strings.Contains(err.Error(), "error reading secrets file") {
+		t.Errorf("error should mention read failure, got: %v", err)
 	}
 }
 
