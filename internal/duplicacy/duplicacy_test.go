@@ -438,6 +438,8 @@ func TestDeleteRegex(t *testing.T) {
 		{"deleted revision 2", 1},
 		{"delete revision 3", 1},
 		{"Deleting revision 4\nDeleted revision 5", 2},
+		{"Deleting snapshot data at revision 2211", 1},
+		{"Deleting snapshot data at revision 2211\nDeleting snapshot data at revision 2212", 2},
 		{"no deletions here", 0},
 	}
 	for _, tt := range tests {

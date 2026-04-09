@@ -17,7 +17,7 @@ import (
 )
 
 var revisionRegex = regexp.MustCompile(`(?i)\brevision\s+(\d+)\b`)
-var deleteRegex = regexp.MustCompile(`(?i)delet(?:ed?|ing)\s+revision`)
+var deleteRegex = regexp.MustCompile(`(?i)delet(?:ed?|ing)\s+.*?revision`)
 
 // Setup represents a duplicacy working environment.
 type Setup struct {
