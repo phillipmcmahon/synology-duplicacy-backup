@@ -291,7 +291,7 @@ Use `--force-prune` to override these thresholds when needed.
 
 ### Coordinator Pattern
 
-The program follows a **coordinator pattern** centred on the `app` struct in `cmd/duplicacy-backup/main.go`. The top-level `run()` function creates an `*app` via `newApp()`, then calls a series of clearly-bounded methods in sequence:
+The program follows a **coordinator pattern** centred on the `app` struct in `cmd/duplicacy-backup/main.go`. The top-level `run()` function delegates to `runWithArgs(cliArgs())`, which creates an `*app` via `newApp()`, then calls a series of clearly-bounded methods in sequence:
 
 ```
 newApp → acquireLock → loadConfig → loadSecrets → printHeader → printSummary → execute → cleanup
@@ -425,7 +425,7 @@ See [MESSAGE_STYLE_GUIDE.md](MESSAGE_STYLE_GUIDE.md) for the message formatting 
 - **`run()` readable in one screen** — the entire orchestration is visible at a glance
 - **Single concern per phase** — each method does one thing
 - **Output ownership** — internal packages return data; the coordinator formats all user-facing messages
-- **Testable** — unit tests can construct an `*app` with stubbed fields and inject a `MockRunner` for command isolation
+- **Testable** — unit tests can construct an `*app` with stubbed fields, inject a `MockRunner` for command isolation, and swap package-level function variables (`geteuid`, `lookPath`, `newLock`) to test the full coordinator pipeline via `runWithArgs()`
 - **Structured errors** — typed errors with context enable precise error handling at the coordinator level
 
 ---

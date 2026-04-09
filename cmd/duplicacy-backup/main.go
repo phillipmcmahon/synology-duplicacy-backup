@@ -68,6 +68,11 @@ var (
 	buildTime = "unknown"
 )
 
+var cliArgs = func() []string { return os.Args[1:] }
+var geteuid = os.Geteuid
+var lookPath = exec.LookPath
+var newLock = lock.New
+
 const (
 	rootVolume = "/volume1"
 	lockParent = "/var/lock"
@@ -162,7 +167,11 @@ const exitHandled = -1
 // method in order, and translates errors into a numeric exit code.  The
 // entire flow is visible in one screen.
 func run() int {
-	a, code := newApp(os.Args[1:])
+	return runWithArgs(cliArgs())
+}
+
+func runWithArgs(args []string) int {
+	a, code := newApp(args)
 	if code == exitHandled {
 		return 0 // --help / --version: handled, exit cleanly
 	}
@@ -333,7 +342,7 @@ func (a *app) parseAppFlags(args []string) int {
 // caller logs it and exits.
 func (a *app) validateEnvironment() error {
 	// Must be root
-	if os.Geteuid() != 0 {
+	if geteuid() != 0 {
 		a.log.Close()
 		return fmt.Errorf("Must be run as root.")
 	}
@@ -347,7 +356,7 @@ func (a *app) validateEnvironment() error {
 	// Check duplicacy binary – only needed for backup or prune operations.
 	// Skip for standalone --fix-perms which only calls chown/chmod.
 	if a.doBackup || a.doPrune {
-		if _, err := exec.LookPath("duplicacy"); err != nil {
+		if _, err := lookPath("duplicacy"); err != nil {
 			a.log.Close()
 			return fmt.Errorf("Required command 'duplicacy' not found")
 		}
@@ -355,7 +364,7 @@ func (a *app) validateEnvironment() error {
 
 	// Check btrfs command – only needed for backup (snapshot create/delete)
 	if a.doBackup {
-		if _, err := exec.LookPath("btrfs"); err != nil {
+		if _, err := lookPath("btrfs"); err != nil {
 			a.log.Close()
 			return fmt.Errorf("Required command 'btrfs' not found (needed for backup snapshots)")
 		}
@@ -425,7 +434,7 @@ func (a *app) derivePaths() error {
 	a.runner = execpkg.NewCommandRunner(a.log, a.flags.dryRun)
 
 	// Create the directory-based PID lock.
-	a.lk = lock.New(lockParent, a.backupLabel)
+	a.lk = newLock(lockParent, a.backupLabel)
 
 	return nil
 }

@@ -12,9 +12,9 @@ the coordinator (`cmd/duplicacy-backup`) has both unit tests
 
 | Metric | Value |
 |--------|-------|
-| Total tests passing | **480** |
+| Total tests passing | **487** |
 | Skipped tests | 5 (environment-specific, see below) |
-| Overall statement coverage | **87.5 %** |
+| Overall statement coverage | **90.1 %** |
 
 ## Quick Start
 
@@ -49,7 +49,7 @@ go test ./cmd/duplicacy-backup/... -run TestApp_RunPrunePhase -v
 
 | Package | Test File(s) | Tests | Coverage | Focus |
 |---------|-------------|------:|--------:|-------|
-| `cmd/duplicacy-backup` | `main_test.go`, `integration_test.go` | 167 | 78.3 % | Coordinator logic, flag parsing, phase execution, end-to-end flows |
+| `cmd/duplicacy-backup` | `main_test.go`, `integration_test.go` | 173 | 83.7 % | Coordinator logic, flag parsing, phase execution, end-to-end flows |
 | `internal/btrfs` | `btrfs_test.go` | 12 | 100 % | Snapshot create/delete, volume checks |
 | `internal/config` | `config_test.go` | 66 | 99.3 % | INI parsing, defaults, validation |
 | `internal/duplicacy` | `duplicacy_test.go` | 53 | 92.2 % | Duplicacy CLI wrapper, prune preview |
@@ -58,7 +58,7 @@ go test ./cmd/duplicacy-backup/... -run TestApp_RunPrunePhase -v
 | `internal/lock` | `lock_test.go` | 20 | 92.6 % | Directory-based locking |
 | `internal/logger` | `logger_test.go` | 43 | 93.2 % | Structured logging, file output, colours |
 | `internal/permissions` | `permissions_test.go` | 8 | 100 % | chown/chmod operations |
-| `internal/secrets` | `secrets_test.go` | 47 | 86.4 % | Secrets parsing, file validation, masking |
+| `internal/secrets` | `secrets_test.go` | 48 | 88.1 % | Secrets parsing, file validation, masking |
 
 ## Testing Patterns
 
@@ -81,6 +81,21 @@ mock := execpkg.NewMockRunner(
 Each `Invocation` records `Cmd`, `Args`, and `Dir` (the working directory
 for `RunInDir` calls), so tests can assert both the commands issued and
 where they were executed.
+
+### captureOutput() Helper
+
+The `captureOutput(t, fn)` helper in `main_test.go` redirects `os.Stdout`
+and `os.Stderr` to pipes, runs the provided function, then returns the
+captured output as strings. This is used by the `TestRunWithArgs_*` tests
+to suppress and inspect output from the full coordinator pipeline:
+
+```go
+_, stderr := captureOutput(t, func() {
+    code := runWithArgs([]string{"--fix-perms", "--config-dir", configDir, "homes"})
+    // assert on code
+})
+// assert on stderr content
+```
 
 ### testApp() Helper (unit tests)
 
@@ -153,6 +168,46 @@ content := readLogFile(t, logPath)
 
 ## Key Test Approaches
 
+### Function-Variable Seams and `runWithArgs`
+
+The coordinator (`main.go`) uses **package-level function variables** as
+test seams for dependencies that cannot be injected through the `app`
+struct:
+
+| Variable | Production value | What it enables |
+|----------|-----------------|-----------------|
+| `cliArgs` | `func() []string { return os.Args[1:] }` | Decouple argument source from `os.Args` |
+| `geteuid` | `os.Geteuid` | Simulate non-root / root in tests |
+| `lookPath` | `exec.LookPath` | Stub binary-existence checks |
+| `newLock` | `lock.New` | Redirect lock directory to temp dirs |
+
+The `run()` function delegates to `runWithArgs(args)`, which accepts an
+explicit argument slice. This allows tests to exercise the **full
+coordinator pipeline** (argument parsing → validation → config loading →
+lock acquisition → error translation) without manipulating `os.Args`:
+
+```go
+// Test that --help exits cleanly through the full pipeline
+captureOutput(t, func() {
+    if code := runWithArgs([]string{"--help"}); code != 0 {
+        t.Errorf("want 0, got %d", code)
+    }
+})
+```
+
+Tests swap the function variables, call `runWithArgs`, and restore the
+originals via `defer`:
+
+```go
+oldGeteuid := geteuid
+geteuid = func() int { return 1000 }  // simulate non-root
+defer func() { geteuid = oldGeteuid }()
+```
+
+Six `TestRunWithArgs_*` tests cover: `--help`, `--version`, invalid
+flags, non-root rejection, config-load failure (with error message
+assertion), and lock-acquisition failure.
+
 ### Symlink Normalisation in Runner Tests
 
 `TestCommandRunner_RunInDir_SetsWorkingDirectory` verifies that `RunInDir`
@@ -212,14 +267,15 @@ paths. This is expected and keeps CI green without privileged containers.
 | BTRFS | `MockRunner` | subvolume snapshot, delete, show |
 | Permissions | `MockRunner` | chown, chmod via find |
 | Lock | Real filesystem | mkdir-based directory locks (temp dirs) |
-| Secrets | Real filesystem | temp files with controlled permissions |
+| Secrets (file access) | Real filesystem | temp files with controlled permissions |
+| Secrets (parser) | `io.Reader` | `strings.NewReader`, `errReader` for I/O errors |
 | Config | Real filesystem | temp INI files |
 
 ## Coverage Summary (v1.8.2, April 2026)
 
 | Package | Coverage |
 |---------|--------:|
-| `cmd/duplicacy-backup` | 78.3 % |
+| `cmd/duplicacy-backup` | 83.7 % |
 | `internal/btrfs` | 100.0 % |
 | `internal/config` | 99.3 % |
 | `internal/duplicacy` | 92.2 % |
@@ -228,17 +284,17 @@ paths. This is expected and keeps CI green without privileged containers.
 | `internal/lock` | 92.6 % |
 | `internal/logger` | 93.2 % |
 | `internal/permissions` | 100.0 % |
-| `internal/secrets` | 86.4 % |
-| **Total** | **87.5 %** |
+| `internal/secrets` | 88.1 % |
+| **Total** | **90.1 %** |
 
 ### Notable Coverage Improvements (v1.8.x)
 
 | Area | Before | After | Key change |
 |------|-------:|------:|------------|
-| Secrets | ~50 % | 86.4 % | ParseSecrets/ValidateFileAccess split |
+| Secrets | ~50 % | 88.1 % | ParseSecrets/ValidateFileAccess split; errReader test |
 | Logger | 14.8 % | 93.2 % | Rewrote test suite with 43 tests |
-| Coordinator | 52.6 % | 78.3 % | Added integration tests via itestApp |
-| **Overall** | **~66 %** | **87.5 %** | |
+| Coordinator | 52.6 % | 83.7 % | Added integration tests via itestApp; runWithArgs seam tests |
+| **Overall** | **~66 %** | **90.1 %** | |
 
 ## Testing Philosophy
 
