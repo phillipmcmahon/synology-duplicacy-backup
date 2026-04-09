@@ -110,6 +110,7 @@ type app struct {
 	// Exit bookkeeping.
 	exitCode  int
 	cleanedUp bool
+	lockAcquired bool
 }
 
 // flags holds all CLI flags parsed from arguments.
@@ -347,6 +348,7 @@ func (a *app) acquireLock() error {
 	if err := a.lk.Acquire(); err != nil {
 		return fmt.Errorf("Lock acquisition failed: %w", err)
 	}
+	a.lockAcquired = true
 	return nil
 }
 
@@ -689,9 +691,10 @@ func (a *app) runFixPermsPhase() error {
 // ---------------------------------------------------------------------------
 
 // cleanup performs idempotent end-of-run cleanup: deletes the btrfs snapshot,
-// removes the duplicacy work directory, releases the lock, and prints the
-// final result banner.  It is safe to call multiple times (e.g. from both
-// defer and signal handler).
+// removes the duplicacy work directory, releases the lock (only if it was
+// successfully acquired), and prints the final result banner.  It is safe to
+// call multiple times (e.g. from both defer and signal handler) and safe to
+// call even when lock acquisition failed or was never attempted.
 func (a *app) cleanup() {
 	if a.cleanedUp {
 		return
@@ -731,7 +734,9 @@ func (a *app) cleanup() {
 		}
 	}
 
-	a.lk.Release()
+	if a.lockAcquired {
+		a.lk.Release()
+	}
 
 	status := "SUCCESS"
 	if a.exitCode != 0 {

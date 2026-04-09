@@ -1051,6 +1051,7 @@ func TestApp_FullCleanupCycle_BackupMode(t *testing.T) {
 	lockDir := t.TempDir()
 	a.lk = lock.New(lockDir, "test-full-cleanup")
 	a.lk.Acquire()
+	a.lockAcquired = true
 
 	a.cleanup()
 
@@ -1073,6 +1074,7 @@ func TestApp_FullCleanupCycle_PruneMode(t *testing.T) {
 	lockDir := t.TempDir()
 	a.lk = lock.New(lockDir, "test-prune-cleanup")
 	a.lk.Acquire()
+	a.lockAcquired = true
 
 	a.cleanup()
 
@@ -1110,7 +1112,7 @@ func TestApp_CleanupReleasesLock(t *testing.T) {
 	a := testApp(t)
 	a.lk = lock.New(lockDir, "test-release")
 
-	if err := a.lk.Acquire(); err != nil {
+	if err := a.acquireLock(); err != nil {
 		t.Fatalf("failed to acquire lock: %v", err)
 	}
 
@@ -1126,5 +1128,98 @@ func TestApp_DupFieldIsNilBeforePrepareDuplicacySetup(t *testing.T) {
 	a := testApp(t)
 	if a.dup != nil {
 		t.Error("dup should be nil before prepareDuplicacySetup()")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests for lockAcquired guard in cleanup()
+// ---------------------------------------------------------------------------
+
+func TestApp_CleanupSafeWhenLockAcquisitionFails(t *testing.T) {
+	lockDir := t.TempDir()
+
+	// First app acquires the lock
+	a1 := testApp(t)
+	a1.lk = lock.New(lockDir, "test-safe-cleanup")
+	if err := a1.acquireLock(); err != nil {
+		t.Fatalf("first acquireLock() failed: %v", err)
+	}
+
+	// Second app fails to acquire the same lock
+	a2 := testApp(t)
+	a2.lk = lock.New(lockDir, "test-safe-cleanup")
+	if err := a2.acquireLock(); err == nil {
+		t.Fatal("second acquireLock() should have failed")
+	}
+
+	// lockAcquired should be false on the failing app
+	if a2.lockAcquired {
+		t.Error("lockAcquired should be false when acquisition fails")
+	}
+
+	// cleanup() on the failing app must not panic and must not release a1's lock
+	a2.cleanup()
+
+	// a1's lock directory should still exist (not removed by a2's cleanup)
+	if _, err := os.Stat(a1.lk.Path); os.IsNotExist(err) {
+		t.Error("a1's lock directory should still exist after a2's cleanup()")
+	}
+
+	// Clean up a1
+	a1.cleanup()
+}
+
+func TestApp_CleanupDoesNotRemoveOtherProcessLock(t *testing.T) {
+	lockDir := t.TempDir()
+
+	// Simulate a process that holds the lock
+	holder := testApp(t)
+	holder.lk = lock.New(lockDir, "test-other-lock")
+	if err := holder.acquireLock(); err != nil {
+		t.Fatalf("holder acquireLock() failed: %v", err)
+	}
+
+	// Another app that never acquired the lock
+	loser := testApp(t)
+	loser.lk = lock.New(lockDir, "test-other-lock")
+	// Do NOT call acquireLock – simulate the scenario where it was never called
+
+	loser.cleanup()
+
+	// The holder's lock must still be intact
+	if _, err := os.Stat(holder.lk.Path); os.IsNotExist(err) {
+		t.Error("holder's lock should still exist; loser's cleanup must not remove it")
+	}
+
+	// Holder can still cleanly release
+	holder.cleanup()
+	if _, err := os.Stat(holder.lk.Path); !os.IsNotExist(err) {
+		t.Error("holder's lock should be removed after holder's cleanup()")
+	}
+}
+
+func TestApp_CleanupWorksAfterSuccessfulAcquire(t *testing.T) {
+	lockDir := t.TempDir()
+	a := testApp(t)
+	a.lk = lock.New(lockDir, "test-acquired-cleanup")
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock() failed: %v", err)
+	}
+
+	if !a.lockAcquired {
+		t.Error("lockAcquired should be true after successful acquireLock()")
+	}
+
+	// Lock directory should exist before cleanup
+	if _, err := os.Stat(a.lk.Path); os.IsNotExist(err) {
+		t.Fatal("lock directory should exist after acquireLock()")
+	}
+
+	a.cleanup()
+
+	// Lock directory should be removed after cleanup
+	if _, err := os.Stat(a.lk.Path); !os.IsNotExist(err) {
+		t.Error("lock directory should be removed after cleanup() with acquired lock")
 	}
 }
