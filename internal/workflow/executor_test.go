@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -92,5 +93,50 @@ func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T
 	}
 	if got := OperatorMessage(err); got != "Refusing to continue because safe prune thresholds were exceeded." {
 		t.Fatalf("OperatorMessage() = %q", got)
+	}
+}
+
+func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+
+	executor := NewExecutor(
+		DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir),
+		testRuntime(),
+		log,
+		execpkg.NewMockRunner(),
+		&Plan{},
+	)
+
+	preview := &duplicacy.PrunePreview{
+		Output:         "Repository set to /volume1/homes\nNo snapshot to delete\n",
+		RevisionOutput: "revision 1\nrevision 2\n",
+	}
+
+	executor.logPrunePreviewOutput(preview)
+	log.Close()
+
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("log file count = %d, want 1", len(entries))
+	}
+
+	data, err := os.ReadFile(filepath.Join(logDir, entries[0].Name()))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	output := string(data)
+	if !strings.Contains(output, "[SAFE-PRUNE-PREVIEW] Repository set to /volume1/homes") {
+		t.Fatalf("expected safe prune preview output, got %q", output)
+	}
+	if strings.Contains(output, "[REVISION-LIST]") {
+		t.Fatalf("expected revision listing to be suppressed, got %q", output)
 	}
 }

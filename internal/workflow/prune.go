@@ -69,13 +69,6 @@ func (e *Executor) logPrunePreviewOutput(preview *duplicacy.PrunePreview) {
 			}
 		}
 	}
-	if preview.RevisionOutput != "" {
-		for _, line := range strings.Split(preview.RevisionOutput, "\n") {
-			if line != "" {
-				e.log.Info("[REVISION-LIST] %s", line)
-			}
-		}
-	}
 }
 
 func (e *Executor) enforcePrunePreview(preview *duplicacy.PrunePreview) error {
