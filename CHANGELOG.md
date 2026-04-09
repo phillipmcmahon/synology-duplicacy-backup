@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.0] - 2026-04-09
+
+### Added
+- **Function-variable seams for full-pipeline testability**: Package-level
+  variables `cliArgs`, `geteuid`, `lookPath`, and `newLock` can be swapped
+  during tests to simulate non-root users, missing binaries, and lock failures
+  without modifying `os.Args` or requiring real system state.
+- **`runWithArgs()` entry point**: The coordinator's `run()` function now
+  delegates to `runWithArgs(args []string) int`, enabling direct testing of the
+  full coordinator pipeline with controlled arguments and mocked dependencies.
+- **`captureOutput()` test helper**: New helper in `main_test.go` that redirects
+  `os.Stdout` and `os.Stderr` during tests for assertion on console output.
+- **Six new coordinator pipeline tests**: `TestRunWithArgs_HelpReturnsZero`,
+  `_VersionReturnsZero`, `_InvalidFlagReturnsOne`, `_NonRootReturnsOne`,
+  `_ConfigLoadFailureReturnsTranslatedError`,
+  `_LockAcquisitionFailureReturnsTranslatedError` — covering early-exit paths,
+  error translation, and exit codes.
+- **`TestParseSecrets_ReaderError`**: Verifies `ParseSecrets` correctly handles
+  underlying `io.Reader` failures via a new `errReader` stub.
+
+### Changed
+- **Documentation reorganised**: The README was simplified to a concise quick-start
+  guide. Detailed reference material was extracted into four new files under `docs/`:
+  - `docs/architecture.md` — coordinator pattern, app struct, error handling
+  - `docs/cli.md` — full CLI usage, flags, modes, and modifiers
+  - `docs/configuration.md` — config file format, secrets, environment overrides
+  - `docs/operations.md` — Synology Task Scheduler setup, log locations, tips
+- **TESTING.md updated**: Added documentation for function-variable seams,
+  `runWithArgs()`, `captureOutput()` helper, and updated test metrics
+  (487 tests passing, 90.1% statement coverage).
+- **Version constant** updated to `1.9.0` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v1.8.2] - 2026-04-09
 
 ### Fixed

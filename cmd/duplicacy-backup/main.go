@@ -64,7 +64,7 @@ import (
 //
 //	go build -ldflags "-X main.version=... -X main.buildTime=..."
 var (
-	version   = "1.8.0"
+	version   = "1.9.0"
 	buildTime = "unknown"
 )
 
