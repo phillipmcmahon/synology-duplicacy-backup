@@ -647,8 +647,8 @@ func TestIntegration_ParseAndDerive(t *testing.T) {
 	}
 }
 
-// TestIntegration_EarlyExitHelp verifies --help exits with code 0 from
-// the parseAppFlags sub-initializer.
+// TestIntegration_EarlyExitHelp verifies --help exits with exitHandled from
+// the parseAppFlags sub-initializer (converted to 0 at the run() boundary).
 func TestIntegration_EarlyExitHelp(t *testing.T) {
 	a := &app{log: itestLogger(t)}
 
@@ -663,8 +663,8 @@ func TestIntegration_EarlyExitHelp(t *testing.T) {
 	}()
 
 	code := a.parseAppFlags([]string{"--help"})
-	if code != 0 {
-		t.Errorf("--help should return code 0, got %d", code)
+	if code != exitHandled {
+		t.Errorf("--help should return exitHandled (%d), got %d", exitHandled, code)
 	}
 	// flags should be nil (early exit before parse)
 	if a.flags != nil {
@@ -672,7 +672,7 @@ func TestIntegration_EarlyExitHelp(t *testing.T) {
 	}
 }
 
-// TestIntegration_EarlyExitVersion verifies --version exits with code 0.
+// TestIntegration_EarlyExitVersion verifies --version exits with exitHandled.
 func TestIntegration_EarlyExitVersion(t *testing.T) {
 	a := &app{log: itestLogger(t)}
 
@@ -686,8 +686,8 @@ func TestIntegration_EarlyExitVersion(t *testing.T) {
 	}()
 
 	code := a.parseAppFlags([]string{"--version"})
-	if code != 0 {
-		t.Errorf("--version should return code 0, got %d", code)
+	if code != exitHandled {
+		t.Errorf("--version should return exitHandled (%d), got %d", exitHandled, code)
 	}
 }
 

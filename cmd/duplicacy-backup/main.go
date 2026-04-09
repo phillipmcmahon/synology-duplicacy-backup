@@ -147,11 +147,20 @@ func main() {
 	os.Exit(run())
 }
 
+// exitHandled is the exit code returned by sub-initialisers (e.g.
+// [parseAppFlags]) when the request has been fully handled and the
+// process should exit cleanly.  --help and --version use this path.
+// It is converted to exit code 0 at the [run] / [newApp] boundary.
+const exitHandled = -1
+
 // run is the top-level orchestrator.  It creates an [app], calls each phase
 // method in order, and translates errors into a numeric exit code.  The
 // entire flow is visible in one screen.
 func run() int {
 	a, code := newApp(os.Args[1:])
+	if code == exitHandled {
+		return 0 // --help / --version: handled, exit cleanly
+	}
 	if code != 0 {
 		return code
 	}
@@ -209,7 +218,7 @@ func newApp(args []string) (*app, int) {
 		return nil, code
 	}
 	if code := a.parseAppFlags(args); code != 0 {
-		return nil, code
+		return nil, code // exitHandled for --help/--version, 1 for parse errors
 	}
 	if err := a.validateEnvironment(); err != nil {
 		a.log.Error("%v", err)
@@ -267,14 +276,16 @@ func (a *app) initLogger() int {
 func (a *app) parseAppFlags(args []string) int {
 	// Check for --help and --version before any privilege/dependency checks
 	// so that help/version text is always accessible regardless of environment.
+	// These return exitHandled (not 0) so that newApp() and run() can
+	// distinguish "handled, stop cleanly" from "success, continue".
 	for _, arg := range args {
 		if arg == "--help" {
 			printUsage()
-			return 0
+			return exitHandled
 		}
 		if arg == "--version" || arg == "-v" {
 			fmt.Printf("%s %s (built %s)\n", scriptName, version, buildTime)
-			return 0
+			return exitHandled
 		}
 	}
 
@@ -1121,7 +1132,7 @@ SAFE PRUNE THRESHOLDS:
 
 CONFIG FILE LOCATION:
     <binary-dir>/.config/<source>-backup.conf
-    Currently resolves to: %s/<source>-backup.conf
+    Default: %s/<source>-backup.conf
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
 CONFIG KEYS:

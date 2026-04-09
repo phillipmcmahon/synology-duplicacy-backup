@@ -1229,6 +1229,89 @@ func TestApp_CleanupWorksAfterSuccessfulAcquire(t *testing.T) {
 	}
 }
 
+// ─── P1 fix: --help/--version early exit via newApp ─────────────────────────
+
+func TestNewApp_HelpReturnsExitHandled(t *testing.T) {
+	// Redirect stdout to avoid polluting test output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	a, code := newApp([]string{"--help"})
+	if code != exitHandled {
+		t.Errorf("newApp(--help) code = %d, want %d (exitHandled)", code, exitHandled)
+	}
+	if a != nil {
+		t.Error("newApp(--help) should return nil app")
+	}
+}
+
+func TestNewApp_VersionReturnsExitHandled(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	a, code := newApp([]string{"--version"})
+	if code != exitHandled {
+		t.Errorf("newApp(--version) code = %d, want %d (exitHandled)", code, exitHandled)
+	}
+	if a != nil {
+		t.Error("newApp(--version) should return nil app")
+	}
+}
+
+func TestNewApp_ShortVersionReturnsExitHandled(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	a, code := newApp([]string{"-v"})
+	if code != exitHandled {
+		t.Errorf("newApp(-v) code = %d, want %d (exitHandled)", code, exitHandled)
+	}
+	if a != nil {
+		t.Error("newApp(-v) should return nil app")
+	}
+}
+
+func TestNewApp_HelpDoesNotPanic(t *testing.T) {
+	// The original P1 bug: --help returned 0, newApp continued to
+	// validateEnvironment which dereferenced nil a.flags and panicked.
+	// This test verifies the fix: newApp returns exitHandled and stops.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		r.Close()
+	}()
+
+	// Must not panic.
+	a, code := newApp([]string{"--help"})
+	if a != nil {
+		t.Error("expected nil app for --help")
+	}
+	if code != exitHandled {
+		t.Errorf("code = %d, want %d", code, exitHandled)
+	}
+}
+
 // ─── Sub-initializer tests (Phase 2 refactoring) ────────────────────────────
 
 // ---------------------------------------------------------------------------
@@ -1357,8 +1440,8 @@ func TestApp_ParseAppFlags_Help(t *testing.T) {
 	}()
 
 	code := a.parseAppFlags([]string{"--help"})
-	if code != 0 {
-		t.Errorf("parseAppFlags(--help) returned %d, want 0 (early exit)", code)
+	if code != exitHandled {
+		t.Errorf("parseAppFlags(--help) returned %d, want %d (exitHandled)", code, exitHandled)
 	}
 	// flags should remain nil for early exit
 	if a.flags != nil {
@@ -1378,8 +1461,8 @@ func TestApp_ParseAppFlags_Version(t *testing.T) {
 	}()
 
 	code := a.parseAppFlags([]string{"--version"})
-	if code != 0 {
-		t.Errorf("parseAppFlags(--version) returned %d, want 0", code)
+	if code != exitHandled {
+		t.Errorf("parseAppFlags(--version) returned %d, want %d (exitHandled)", code, exitHandled)
 	}
 }
 
@@ -1395,8 +1478,8 @@ func TestApp_ParseAppFlags_ShortVersion(t *testing.T) {
 	}()
 
 	code := a.parseAppFlags([]string{"-v"})
-	if code != 0 {
-		t.Errorf("parseAppFlags(-v) returned %d, want 0", code)
+	if code != exitHandled {
+		t.Errorf("parseAppFlags(-v) returned %d, want %d (exitHandled)", code, exitHandled)
 	}
 }
 
