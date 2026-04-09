@@ -99,6 +99,7 @@ duplicacy-backup --config-dir /opt/etc homes
 - [CLI reference](docs/cli.md)
 - [Configuration and secrets](docs/configuration.md)
 - [Architecture](docs/architecture.md)
+- [How it works internally](docs/how-it-works.md)
 - [Operations](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Testing](TESTING.md)

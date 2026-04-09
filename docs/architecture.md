@@ -1,5 +1,11 @@
 # Architecture
 
+This is the short architecture overview.
+
+If you want the detailed internal walkthrough, including the runtime path,
+package boundaries, and where specific responsibilities now live, see
+[how-it-works.md](how-it-works.md).
+
 ## Overview
 
 The application follows an explicit `Request -> Plan -> Execute` flow.
