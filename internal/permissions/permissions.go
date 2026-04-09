@@ -4,6 +4,10 @@
 // The chown operation is executed via an [exec.Runner] so that tests can
 // inject a [exec.MockRunner].  The chmod operations use [os.Chmod] directly
 // since they do not require an external process.
+//
+// Functions return structured [errors.PermissionsError] values with rich
+// context instead of logging directly.  The coordinator is responsible for
+// all operator-facing output.
 package permissions
 
 import (
@@ -12,55 +16,44 @@ import (
 	"os"
 	"path/filepath"
 
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
 
 // Fix normalises ownership and permissions on a local backup target.
 // Directories get 770, files get 660.  The runner is used for the chown
 // command; chmod is applied via [os.Chmod].
-func Fix(runner execpkg.Runner, log *logger.Logger, target, owner, group string, dryRun bool) error {
-	log.Info("Starting local ownership and permission normalisation on %s", target)
-	log.PrintLine("Fix Perms Path", target)
-	log.PrintLine("Fix Perms Owner", owner)
-	log.PrintLine("Fix Perms Group", group)
+//
+// In dry-run mode no commands are executed and nil is returned.
+//
+// Returns a [*errors.PermissionsError] on failure with context including
+// the target path, owner, and group.
+func Fix(runner execpkg.Runner, target, owner, group string, dryRun bool) error {
+	if dryRun {
+		return nil
+	}
 
 	ownerGroup := fmt.Sprintf("%s:%s", owner, group)
 
 	// chown -R owner:group target
-	if dryRun {
-		log.DryRun("chown -R %s %s", ownerGroup, target)
-	} else {
-		stdout, stderr, err := runner.Run(context.Background(), "chown", "-R", ownerGroup, target)
-		if stdout != "" {
-			fmt.Print(stdout)
-		}
-		if stderr != "" {
-			fmt.Print(stderr)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to change ownership of %s: %w", target, err)
-		}
+	_, _, err := runner.Run(context.Background(), "chown", "-R", ownerGroup, target)
+	if err != nil {
+		return apperrors.NewPermissionsError("chown", fmt.Errorf("failed to change ownership: %w", err), "target", target, "owner", ownerGroup)
 	}
 
-	if dryRun {
-		log.DryRun("find %s -type d -exec chmod 770 {} +", target)
-		log.DryRun("find %s -type f -exec chmod 660 {} +", target)
-	} else {
-		err := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return os.Chmod(path, 0770)
-			}
-			return os.Chmod(path, 0660)
-		})
+	// Set directory (770) and file (660) permissions
+	walkErr := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("failed to set permissions in %s: %w", target, err)
+			return err
 		}
+		if info.IsDir() {
+			return os.Chmod(path, 0770)
+		}
+		return os.Chmod(path, 0660)
+	})
+	if walkErr != nil {
+		return apperrors.NewPermissionsError("chmod", fmt.Errorf("failed to set permissions: %w", walkErr), "target", target)
 	}
 
-	log.Info("Completed local ownership and permission normalisation")
 	return nil
 }

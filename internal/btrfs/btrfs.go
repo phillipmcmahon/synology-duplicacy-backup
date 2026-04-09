@@ -3,6 +3,10 @@
 //
 // All external commands are executed via an [exec.Runner] so that callers
 // can inject a [exec.MockRunner] in tests.
+//
+// Functions in this package return structured [errors.SnapshotError] values
+// with rich context instead of logging directly.  The coordinator is
+// responsible for all operator-facing output.
 package btrfs
 
 import (
@@ -10,75 +14,72 @@ import (
 	"fmt"
 	"strings"
 
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
 
-// CheckVolume verifies that a path is on a btrfs filesystem and is a valid subvolume.
-// It executes `stat -f -c %T <path>` and `btrfs subvolume show <path>` via the
-// provided [exec.Runner].
-func CheckVolume(runner execpkg.Runner, log *logger.Logger, path string, dryRun bool) error {
+// CheckVolume verifies that a path is on a btrfs filesystem and is a valid
+// subvolume.  It executes `stat -f -c %T <path>` and `btrfs subvolume show
+// <path>` via the provided [exec.Runner].
+//
+// Returns a [*errors.SnapshotError] on failure with context including the
+// checked path.
+func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
 	ctx := context.Background()
 
 	// Check filesystem type
 	stdout, _, err := runner.Run(ctx, "stat", "-f", "-c", "%T", path)
 	if err != nil {
-		return fmt.Errorf("path '%s' does not exist or cannot be stat'd: %w", path, err)
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path does not exist or cannot be stat'd: %w", err), "path", path)
 	}
 
 	if !strings.Contains(strings.TrimSpace(stdout), "btrfs") {
-		return fmt.Errorf("'%s' is not on a btrfs filesystem", path)
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is not on a btrfs filesystem"), "path", path, "fstype", strings.TrimSpace(stdout))
 	}
 
 	// Check it's a subvolume
 	if _, _, err := runner.Run(ctx, "btrfs", "subvolume", "show", path); err != nil {
-		return fmt.Errorf("'%s' is not a btrfs volume or subvolume", path)
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is not a btrfs volume or subvolume"), "path", path)
 	}
 
-	log.Info("Verified '%s' is on a btrfs filesystem and btrfs commands work", path)
 	return nil
 }
 
 // CreateSnapshot creates a read-only btrfs snapshot of source at target.
-// In dry-run mode the command is logged but not executed.
-func CreateSnapshot(runner execpkg.Runner, log *logger.Logger, source, target string, dryRun bool) error {
+// In dry-run mode no command is executed and nil is returned.
+//
+// Returns a [*errors.SnapshotError] on failure with context including
+// source and target paths.
+func CreateSnapshot(runner execpkg.Runner, source, target string, dryRun bool) error {
 	if dryRun {
-		log.DryRun("btrfs subvolume snapshot -r %s %s", source, target)
 		return nil
 	}
 
-	log.Info("Creating snapshot target: %s from: %s", target, source)
 	stdout, stderr, err := runner.Run(context.Background(), "btrfs", "subvolume", "snapshot", "-r", source, target)
-	if stdout != "" {
-		fmt.Print(stdout)
-	}
-	if stderr != "" {
-		fmt.Print(stderr)
-	}
+	_ = stdout
+	_ = stderr
 	if err != nil {
-		return fmt.Errorf("failed to create snapshot: %w", err)
+		return apperrors.NewSnapshotError("create", fmt.Errorf("failed to create snapshot: %w", err), "source", source, "target", target)
 	}
 
 	return nil
 }
 
 // DeleteSnapshot deletes a btrfs subvolume at target.
-// In dry-run mode the command is logged but not executed.
-func DeleteSnapshot(runner execpkg.Runner, log *logger.Logger, target string, dryRun bool) error {
+// In dry-run mode no command is executed and nil is returned.
+//
+// Returns a [*errors.SnapshotError] on failure with context including the
+// target path.
+func DeleteSnapshot(runner execpkg.Runner, target string, dryRun bool) error {
 	if dryRun {
-		log.DryRun("btrfs subvolume delete %s", target)
 		return nil
 	}
 
 	stdout, stderr, err := runner.Run(context.Background(), "btrfs", "subvolume", "delete", target)
-	if stdout != "" {
-		fmt.Print(stdout)
-	}
-	if stderr != "" {
-		fmt.Print(stderr)
-	}
+	_ = stdout
+	_ = stderr
 	if err != nil {
-		return fmt.Errorf("failed to delete subvolume %s: %w", target, err)
+		return apperrors.NewSnapshotError("delete", fmt.Errorf("failed to delete subvolume: %w", err), "target", target)
 	}
 
 	return nil
