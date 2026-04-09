@@ -3,14 +3,26 @@ package workflow
 import (
 	"path/filepath"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 type Plan struct {
-	Request *Request
-	Config  *config.Config
 	Secrets *secrets.Secrets
+
+	DoBackup      bool
+	DoPrune       bool
+	DeepPruneMode bool
+	FixPerms      bool
+	FixPermsOnly  bool
+	ForcePrune    bool
+	RemoteMode    bool
+	DryRun        bool
+
+	NeedsDuplicacySetup bool
+	NeedsSnapshot       bool
+
+	DefaultNotice string
+	ModeDisplay   string
 
 	BackupLabel    string
 	RunTimestamp   string
@@ -27,17 +39,46 @@ type Plan struct {
 	SecretsFile string
 
 	OperationMode string
+	Summary       []SummaryLine
+
+	Threads                     int
+	Filter                      string
+	FilterLines                 []string
+	OwnerGroup                  string
+	PruneOptions                string
+	PruneArgs                   []string
+	PruneArgsDisplay            string
+	LocalOwner                  string
+	LocalGroup                  string
+	LogRetentionDays            int
+	SafePruneMaxDeletePercent   int
+	SafePruneMaxDeleteCount     int
+	SafePruneMinTotalForPercent int
+
+	SnapshotCreateCommand    string
+	SnapshotDeleteCommand    string
+	WorkDirCreateCommand     string
+	PreferencesWriteCommand  string
+	FiltersWriteCommand      string
+	WorkDirDirPermsCommand   string
+	WorkDirFilePermsCommand  string
+	BackupCommand            string
+	ValidateRepoCommand      string
+	PrunePreviewCommand      string
+	PolicyPruneCommand       string
+	DeepPruneCommand         string
+	FixPermsChownCommand     string
+	FixPermsDirPermsCommand  string
+	FixPermsFilePermsCommand string
+	WorkDirRemoveCommand     string
 }
 
 func (p *Plan) IsRemote() bool {
-	return p.Request != nil && p.Request.RemoteMode
+	return p.RemoteMode
 }
 
 func (p *Plan) ModeLabel() string {
-	if p.IsRemote() {
-		return "REMOTE"
-	}
-	return "LOCAL"
+	return p.ModeDisplay
 }
 
 func (p *Plan) WorkDir() string {

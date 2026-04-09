@@ -1,10 +1,13 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 // helper to write a temp config file and return its path.
@@ -254,6 +257,11 @@ func TestParseFile_NonexistentFile(t *testing.T) {
 	_, err := ParseFile("/nonexistent/config.conf", "local")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
+	}
+
+	var configErr *apperrors.ConfigError
+	if !errors.As(err, &configErr) {
+		t.Fatalf("expected ConfigError, got %T", err)
 	}
 }
 

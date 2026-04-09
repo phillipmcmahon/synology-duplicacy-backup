@@ -60,7 +60,7 @@ func runWithArgs(args []string) int {
 	planner := workflow.NewPlanner(meta, rt, log, runner)
 	plan, err := planner.Build(result.Request)
 	if err != nil {
-		log.Error("%v", err)
+		log.Error("%s", workflow.OperatorMessage(err))
 		log.Close()
 		return 1
 	}
@@ -83,7 +83,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	}
 	defer log.Close()
 
-	log.Error("%v", err)
+	log.Error("%s", workflow.OperatorMessage(err))
 	var requestErr *workflow.RequestError
 	if errors.As(err, &requestErr) && requestErr.ShowUsage {
 		fmt.Fprintln(os.Stderr)

@@ -10,6 +10,8 @@ import (
 	"os/user"
 	"regexp"
 	"strings"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 // Defaults for safe prune thresholds.
@@ -80,7 +82,7 @@ func NewDefaults() *Config {
 func ParseFile(path, targetSection string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open config file %s: %w", path, err)
+		return nil, apperrors.NewConfigError("open", fmt.Errorf("cannot open config file %s: %w", path, err), "path", path)
 	}
 	defer f.Close()
 
@@ -104,7 +106,7 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
 		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
 			currentSection = line[1 : len(line)-1]
 			if seenSections[currentSection] {
-				return nil, fmt.Errorf("config file has duplicate section [%s] at line %d", currentSection, lineno)
+				return nil, apperrors.NewConfigError("parse", fmt.Errorf("config file has duplicate section [%s] at line %d", currentSection, lineno), "path", path)
 			}
 			seenSections[currentSection] = true
 			continue
@@ -112,12 +114,12 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
 
 		// Must be inside a section
 		if currentSection == "" {
-			return nil, fmt.Errorf("config file has content outside a section at line %d: %s", lineno, raw)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("config file has content outside a section at line %d: %s", lineno, raw), "path", path)
 		}
 
 		// Must contain =
 		if !strings.Contains(line, "=") {
-			return nil, fmt.Errorf("config file has invalid line at %d (expected key=value): %s", lineno, raw)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("config file has invalid line at %d (expected key=value): %s", lineno, raw), "path", path)
 		}
 
 		parts := strings.SplitN(line, "=", 2)
@@ -125,21 +127,21 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
 		value := strings.TrimSpace(parts[1])
 
 		if key == "" {
-			return nil, fmt.Errorf("config file has malformed key=value pair with missing key at line %d", lineno)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("config file has malformed key=value pair with missing key at line %d", lineno), "path", path)
 		}
 
 		if !keyPattern.MatchString(key) {
-			return nil, fmt.Errorf("invalid config key '%s' at line %d in section [%s]", key, lineno, currentSection)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("invalid config key '%s' at line %d in section [%s]", key, lineno, currentSection), "path", path)
 		}
 
 		if !AllowedConfigKeys[key] {
-			return nil, fmt.Errorf("config key '%s' is not permitted at line %d in section [%s]", key, lineno, currentSection)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is not permitted at line %d in section [%s]", key, lineno, currentSection), "path", path)
 		}
 
 		// LOCAL_OWNER and LOCAL_GROUP are only meaningful for local operations;
 		// reject them if they appear outside the [local] section.
 		if currentSection != "local" && LocalOnlyKeys[key] {
-			return nil, fmt.Errorf("config key '%s' at line %d is only allowed in [local] section, not [%s]", key, lineno, currentSection)
+			return nil, apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' at line %d is only allowed in [local] section, not [%s]", key, lineno, currentSection), "path", path)
 		}
 
 		// Strip surrounding quotes
@@ -154,14 +156,14 @@ func ParseFile(path, targetSection string) (map[string]string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading config file: %w", err)
+		return nil, apperrors.NewConfigError("read", fmt.Errorf("error reading config file: %w", err), "path", path)
 	}
 
 	if !seenSections["common"] {
-		return nil, fmt.Errorf("config file %s is missing required [common] section", path)
+		return nil, apperrors.NewConfigError("section-common", fmt.Errorf("config file %s is missing required [common] section", path), "path", path)
 	}
 	if !seenSections[targetSection] {
-		return nil, fmt.Errorf("config file %s is missing required [%s] section for current mode", path, targetSection)
+		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [%s] section for current mode", path, targetSection), "path", path, "section", targetSection)
 	}
 
 	return result, nil
@@ -188,35 +190,35 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["LOG_RETENTION_DAYS"]; ok {
 		n, err := strictAtoi(v)
 		if err != nil {
-			return fmt.Errorf("LOG_RETENTION_DAYS: %w", err)
+			return apperrors.NewConfigError("log-retention-days", fmt.Errorf("LOG_RETENTION_DAYS: %w", err))
 		}
 		c.LogRetentionDays = n
 	}
 	if v, ok := values["THREADS"]; ok {
 		n, err := strictAtoi(v)
 		if err != nil {
-			return fmt.Errorf("THREADS: %w", err)
+			return apperrors.NewConfigError("threads", fmt.Errorf("THREADS: %w", err))
 		}
 		c.Threads = n
 	}
 	if v, ok := values["SAFE_PRUNE_MAX_DELETE_PERCENT"]; ok {
 		n, err := strictAtoi(v)
 		if err != nil {
-			return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_PERCENT: %w", err)
+			return apperrors.NewConfigError("safe-prune-max-delete-percent", fmt.Errorf("SAFE_PRUNE_MAX_DELETE_PERCENT: %w", err))
 		}
 		c.SafePruneMaxDeletePercent = n
 	}
 	if v, ok := values["SAFE_PRUNE_MAX_DELETE_COUNT"]; ok {
 		n, err := strictAtoi(v)
 		if err != nil {
-			return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_COUNT: %w", err)
+			return apperrors.NewConfigError("safe-prune-max-delete-count", fmt.Errorf("SAFE_PRUNE_MAX_DELETE_COUNT: %w", err))
 		}
 		c.SafePruneMaxDeleteCount = n
 	}
 	if v, ok := values["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"]; ok {
 		n, err := strictAtoi(v)
 		if err != nil {
-			return fmt.Errorf("SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT: %w", err)
+			return apperrors.NewConfigError("safe-prune-min-total-for-percent", fmt.Errorf("SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT: %w", err))
 		}
 		c.SafePruneMinTotalForPercent = n
 	}
@@ -238,7 +240,7 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("missing required config variables: %s", strings.Join(missing, ", "))
+		return apperrors.NewConfigError("required", fmt.Errorf("missing required config variables: %s", strings.Join(missing, ", ")))
 	}
 	return nil
 }
@@ -246,16 +248,16 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 // ValidateThresholds validates numeric threshold values.
 func (c *Config) ValidateThresholds() error {
 	if c.SafePruneMaxDeletePercent < 0 || c.SafePruneMaxDeletePercent > 100 {
-		return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_PERCENT must be between 0 and 100 (was %d)", c.SafePruneMaxDeletePercent)
+		return apperrors.NewConfigError("safe-prune-max-delete-percent", fmt.Errorf("SAFE_PRUNE_MAX_DELETE_PERCENT must be between 0 and 100 (was %d)", c.SafePruneMaxDeletePercent))
 	}
 	if c.SafePruneMaxDeleteCount < 0 {
-		return fmt.Errorf("SAFE_PRUNE_MAX_DELETE_COUNT must be non-negative (was %d)", c.SafePruneMaxDeleteCount)
+		return apperrors.NewConfigError("safe-prune-max-delete-count", fmt.Errorf("SAFE_PRUNE_MAX_DELETE_COUNT must be non-negative (was %d)", c.SafePruneMaxDeleteCount))
 	}
 	if c.SafePruneMinTotalForPercent < 0 {
-		return fmt.Errorf("SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT must be non-negative (was %d)", c.SafePruneMinTotalForPercent)
+		return apperrors.NewConfigError("safe-prune-min-total-for-percent", fmt.Errorf("SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT must be non-negative (was %d)", c.SafePruneMinTotalForPercent))
 	}
 	if c.LogRetentionDays < 0 {
-		return fmt.Errorf("LOG_RETENTION_DAYS must be non-negative (was %d)", c.LogRetentionDays)
+		return apperrors.NewConfigError("log-retention-days", fmt.Errorf("LOG_RETENTION_DAYS must be non-negative (was %d)", c.LogRetentionDays))
 	}
 	return nil
 }
@@ -268,34 +270,34 @@ func (c *Config) ValidateThresholds() error {
 // remote mode (--remote), as remote targets do not use local file ownership.
 func (c *Config) ValidateOwnerGroup() error {
 	if c.LocalOwner == "" {
-		return fmt.Errorf("LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser)")
+		return apperrors.NewConfigError("local-owner", fmt.Errorf("LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser)"))
 	}
 	if c.LocalGroup == "" {
-		return fmt.Errorf("LOCAL_GROUP is mandatory: set it in your .conf file to the group that should own backup files (e.g. LOCAL_GROUP=users)")
+		return apperrors.NewConfigError("local-group", fmt.Errorf("LOCAL_GROUP is mandatory: set it in your .conf file to the group that should own backup files (e.g. LOCAL_GROUP=users)"))
 	}
 	if !ownerPattern.MatchString(c.LocalOwner) {
-		return fmt.Errorf("LOCAL_OWNER has invalid value '%s'", c.LocalOwner)
+		return apperrors.NewConfigError("local-owner", fmt.Errorf("LOCAL_OWNER has invalid value '%s'", c.LocalOwner), "value", c.LocalOwner)
 	}
 	if !ownerPattern.MatchString(c.LocalGroup) {
-		return fmt.Errorf("LOCAL_GROUP has invalid value '%s'", c.LocalGroup)
+		return apperrors.NewConfigError("local-group", fmt.Errorf("LOCAL_GROUP has invalid value '%s'", c.LocalGroup), "value", c.LocalGroup)
 	}
 	// Reject root user/group for security: the backup script runs as root but
 	// repository files must never be owned by root to limit blast-radius of
 	// any future vulnerability in the backup data path.
 	if strings.EqualFold(c.LocalOwner, "root") {
-		return fmt.Errorf("LOCAL_OWNER must not be 'root' for security reasons: backup files should be owned by a non-root user")
+		return apperrors.NewConfigError("local-owner", fmt.Errorf("LOCAL_OWNER must not be 'root' for security reasons: backup files should be owned by a non-root user"))
 	}
 	if strings.EqualFold(c.LocalGroup, "root") {
-		return fmt.Errorf("LOCAL_GROUP must not be 'root' for security reasons: backup files should be owned by a non-root group")
+		return apperrors.NewConfigError("local-group", fmt.Errorf("LOCAL_GROUP must not be 'root' for security reasons: backup files should be owned by a non-root group"))
 	}
 
 	// Verify the specified user actually exists on the system.
 	if _, err := user.Lookup(c.LocalOwner); err != nil {
-		return fmt.Errorf("LOCAL_OWNER '%s' does not exist on this system: %w", c.LocalOwner, err)
+		return apperrors.NewConfigError("local-owner", fmt.Errorf("LOCAL_OWNER '%s' does not exist on this system: %w", c.LocalOwner, err), "value", c.LocalOwner)
 	}
 	// Verify the specified group actually exists on the system.
 	if _, err := user.LookupGroup(c.LocalGroup); err != nil {
-		return fmt.Errorf("LOCAL_GROUP '%s' does not exist on this system: %w", c.LocalGroup, err)
+		return apperrors.NewConfigError("local-group", fmt.Errorf("LOCAL_GROUP '%s' does not exist on this system: %w", c.LocalGroup, err), "value", c.LocalGroup)
 	}
 
 	return nil
@@ -305,7 +307,7 @@ func (c *Config) ValidateOwnerGroup() error {
 func (c *Config) ValidateThreads() error {
 	t := c.Threads
 	if t <= 0 || t > MaxThreads || (t&(t-1)) != 0 {
-		return fmt.Errorf("THREADS must be a power of 2 and <= %d (was %d)", MaxThreads, t)
+		return apperrors.NewConfigError("threads", fmt.Errorf("THREADS must be a power of 2 and <= %d (was %d)", MaxThreads, t))
 	}
 	return nil
 }

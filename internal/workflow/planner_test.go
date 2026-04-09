@@ -72,6 +72,21 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	if plan.BackupTarget != "/backups/homes" {
 		t.Fatalf("BackupTarget = %q", plan.BackupTarget)
 	}
+	if !plan.NeedsDuplicacySetup || !plan.NeedsSnapshot {
+		t.Fatalf("expected backup plan to need setup and snapshot: %+v", plan)
+	}
+	if plan.PruneArgsDisplay != "" {
+		t.Fatalf("PruneArgsDisplay = %q, want empty", plan.PruneArgsDisplay)
+	}
+	if plan.BackupCommand != "duplicacy backup -stats -threads 4" {
+		t.Fatalf("BackupCommand = %q", plan.BackupCommand)
+	}
+	if plan.SnapshotCreateCommand == "" || plan.WorkDirCreateCommand == "" {
+		t.Fatalf("expected execution-ready commands, got %+v", plan)
+	}
+	if len(plan.Summary) == 0 {
+		t.Fatal("expected summary lines to be precomputed")
+	}
 	if len(runner.Invocations) != 4 {
 		t.Fatalf("invocations = %d, want 4", len(runner.Invocations))
 	}
@@ -97,8 +112,16 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	if plan.OperationMode != "Fix permissions only" {
 		t.Fatalf("OperationMode = %q", plan.OperationMode)
 	}
-	lines := SummaryLines(plan)
-	if len(lines) != 4+1 {
-		t.Fatalf("summary lines = %d, want 5", len(lines))
+	if plan.ModeDisplay != "LOCAL" {
+		t.Fatalf("ModeDisplay = %q", plan.ModeDisplay)
+	}
+	if plan.OwnerGroup != owner+":"+group {
+		t.Fatalf("OwnerGroup = %q", plan.OwnerGroup)
+	}
+	if plan.FixPermsChownCommand == "" {
+		t.Fatal("expected fix-perms command to be precomputed")
+	}
+	if len(plan.Summary) != 5 {
+		t.Fatalf("summary lines = %d, want 5", len(plan.Summary))
 	}
 }

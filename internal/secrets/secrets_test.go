@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 // writeTempSecrets creates a temp secrets file with given content and perms.
@@ -87,6 +89,11 @@ func TestLoadSecretsFile_MissingFile(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+
+	var secretsErr *apperrors.SecretsError
+	if !errors.As(err, &secretsErr) {
+		t.Fatalf("expected SecretsError, got %T", err)
 	}
 }
 

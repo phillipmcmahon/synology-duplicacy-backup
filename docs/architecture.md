@@ -47,7 +47,14 @@ It is responsible for:
 - secrets loading and validation
 - backup-target derivation
 - backup-mode btrfs validation
-- summary-ready derived values such as operation mode and resolved paths
+- execution-ready derived values such as:
+  - operation mode
+  - mode display
+  - summary lines
+  - dry-run and mode flags
+  - prune/filter display values
+  - ownership and threshold values
+  - execution-ready command strings and cleanup inputs
 
 The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
@@ -62,13 +69,18 @@ It is responsible for:
 - signal handling
 - log cleanup
 - lock acquisition and release
-- startup header and summary output
+- runtime sequencing
 - Duplicacy working-directory setup
 - backup, prune, and fix-perms execution
 - final cleanup and result output
 
 This keeps operator-facing runtime behavior in one place and makes phase order
 easy to follow.
+
+`Executor` now delegates presentation work to a small presenter, cleanup to
+focused workflow helpers, and prune preview policy to dedicated workflow code.
+It relies on the plan for execution decisions rather than repeatedly reaching
+back into raw request/config data.
 
 ## Why This Shape
 
@@ -119,5 +131,7 @@ Operator-facing output is still owned by the top-level execution layer.
 Domain packages return data or structured errors; they do not print their own
 status messages.
 
-That keeps message formatting consistent and avoids spreading user-facing tone
-across multiple packages.
+The workflow layer also owns final error translation. Internal packages can
+return rich typed errors while the workflow decides the final operator-facing
+message. That keeps message formatting consistent and avoids spreading
+user-facing tone across multiple packages.

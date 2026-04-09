@@ -81,6 +81,9 @@ Planner tests cover:
 - config loading
 - operation-mode derivation
 - backup-target derivation
+- summary precomputation
+- execution-ready plan fields
+- execution-ready command strings
 - btrfs validation during backup planning
 - minimal fix-perms-only planning
 
@@ -89,6 +92,12 @@ Executor tests cover:
 - operation-mode rendering for combined flows
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
+- cleanup and prune-policy behavior through focused workflow helpers
+
+Workflow tests also cover:
+
+- operator-message translation
+- summary layout for fixed-perms-only and remote flows
 
 ### `internal/btrfs`
 
@@ -130,3 +139,25 @@ they actually belong to.
 The test split is also meant to keep `cmd/duplicacy-backup` small. As more
 workflow behavior moves under `internal/workflow`, most new coordinator tests
 should be added there unless they are specifically about the real entrypoint.
+
+As the plan gets richer, new tests should prefer asserting plan fields and
+workflow translations directly instead of reconstructing execution behavior from
+raw request/config state in the `cmd` package.
+
+## Operator Message Style
+
+Operator-facing wording is owned by `internal/workflow`.
+
+Rules:
+
+- translated operator messages should be complete sentences
+- translated operator messages should end with terminal punctuation
+- domain packages should return typed errors rather than pre-formatted final wording
+- `internal/workflow/messages.go` is the translation contract for final stderr text
+
+When adding a new high-value error path, prefer:
+
+1. return a typed domain error from the package
+2. translate it in `internal/workflow/messages.go`
+3. add or update a table-driven translation test
+4. add a `runWithArgs` assertion if the message is part of the real entrypoint UX
