@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.3] - 2026-04-09
+
+### Changed
+- **Installer config path clarified**: Documentation now makes it explicit that
+  the stable command path `/usr/local/bin/duplicacy-backup` resolves its default
+  config directory under `/usr/local/lib/duplicacy-backup/.config/` because the
+  installed command is a symlink to the real versioned binary.
+- **Planner output trimmed for fast-fail checks**: Removed short-lived config
+  and secrets load start/success messages so missing-config and missing-secrets
+  failures surface with less noise.
+- **Version constant** updated to `1.10.3` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v1.10.2] - 2026-04-09
 
 ### Changed

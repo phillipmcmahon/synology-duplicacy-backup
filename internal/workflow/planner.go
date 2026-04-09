@@ -126,8 +126,6 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 }
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
-	p.log.Info("Loading configuration from %s.", plan.ConfigFile)
-
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Configuration file not found: %s.", plan.ConfigFile)
 	}
@@ -175,7 +173,6 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		p.log.Info("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
 	}
 
-	p.log.Info("Configuration loaded successfully.")
 	return cfg, nil
 }
 
@@ -226,8 +223,6 @@ func modeDisplay(remote bool) string {
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
-	p.log.Info("Loading secrets from %s.", plan.SecretsFile)
-
 	sec, err := secrets.LoadSecretsFile(plan.SecretsFile)
 	if err != nil {
 		return nil, err
@@ -235,6 +230,5 @@ func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
 	if err := sec.Validate(); err != nil {
 		return nil, err
 	}
-	p.log.Info("Secrets loaded and validated.")
 	return sec, nil
 }

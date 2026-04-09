@@ -9,11 +9,26 @@ By default the binary resolves config files relative to the executable:
 ```
 
 With the recommended installer layout from [`operations.md`](operations.md),
-that default becomes:
+the effective default becomes:
 
 ```text
 /usr/local/lib/duplicacy-backup/.config/homes-backup.conf
 ```
+
+If you are using the stable installer path:
+
+```text
+/usr/local/bin/duplicacy-backup
+```
+
+the config still resolves under:
+
+```text
+/usr/local/lib/duplicacy-backup/.config/
+```
+
+because `/usr/local/bin/duplicacy-backup` is a symlink to the real installed
+binary under `/usr/local/lib/duplicacy-backup/`.
 
 Overrides:
 
