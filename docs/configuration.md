@@ -5,14 +5,14 @@
 By default the binary resolves config files relative to the executable:
 
 ```text
-<binary-dir>/.config/<source>-backup.conf
+<binary-dir>/.config/<source>-backup.toml
 ```
 
 With the recommended installer layout from [`operations.md`](operations.md),
 the effective default becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/homes-backup.conf
+/usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
 
 If you are using the stable installer path:
@@ -37,46 +37,50 @@ Overrides:
 
 ## Config File Format
 
-Config files use INI-style sections:
+Config files use TOML tables:
 
 - `[common]`
 - `[local]`
 - `[remote]`
 
 The active runtime loads `[common]` plus either `[local]` or `[remote]`.
+Values in the active target table override values from `[common]`.
 
 ## Config Keys
 
 | Key | Required | Description |
 |---|---|---|
-| `DESTINATION` | Yes | Backup destination path or S3 URL |
-| `THREADS` | Yes for backup | Duplicacy threads; power of 2, max 16 |
-| `PRUNE` | Yes for prune | Duplicacy prune retention arguments |
-| `FILTER` | No | Duplicacy filter patterns |
-| `LOCAL_OWNER` | Yes when `--fix-perms` is used locally | Non-root local owner |
-| `LOCAL_GROUP` | Yes when `--fix-perms` is used locally | Local group |
-| `LOG_RETENTION_DAYS` | No | Log retention days; default `30` |
-| `SAFE_PRUNE_MAX_DELETE_PERCENT` | No | Default `10` |
-| `SAFE_PRUNE_MAX_DELETE_COUNT` | No | Default `25` |
-| `SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT` | No | Default `20` |
+| `destination` | Yes | Backup destination path or S3 URL |
+| `threads` | Yes for backup | Duplicacy threads; power of 2, max 16 |
+| `prune` | Yes for prune | Duplicacy prune retention arguments |
+| `filter` | No | Duplicacy filter patterns |
+| `local_owner` | Yes when `--fix-perms` is used locally | Non-root local owner |
+| `local_group` | Yes when `--fix-perms` is used locally | Local group |
+| `log_retention_days` | No | Log retention days; default `30` |
+| `safe_prune_max_delete_percent` | No | Default `10` |
+| `safe_prune_max_delete_count` | No | Default `25` |
+| `safe_prune_min_total_for_percent` | No | Default `20` |
 
 ## Example Config
 
-```ini
+```toml
 [common]
-PRUNE=-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28
-FILTER=e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\.DS_Store|\._.*|Thumbs\.db)$
-LOG_RETENTION_DAYS=30
+prune = "-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28"
+filter = "e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\\.DS_Store|\\._.*|Thumbs\\.db)$"
+log_retention_days = 30
+safe_prune_max_delete_percent = 10
+safe_prune_max_delete_count = 25
+safe_prune_min_total_for_percent = 20
 
 [local]
-DESTINATION=/volume2/backups
-THREADS=4
-LOCAL_OWNER=myuser
-LOCAL_GROUP=users
+destination = "/volume2/backups"
+threads = 4
+local_owner = "myuser"
+local_group = "users"
 
 [remote]
-DESTINATION=s3://gateway.storjshare.io/my-backup-bucket
-THREADS=8
+destination = "s3://gateway.storjshare.io/my-backup-bucket"
+threads = 8
 ```
 
 ## Secrets
@@ -84,7 +88,7 @@ THREADS=8
 Remote mode loads secrets from:
 
 ```text
-/root/.secrets/duplicacy-<label>.env
+/root/.secrets/duplicacy-<label>.toml
 ```
 
 Overrides:
@@ -94,18 +98,18 @@ Overrides:
 
 Example:
 
-```env
-STORJ_S3_ID=your-access-key-id
-STORJ_S3_SECRET=your-secret-access-key
+```toml
+storj_s3_id = "your-access-key-id"
+storj_s3_secret = "your-secret-access-key"
 ```
 
 Requirements:
 
 - owned by `root:root`
 - permissions `0600`
-- only `STORJ_S3_ID` and `STORJ_S3_SECRET` are allowed
-- `STORJ_S3_ID` must be at least 28 characters
-- `STORJ_S3_SECRET` must be at least 53 characters
+- only `storj_s3_id` and `storj_s3_secret` are allowed
+- `storj_s3_id` must be at least 28 characters
+- `storj_s3_secret` must be at least 53 characters
 
 ## Safe Prune Thresholds
 
@@ -123,5 +127,20 @@ Use `--force-prune` to override threshold enforcement.
 |---|---|
 | `duplicacy` binary check | backup or prune |
 | `btrfs` binary check | backup |
-| `LOCAL_OWNER` / `LOCAL_GROUP` validation | local `--fix-perms` |
+| `local_owner` / `local_group` validation | local `--fix-perms` |
 | remote secrets loading | `--remote` |
+
+## Breaking Migration Note
+
+This release removes support for legacy INI config and `.env` secrets files.
+
+You must convert and rename both files before upgrading:
+
+```text
+homes-backup.conf        -> homes-backup.toml
+duplicacy-homes.env      -> duplicacy-homes.toml
+DESTINATION              -> destination
+THREADS                  -> threads
+LOCAL_OWNER              -> local_owner
+STORJ_S3_ID              -> storj_s3_id
+```

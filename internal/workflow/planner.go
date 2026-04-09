@@ -119,7 +119,7 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		WorkRoot:            workRoot,
 		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
 		ConfigDir:           configDir,
-		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel)),
+		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", backupLabel)),
 		SecretsDir:          secretsDir,
 		SecretsFile:         secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel),
 	}
@@ -136,7 +136,11 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		targetSection = "remote"
 	}
 
-	values, err := config.ParseFile(plan.ConfigFile, targetSection)
+	raw, err := config.ParseFile(plan.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	values, err := raw.ResolveValues(targetSection, plan.ConfigFile)
 	if err != nil {
 		return nil, err
 	}

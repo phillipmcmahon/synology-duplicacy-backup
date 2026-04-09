@@ -31,7 +31,7 @@ go test ./...
 | `cmd/duplicacy-backup` | Real entrypoint coverage through `runWithArgs` |
 | `internal/workflow` | Request parsing, planning, summary composition, executor flow |
 | `internal/btrfs` | Snapshot and volume helper behavior |
-| `internal/config` | INI parsing, defaults, validation |
+| `internal/config` | TOML parsing, defaults, validation |
 | `internal/duplicacy` | Duplicacy CLI wrapper and prune preview |
 | `internal/exec` | Command runner and mock runner behavior |
 | `internal/logger` | Log formatting, colour handling, rotation |

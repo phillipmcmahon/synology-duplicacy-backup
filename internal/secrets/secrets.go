@@ -3,21 +3,23 @@
 package secrets
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
+
+	"github.com/BurntSushi/toml"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
-// MinStorjS3IDLen is the minimum length for STORJ_S3_ID.
+// MinStorjS3IDLen is the minimum length for storj_s3_id.
 const MinStorjS3IDLen = 28
 
-// MinStorjS3SecretLen is the minimum length for STORJ_S3_SECRET.
+// MinStorjS3SecretLen is the minimum length for storj_s3_secret.
 const MinStorjS3SecretLen = 53
 
 // Secrets holds loaded secret values.
@@ -26,20 +28,20 @@ type Secrets struct {
 	StorjS3Secret string
 }
 
-var allowedSecretKeys = map[string]bool{
-	"STORJ_S3_ID":     true,
-	"STORJ_S3_SECRET": true,
+type fileSecrets struct {
+	StorjS3ID     *string `toml:"storj_s3_id"`
+	StorjS3Secret *string `toml:"storj_s3_secret"`
 }
+
+var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
 
 // GetSecretsFilePath returns the expected secrets file path for a label.
 func GetSecretsFilePath(secretsDir, prefix, label string) string {
-	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s.env", prefix, label))
+	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s.toml", prefix, label))
 }
 
 // ValidateFileAccess checks that the secrets file at path exists, has 0600
-// permissions, and is owned by root:root.  It is called by [LoadSecretsFile]
-// before parsing and is separated so that parser logic can be tested
-// independently of OS-level access controls.
+// permissions, and is owned by root:root.
 func ValidateFileAccess(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -49,13 +51,11 @@ func ValidateFileAccess(path string) error {
 		return apperrors.NewSecretsError("stat", fmt.Errorf("cannot stat secrets file: %w", err), "path", path)
 	}
 
-	// Check permissions (600)
 	perm := info.Mode().Perm()
 	if perm != 0600 {
 		return apperrors.NewSecretsError("permissions", fmt.Errorf("secrets file permissions are %04o, expected 0600: %s", perm, path), "path", path)
 	}
 
-	// Check ownership (root:root)
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 		if stat.Uid != 0 || stat.Gid != 0 {
 			return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path), "path", path)
@@ -64,70 +64,43 @@ func ValidateFileAccess(path string) error {
 	return nil
 }
 
-// ParseSecrets reads key=value lines from r, validates their format and
-// keys, and returns a populated [Secrets] struct.  The source parameter is
-// used only for error messages (typically the file path).
-//
-// This function is separated from file access validation so that the parser
-// can be unit-tested without requiring specific file ownership or permissions.
+// ParseSecrets decodes a TOML secrets file from r.
 func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
-	values := make(map[string]string)
-	lineno := 0
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		lineno++
-		line := strings.TrimSpace(scanner.Text())
-
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		if !strings.Contains(line, "=") {
-			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets file has invalid line at %d: %s", lineno, line), "source", source)
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		if key == "" {
-			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets file has malformed key=value pair with missing key at line %d", lineno), "source", source)
-		}
-
-		if !allowedSecretKeys[key] {
-			return nil, apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key '%s' in secrets file at line %d", key, lineno), "source", source)
-		}
-
-		// Strip surrounding quotes
-		if len(value) >= 2 && strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
-			value = value[1 : len(value)-1]
-		}
-
-		values[key] = value
-	}
-
-	if err := scanner.Err(); err != nil {
+	body, err := io.ReadAll(r)
+	if err != nil {
 		return nil, apperrors.NewSecretsError("read", fmt.Errorf("error reading secrets file: %w", err), "source", source)
 	}
-
-	s := &Secrets{
-		StorjS3ID:     values["STORJ_S3_ID"],
-		StorjS3Secret: values["STORJ_S3_SECRET"],
+	text := string(body)
+	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
+		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
+		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", source)
 	}
 
-	if s.StorjS3ID == "" {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'STORJ_S3_ID' is missing after loading %s", source), "source", source)
-	}
-	if s.StorjS3Secret == "" {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'STORJ_S3_SECRET' is missing after loading %s", source), "source", source)
+	var raw fileSecrets
+	meta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets file %s contains invalid TOML: %w", source, err), "source", source)
 	}
 
-	return s, nil
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		key := undecoded[0].String()
+		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, source), "source", source)
+	}
+
+	if raw.StorjS3ID == nil {
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_id' is missing after loading %s", source), "source", source)
+	}
+	if raw.StorjS3Secret == nil {
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_secret' is missing after loading %s", source), "source", source)
+	}
+
+	return &Secrets{
+		StorjS3ID:     *raw.StorjS3ID,
+		StorjS3Secret: *raw.StorjS3Secret,
+	}, nil
 }
 
-// LoadSecretsFile loads and validates a secrets .env file.  It first checks
-// file access (permissions and ownership) via [ValidateFileAccess], then
-// delegates parsing to [ParseSecrets].
+// LoadSecretsFile loads and validates a secrets TOML file.
 func LoadSecretsFile(path string) (*Secrets, error) {
 	if err := ValidateFileAccess(path); err != nil {
 		return nil, err
@@ -145,10 +118,10 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 // Validate checks minimum length requirements for secrets.
 func (s *Secrets) Validate() error {
 	if len(s.StorjS3ID) < MinStorjS3IDLen {
-		return apperrors.NewSecretsError("validate", fmt.Errorf("STORJ_S3_ID must be at least %d characters (was %d)", MinStorjS3IDLen, len(s.StorjS3ID)))
+		return apperrors.NewSecretsError("validate", fmt.Errorf("storj_s3_id must be at least %d characters (was %d)", MinStorjS3IDLen, len(s.StorjS3ID)))
 	}
 	if len(s.StorjS3Secret) < MinStorjS3SecretLen {
-		return apperrors.NewSecretsError("validate", fmt.Errorf("STORJ_S3_SECRET must be at least %d characters (was %d)", MinStorjS3SecretLen, len(s.StorjS3Secret)))
+		return apperrors.NewSecretsError("validate", fmt.Errorf("storj_s3_secret must be at least %d characters (was %d)", MinStorjS3SecretLen, len(s.StorjS3Secret)))
 	}
 	return nil
 }

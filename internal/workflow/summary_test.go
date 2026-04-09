@@ -53,9 +53,9 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		RepositoryPath: "/volume1/homes-snap",
 		WorkRoot:       "/tmp/work",
 		BackupTarget:   "/backups/homes",
-		ConfigFile:     "/config/homes-backup.conf",
+		ConfigFile:     "/config/homes-backup.toml",
 		SecretsDir:     "/root/.secrets",
-		SecretsFile:    "/root/.secrets/duplicacy-homes.env",
+		SecretsFile:    "/root/.secrets/duplicacy-homes.toml",
 		ModeDisplay:    "REMOTE",
 		OperationMode:  "Backup only",
 	}

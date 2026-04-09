@@ -45,23 +45,23 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "config required fields",
-			err:  apperrors.NewConfigError("required", errors.New("missing required config variables: DESTINATION, THREADS")),
-			want: "missing required config variables: DESTINATION, THREADS.",
+			err:  apperrors.NewConfigError("required", errors.New("missing required config values: destination, threads")),
+			want: "missing required config values: destination, threads.",
 		},
 		{
 			name: "config owner validation",
-			err:  apperrors.NewConfigError("local-owner", errors.New("LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser)")),
-			want: "LOCAL_OWNER is mandatory: set it in your .conf file to the non-root user that should own backup files (e.g. LOCAL_OWNER=myuser).",
+			err:  apperrors.NewConfigError("local-owner", errors.New("local_owner is mandatory: set it in your TOML config under [local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
+			want: "local_owner is mandatory: set it in your TOML config under [local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\").",
 		},
 		{
 			name: "secrets validate",
-			err:  apperrors.NewSecretsError("validate", errors.New("STORJ_S3_ID must be at least 28 characters (was 5)")),
-			want: "STORJ_S3_ID must be at least 28 characters (was 5).",
+			err:  apperrors.NewSecretsError("validate", errors.New("storj_s3_id must be at least 28 characters (was 5)")),
+			want: "storj_s3_id must be at least 28 characters (was 5).",
 		},
 		{
 			name: "secrets permissions",
-			err:  apperrors.NewSecretsError("permissions", errors.New("secrets file permissions are 0644, expected 0600: /tmp/test.env")),
-			want: "secrets file permissions are 0644, expected 0600: /tmp/test.env.",
+			err:  apperrors.NewSecretsError("permissions", errors.New("secrets file permissions are 0644, expected 0600: /tmp/test.toml")),
+			want: "secrets file permissions are 0644, expected 0600: /tmp/test.toml.",
 		},
 		{
 			name: "lock held",

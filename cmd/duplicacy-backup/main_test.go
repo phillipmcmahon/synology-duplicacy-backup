@@ -92,7 +92,7 @@ func currentUserGroup(t *testing.T) (string, string) {
 
 func writeConfig(t *testing.T, dir, label, body string) string {
 	t.Helper()
-	path := filepath.Join(dir, fmt.Sprintf("%s-backup.conf", label))
+	path := filepath.Join(dir, fmt.Sprintf("%s-backup.toml", label))
 	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -100,13 +100,16 @@ func writeConfig(t *testing.T, dir, label, body string) string {
 }
 
 func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
-	_, stderr := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help"}); code != 0 {
 			t.Fatalf("runWithArgs(--help) = %d", code)
 		}
 	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "<source>-backup.toml") || !strings.Contains(stdout, "duplicacy-<label>.toml") {
+		t.Fatalf("stdout = %q", stdout)
 	}
 }
 
@@ -156,7 +159,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.conf.") {
+		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml.") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -166,7 +169,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\nDESTINATION=/backups\n[local]\nLOCAL_OWNER="+owner+"\nLOCAL_GROUP="+group+"\n")
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
 
 		blocker := filepath.Join(t.TempDir(), "not-a-dir")
 		if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
@@ -188,7 +191,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\nDESTINATION=/backups\nTHREADS=4\n[local]\n")
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--backup", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(backup dry-run) = %d", code)
@@ -203,11 +206,27 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		secretsDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"s3://bucket\"\nthreads = 4\n[remote]\n")
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--remote", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(remote missing secrets) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml.") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
 func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\nDESTINATION=/backups\n[local]\nLOCAL_OWNER="+owner+"\nLOCAL_GROUP="+group+"\n")
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(fix-perms dry-run) = %d", code)

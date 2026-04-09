@@ -64,7 +64,7 @@ sudo ./install.sh --keep 3
 With the recommended layout, the effective default config file path becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<source>-backup.conf
+/usr/local/lib/duplicacy-backup/.config/<source>-backup.toml
 ```
 
 You can still override this with:

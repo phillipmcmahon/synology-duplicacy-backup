@@ -161,18 +161,18 @@ SAFE PRUNE THRESHOLDS:
     Min revisions for %% check: %d (default %d)
 
 CONFIG FILE LOCATION:
-    <binary-dir>/.config/<source>-backup.conf
-    Effective default: %s/<source>-backup.conf
+    <binary-dir>/.config/<source>-backup.toml
+    Effective default: %s/<source>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
 CONFIG KEYS:
-    DESTINATION, FILTER, LOCAL_OWNER, LOCAL_GROUP, LOG_RETENTION_DAYS,
-    PRUNE, THREADS, SAFE_PRUNE_MAX_DELETE_COUNT, SAFE_PRUNE_MAX_DELETE_PERCENT,
-    SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT
+    destination, filter, local_owner, local_group, log_retention_days,
+    prune, threads, safe_prune_max_delete_count, safe_prune_max_delete_percent,
+    safe_prune_min_total_for_percent
 
 REMOTE SECRETS:
     Strict mode: remote credentials are loaded only from:
-      %s/%s-<label>.env
+      %s/%s-<label>.toml
     Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
 
 ARGUMENTS:

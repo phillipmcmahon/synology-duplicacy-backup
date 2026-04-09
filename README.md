@@ -16,7 +16,7 @@ The project builds as a single static binary for Synology-targeted Linux archite
 - Optional local permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
-- INI-based per-source configuration
+- TOML-based per-source configuration
 
 ## Quick Start
 
@@ -48,22 +48,22 @@ layout and upgrade workflow.
 With the recommended installer layout, the default config location is:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<source>-backup.conf
+/usr/local/lib/duplicacy-backup/.config/<source>-backup.toml
 ```
 
 Example:
 
 ```bash
 mkdir -p /usr/local/lib/duplicacy-backup/.config
-cp examples/homes-backup.conf /usr/local/lib/duplicacy-backup/.config/homes-backup.conf
+cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
 
 For remote mode, create a matching secrets file under `/root/.secrets`:
 
 ```bash
-cp examples/duplicacy-homes.env.example /root/.secrets/duplicacy-homes.env
-chown root:root /root/.secrets/duplicacy-homes.env
-chmod 600 /root/.secrets/duplicacy-homes.env
+cp examples/duplicacy-homes.toml /root/.secrets/duplicacy-homes.toml
+chown root:root /root/.secrets/duplicacy-homes.toml
+chmod 600 /root/.secrets/duplicacy-homes.toml
 ```
 
 ### 4. Run
