@@ -2,48 +2,83 @@
 
 ## Overview
 
-The binary uses a coordinator pattern centered on the `app` struct in `cmd/duplicacy-backup/main.go`.
+The application now follows an explicit `Request -> Plan -> Execute` flow.
 
-Top-level flow:
+That split keeps the entrypoint small, keeps planning non-mutating, and makes
+tests easier to write around stable boundaries instead of one large
+coordinator type.
 
-```text
-newApp -> acquireLock -> loadConfig -> loadSecrets -> printHeader -> printSummary -> execute -> cleanup
-```
+## Top-Level Flow
 
-## `newApp()` Initialization Sequence
-
-`newApp()` is decomposed into focused sub-initializers:
+`cmd/duplicacy-backup/main.go` is now thin wiring only:
 
 ```text
-initLogger -> parseAppFlags -> validateEnvironment -> derivePaths -> installSignalHandler
+runWithArgs
+  -> ParseRequest
+  -> initLogger
+  -> Planner.Build
+  -> Executor.Run
 ```
 
-Each stage has a single responsibility and returns either an exit code or an error.
+## Request
 
-## Phase Methods
+`internal/workflow/request.go` owns CLI intent.
 
-| Method | Responsibility |
-|---|---|
-| `acquireLock()` | Acquire the directory-based PID lock |
-| `loadConfig()` | Parse config, validate values, derive backup target |
-| `loadSecrets()` | Load and validate remote secrets |
-| `printHeader()` | Emit startup banner |
-| `printSummary()` | Emit configuration summary |
-| `execute()` | Dispatch backup, prune, and fix-perms phases |
-| `prepareDuplicacySetup()` | Build working directory and preferences |
-| `runBackupPhase()` | Execute backup |
-| `runPrunePhase()` | Preview and execute prune |
-| `runFixPermsPhase()` | Apply ownership and permission normalization |
-| `cleanup()` | Remove temporary state and print final result |
+It is responsible for:
 
-## Internal Packages
+- parsing flags and the source label
+- handling `--help` and `--version`
+- deriving mode booleans
+- validating flag combinations
+- validating the backup label
+
+The `Request` type is intentionally small. It describes what the user asked for,
+not what the application has resolved from the filesystem or config yet.
+
+## Plan
+
+`internal/workflow/planner.go` turns a `Request` into a validated `Plan`.
+
+It is responsible for:
+
+- root and binary dependency checks
+- path derivation
+- config loading and validation
+- secrets loading and validation
+- backup-target derivation
+- backup-mode btrfs validation
+- summary-ready derived values such as operation mode and resolved paths
+
+The important design rule is that planning does not mutate operational state.
+It can inspect the environment and run validations, but it does not acquire
+locks, create work directories, create snapshots, or change permissions.
+
+## Execute
+
+`internal/workflow/executor.go` owns side effects.
+
+It is responsible for:
+
+- signal handling
+- log cleanup
+- lock acquisition and release
+- startup header and summary output
+- Duplicacy working-directory setup
+- backup, prune, and fix-perms execution
+- final cleanup and result output
+
+This keeps operator-facing runtime behavior in one place and makes phase order
+easy to follow.
+
+## Main Packages
 
 | Package | Purpose |
 |---|---|
+| `internal/workflow` | Request parsing, planning, execution, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |
 | `internal/config` | Config parsing and validation |
 | `internal/duplicacy` | Duplicacy CLI operations |
-| `internal/errors` | Structured error types |
+| `internal/errors` | Structured internal error types |
 | `internal/exec` | Shared command runner and mocks |
 | `internal/lock` | Directory-based PID locking |
 | `internal/logger` | Structured logging and log cleanup |
@@ -52,17 +87,23 @@ Each stage has a single responsibility and returns either an exit code or an err
 
 ## Command Runner
 
-External process execution is centralized behind the `exec.Runner` interface. This keeps command wiring out of the domain packages and makes those packages testable with `MockRunner`.
+External process execution is centralized behind `internal/exec.Runner`.
 
-Benefits:
+That keeps shelling-out logic out of the domain packages and gives the workflow
+layer one consistent way to run:
 
-- consistent dry-run behavior
-- centralized stdout/stderr handling
-- easier unit testing
-- cleaner coordinator logic
+- `btrfs`
+- `duplicacy`
+- `chown`
+
+The same abstraction is also what makes unit tests practical with
+`exec.MockRunner`.
 
 ## Output Ownership
 
-The coordinator owns operator-facing output. Internal packages do work and return data or structured errors; they do not emit user-facing logs directly.
+Operator-facing output is still owned by the top-level execution layer.
+Domain packages return data or structured errors; they do not print their own
+status messages.
 
-See the existing [message style guide](../MESSAGE_STYLE_GUIDE.md) for formatting conventions.
+That keeps message formatting consistent and avoids spreading user-facing tone
+across multiple packages.

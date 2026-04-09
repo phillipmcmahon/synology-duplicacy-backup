@@ -3,10 +3,18 @@ package lock
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func requireLinuxProc(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("requires Linux /proc process semantics")
+	}
+}
 
 // ─── New tests ──────────────────────────────────────────────────────────────
 
@@ -64,6 +72,8 @@ func TestAcquire_Success(t *testing.T) {
 }
 
 func TestAcquire_BlockedByRunningProcess(t *testing.T) {
+	requireLinuxProc(t)
+
 	dir := t.TempDir()
 
 	// First lock: simulate an existing lock held by this process (which is running)
@@ -251,6 +261,8 @@ func TestReadPID_WhitespaceHandling(t *testing.T) {
 // ─── processExists tests ───────────────────────────────────────────────────
 
 func TestProcessExists_CurrentProcess(t *testing.T) {
+	requireLinuxProc(t)
+
 	if !processExists(os.Getpid()) {
 		t.Error("current process should exist")
 	}
@@ -264,6 +276,8 @@ func TestProcessExists_NonexistentProcess(t *testing.T) {
 }
 
 func TestProcessExists_PID1(t *testing.T) {
+	requireLinuxProc(t)
+
 	// PID 1 (init/systemd) should always exist on Linux
 	if !processExists(1) {
 		t.Error("PID 1 should exist")
@@ -273,6 +287,8 @@ func TestProcessExists_PID1(t *testing.T) {
 // ─── Concurrent lock tests ─────────────────────────────────────────────────
 
 func TestConcurrentAcquire_SameLabel(t *testing.T) {
+	requireLinuxProc(t)
+
 	dir := t.TempDir()
 
 	// Acquire first lock

@@ -34,6 +34,18 @@ func TestCheckVolume_Success(t *testing.T) {
 	}
 }
 
+func TestCheckVolume_DryRunSkipsChecks(t *testing.T) {
+	mock := execpkg.NewMockRunner()
+
+	err := CheckVolume(mock, "/volume1", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(mock.Invocations) != 0 {
+		t.Fatalf("expected 0 invocations, got %d", len(mock.Invocations))
+	}
+}
+
 func TestCheckVolume_StatFails(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Err: errors.New("stat failed")},

@@ -114,7 +114,7 @@ duplicacy-backup --config-dir /opt/etc homes
 
 ### Build machine
 
-- Go 1.24+
+- Go 1.26+
 - `make`
 
 ## License
