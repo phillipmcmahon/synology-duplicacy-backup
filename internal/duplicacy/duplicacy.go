@@ -168,7 +168,7 @@ func (s *Setup) RunBackup(threads int) (string, string, error) {
 		return "", "", nil
 	}
 
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
 	if err != nil {
 		return stdout, stderr, apperrors.NewBackupError("run", fmt.Errorf("backup command failed: %w", err), "threads", strconv.Itoa(threads))
 	}
@@ -181,7 +181,7 @@ func (s *Setup) ValidateRepo() error {
 		return nil
 	}
 
-	_, _, err := s.Runner.Run(context.Background(), "duplicacy", "list", "-files")
+	_, _, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list", "-files")
 	if err != nil {
 		return apperrors.NewPruneError("validate-repo", fmt.Errorf("repository validation failed - may need initialization"))
 	}
@@ -196,7 +196,7 @@ func (s *Setup) GetTotalRevisionCount() (int, string, error) {
 		return 0, "", nil
 	}
 
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", "list")
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list")
 	combined := stdout + stderr
 	if err != nil {
 		return 0, combined, apperrors.NewPruneError("revision-count", fmt.Errorf("failed to list revisions for percentage calculation (fail-closed)"))
@@ -249,7 +249,7 @@ func (s *Setup) SafePrunePreview(pruneArgs []string, minTotalForPercent int) (*P
 	args := append([]string{"prune"}, pruneArgs...)
 	args = append(args, "-dry-run")
 
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
 	combined := stdout + stderr
 	if err != nil {
 		return nil, apperrors.NewPruneError("safe-preview", fmt.Errorf("safe prune preview failed"), "args", strings.Join(args, " "))
@@ -289,7 +289,7 @@ func (s *Setup) RunPrune(pruneArgs []string) (string, string, error) {
 		return "", "", nil
 	}
 
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
 	if err != nil {
 		return stdout, stderr, apperrors.NewPruneError("run", fmt.Errorf("prune command failed: %w", err), "args", strings.Join(args, " "))
 	}
@@ -305,7 +305,7 @@ func (s *Setup) RunDeepPrune() (string, string, error) {
 		return "", "", nil
 	}
 
-	stdout, stderr, err := s.Runner.Run(context.Background(), "duplicacy", args...)
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
 	if err != nil {
 		return stdout, stderr, apperrors.NewPruneError("deep-prune", fmt.Errorf("deep prune command failed: %w", err))
 	}

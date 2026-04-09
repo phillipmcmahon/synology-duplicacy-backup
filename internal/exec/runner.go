@@ -50,6 +50,12 @@ type Runner interface {
 	// is returned when the command exits non-zero or cannot be started.
 	Run(ctx context.Context, cmd string, args ...string) (stdout, stderr string, err error)
 
+	// RunInDir is identical to Run but sets the working directory for the
+	// child process to dir before execution.  This is required when a tool
+	// (such as duplicacy) locates its configuration relative to the current
+	// working directory.
+	RunInDir(ctx context.Context, dir string, cmd string, args ...string) (stdout, stderr string, err error)
+
 	// RunWithInput is identical to Run but additionally writes input to the
 	// command's stdin before waiting for it to complete.
 	RunWithInput(ctx context.Context, input string, cmd string, args ...string) (stdout, stderr string, err error)
@@ -80,16 +86,21 @@ func NewCommandRunner(log *logger.Logger, dryRun bool) *CommandRunner {
 // The context is forwarded to [os/exec.CommandContext] so that callers
 // can enforce timeouts or cancellation.
 func (r *CommandRunner) Run(ctx context.Context, cmd string, args ...string) (string, string, error) {
-	return r.run(ctx, "", cmd, args...)
+	return r.run(ctx, "", "", cmd, args...)
+}
+
+// RunInDir executes the command with the working directory set to dir.
+func (r *CommandRunner) RunInDir(ctx context.Context, dir string, cmd string, args ...string) (string, string, error) {
+	return r.run(ctx, dir, "", cmd, args...)
 }
 
 // RunWithInput executes the command with the given string piped to stdin.
 func (r *CommandRunner) RunWithInput(ctx context.Context, input string, cmd string, args ...string) (string, string, error) {
-	return r.run(ctx, input, cmd, args...)
+	return r.run(ctx, "", input, cmd, args...)
 }
 
-// run is the shared implementation for Run and RunWithInput.
-func (r *CommandRunner) run(ctx context.Context, input string, cmd string, args ...string) (string, string, error) {
+// run is the shared implementation for Run, RunInDir, and RunWithInput.
+func (r *CommandRunner) run(ctx context.Context, dir string, input string, cmd string, args ...string) (string, string, error) {
 	cmdStr := formatCommand(cmd, args)
 
 	if r.dryRun {
@@ -100,6 +111,10 @@ func (r *CommandRunner) run(ctx context.Context, input string, cmd string, args 
 	r.log.Info("exec: %s", cmdStr)
 
 	c := exec.CommandContext(ctx, cmd, args...)
+
+	if dir != "" {
+		c.Dir = dir
+	}
 
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
@@ -139,6 +154,7 @@ type Invocation struct {
 	Ctx   context.Context
 	Cmd   string
 	Args  []string
+	Dir   string // non-empty only for RunInDir calls
 	Input string // non-empty only for RunWithInput calls
 }
 
@@ -177,20 +193,26 @@ func NewMockRunner(results ...MockResult) *MockRunner {
 
 // Run records the invocation and returns the next queued result.
 func (m *MockRunner) Run(ctx context.Context, cmd string, args ...string) (string, string, error) {
-	return m.record(ctx, "", cmd, args)
+	return m.record(ctx, "", "", cmd, args)
+}
+
+// RunInDir records the invocation (including dir) and returns the next queued result.
+func (m *MockRunner) RunInDir(ctx context.Context, dir string, cmd string, args ...string) (string, string, error) {
+	return m.record(ctx, dir, "", cmd, args)
 }
 
 // RunWithInput records the invocation (including input) and returns the
 // next queued result.
 func (m *MockRunner) RunWithInput(ctx context.Context, input string, cmd string, args ...string) (string, string, error) {
-	return m.record(ctx, input, cmd, args)
+	return m.record(ctx, "", input, cmd, args)
 }
 
-func (m *MockRunner) record(ctx context.Context, input string, cmd string, args []string) (string, string, error) {
+func (m *MockRunner) record(ctx context.Context, dir string, input string, cmd string, args []string) (string, string, error) {
 	m.Invocations = append(m.Invocations, Invocation{
 		Ctx:   ctx,
 		Cmd:   cmd,
 		Args:  args,
+		Dir:   dir,
 		Input: input,
 	})
 
