@@ -16,6 +16,22 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
+// TestMain overrides the package-level logDir variable so that tests
+// that call initLogger() (which writes to logDir) do not require
+// write access to /var/log.  This allows the full test suite to pass
+// in CI environments and on developer machines without root privileges.
+func TestMain(m *testing.M) {
+	tmp, err := os.MkdirTemp("", "duplicacy-backup-test-logs-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create temp log dir: %v\n", err)
+		os.Exit(1)
+	}
+	logDir = tmp
+	code := m.Run()
+	os.RemoveAll(tmp)
+	os.Exit(code)
+}
+
 // ─── Helper: create a test logger that writes to a temp dir ──────────────────
 
 func testLogger(t *testing.T) *logger.Logger {
