@@ -274,6 +274,127 @@ func TestMockRunner_EmptyResults(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// CommandRunner – RunInDir
+// ---------------------------------------------------------------------------
+
+func TestCommandRunner_RunInDir_SetsWorkingDirectory(t *testing.T) {
+	log := newTestLogger(t)
+	r := NewCommandRunner(log, false)
+
+	dir := t.TempDir()
+	stdout, _, err := r.RunInDir(context.Background(), dir, "pwd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := strings.TrimSpace(stdout)
+	if got != dir {
+		t.Errorf("RunInDir working directory = %q, want %q", got, dir)
+	}
+}
+
+func TestCommandRunner_RunInDir_EmptyDirUsesDefault(t *testing.T) {
+	log := newTestLogger(t)
+	r := NewCommandRunner(log, false)
+
+	// Empty dir should not fail — behaves like Run (inherits parent's cwd)
+	_, _, err := r.RunInDir(context.Background(), "", "echo", "ok")
+	if err != nil {
+		t.Fatalf("RunInDir with empty dir should not error: %v", err)
+	}
+}
+
+func TestCommandRunner_RunInDir_ErrorOnBadDir(t *testing.T) {
+	log := newTestLogger(t)
+	r := NewCommandRunner(log, false)
+
+	_, _, err := r.RunInDir(context.Background(), "/nonexistent_dir_xyz_99999", "echo", "hi")
+	if err == nil {
+		t.Fatal("expected error for nonexistent working directory")
+	}
+}
+
+func TestCommandRunner_RunInDir_DryRun(t *testing.T) {
+	log := newTestLogger(t)
+	r := NewCommandRunner(log, true)
+
+	stdout, stderr, err := r.RunInDir(context.Background(), "/whatever", "rm", "-rf", "/")
+	if err != nil {
+		t.Fatalf("dry-run RunInDir should not error: %v", err)
+	}
+	if stdout != "" || stderr != "" {
+		t.Errorf("dry-run output should be empty")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// MockRunner – RunInDir
+// ---------------------------------------------------------------------------
+
+func TestMockRunner_RunInDir_RecordsDir(t *testing.T) {
+	mock := NewMockRunner(MockResult{Stdout: "ok"})
+
+	out, _, _ := mock.RunInDir(context.Background(), "/my/work/dir", "duplicacy", "backup")
+	if out != "ok" {
+		t.Errorf("stdout = %q, want %q", out, "ok")
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatal("expected 1 invocation")
+	}
+	inv := mock.Invocations[0]
+	if inv.Dir != "/my/work/dir" {
+		t.Errorf("Dir = %q, want %q", inv.Dir, "/my/work/dir")
+	}
+	if inv.Cmd != "duplicacy" {
+		t.Errorf("Cmd = %q, want %q", inv.Cmd, "duplicacy")
+	}
+}
+
+func TestMockRunner_Run_HasEmptyDir(t *testing.T) {
+	mock := NewMockRunner(MockResult{})
+
+	mock.Run(context.Background(), "echo", "hi")
+	if len(mock.Invocations) != 1 {
+		t.Fatal("expected 1 invocation")
+	}
+	if mock.Invocations[0].Dir != "" {
+		t.Errorf("Run should record empty Dir, got %q", mock.Invocations[0].Dir)
+	}
+}
+
+func TestMockRunner_RunInDir_EmptyDir(t *testing.T) {
+	mock := NewMockRunner(MockResult{})
+
+	mock.RunInDir(context.Background(), "", "echo", "hi")
+	if mock.Invocations[0].Dir != "" {
+		t.Errorf("RunInDir with empty dir should record empty Dir, got %q", mock.Invocations[0].Dir)
+	}
+}
+
+func TestMockRunner_MixedRunAndRunInDir(t *testing.T) {
+	mock := NewMockRunner(MockResult{}, MockResult{}, MockResult{})
+
+	mock.Run(context.Background(), "cmd1")
+	mock.RunInDir(context.Background(), "/work", "cmd2")
+	mock.RunWithInput(context.Background(), "data", "cmd3")
+
+	if len(mock.Invocations) != 3 {
+		t.Fatalf("expected 3 invocations, got %d", len(mock.Invocations))
+	}
+	// Run: no Dir, no Input
+	if mock.Invocations[0].Dir != "" || mock.Invocations[0].Input != "" {
+		t.Errorf("Run invocation should have empty Dir and Input")
+	}
+	// RunInDir: has Dir, no Input
+	if mock.Invocations[1].Dir != "/work" || mock.Invocations[1].Input != "" {
+		t.Errorf("RunInDir invocation: Dir=%q Input=%q", mock.Invocations[1].Dir, mock.Invocations[1].Input)
+	}
+	// RunWithInput: no Dir, has Input
+	if mock.Invocations[2].Dir != "" || mock.Invocations[2].Input != "data" {
+		t.Errorf("RunWithInput invocation: Dir=%q Input=%q", mock.Invocations[2].Dir, mock.Invocations[2].Input)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // formatCommand tests
 // ---------------------------------------------------------------------------
 

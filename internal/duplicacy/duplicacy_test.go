@@ -529,6 +529,136 @@ func TestCleanup_EmptyWorkRoot(t *testing.T) {
 	}
 }
 
+// ─── RunInDir directory context tests ────────────────────────────────────────
+// These tests verify that every duplicacy operation calls RunInDir with the
+// correct DuplicacyRoot directory.  This is the key regression test for the
+// "wrong directory" bug where duplicacy commands ran without a working
+// directory and could not find .duplicacy/preferences.
+
+func TestRunBackup_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "ok"})
+
+	_, _, err := s.RunBackup(4)
+	if err != nil {
+		t.Fatalf("RunBackup: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	inv := mock.Invocations[0]
+	if inv.Dir != s.DuplicacyRoot {
+		t.Errorf("RunBackup Dir = %q, want DuplicacyRoot %q", inv.Dir, s.DuplicacyRoot)
+	}
+}
+
+func TestValidateRepo_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	_ = s.ValidateRepo()
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Dir != s.DuplicacyRoot {
+		t.Errorf("ValidateRepo Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
+	}
+}
+
+func TestGetTotalRevisionCount_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "revision 1\n"})
+
+	_, _, err := s.GetTotalRevisionCount()
+	if err != nil {
+		t.Fatalf("GetTotalRevisionCount: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Dir != s.DuplicacyRoot {
+		t.Errorf("GetTotalRevisionCount Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
+	}
+}
+
+func TestRunPrune_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	_, _, err := s.RunPrune([]string{"-keep", "0:365"})
+	if err != nil {
+		t.Fatalf("RunPrune: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Dir != s.DuplicacyRoot {
+		t.Errorf("RunPrune Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
+	}
+}
+
+func TestRunDeepPrune_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{})
+
+	_, _, err := s.RunDeepPrune()
+	if err != nil {
+		t.Fatalf("RunDeepPrune: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Dir != s.DuplicacyRoot {
+		t.Errorf("RunDeepPrune Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
+	}
+}
+
+func TestSafePrunePreview_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+	s, mock := newTestSetup(t, false,
+		execpkg.MockResult{Stdout: "Deleting snapshot data at revision 1\n"}, // prune -dry-run
+		execpkg.MockResult{Stdout: "revision 1\nrevision 2\n"},               // list
+	)
+
+	_, err := s.SafePrunePreview([]string{"-keep", "0:365"}, 20)
+	if err != nil {
+		t.Fatalf("SafePrunePreview: %v", err)
+	}
+	// Both invocations (prune preview + revision count) should use DuplicacyRoot
+	for i, inv := range mock.Invocations {
+		if inv.Dir != s.DuplicacyRoot {
+			t.Errorf("Invocation[%d] Dir = %q, want DuplicacyRoot %q", i, inv.Dir, s.DuplicacyRoot)
+		}
+	}
+}
+
+// TestAllDuplicacyOps_NeverUseRun_AlwaysUseRunInDir is an integration-style
+// test that runs every non-dry-run operation and asserts that ALL mock
+// invocations have a non-empty Dir field set to DuplicacyRoot.  If someone
+// accidentally changes a RunInDir call back to Run, this test will catch it.
+func TestAllDuplicacyOps_NeverUseRun_AlwaysUseRunInDir(t *testing.T) {
+	// Queue enough results for: RunBackup + ValidateRepo + GetTotalRevisionCount + RunPrune + RunDeepPrune
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "backup ok\n"},  // RunBackup
+		execpkg.MockResult{},                       // ValidateRepo
+		execpkg.MockResult{Stdout: "revision 1\n"}, // GetTotalRevisionCount
+		execpkg.MockResult{},                       // RunPrune
+		execpkg.MockResult{},                       // RunDeepPrune
+	)
+	s := NewSetup(t.TempDir(), "/data/source", "/target", false, mock)
+
+	s.RunBackup(4)
+	s.ValidateRepo()
+	s.GetTotalRevisionCount()
+	s.RunPrune([]string{"-keep", "0:365"})
+	s.RunDeepPrune()
+
+	for i, inv := range mock.Invocations {
+		if inv.Dir == "" {
+			t.Errorf("Invocation[%d] (%s %v) used Run instead of RunInDir — Dir is empty",
+				i, inv.Cmd, inv.Args)
+		}
+		if inv.Dir != s.DuplicacyRoot {
+			t.Errorf("Invocation[%d] (%s %v) Dir = %q, want DuplicacyRoot %q",
+				i, inv.Cmd, inv.Args, inv.Dir, s.DuplicacyRoot)
+		}
+	}
+}
+
 // ─── Regex tests ────────────────────────────────────────────────────────────
 
 func TestRevisionRegex(t *testing.T) {
