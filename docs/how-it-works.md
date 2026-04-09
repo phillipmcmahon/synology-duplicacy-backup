@@ -607,10 +607,6 @@ Current message rules are:
 - operator-facing messages should be complete sentences
 - domain packages should avoid owning final tone/style
 
-There is also a separate message style guide:
-
-- [`MESSAGE_STYLE_GUIDE.md`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/MESSAGE_STYLE_GUIDE.md)
-
 ## Testing Strategy
 
 The refactor changed the testing model too.

@@ -20,7 +20,7 @@ The project builds as a single static binary for Synology-targeted Linux archite
 
 ## Quick Start
 
-### 1. Build
+### 1. Build or download
 
 ```bash
 # Current platform
@@ -30,28 +30,32 @@ make build
 make synology
 ```
 
-Build outputs are written to `build/`.
+Build outputs are written to `build/`, and GitHub releases publish packaged
+Synology tarballs.
 
-### 2. Deploy
+### 2. Install on Synology
 
 ```bash
-scp build/duplicacy-backup-linux-amd64 admin@synology:/usr/local/bin/duplicacy-backup
-ssh admin@synology 'chmod +x /usr/local/bin/duplicacy-backup'
+# After extracting a release tarball on the NAS
+sudo ./install.sh
 ```
+
+See [`docs/operations.md`](docs/operations.md) for the recommended install
+layout and upgrade workflow.
 
 ### 3. Create config
 
-By default the binary looks for:
+With the recommended installer layout, the default config location is:
 
 ```text
-<binary-dir>/.config/<source>-backup.conf
+/usr/local/lib/duplicacy-backup/.config/<source>-backup.conf
 ```
 
 Example:
 
 ```bash
-mkdir -p /usr/local/bin/.config
-cp examples/homes-backup.conf /usr/local/bin/.config/homes-backup.conf
+mkdir -p /usr/local/lib/duplicacy-backup/.config
+cp examples/homes-backup.conf /usr/local/lib/duplicacy-backup/.config/homes-backup.conf
 ```
 
 For remote mode, create a matching secrets file under `/root/.secrets`:
@@ -103,7 +107,6 @@ duplicacy-backup --config-dir /opt/etc homes
 - [Operations](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Testing](TESTING.md)
-- [Message style guide](MESSAGE_STYLE_GUIDE.md)
 
 ## Prerequisites
 

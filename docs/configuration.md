@@ -8,11 +8,11 @@ By default the binary resolves config files relative to the executable:
 <binary-dir>/.config/<source>-backup.conf
 ```
 
-Example:
+With the recommended installer layout from [`operations.md`](operations.md),
+that default becomes:
 
 ```text
-/usr/local/bin/duplicacy-backup
-/usr/local/bin/.config/homes-backup.conf
+/usr/local/lib/duplicacy-backup/.config/homes-backup.conf
 ```
 
 Overrides:
