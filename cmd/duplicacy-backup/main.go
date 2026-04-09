@@ -70,10 +70,15 @@ var (
 
 const (
 	rootVolume = "/volume1"
-	logDir     = "/var/log"
 	lockParent = "/var/lock"
 	scriptName = "duplicacy-backup"
 )
+
+// logDir is the directory where log files are written.
+// It defaults to /var/log for production use on Synology NAS devices.
+// Tests override this variable to use a temporary directory so that
+// the test suite does not require root/elevated permissions.
+var logDir = "/var/log"
 
 // labelPattern restricts backup labels to safe characters only.
 // This prevents path traversal attacks since labels are interpolated into
