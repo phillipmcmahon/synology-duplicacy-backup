@@ -28,6 +28,16 @@ func validSecret() string {
 	return "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR" // 55 chars
 }
 
+// validSecretContent returns a valid secrets file content string.
+func validSecretContent() string {
+	return "STORJ_S3_ID=" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
+}
+
+// isRoot reports whether the current process is running as root.
+func isRoot() bool {
+	return os.Getuid() == 0
+}
+
 // ─── GetSecretsFilePath tests ───────────────────────────────────────────────
 
 func TestGetSecretsFilePath(t *testing.T) {
@@ -46,6 +56,21 @@ func TestGetSecretsFilePath_DifferentLabels(t *testing.T) {
 	}
 }
 
+func TestGetSecretsFilePath_DifferentPrefixes(t *testing.T) {
+	p1 := GetSecretsFilePath("/root/.secrets", "duplicacy", "homes")
+	p2 := GetSecretsFilePath("/root/.secrets", "other", "homes")
+	if p1 == p2 {
+		t.Error("different prefixes should produce different paths")
+	}
+}
+
+func TestGetSecretsFilePath_EmptyDir(t *testing.T) {
+	path := GetSecretsFilePath("", "duplicacy", "homes")
+	if path != "duplicacy-homes.env" {
+		t.Errorf("GetSecretsFilePath with empty dir = %q, want %q", path, "duplicacy-homes.env")
+	}
+}
+
 // ─── LoadSecretsFile tests ──────────────────────────────────────────────────
 
 func TestLoadSecretsFile_MissingFile(t *testing.T) {
@@ -59,8 +84,7 @@ func TestLoadSecretsFile_MissingFile(t *testing.T) {
 }
 
 func TestLoadSecretsFile_WrongPermissions(t *testing.T) {
-	content := "STORJ_S3_ID=" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
-	p := writeTempSecrets(t, content, 0644)
+	p := writeTempSecrets(t, validSecretContent(), 0644)
 
 	_, err := LoadSecretsFile(p)
 	if err == nil {
@@ -72,8 +96,7 @@ func TestLoadSecretsFile_WrongPermissions(t *testing.T) {
 }
 
 func TestLoadSecretsFile_TooPermissive(t *testing.T) {
-	content := "STORJ_S3_ID=" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
-	p := writeTempSecrets(t, content, 0666)
+	p := writeTempSecrets(t, validSecretContent(), 0666)
 
 	_, err := LoadSecretsFile(p)
 	if err == nil {
@@ -84,13 +107,28 @@ func TestLoadSecretsFile_TooPermissive(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
-	// This test verifies the ownership check path.
-	// When running as non-root (uid != 0), the check should fail.
-	content := "STORJ_S3_ID=" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
-	p := writeTempSecrets(t, content, 0600)
+func TestLoadSecretsFile_WorldReadable(t *testing.T) {
+	p := writeTempSecrets(t, validSecretContent(), 0604)
 
-	if os.Getuid() == 0 {
+	_, err := LoadSecretsFile(p)
+	if err == nil {
+		t.Fatal("expected error for world-readable permissions")
+	}
+}
+
+func TestLoadSecretsFile_GroupReadable(t *testing.T) {
+	p := writeTempSecrets(t, validSecretContent(), 0640)
+
+	_, err := LoadSecretsFile(p)
+	if err == nil {
+		t.Fatal("expected error for group-readable permissions")
+	}
+}
+
+func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
+	p := writeTempSecrets(t, validSecretContent(), 0600)
+
+	if isRoot() {
 		// Running as root - ownership check passes, file should load successfully
 		sec, err := LoadSecretsFile(p)
 		if err != nil {
@@ -112,11 +150,7 @@ func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
 }
 
 func TestLoadSecretsFile_InvalidFormat_NoEquals(t *testing.T) {
-	// We need to test the parsing logic, but we can't easily bypass the
-	// ownership check without root. We'll test the parsing functions
-	// indirectly through the Validate and Masked methods, and test the
-	// parsing error paths that we can reach.
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -131,7 +165,7 @@ func TestLoadSecretsFile_InvalidFormat_NoEquals(t *testing.T) {
 }
 
 func TestLoadSecretsFile_UnknownKey(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -146,7 +180,7 @@ func TestLoadSecretsFile_UnknownKey(t *testing.T) {
 }
 
 func TestLoadSecretsFile_EmptyKey(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -161,7 +195,7 @@ func TestLoadSecretsFile_EmptyKey(t *testing.T) {
 }
 
 func TestLoadSecretsFile_MissingStorjID(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -176,7 +210,7 @@ func TestLoadSecretsFile_MissingStorjID(t *testing.T) {
 }
 
 func TestLoadSecretsFile_MissingStorjSecret(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -191,7 +225,7 @@ func TestLoadSecretsFile_MissingStorjSecret(t *testing.T) {
 }
 
 func TestLoadSecretsFile_CommentsAndBlankLines(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -211,7 +245,7 @@ func TestLoadSecretsFile_CommentsAndBlankLines(t *testing.T) {
 }
 
 func TestLoadSecretsFile_QuoteStripping(t *testing.T) {
-	if os.Getuid() != 0 {
+	if !isRoot() {
 		t.Skip("Skipping: requires root for ownership check")
 	}
 
@@ -224,6 +258,71 @@ func TestLoadSecretsFile_QuoteStripping(t *testing.T) {
 	}
 	if sec.StorjS3ID != validID() {
 		t.Errorf("StorjS3ID = %q, want quotes stripped", sec.StorjS3ID)
+	}
+}
+
+func TestLoadSecretsFile_EmptyFile(t *testing.T) {
+	if !isRoot() {
+		t.Skip("Skipping: requires root for ownership check")
+	}
+
+	p := writeTempSecrets(t, "", 0600)
+	_, err := LoadSecretsFile(p)
+	if err == nil {
+		t.Fatal("expected error for empty file")
+	}
+	if !strings.Contains(err.Error(), "STORJ_S3_ID") {
+		t.Errorf("error should mention missing key, got: %v", err)
+	}
+}
+
+func TestLoadSecretsFile_WhitespaceHandling(t *testing.T) {
+	if !isRoot() {
+		t.Skip("Skipping: requires root for ownership check")
+	}
+
+	content := "  STORJ_S3_ID = " + validID() + "  \n  STORJ_S3_SECRET = " + validSecret() + "  \n"
+	p := writeTempSecrets(t, content, 0600)
+
+	sec, err := LoadSecretsFile(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sec.StorjS3ID != validID() {
+		t.Errorf("StorjS3ID = %q, want trimmed value", sec.StorjS3ID)
+	}
+}
+
+func TestLoadSecretsFile_PartialQuotes(t *testing.T) {
+	if !isRoot() {
+		t.Skip("Skipping: requires root for ownership check")
+	}
+
+	// Only opening quote - should NOT be stripped
+	content := "STORJ_S3_ID=\"" + validID() + "\nSTORJ_S3_SECRET=" + validSecret() + "\n"
+	p := writeTempSecrets(t, content, 0600)
+
+	sec, err := LoadSecretsFile(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Partial quote should remain
+	if !strings.HasPrefix(sec.StorjS3ID, "\"") {
+		t.Errorf("partial opening quote should not be stripped, got: %q", sec.StorjS3ID)
+	}
+}
+
+func TestLoadSecretsFile_StatError(t *testing.T) {
+	// Try a path that exists but can't be stat'd normally
+	// Use a path that's guaranteed to fail in a different way
+	dir := t.TempDir()
+	p := filepath.Join(dir, "nonexistent.env")
+	_, err := LoadSecretsFile(p)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention not found, got: %v", err)
 	}
 }
 
@@ -295,6 +394,15 @@ func TestValidate_EmptyStrings(t *testing.T) {
 	}
 }
 
+func TestValidate_SecretOneBelowMin(t *testing.T) {
+	id := strings.Repeat("a", MinStorjS3IDLen)
+	secret := strings.Repeat("b", MinStorjS3SecretLen-1)
+	s := &Secrets{StorjS3ID: id, StorjS3Secret: secret}
+	if err := s.Validate(); err == nil {
+		t.Fatal("one below min secret length should fail")
+	}
+}
+
 // ─── MaskedID tests ─────────────────────────────────────────────────────────
 
 func TestMaskedID_Normal(t *testing.T) {
@@ -329,6 +437,22 @@ func TestMaskedID_Empty(t *testing.T) {
 	}
 }
 
+func TestMaskedID_ThreeChars(t *testing.T) {
+	s := &Secrets{StorjS3ID: "ABC"}
+	masked := s.MaskedID()
+	if masked != "****" {
+		t.Errorf("MaskedID = %q, want ****", masked)
+	}
+}
+
+func TestMaskedID_FiveChars(t *testing.T) {
+	s := &Secrets{StorjS3ID: "ABCDE"}
+	masked := s.MaskedID()
+	if masked != "****BCDE" {
+		t.Errorf("MaskedID = %q, want ****BCDE", masked)
+	}
+}
+
 // ─── MaskedSecret tests ────────────────────────────────────────────────────
 
 func TestMaskedSecret_Normal(t *testing.T) {
@@ -355,6 +479,14 @@ func TestMaskedSecret_Empty(t *testing.T) {
 	}
 }
 
+func TestMaskedSecret_ExactlyFourChars(t *testing.T) {
+	s := &Secrets{StorjS3Secret: "ABCD"}
+	masked := s.MaskedSecret()
+	if masked != "****ABCD" {
+		t.Errorf("MaskedSecret = %q, want ****ABCD", masked)
+	}
+}
+
 // ─── allowedSecretKeys tests ────────────────────────────────────────────────
 
 func TestAllowedSecretKeys(t *testing.T) {
@@ -366,5 +498,11 @@ func TestAllowedSecretKeys(t *testing.T) {
 	}
 	if allowedSecretKeys["RANDOM_KEY"] {
 		t.Error("RANDOM_KEY should not be allowed")
+	}
+}
+
+func TestAllowedSecretKeys_ExactCount(t *testing.T) {
+	if len(allowedSecretKeys) != 2 {
+		t.Errorf("expected exactly 2 allowed keys, got %d", len(allowedSecretKeys))
 	}
 }
