@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.1] - 2026-04-09
+
+### Added
+- **Detailed internal architecture guide**: Added `docs/how-it-works.md`, a
+  long-form internal walkthrough covering the `Request -> Plan -> Execute`
+  runtime model, package responsibilities, backup/prune/fix-perms flows,
+  cleanup lifecycle, and where to change specific behaviors.
+
+### Changed
+- **Quieter prune output**: Safe prune operations no longer print the full raw
+  `[REVISION-LIST]` dump from `duplicacy list`, while still keeping revision
+  counting, threshold enforcement, and the summarized preview lines.
+- **Docs navigation improved**: The README and short architecture guide now
+  link directly to the new detailed internal walkthrough for easier re-entry
+  into the codebase after larger refactors.
+- **Version constant** updated to `1.10.1` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v1.10.0] - 2026-04-09
 
 ### Added
