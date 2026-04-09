@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.0] - 2026-04-09
+
+### Added
+- **Explicit `Request -> Plan -> Execute` workflow architecture**: Added the
+  new `internal/workflow` package to separate CLI intent parsing, execution
+  planning, runtime presentation, and side-effecting execution into clearer
+  layers.
+- **Richer execution plan contract**: `Plan` now carries more execution-ready
+  fields, including precomputed owner/group values, summary-ready metadata, and
+  dry-run command strings used by the executor and tests.
+- **Broader workflow test coverage**: Added focused planner, executor, summary,
+  and message translation tests, plus stronger `runWithArgs` assertions around
+  end-to-end stderr output and completion messaging.
+
+### Changed
+- **`main.go` slimmed to entrypoint wiring**: The command entrypoint now mostly
+  boots metadata/runtime dependencies, parses requests, builds a plan, and hands
+  off to workflow execution rather than owning the full coordinator logic.
+- **Executor responsibilities reduced**: Cleanup, prune-policy handling, and
+  fix-permissions execution were split into dedicated workflow files so the
+  executor is primarily responsible for orchestration and lifecycle ordering.
+- **Operator messaging tightened**: Final error translation and runtime status
+  lines now follow a more consistent sentence-style contract, with workflow
+  owning operator-facing wording more explicitly.
+- **Typed error handling extended**: Domain-package errors are translated more
+  deliberately through the workflow message layer, reducing reliance on raw
+  fallback strings.
+- **Architecture and testing docs refreshed**: `docs/architecture.md`,
+  `TESTING.md`, and related references were updated to reflect the new workflow
+  boundaries and message-style rules.
+- **Version constant** updated to `1.10.0` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v1.9.0] - 2026-04-09
 
 ### Added
