@@ -135,7 +135,9 @@ jobs:
           mkdir -p "${PACKAGE_ROOT}"
 
           cp "${BASENAME}" "${PACKAGE_ROOT}/"
+          cp scripts/install-synology.sh "${PACKAGE_ROOT}/install.sh"
           cp README.md LICENSE "${PACKAGE_ROOT}/"
+          chmod 755 "${PACKAGE_ROOT}/install.sh"
 
           tar -czf "${BASENAME}.tar.gz" -C "${PKG_DIR}" "${BASENAME}"
 
