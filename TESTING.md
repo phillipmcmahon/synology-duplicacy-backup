@@ -126,3 +126,7 @@ Request -> Plan -> Execute -> runWithArgs
 
 That makes failures easier to locate and lets new features land in the layer
 they actually belong to.
+
+The test split is also meant to keep `cmd/duplicacy-backup` small. As more
+workflow behavior moves under `internal/workflow`, most new coordinator tests
+should be added there unless they are specifically about the real entrypoint.

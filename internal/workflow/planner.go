@@ -95,7 +95,6 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		ConfigFile:     filepath.Join(configDir, fmt.Sprintf("%s-backup.conf", backupLabel)),
 		SecretsDir:     secretsDir,
 		SecretsFile:    secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel),
-		LockPath:       filepath.Join(p.meta.LockParent, fmt.Sprintf("backup-%s.lock.d", backupLabel)),
 	}
 }
 
