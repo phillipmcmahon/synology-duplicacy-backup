@@ -463,7 +463,7 @@ synology-duplicacy-backup/
 │   │   ├── permissions.go       # Local repo ownership/permission fixing
 │   │   └── permissions_test.go  # Unit tests with MockRunner
 │   └── secrets/
-│       └── secrets.go           # Secrets file loading and validation
+│       └── secrets.go           # Secrets file loading and validation (ParseSecrets + ValidateFileAccess)
 ├── examples/
 │   ├── homes-backup.conf        # Example configuration file
 │   └── duplicacy-homes.env.example  # Example secrets file

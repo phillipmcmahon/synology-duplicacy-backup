@@ -5,6 +5,7 @@ package secrets
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,38 +34,44 @@ func GetSecretsFilePath(secretsDir, prefix, label string) string {
 	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s.env", prefix, label))
 }
 
-// LoadSecretsFile loads and validates a secrets .env file.
-func LoadSecretsFile(path string) (*Secrets, error) {
+// ValidateFileAccess checks that the secrets file at path exists, has 0600
+// permissions, and is owned by root:root.  It is called by [LoadSecretsFile]
+// before parsing and is separated so that parser logic can be tested
+// independently of OS-level access controls.
+func ValidateFileAccess(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("secrets file not found: %s", path)
+			return fmt.Errorf("secrets file not found: %s", path)
 		}
-		return nil, fmt.Errorf("cannot stat secrets file: %w", err)
+		return fmt.Errorf("cannot stat secrets file: %w", err)
 	}
 
 	// Check permissions (600)
 	perm := info.Mode().Perm()
 	if perm != 0600 {
-		return nil, fmt.Errorf("secrets file permissions are %04o, expected 0600: %s", perm, path)
+		return fmt.Errorf("secrets file permissions are %04o, expected 0600: %s", perm, path)
 	}
 
 	// Check ownership (root:root)
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 		if stat.Uid != 0 || stat.Gid != 0 {
-			return nil, fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path)
+			return fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path)
 		}
 	}
+	return nil
+}
 
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("secrets file is not readable: %s", path)
-	}
-	defer f.Close()
-
+// ParseSecrets reads key=value lines from r, validates their format and
+// keys, and returns a populated [Secrets] struct.  The source parameter is
+// used only for error messages (typically the file path).
+//
+// This function is separated from file access validation so that the parser
+// can be unit-tested without requiring specific file ownership or permissions.
+func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 	values := make(map[string]string)
 	lineno := 0
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		lineno++
 		line := strings.TrimSpace(scanner.Text())
@@ -107,13 +114,30 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 	}
 
 	if s.StorjS3ID == "" {
-		return nil, fmt.Errorf("required secret 'STORJ_S3_ID' is missing after loading %s", path)
+		return nil, fmt.Errorf("required secret 'STORJ_S3_ID' is missing after loading %s", source)
 	}
 	if s.StorjS3Secret == "" {
-		return nil, fmt.Errorf("required secret 'STORJ_S3_SECRET' is missing after loading %s", path)
+		return nil, fmt.Errorf("required secret 'STORJ_S3_SECRET' is missing after loading %s", source)
 	}
 
 	return s, nil
+}
+
+// LoadSecretsFile loads and validates a secrets .env file.  It first checks
+// file access (permissions and ownership) via [ValidateFileAccess], then
+// delegates parsing to [ParseSecrets].
+func LoadSecretsFile(path string) (*Secrets, error) {
+	if err := ValidateFileAccess(path); err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("secrets file is not readable: %s", path)
+	}
+	defer f.Close()
+
+	return ParseSecrets(f, path)
 }
 
 // Validate checks minimum length requirements for secrets.

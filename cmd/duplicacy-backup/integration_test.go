@@ -551,6 +551,266 @@ THREADS=4
 	}
 }
 
+// ─── run() coordinator end-to-end tests ─────────────────────────────────────
+// These tests exercise the full acquireLock → loadConfig → loadSecrets →
+// execute → cleanup pipeline that mirrors what run() does, using mock
+// runners and dry-run mode to avoid external dependencies.
+
+// itestApp creates a fully-wired *app for coordinator integration tests.
+// The caller must set doBackup/doPrune/fixPermsOnly/deepPruneMode and
+// supply config content via the returned confDir.
+func itestApp(t *testing.T) (*app, string) {
+	t.Helper()
+	confDir := t.TempDir()
+	lockDir := t.TempDir()
+	workRoot := filepath.Join(t.TempDir(), "work")
+
+	a := &app{
+		log:   itestLogger(t),
+		flags: &flags{mode: "prune", source: "homes", dryRun: true},
+
+		backupLabel:    "homes",
+		runTimestamp:   "20260409-120000",
+		snapshotSource: "/volume1/homes",
+		snapshotTarget: "/volume1/homes-20260409-120000",
+		workRoot:       workRoot,
+		repositoryPath: "/volume1/homes",
+
+		configDir:  confDir,
+		secretsDir: t.TempDir(),
+
+		lk:     lock.New(lockDir, "homes"),
+		runner: execpkg.NewMockRunner(),
+	}
+	return a, confDir
+}
+
+func TestIntegration_RunCoordinator_PruneDryRun(t *testing.T) {
+	// Exercises the full coordinator pipeline for a dry-run prune:
+	// acquireLock → loadConfig → loadSecrets → execute → cleanup
+	a, confDir := itestApp(t)
+	a.doPrune = true
+	a.flags.mode = "prune"
+
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+THREADS=4
+`
+	a.configFile = writeConfig(t, confDir, "homes", confContent)
+
+	// acquireLock
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock: %v", err)
+	}
+
+	// loadConfig
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+
+	// loadSecrets (local = no-op)
+	if err := a.loadSecrets(); err != nil {
+		t.Fatalf("loadSecrets: %v", err)
+	}
+
+	a.printHeader()
+	a.printSummary()
+
+	// execute – dry-run prune: should succeed without real duplicacy
+	if err := a.execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	// cleanup
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true")
+	}
+	if a.exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", a.exitCode)
+	}
+}
+
+func TestIntegration_RunCoordinator_FixPermsOnlyDryRun(t *testing.T) {
+	// Exercises: acquireLock → loadConfig → execute(fix-perms dry-run) → cleanup
+	a, confDir := itestApp(t)
+	a.doBackup = false
+	a.doPrune = false
+	a.fixPermsOnly = true
+	a.flags = &flags{fixPerms: true, source: "homes", dryRun: true}
+
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+LOCAL_OWNER=nobody
+LOCAL_GROUP=nogroup
+THREADS=4
+`
+	a.configFile = writeConfig(t, confDir, "homes", confContent)
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock: %v", err)
+	}
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if err := a.loadSecrets(); err != nil {
+		t.Fatalf("loadSecrets: %v", err)
+	}
+	a.printHeader()
+	a.printSummary()
+
+	if err := a.execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	a.cleanup()
+	if a.exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", a.exitCode)
+	}
+}
+
+func TestIntegration_RunCoordinator_BackupDryRun(t *testing.T) {
+	// Exercises the coordinator backup path in dry-run mode.
+	// Backup dry-run skips btrfs snapshot creation and duplicacy commands.
+	a, confDir := itestApp(t)
+	a.doPrune = false
+	a.flags = &flags{mode: "backup", source: "homes", dryRun: true}
+	a.repositoryPath = a.snapshotTarget
+
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+THREADS=4
+`
+	a.configFile = writeConfig(t, confDir, "homes", confContent)
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock: %v", err)
+	}
+
+	// loadConfig with doBackup=false to skip btrfs volume checks that
+	// require real /volume1; then enable backup for execute().
+	a.doBackup = false
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	a.doBackup = true
+
+	// execute should succeed in dry-run (no real btrfs/duplicacy needed)
+	if err := a.execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	a.cleanup()
+	if a.exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", a.exitCode)
+	}
+}
+
+func TestIntegration_RunCoordinator_ExecuteError_CleanupStillRuns(t *testing.T) {
+	// Verifies that when execute() returns an error, the caller can still
+	// run cleanup() and the result status reflects the failure.
+	a, confDir := itestApp(t)
+	a.doBackup = true
+	a.doPrune = false
+	a.flags = &flags{mode: "backup", source: "homes", dryRun: false}
+	a.repositoryPath = a.snapshotTarget
+
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+THREADS=4
+`
+	a.configFile = writeConfig(t, confDir, "homes", confContent)
+
+	// Pre-load mock runner with an error result for the btrfs snapshot command.
+	a.runner = execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "", Stderr: "snapshot failed", Err: fmt.Errorf("btrfs snapshot error")},
+	)
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock: %v", err)
+	}
+
+	// loadConfig without backup to skip btrfs checks
+	a.doBackup = false
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	a.doBackup = true
+
+	// execute() should fail on the btrfs snapshot step
+	err := a.execute()
+	if err == nil {
+		t.Fatal("execute() should have failed")
+	}
+
+	// Simulate what run() does on error
+	a.fail(err)
+	if a.exitCode != 1 {
+		t.Errorf("exitCode = %d, want 1 after fail()", a.exitCode)
+	}
+
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true even after error")
+	}
+}
+
+func TestIntegration_RunCoordinator_CleanupIdempotent(t *testing.T) {
+	// Verifies cleanup() is safe to call multiple times.
+	a, confDir := itestApp(t)
+	a.doPrune = true
+	a.flags = &flags{mode: "prune", source: "homes", dryRun: true}
+
+	confContent := `[common]
+PRUNE=-keep 1:728
+
+[local]
+DESTINATION=/volume2/backups
+THREADS=4
+`
+	a.configFile = writeConfig(t, confDir, "homes", confContent)
+
+	if err := a.acquireLock(); err != nil {
+		t.Fatalf("acquireLock: %v", err)
+	}
+	if err := a.loadConfig(); err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+
+	// Call cleanup twice – should not panic
+	a.cleanup()
+	a.cleanup()
+	if !a.cleanedUp {
+		t.Error("cleanedUp should be true")
+	}
+}
+
+func TestIntegration_RunCoordinator_PrintCommandOutput(t *testing.T) {
+	// Verifies printCommandOutput does not panic with various inputs.
+	a, _ := itestApp(t)
+
+	// Normal output
+	a.printCommandOutput("line1\nline2\n", "warn1\n")
+	// Empty
+	a.printCommandOutput("", "")
+	// Only stdout
+	a.printCommandOutput("only-stdout\n", "")
+	// Only stderr
+	a.printCommandOutput("", "only-stderr\n")
+}
+
 // ─── Sub-initializer integration tests (Phase 2) ────────────────────────────
 
 // TestIntegration_FullInitFlow exercises the complete sub-initializer

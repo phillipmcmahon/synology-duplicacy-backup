@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -286,9 +287,20 @@ func TestCommandRunner_RunInDir_SetsWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got := strings.TrimSpace(stdout)
-	if got != dir {
-		t.Errorf("RunInDir working directory = %q, want %q", got, dir)
+
+	// Normalize both paths through EvalSymlinks so the test passes even
+	// when the OS temp root is a symlink (e.g. /tmp → /private/tmp on
+	// macOS, or /tmp → /run/... on some Linux distros).
+	got, err := filepath.EvalSymlinks(strings.TrimSpace(stdout))
+	if err != nil {
+		t.Fatalf("EvalSymlinks(got): %v", err)
+	}
+	want, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(want): %v", err)
+	}
+	if got != want {
+		t.Errorf("RunInDir working directory = %q, want %q", got, want)
 	}
 }
 
