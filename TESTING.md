@@ -27,6 +27,8 @@ The macOS host environment is not treated as release-representative. Use the
 Linux Go 1.26 container for release validation, packaged-binary smoke checks,
 and any test runs that depend on Linux locking or filesystem behavior.
 
+For the full release process, use [`docs/release-playbook.md`](docs/release-playbook.md).
+
 ## Current Release Baseline
 
 Current public release baseline: `v2.1.6`

@@ -36,6 +36,8 @@ Synology tarballs. CI smoke-tests each packaged tarball before release by
 verifying archive contents, checksum validation, binary `--version` / `--help`,
 and installer `--help`.
 
+Release preparation should follow [`docs/release-playbook.md`](docs/release-playbook.md).
+
 ### 2. Install on Synology
 
 ```bash
