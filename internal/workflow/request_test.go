@@ -1,6 +1,9 @@
 package workflow
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseRequest_HelpHandled(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
@@ -229,5 +232,90 @@ func TestParseRequest_ExtraPositionalArgsFail(t *testing.T) {
 	}
 	if got := err.Error(); got != "unexpected extra arguments: extra" {
 		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestParseRequest_VersionHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.2.3", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--version"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || !strings.Contains(result.Output, "duplicacy-backup 1.2.3") {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_VersionShortHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.2.3", "now", t.TempDir())
+	result, err := ParseRequest([]string{"-v"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || !strings.Contains(result.Output, "duplicacy-backup 1.2.3") {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_ConfigNoActionShowsUsage(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || !strings.Contains(result.Output, "config <validate|explain|paths>") {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_ConfigUnknownCommandFails(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"config", "unknown", "homes"}, meta, DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*RequestError)
+	if !ok || !reqErr.ShowUsage {
+		t.Fatalf("error = %#v", err)
+	}
+}
+
+func TestParseRequest_OptionValueErrors(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	cases := [][]string{
+		{"--config-dir"},
+		{"--secrets-dir"},
+		{"config", "validate", "--config-dir"},
+		{"config", "validate", "--secrets-dir"},
+	}
+
+	for _, args := range cases {
+		_, err := ParseRequest(args, meta, DefaultRuntime())
+		if err == nil {
+			t.Fatalf("expected error for args %v", args)
+		}
+	}
+}
+
+func TestParseRequest_UnknownOptionsFail(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	cases := [][]string{
+		{"--mystery", "homes"},
+		{"config", "validate", "--mystery", "homes"},
+	}
+
+	for _, args := range cases {
+		_, err := ParseRequest(args, meta, DefaultRuntime())
+		if err == nil || !strings.Contains(err.Error(), "unknown option") {
+			t.Fatalf("args %v err = %v", args, err)
+		}
+	}
+}
+
+func TestParseRequest_ConfigExtraArgsFail(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"config", "validate", "homes", "extra"}, meta, DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unexpected extra arguments") {
+		t.Fatalf("err = %v", err)
 	}
 }

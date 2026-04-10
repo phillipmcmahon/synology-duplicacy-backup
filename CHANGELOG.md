@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.3] - 2026-04-10
+
+### Added
+- **Config inspection commands**: Added `config validate`, `config explain`,
+  and `config paths` so operators can check resolved config, secrets, and
+  stable filesystem paths before running a real job.
+- **Machine-readable run summaries**: Added `--json-summary` to emit a JSON
+  completion summary on stdout while keeping the existing human-readable logs
+  on stderr.
+
+### Changed
+- **Help surface simplified**: `--help` and `config --help` are now concise
+  quick-reference views, with `--help-full` and `config --help-full` providing
+  the detailed reference.
+- **Interactive safety rails added**: TTY runs now ask for confirmation before
+  forced prune and storage cleanup, while non-interactive runs continue
+  without prompts.
+- **Run timing aligned with visible output**: Start-block timestamps, final
+  duration lines, and JSON `duration_seconds` now describe the same visible
+  run window and use truncation rather than rounding.
+- **Release validation hardened**: Linux Go 1.26 is now the representative
+  validation environment for testing and packaging, and release automation
+  includes packaged-artifact smoke checks.
+
+### Notes
+- **Version constant** updated to `2.1.3` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.2] - 2026-04-10
 
 ### Changed

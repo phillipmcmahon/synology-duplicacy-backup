@@ -14,15 +14,18 @@ All external commands are still mocked through `internal/exec.Runner`.
 ## Quick Start
 
 ```bash
-# Focused packages for the workflow refactor
-go test ./cmd/duplicacy-backup ./internal/workflow
+# Representative Linux Go 1.26 validation
+docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./... && /usr/local/go/bin/go vet ./...'
 
-# Run the touched internal packages as well
-go test ./cmd/duplicacy-backup ./internal/btrfs ./internal/workflow
-
-# Full suite
-go test ./...
+# Full coverage pass in the same environment
+docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test -cover ./...'
 ```
+
+The macOS host environment is not treated as release-representative. Use the
+Linux Go 1.26 container for release validation, packaged-binary smoke checks,
+and any test runs that depend on Linux locking or filesystem behavior.
 
 ## Test Layout
 

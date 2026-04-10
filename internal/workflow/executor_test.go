@@ -1,13 +1,17 @@
 package workflow
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
@@ -71,6 +75,30 @@ func readSingleLogFile(t *testing.T, dir string) string {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 	return string(data)
+}
+
+func setTestLoggerField[T any](t *testing.T, log *logger.Logger, name string, value T) {
+	t.Helper()
+	field := reflect.ValueOf(log).Elem().FieldByName(name)
+	if !field.IsValid() {
+		t.Fatalf("logger field %q not found", name)
+	}
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(value))
+}
+
+func newTempInputFile(t *testing.T, content string) *os.File {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "stdin-*")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	if _, err := io.WriteString(f, content); err != nil {
+		t.Fatalf("WriteString() error = %v", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		t.Fatalf("Seek() error = %v", err)
+	}
+	return f
 }
 
 func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
@@ -350,6 +378,13 @@ func TestShouldPromptForSafety(t *testing.T) {
 			stdinTTY:          true,
 			want:              false,
 		},
+		{
+			name:              "nil plan does not prompt",
+			plan:              nil,
+			stderrInteractive: true,
+			stdinTTY:          true,
+			want:              false,
+		},
 	}
 
 	for _, tt := range cases {
@@ -372,5 +407,275 @@ func TestSafetyWarnings(t *testing.T) {
 	}
 	if !strings.Contains(warnings[1], "Storage cleanup") {
 		t.Fatalf("warnings[1] = %q", warnings[1])
+	}
+	if got := safetyWarnings(nil); got != nil {
+		t.Fatalf("safetyWarnings(nil) = %#v", got)
+	}
+}
+
+func TestExecutorConfirmSafetyRails(t *testing.T) {
+	t.Run("accepted", func(t *testing.T) {
+		log := testExecutorLogger(t)
+		defer log.Close()
+		setTestLoggerField(t, log, "interactive", true)
+		setTestLoggerField(t, log, "stderr", io.Discard)
+
+		input := newTempInputFile(t, "y\n")
+		executor := &Executor{
+			log:  log,
+			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			plan: &Plan{ForcePrune: true},
+		}
+
+		if err := executor.confirmSafetyRails(); err != nil {
+			t.Fatalf("confirmSafetyRails() error = %v", err)
+		}
+	})
+
+	t.Run("cancelled", func(t *testing.T) {
+		log := testExecutorLogger(t)
+		defer log.Close()
+		setTestLoggerField(t, log, "interactive", true)
+		setTestLoggerField(t, log, "stderr", io.Discard)
+
+		input := newTempInputFile(t, "n\n")
+		executor := &Executor{
+			log:  log,
+			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			plan: &Plan{DoCleanupStore: true},
+		}
+
+		err := executor.confirmSafetyRails()
+		if err == nil || !strings.Contains(err.Error(), "interactive safety prompt") {
+			t.Fatalf("confirmSafetyRails() error = %v", err)
+		}
+	})
+
+	t.Run("read error", func(t *testing.T) {
+		log := testExecutorLogger(t)
+		defer log.Close()
+		setTestLoggerField(t, log, "interactive", true)
+		setTestLoggerField(t, log, "stderr", &bytes.Buffer{})
+
+		input := newTempInputFile(t, "y\n")
+		if err := input.Close(); err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+		executor := &Executor{
+			log:  log,
+			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			plan: &Plan{ForcePrune: true},
+		}
+
+		err := executor.confirmSafetyRails()
+		if err == nil || !strings.Contains(err.Error(), "Could not read confirmation") {
+			t.Fatalf("confirmSafetyRails() error = %v", err)
+		}
+	})
+}
+
+func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+	setTestLoggerField(t, log, "interactive", true)
+	setTestLoggerField(t, log, "stderr", io.Discard)
+
+	input := newTempInputFile(t, "n\n")
+	rt := testRuntime()
+	rt.Stdin = func() *os.File { return input }
+	rt.StdinIsTTY = func() bool { return true }
+	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
+
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
+		ForcePrune:       true,
+		BackupLabel:      "homes",
+		OperationMode:    "Prune",
+		ModeDisplay:      "Local",
+		LogRetentionDays: 30,
+	})
+
+	if code := executor.Run(); code != 1 {
+		t.Fatalf("Run() = %d, want 1", code)
+	}
+
+	output := readSingleLogFile(t, logDir)
+	if !strings.Contains(output, "Operation cancelled at the interactive safety prompt") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "Result") || !strings.Contains(output, "Failed") {
+		t.Fatalf("output missing failure footer: %q", output)
+	}
+}
+
+func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+
+	lockParent := t.TempDir()
+	workRoot := t.TempDir()
+	rt := testRuntime()
+	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
+
+	plan := &Plan{
+		DoPrune:                     true,
+		DryRun:                      true,
+		Verbose:                     true,
+		NeedsDuplicacySetup:         true,
+		LogRetentionDays:            30,
+		BackupLabel:                 "homes",
+		OperationMode:               "Prune",
+		ModeDisplay:                 "Local",
+		WorkRoot:                    workRoot,
+		DuplicacyRoot:               filepath.Join(workRoot, "duplicacy"),
+		RepositoryPath:              "/volume1/homes",
+		BackupTarget:                "/backups/homes",
+		WorkDirCreateCommand:        "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+		PreferencesWriteCommand:     "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+		WorkDirDirPermsCommand:      "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+		WorkDirFilePermsCommand:     "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+		ValidateRepoCommand:         "duplicacy list -files",
+		PrunePreviewCommand:         "duplicacy prune -dry-run",
+		PolicyPruneCommand:          "duplicacy prune",
+		SafePruneMaxDeleteCount:     25,
+		SafePruneMaxDeletePercent:   10,
+		SafePruneMinTotalForPercent: 20,
+	}
+
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
+	if code := executor.Run(); code != 0 {
+		t.Fatalf("Run() = %d, want 0", code)
+	}
+	if executor.Report() == nil {
+		t.Fatal("Report() = nil")
+	}
+
+	output := readSingleLogFile(t, logDir)
+	for _, token := range []string{"Run started -", "Phase: Prune", "Dry run", "write JSON preferences", "Prune phase completed (dry-run)"} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
+	}
+}
+
+func TestExecutorRun_LockAcquireFailure(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+
+	badParent := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(badParent, []byte("x"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	rt := testRuntime()
+	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(badParent, label) }
+	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
+
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
+		DoBackup:         true,
+		DryRun:           true,
+		BackupLabel:      "homes",
+		OperationMode:    "Backup",
+		ModeDisplay:      "Local",
+		LogRetentionDays: 30,
+	})
+	if code := executor.Run(); code != 1 {
+		t.Fatalf("Run() = %d, want 1", code)
+	}
+
+	output := readSingleLogFile(t, logDir)
+	if !strings.Contains(output, "Cannot create the lock directory parent") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
+	username, group := executorTestUserGroup(t)
+
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+
+	lockParent := t.TempDir()
+	workRoot := t.TempDir()
+	rt := testRuntime()
+	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
+
+	plan := &Plan{
+		DoBackup:                    true,
+		DoPrune:                     true,
+		DoCleanupStore:              true,
+		FixPerms:                    true,
+		DryRun:                      true,
+		Verbose:                     true,
+		NeedsDuplicacySetup:         true,
+		NeedsSnapshot:               true,
+		LogRetentionDays:            30,
+		BackupLabel:                 "homes",
+		OperationMode:               "Backup + Safe prune + Storage cleanup + Fix permissions",
+		ModeDisplay:                 "Local",
+		WorkRoot:                    workRoot,
+		DuplicacyRoot:               filepath.Join(workRoot, "duplicacy"),
+		RepositoryPath:              "/volume1/homes-snap",
+		BackupTarget:                "/backups/homes",
+		SnapshotSource:              "/volume1/homes",
+		SnapshotTarget:              "/volume1/homes-snap",
+		SnapshotCreateCommand:       "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
+		WorkDirCreateCommand:        "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+		PreferencesWriteCommand:     "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+		WorkDirDirPermsCommand:      "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+		WorkDirFilePermsCommand:     "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+		WorkDirRemoveCommand:        "rm -rf " + workRoot,
+		BackupCommand:               "duplicacy backup -stats -threads 4",
+		ValidateRepoCommand:         "duplicacy list -files",
+		PrunePreviewCommand:         "duplicacy prune -dry-run",
+		PolicyPruneCommand:          "duplicacy prune",
+		CleanupStorageCommand:       "duplicacy prune -exhaustive -exclusive",
+		SafePruneMaxDeleteCount:     25,
+		SafePruneMaxDeletePercent:   10,
+		SafePruneMinTotalForPercent: 20,
+		LocalOwner:                  username,
+		LocalGroup:                  group,
+		OwnerGroup:                  username + ":" + group,
+		FixPermsChownCommand:        "chown -R " + username + ":" + group + " /backups/homes",
+		FixPermsDirPermsCommand:     "find /backups/homes -type d -exec chmod 770 {} +",
+		FixPermsFilePermsCommand:    "find /backups/homes -type f -exec chmod 660 {} +",
+	}
+
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
+	if code := executor.Run(); code != 0 {
+		t.Fatalf("Run() = %d, want 0", code)
+	}
+
+	output := readSingleLogFile(t, logDir)
+	for _, token := range []string{
+		"Phase: Backup",
+		"Backup phase completed (dry-run)",
+		"Phase: Prune",
+		"Prune phase completed (dry-run)",
+		"Phase: Storage cleanup",
+		"Storage cleanup phase completed (dry-run)",
+		"Phase: Fix permissions",
+		"Fix permissions phase completed (dry-run)",
+	} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
 	}
 }
