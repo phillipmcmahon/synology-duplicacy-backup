@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.5] - 2026-04-11
+
+### Added
+- **Linux-only packaging automation**: Added shared packaging scripts that
+  build, package, checksum, and smoke-test Synology release archives inside a
+  Linux environment, plus `Makefile` targets for the supported Synology
+  architecture matrix.
+
+### Changed
+- **GitHub Actions packaging flow stabilized**: The release workflow now uses
+  the shared Linux packaging script with safer argument handling for optional
+  `GOARM` values, matching the local packaging process more closely.
+- **Webhook listener tests stabilized**: Health webhook tests now use a more
+  controlled local-listener helper and skip cleanly in restricted environments,
+  avoiding CI failures caused by listener setup rather than application logic.
+
+### Notes
+- **Version constant** updated to `2.1.5` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.4] - 2026-04-10
 
 ### Added
