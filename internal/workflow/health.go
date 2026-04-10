@@ -265,23 +265,23 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	revisions, _, err := dup.ListVisibleRevisions()
 	stopInspecting()
 	if err != nil {
-		h.addCheck(report, "Storage revisions", "fail", OperatorMessage(err))
+		h.addCheck(report, "Latest revision", "fail", OperatorMessage(err))
 		return nil
 	}
 	report.StorageVisibleRevisionCount = len(revisions)
 	if len(revisions) == 0 {
-		h.addCheck(report, "Visible revisions", "warn", "0")
-		h.addCheck(report, "Storage revisions", "warn", "No revisions were visible in storage")
+		h.addCheck(report, "Revision count", "warn", "0")
+		h.addCheck(report, "Latest revision", "warn", "No revisions were visible in storage")
 		return nil
 	}
-	h.addCheck(report, "Visible revisions", "pass", fmt.Sprintf("%d", len(revisions)))
+	h.addCheck(report, "Revision count", "pass", fmt.Sprintf("%d", len(revisions)))
 	latest := revisions[0]
 	report.StorageLatestRevision = latest.Revision
 	if !latest.CreatedAt.IsZero() {
 		report.StorageLatestRevisionAt = formatReportTime(latest.CreatedAt)
-		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision: %d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
+		h.addCheck(report, "Latest revision", "pass", fmt.Sprintf("%d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
 	} else {
-		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision: %d", latest.Revision))
+		h.addCheck(report, "Latest revision", "pass", fmt.Sprintf("%d", latest.Revision))
 	}
 
 	if !latest.CreatedAt.IsZero() {
@@ -376,17 +376,16 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 			continue
 		}
 		accounted[result.Revision] = true
-		entry := HealthRevisionResult{
-			Revision: result.Revision,
-			Result:   result.Result,
-			Message:  normaliseOperatorSentence(result.Message),
-		}
-		if !revisionInfo.CreatedAt.IsZero() {
-			entry.CreatedAt = formatReportTime(revisionInfo.CreatedAt)
-		}
-		report.RevisionResults = append(report.RevisionResults, entry)
-
 		if result.Result == "fail" {
+			entry := HealthRevisionResult{
+				Revision: result.Revision,
+				Result:   result.Result,
+				Message:  normaliseOperatorSentence(result.Message),
+			}
+			if !revisionInfo.CreatedAt.IsZero() {
+				entry.CreatedAt = formatReportTime(revisionInfo.CreatedAt)
+			}
+			report.RevisionResults = append(report.RevisionResults, entry)
 			report.FailedRevisionCount++
 			report.FailedRevisions = append(report.FailedRevisions, result.Revision)
 			h.addCheck(report, fmt.Sprintf("Revision %d", result.Revision), "fail", result.Message)
@@ -661,6 +660,8 @@ func healthCheckSection(name string) string {
 		return "Alerts"
 	case "Source path", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"
+	case "Revision count", "Latest revision":
+		return "Status"
 	case "Verified revisions", "Passed revisions", "Failed revisions", "Integrity check", "Last verify run":
 		return "Verify"
 	}

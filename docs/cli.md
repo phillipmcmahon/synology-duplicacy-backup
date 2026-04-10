@@ -153,7 +153,7 @@ sudo duplicacy-backup health verify --remote homes
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
 - `health status` reports visible revision count plus the latest visible revision and freshness
 - `health verify` uses `duplicacy check -persist` in the current repository context to validate all visible revisions for the current label
-- `health verify` reports visible, verified, passed, and failed revision counts, plus failed revision numbers in JSON
+- `health verify` reports revision counts in human output and emits failed revision details in JSON when integrity issues are found
 - optional per-backup health policy lives in `[health]`
 - optional webhook notification settings live in `[health.notify]`
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML

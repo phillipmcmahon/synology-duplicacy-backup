@@ -395,7 +395,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	if report.StorageVisibleRevisionCount != 2 || report.VerifiedRevisionCount != 2 || report.PassedRevisionCount != 2 || report.FailedRevisionCount != 0 {
 		t.Fatalf("report = %+v", report)
 	}
-	if len(report.RevisionResults) != 2 {
+	if len(report.RevisionResults) != 0 {
 		t.Fatalf("report = %+v", report)
 	}
 }
@@ -516,7 +516,10 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Visible revisions") {
+	if !strings.Contains(stderr, "Revision count") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Latest revision") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Last doctor run") {
@@ -578,8 +581,8 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Webhook",
 		"Config",
 		"Remote secrets",
-		"Visible revisions",
-		"Storage revisions",
+		"Revision count",
+		"Latest revision",
 		"Storage freshness",
 		"Source path",
 		"Btrfs root",
@@ -604,6 +607,14 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 func TestHealthCheckSection_WebhookUsesAlerts(t *testing.T) {
 	if got := healthCheckSection("Webhook"); got != "Alerts" {
 		t.Fatalf("healthCheckSection(Webhook) = %q, want Alerts", got)
+	}
+}
+
+func TestHealthCheckSection_StatusRevisionFieldsStayInStatus(t *testing.T) {
+	for _, name := range []string{"Revision count", "Latest revision"} {
+		if got := healthCheckSection(name); got != "Status" {
+			t.Fatalf("healthCheckSection(%q) = %q, want Status", name, got)
+		}
 	}
 }
 

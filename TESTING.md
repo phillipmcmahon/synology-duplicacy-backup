@@ -27,6 +27,34 @@ The macOS host environment is not treated as release-representative. Use the
 Linux Go 1.26 container for release validation, packaged-binary smoke checks,
 and any test runs that depend on Linux locking or filesystem behavior.
 
+## Packaging Rule
+
+Release and test-package artifacts must be generated inside the Linux
+container, not on the macOS host.
+
+That includes:
+
+- binary build
+- tarball creation
+- checksum generation
+- packaged-artifact smoke checks
+- binary architecture verification
+
+The macOS host may orchestrate the container run and inspect the resulting
+files, but it should not create the final release or test archives.
+
+### Follow-up Task
+
+Add a dedicated packaging script that runs inside the Linux container and
+performs the full flow consistently:
+
+- build the requested target binary
+- create the release/test tarball
+- generate the sha256 checksum file
+- verify archive contents are clean
+- verify the packaged binary architecture with `file`
+- run the basic packaged-binary smoke checks that are safe for the target
+
 ## Test Layout
 
 | Package | Focus |

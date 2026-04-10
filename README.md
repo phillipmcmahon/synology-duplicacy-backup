@@ -167,7 +167,9 @@ Health commands combine local state stored under `/var/lib/duplicacy-backup/<lab
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation
 times, those storage timestamps are used as the authoritative freshness signal.
 `health verify` also records how many visible revisions were checked, how many
-passed, and which revisions failed integrity validation.
+passed, and which revisions failed integrity validation. The JSON report keeps
+summary counts on healthy runs and includes per-revision detail when failures
+need to be diagnosed.
 
 Health policy is configured per backup TOML in an optional `[health]` table:
 - `freshness_warn_hours`
