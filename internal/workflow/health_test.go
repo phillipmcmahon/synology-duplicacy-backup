@@ -73,6 +73,15 @@ func newIPv4TestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	return server
 }
 
+func withWebhookTokenLoader(t *testing.T, loader func(string) (string, error)) {
+	t.Helper()
+	old := loadOptionalHealthWebhookToken
+	loadOptionalHealthWebhookToken = loader
+	t.Cleanup(func() {
+		loadOptionalHealthWebhookToken = old
+	})
+}
+
 func healthOwnerGroup(t *testing.T) (string, string) {
 	t.Helper()
 	u, err := user.Current()
@@ -228,15 +237,13 @@ func TestHealthWebhookDelivery(t *testing.T) {
 	}
 	t.Cleanup(log.Close)
 
-	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	if err := os.WriteFile(secretsFile, []byte("storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\nhealth_webhook_bearer_token = \"hook-token\"\n"), 0600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	withWebhookTokenLoader(t, func(string) (string, error) {
+		return "hook-token", nil
+	})
 
 	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes"}, "verify", "boom", rt.Now())
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
-	if err := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).sendWebhook(cfg, secretsFile, report); err != nil {
+	if err := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).sendWebhook(cfg, "", report); err != nil {
 		t.Fatalf("sendWebhook() error = %v", err)
 	}
 	if gotAuth != "Bearer hook-token" {
@@ -282,6 +289,7 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 		HealthCommand: "doctor",
 		Source:        "homes",
 		ConfigDir:     configDir,
+		SecretsDir:    t.TempDir(),
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -329,6 +337,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 		HealthCommand: "doctor",
 		Source:        "homes",
 		ConfigDir:     configDir,
+		SecretsDir:    t.TempDir(),
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)

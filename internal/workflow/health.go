@@ -70,6 +70,8 @@ type HealthRunner struct {
 	runner execpkg.Runner
 }
 
+var loadOptionalHealthWebhookToken = secrets.LoadOptionalHealthWebhookToken
+
 func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner) *HealthRunner {
 	return &HealthRunner{meta: meta, rt: rt, log: log, runner: runner}
 }
@@ -603,7 +605,7 @@ func (h *HealthRunner) sendWebhook(cfg config.HealthNotifyConfig, secretsFile st
 		return fmt.Errorf("failed to build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if token, err := secrets.LoadOptionalHealthWebhookToken(secretsFile); err != nil {
+	if token, err := loadOptionalHealthWebhookToken(secretsFile); err != nil {
 		return err
 	} else if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
