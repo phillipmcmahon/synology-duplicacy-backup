@@ -4,7 +4,7 @@ BUILD_TIME  := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS     := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
 BUILD_DIR   := build
 
-.PHONY: all clean build test fmt vet lint synology
+.PHONY: all clean build test fmt vet lint synology package-synology package-synology-amd64 package-synology-arm64 package-synology-armv7
 
 # Default: build for current platform
 all: build
@@ -36,6 +36,36 @@ synology-arm:
 		go build -ldflags "$(LDFLAGS)" \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-armv7 \
 		./cmd/duplicacy-backup/
+
+package-synology: package-synology-amd64 package-synology-arm64 package-synology-armv7
+
+package-synology-amd64:
+	@echo "Packaging Synology linux/amd64 artifact in Linux container..."
+	sh ./scripts/package-linux-docker.sh \
+		--version "$(VERSION)" \
+		--build-time "$(BUILD_TIME)" \
+		--goos linux \
+		--goarch amd64 \
+		--output-dir /work/build/linux-go1.26-packages
+
+package-synology-arm64:
+	@echo "Packaging Synology linux/arm64 artifact in Linux container..."
+	sh ./scripts/package-linux-docker.sh \
+		--version "$(VERSION)" \
+		--build-time "$(BUILD_TIME)" \
+		--goos linux \
+		--goarch arm64 \
+		--output-dir /work/build/linux-go1.26-packages
+
+package-synology-armv7:
+	@echo "Packaging Synology linux/armv7 artifact in Linux container..."
+	sh ./scripts/package-linux-docker.sh \
+		--version "$(VERSION)" \
+		--build-time "$(BUILD_TIME)" \
+		--goos linux \
+		--goarch arm \
+		--goarm 7 \
+		--output-dir /work/build/linux-go1.26-packages
 
 test:
 	go test -v -race ./...

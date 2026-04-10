@@ -92,84 +92,28 @@ jobs:
 
       - name: Build binary and package
         id: package
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
-          VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
 
           BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          GOARM_VALUE="${{ matrix.goarm }}"
+          PACKAGE_ARGS=(
+            --repo-root "$PWD"
+            --version "${{ steps.version.outputs.version }}"
+            --build-time "${BUILD_TIME}"
+            --goos "${{ matrix.goos }}"
+            --goarch "${{ matrix.goarch }}"
+            --output-dir "$PWD"
+          )
 
-          ARCH_SUFFIX="${{ matrix.goarch }}"
-          if [ -n "${{ matrix.goarm }}" ]; then
-            ARCH_SUFFIX="${ARCH_SUFFIX}v${{ matrix.goarm }}"
+          if [[ -n "${GOARM_VALUE}" ]]; then
+            PACKAGE_ARGS+=(--goarm "${GOARM_VALUE}")
           fi
 
-          BASENAME="duplicacy-backup_${VERSION}_${{ matrix.goos }}_${ARCH_SUFFIX}"
+          BASENAME="$(sh scripts/package-linux-artifact.sh "${PACKAGE_ARGS[@]}")"
 
           echo "basename=${BASENAME}" >> "$GITHUB_OUTPUT"
-
-          # Guard against accidental overwrite
-          if [ -e "${BASENAME}" ]; then
-            echo "Error: output file already exists: ${BASENAME}" >&2
-            exit 1
-          fi
-
-          if [ -e "${BASENAME}.tar.gz" ]; then
-            echo "Error: output archive already exists: ${BASENAME}.tar.gz" >&2
-            exit 1
-          fi
-
-          go build \
-            -ldflags "-X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}" \
-            -o "${BASENAME}" \
-            cmd/duplicacy-backup/main.go
-
-          PKG_DIR="$(mktemp -d)"
-          trap 'rm -rf "${PKG_DIR}"' EXIT
-
-          PACKAGE_ROOT="${PKG_DIR}/${BASENAME}"
-          mkdir -p "${PACKAGE_ROOT}"
-
-          cp "${BASENAME}" "${PACKAGE_ROOT}/"
-          cp scripts/install-synology.sh "${PACKAGE_ROOT}/install.sh"
-          cp README.md LICENSE "${PACKAGE_ROOT}/"
-          chmod 755 "${PACKAGE_ROOT}/install.sh"
-
-          tar -czf "${BASENAME}.tar.gz" -C "${PKG_DIR}" "${BASENAME}"
-          sha256sum "${BASENAME}.tar.gz" > "${BASENAME}.tar.gz.sha256"
-
-      - name: Smoke test packaged artifact
-        env:
-          BASENAME: ${{ steps.package.outputs.basename }}
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          EXTRACT_DIR="$(mktemp -d)"
-          trap 'rm -rf "${EXTRACT_DIR}"' EXIT
-
-          tar -xzf "${BASENAME}.tar.gz" -C "${EXTRACT_DIR}"
-
-          PACKAGE_ROOT="${EXTRACT_DIR}/${BASENAME}"
-          BINARY_PATH="${PACKAGE_ROOT}/${BASENAME}"
-          INSTALLER_PATH="${PACKAGE_ROOT}/install.sh"
-
-          test -d "${PACKAGE_ROOT}"
-          test -f "${PACKAGE_ROOT}/README.md"
-          test -f "${PACKAGE_ROOT}/LICENSE"
-          test -x "${BINARY_PATH}"
-          test -x "${INSTALLER_PATH}"
-
-          sha256sum -c "${BASENAME}.tar.gz.sha256"
-
-          "${BINARY_PATH}" --version | grep -F "${VERSION}"
-          "${BINARY_PATH}" --help >/dev/null
-          sh "${INSTALLER_PATH}" --help >/dev/null
 
       - name: Upload tarball
         uses: actions/upload-artifact@v6
