@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -28,10 +29,20 @@ import (
 var revisionRegex = regexp.MustCompile(`(?i)\brevision\s+(\d+)\b`)
 var deleteRegex = regexp.MustCompile(`(?i)delet(?:ed?|ing)\s+.*?revision`)
 var revisionCreatedAtRegex = regexp.MustCompile(`(?i)\brevision\s+(\d+)\b.*?\bcreated at\s+([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)`)
+var checkRevisionPassRegex = regexp.MustCompile(`(?i)all chunks referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+exist`)
+var checkRevisionFailRegex = regexp.MustCompile(`(?i)some chunks referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+are missing`)
+var checkChunkMissingRegex = regexp.MustCompile(`(?i)chunk\s+[0-9a-f]+\s+referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+does not exist`)
 
 type RevisionInfo struct {
 	Revision  int
 	CreatedAt time.Time
+}
+
+type RevisionCheckResult struct {
+	Revision  int
+	CreatedAt time.Time
+	Result    string
+	Message   string
 }
 
 // Setup represents a duplicacy working environment.
@@ -251,14 +262,60 @@ func (s *Setup) GetLatestRevisionInfo() (*RevisionInfo, string, error) {
 		return nil, "", nil
 	}
 
+	revisions, combined, err := s.ListVisibleRevisions()
+	if err != nil {
+		return nil, combined, err
+	}
+	if len(revisions) == 0 {
+		return nil, combined, nil
+	}
+	latest := revisions[0]
+	return &latest, combined, nil
+}
+
+func (s *Setup) ListVisibleRevisions() ([]RevisionInfo, string, error) {
+	if s.DryRun {
+		return nil, "", nil
+	}
+
 	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list")
 	combined := stdout + stderr
 	if err != nil {
-		return nil, combined, apperrors.NewPruneError("revision-latest", fmt.Errorf("failed to list revisions for latest revision inspection"))
+		return nil, combined, apperrors.NewPruneError("revision-list", fmt.Errorf("failed to list visible revisions for integrity inspection"))
+	}
+	return parseVisibleRevisions(combined), combined, nil
+}
+
+func (s *Setup) CheckVisibleRevisions() ([]RevisionCheckResult, string, error) {
+	if s.DryRun {
+		return nil, "", nil
 	}
 
-	var latest *RevisionInfo
-	for _, match := range revisionCreatedAtRegex.FindAllStringSubmatch(combined, -1) {
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "check", "-persist")
+	combined := stdout + stderr
+	results := parseRevisionCheckResults(combined)
+	if err != nil && len(results) == 0 {
+		return nil, combined, apperrors.NewPruneError("revision-check", fmt.Errorf("failed to complete the storage integrity check"))
+	}
+	return results, combined, nil
+}
+
+func parseRevisionCreatedAt(value string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04"} {
+		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported revision timestamp %q", value)
+}
+
+func parseVisibleRevisions(output string) []RevisionInfo {
+	if output == "" {
+		return nil
+	}
+
+	seen := make(map[int]RevisionInfo)
+	for _, match := range revisionCreatedAtRegex.FindAllStringSubmatch(output, -1) {
 		if len(match) < 3 {
 			continue
 		}
@@ -270,30 +327,94 @@ func (s *Setup) GetLatestRevisionInfo() (*RevisionInfo, string, error) {
 		if parseErr != nil {
 			continue
 		}
-		if latest == nil || revision > latest.Revision {
-			latest = &RevisionInfo{Revision: revision, CreatedAt: createdAt}
+		seen[revision] = RevisionInfo{Revision: revision, CreatedAt: createdAt}
+	}
+	for _, match := range revisionRegex.FindAllStringSubmatch(output, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		revision, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		if _, ok := seen[revision]; !ok {
+			seen[revision] = RevisionInfo{Revision: revision}
 		}
 	}
-	if latest == nil {
-		latestRevision, _, latestErr := s.GetLatestRevision()
-		if latestErr != nil {
-			return nil, combined, latestErr
-		}
-		if latestRevision == 0 {
-			return nil, combined, nil
-		}
-		return &RevisionInfo{Revision: latestRevision}, combined, nil
+
+	revisions := make([]RevisionInfo, 0, len(seen))
+	for _, revision := range seen {
+		revisions = append(revisions, revision)
 	}
-	return latest, combined, nil
+	sort.Slice(revisions, func(i, j int) bool {
+		return revisions[i].Revision > revisions[j].Revision
+	})
+	return revisions
 }
 
-func parseRevisionCreatedAt(value string) (time.Time, error) {
-	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04"} {
-		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
-			return parsed, nil
+func parseRevisionCheckResults(output string) []RevisionCheckResult {
+	if output == "" {
+		return nil
+	}
+
+	results := make(map[int]RevisionCheckResult)
+	for _, match := range checkRevisionPassRegex.FindAllStringSubmatch(output, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		revision, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		if existing, ok := results[revision]; ok && existing.Result == "fail" {
+			continue
+		}
+		results[revision] = RevisionCheckResult{
+			Revision: revision,
+			Result:   "pass",
+			Message:  "Validated",
 		}
 	}
-	return time.Time{}, fmt.Errorf("unsupported revision timestamp %q", value)
+	for _, match := range checkRevisionFailRegex.FindAllStringSubmatch(output, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		revision, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		results[revision] = RevisionCheckResult{
+			Revision: revision,
+			Result:   "fail",
+			Message:  "Missing chunks",
+		}
+	}
+	for _, match := range checkChunkMissingRegex.FindAllStringSubmatch(output, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		revision, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		if existing, ok := results[revision]; ok && existing.Result == "fail" {
+			continue
+		}
+		results[revision] = RevisionCheckResult{
+			Revision: revision,
+			Result:   "fail",
+			Message:  "Missing chunks",
+		}
+	}
+
+	parsed := make([]RevisionCheckResult, 0, len(results))
+	for _, result := range results {
+		parsed = append(parsed, result)
+	}
+	sort.Slice(parsed, func(i, j int) bool {
+		return parsed[i].Revision > parsed[j].Revision
+	})
+	return parsed
 }
 
 // PrunePreview holds the results of a safe prune dry-run preview.

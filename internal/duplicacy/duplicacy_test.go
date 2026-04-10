@@ -978,6 +978,102 @@ func TestGetLatestRevisionInfo_ParsesCreatedAt(t *testing.T) {
 	}
 }
 
+func TestListVisibleRevisions_ParsesAndSortsAllVisibleRevisions(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "Snapshot homes revision 7 created at 2026-04-10 17:10\nSnapshot homes revision 8 created at 2026-04-10 17:25\nSnapshot homes revision 6\n",
+	})
+
+	revisions, output, err := s.ListVisibleRevisions()
+	if err != nil {
+		t.Fatalf("ListVisibleRevisions() error = %v", err)
+	}
+	if len(revisions) != 3 {
+		t.Fatalf("len(revisions) = %d, want 3", len(revisions))
+	}
+	if revisions[0].Revision != 8 || revisions[1].Revision != 7 || revisions[2].Revision != 6 {
+		t.Fatalf("revisions = %+v", revisions)
+	}
+	if revisions[0].CreatedAt.IsZero() || revisions[1].CreatedAt.IsZero() {
+		t.Fatalf("expected created_at timestamps to be parsed: %+v", revisions)
+	}
+	if !revisions[2].CreatedAt.IsZero() {
+		t.Fatalf("expected revision without created at to stay zero: %+v", revisions[2])
+	}
+	if !strings.Contains(output, "revision 8") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestCheckVisibleRevisions_ParsesPassAndFailResults(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "2026-04-10 00:31:11.326 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 235 exist\n" +
+			"2026-04-10 00:31:12.326 INFO SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 234 are missing\n",
+		Err: errors.New("check failed"),
+	})
+
+	results, output, err := s.CheckVisibleRevisions()
+	if err != nil {
+		t.Fatalf("CheckVisibleRevisions() error = %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("len(results) = %d, want 2", len(results))
+	}
+	if results[0].Revision != 235 || results[0].Result != "pass" {
+		t.Fatalf("results[0] = %+v", results[0])
+	}
+	if results[1].Revision != 234 || results[1].Result != "fail" || results[1].Message != "Missing chunks" {
+		t.Fatalf("results[1] = %+v", results[1])
+	}
+	if !strings.Contains(output, "revision 234") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestCheckVisibleRevisions_FailsWhenCommandCannotBeParsed(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "fatal failure\n",
+		Err:    errors.New("check failed"),
+	})
+
+	_, _, err := s.CheckVisibleRevisions()
+	if err == nil {
+		t.Fatal("expected error when no revision results can be parsed")
+	}
+	var pruneErr *apperrors.PruneError
+	if !errors.As(err, &pruneErr) {
+		t.Fatalf("expected *PruneError, got %T", err)
+	}
+	if pruneErr.Phase != "revision-check" {
+		t.Fatalf("phase = %q, want revision-check", pruneErr.Phase)
+	}
+}
+
+func TestParseVisibleRevisions_DeduplicatesByRevision(t *testing.T) {
+	revisions := parseVisibleRevisions("Snapshot homes revision 8 created at 2026-04-10 17:25\nSnapshot homes revision 8\nSnapshot homes revision 7\n")
+	if len(revisions) != 2 {
+		t.Fatalf("len(revisions) = %d, want 2", len(revisions))
+	}
+	if revisions[0].Revision != 8 || revisions[1].Revision != 7 {
+		t.Fatalf("revisions = %+v", revisions)
+	}
+	if revisions[0].CreatedAt.IsZero() {
+		t.Fatalf("expected revision 8 created_at to be preserved: %+v", revisions[0])
+	}
+}
+
+func TestParseRevisionCheckResults_PrefersFailWhenChunkMissingLinesAppear(t *testing.T) {
+	results := parseRevisionCheckResults("Chunk abc123 referenced by snapshot homes at revision 2337 does not exist\nAll chunks referenced by snapshot homes at revision 2338 exist\n")
+	if len(results) != 2 {
+		t.Fatalf("len(results) = %d, want 2", len(results))
+	}
+	if results[0].Revision != 2338 || results[0].Result != "pass" {
+		t.Fatalf("results[0] = %+v", results[0])
+	}
+	if results[1].Revision != 2337 || results[1].Result != "fail" {
+		t.Fatalf("results[1] = %+v", results[1])
+	}
+}
+
 func TestGetTotalRevisionCount_ReturnsOutput(t *testing.T) {
 	s, _ := newTestSetup(t, false,
 		execpkg.MockResult{Stdout: "revision 1\nrevision 2\n"},

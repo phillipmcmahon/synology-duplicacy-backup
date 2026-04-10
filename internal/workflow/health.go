@@ -32,20 +32,33 @@ type HealthCheck struct {
 	Message string `json:"message"`
 }
 
+type HealthRevisionResult struct {
+	Revision  int    `json:"revision"`
+	CreatedAt string `json:"created_at,omitempty"`
+	Result    string `json:"result"`
+	Message   string `json:"message"`
+}
+
 type HealthReport struct {
-	Status                  string        `json:"status"`
-	CheckType               string        `json:"check_type"`
-	Label                   string        `json:"label"`
-	Mode                    string        `json:"mode"`
-	CheckedAt               string        `json:"checked_at"`
-	LocalLastSuccessAt      string        `json:"local_last_success_at,omitempty"`
-	StorageLatestRevision   int           `json:"storage_latest_revision,omitempty"`
-	StorageLatestRevisionAt string        `json:"storage_latest_revision_at,omitempty"`
-	Issues                  []HealthIssue `json:"issues,omitempty"`
-	Checks                  []HealthCheck `json:"checks,omitempty"`
-	WebhookSent             bool          `json:"webhook_sent"`
-	startedAt               time.Time     `json:"-"`
-	completedAt             time.Time     `json:"-"`
+	Status                      string                 `json:"status"`
+	CheckType                   string                 `json:"check_type"`
+	Label                       string                 `json:"label"`
+	Mode                        string                 `json:"mode"`
+	CheckedAt                   string                 `json:"checked_at"`
+	LocalLastSuccessAt          string                 `json:"local_last_success_at,omitempty"`
+	StorageVisibleRevisionCount int                    `json:"storage_visible_revision_count,omitempty"`
+	StorageLatestRevision       int                    `json:"storage_latest_revision,omitempty"`
+	StorageLatestRevisionAt     string                 `json:"storage_latest_revision_at,omitempty"`
+	VerifiedRevisionCount       int                    `json:"verified_revision_count,omitempty"`
+	PassedRevisionCount         int                    `json:"passed_revision_count,omitempty"`
+	FailedRevisionCount         int                    `json:"failed_revision_count,omitempty"`
+	FailedRevisions             []int                  `json:"failed_revisions,omitempty"`
+	RevisionResults             []HealthRevisionResult `json:"revision_results,omitempty"`
+	Issues                      []HealthIssue          `json:"issues,omitempty"`
+	Checks                      []HealthCheck          `json:"checks,omitempty"`
+	WebhookSent                 bool                   `json:"webhook_sent"`
+	startedAt                   time.Time              `json:"-"`
+	completedAt                 time.Time              `json:"-"`
 }
 
 type HealthRunner struct {
@@ -157,12 +170,12 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	}
 	defer dup.Cleanup()
 
-	h.runStatusChecks(report, req, cfg, plan, state, dup)
+	visibleRevisions := h.runStatusChecks(report, req, cfg, plan, state, dup)
 	if req.HealthCommand == "doctor" || req.HealthCommand == "verify" {
 		h.runDoctorChecks(report, req, cfg, plan, dup)
 	}
 	if req.HealthCommand == "verify" {
-		h.runVerifyChecks(report, cfg, state, dup)
+		h.runVerifyChecks(report, cfg, dup, visibleRevisions)
 	}
 
 	if err := updateHealthCheckState(h.meta, req.Source, req.HealthCommand, checkedAt); err != nil {
@@ -242,23 +255,27 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 	return dup, nil
 }
 
-func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) {
+func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	h.addCheck(report, "Config", "pass", fmt.Sprintf("Loaded %s", plan.ConfigFile))
 	if req.RemoteMode {
 		h.addCheck(report, "Remote secrets", "pass", fmt.Sprintf("Loaded %s", plan.SecretsFile))
 	}
 
 	stopInspecting := h.startStatusActivity("Inspecting visible storage revisions")
-	latest, _, err := dup.GetLatestRevisionInfo()
+	revisions, _, err := dup.ListVisibleRevisions()
 	stopInspecting()
 	if err != nil {
 		h.addCheck(report, "Storage revisions", "fail", OperatorMessage(err))
-		return
+		return nil
 	}
-	if latest == nil || latest.Revision == 0 {
+	report.StorageVisibleRevisionCount = len(revisions)
+	if len(revisions) == 0 {
+		h.addCheck(report, "Visible revisions", "warn", "0")
 		h.addCheck(report, "Storage revisions", "warn", "No revisions were visible in storage")
-		return
+		return nil
 	}
+	h.addCheck(report, "Visible revisions", "pass", fmt.Sprintf("%d", len(revisions)))
+	latest := revisions[0]
 	report.StorageLatestRevision = latest.Revision
 	if !latest.CreatedAt.IsZero() {
 		report.StorageLatestRevisionAt = formatReportTime(latest.CreatedAt)
@@ -269,16 +286,16 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 
 	if !latest.CreatedAt.IsZero() {
 		h.evaluateFreshness(report, cfg.Health, latest.CreatedAt, "Storage freshness")
-		return
+		return revisions
 	}
 
 	if state == nil {
 		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup state exists")
-		return
+		return revisions
 	}
 	if state.LastSuccessfulBackupAt == "" {
 		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup timestamp is recorded")
-		return
+		return revisions
 	}
 
 	if state.LastSuccessfulBackupRevision == latest.Revision {
@@ -288,10 +305,11 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 		} else {
 			h.addCheck(report, "Storage freshness", "warn", "Stored local backup timestamp is invalid")
 		}
-		return
+		return revisions
 	}
 
 	h.addCheck(report, "Storage freshness", "warn", fmt.Sprintf("Storage revision %d does not match local revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
+	return revisions
 }
 
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
@@ -325,42 +343,89 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 	h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
 }
 
-func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, state *RunState, dup *duplicacy.Setup) {
-	stopVerifying := h.startStatusActivity("Verifying visible storage revisions")
-	latest, _, err := dup.GetLatestRevisionInfo()
-	stopVerifying()
-	if err != nil {
-		h.addCheck(report, "Verify revisions", "fail", OperatorMessage(err))
+func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
+	if len(revisions) == 0 {
+		h.addCheck(report, "Verified revisions", "fail", "0")
+		h.addCheck(report, "Passed revisions", "pass", "0")
+		h.addCheck(report, "Failed revisions", "fail", "0")
+		h.addCheck(report, "Integrity check", "fail", "No visible revisions are available to verify")
+		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
-	}
-	if latest == nil || latest.Revision == 0 {
-		h.addCheck(report, "Verify revisions", "fail", "No revisions are available to verify")
-		return
-	}
-	if !latest.CreatedAt.IsZero() {
-		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Latest revision: %d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
-	} else {
-		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Latest revision: %d", latest.Revision))
 	}
 
-	if latest.CreatedAt.IsZero() {
-		switch {
-		case state == nil || state.LastSuccessfulBackupRevision == 0:
-			h.addCheck(report, "Revision time", "warn", "No local revision record for fallback")
-		case state.LastSuccessfulBackupRevision != latest.Revision:
-			h.addCheck(report, "Revision time", "warn", fmt.Sprintf("Storage revision %d does not match local revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
-		case state.LastSuccessfulBackupAt == "":
-			h.addCheck(report, "Revision time", "warn", "No local backup time for fallback")
-		default:
-			if _, parseErr := time.Parse(time.RFC3339, state.LastSuccessfulBackupAt); parseErr == nil {
-				h.addCheck(report, "Revision time", "pass", "Used local backup time")
-			} else {
-				h.addCheck(report, "Revision time", "warn", "Stored local backup time is invalid")
-			}
-		}
-	} else {
-		h.addCheck(report, "Revision time", "pass", "Timestamp available")
+	status := fmt.Sprintf("Checking visible revisions (%d total)", len(revisions))
+	stopVerifying := h.startStatusActivity(status)
+	results, _, err := dup.CheckVisibleRevisions()
+	stopVerifying()
+	if err != nil {
+		h.addCheck(report, "Integrity check", "fail", OperatorMessage(err))
+		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
+		return
 	}
+
+	visibleByRevision := make(map[int]duplicacy.RevisionInfo, len(revisions))
+	for _, revision := range revisions {
+		visibleByRevision[revision.Revision] = revision
+	}
+	accounted := make(map[int]bool, len(results))
+	report.VerifiedRevisionCount = len(results)
+
+	for _, result := range results {
+		revisionInfo, ok := visibleByRevision[result.Revision]
+		if !ok {
+			continue
+		}
+		accounted[result.Revision] = true
+		entry := HealthRevisionResult{
+			Revision: result.Revision,
+			Result:   result.Result,
+			Message:  normaliseOperatorSentence(result.Message),
+		}
+		if !revisionInfo.CreatedAt.IsZero() {
+			entry.CreatedAt = formatReportTime(revisionInfo.CreatedAt)
+		}
+		report.RevisionResults = append(report.RevisionResults, entry)
+
+		if result.Result == "fail" {
+			report.FailedRevisionCount++
+			report.FailedRevisions = append(report.FailedRevisions, result.Revision)
+			h.addCheck(report, fmt.Sprintf("Revision %d", result.Revision), "fail", result.Message)
+			continue
+		}
+		report.PassedRevisionCount++
+	}
+
+	missing := make([]int, 0)
+	for _, revision := range revisions {
+		if accounted[revision.Revision] {
+			continue
+		}
+		missing = append(missing, revision.Revision)
+	}
+
+	verifiedResult := "pass"
+	if len(missing) > 0 {
+		verifiedResult = "fail"
+	}
+	h.addCheck(report, "Verified revisions", verifiedResult, fmt.Sprintf("%d", report.VerifiedRevisionCount))
+	h.addCheck(report, "Passed revisions", "pass", fmt.Sprintf("%d", report.PassedRevisionCount))
+	failedResult := "pass"
+	if report.FailedRevisionCount > 0 {
+		failedResult = "fail"
+	}
+	h.addCheck(report, "Failed revisions", failedResult, fmt.Sprintf("%d", report.FailedRevisionCount))
+
+	if len(missing) > 0 {
+		h.addCheck(report, "Integrity check", "fail", fmt.Sprintf("Integrity results did not account for %d visible revision(s)", len(missing)))
+		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
+		return
+	}
+	if report.FailedRevisionCount > 0 {
+		h.addCheck(report, "Integrity check", "fail", "One or more visible revisions failed integrity checks")
+		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
+		return
+	}
+	h.addCheck(report, "Integrity check", "pass", "All visible revisions validated")
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 }
 
@@ -596,11 +661,13 @@ func healthCheckSection(name string) string {
 		return "Alerts"
 	case "Source path", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"
-	case "Verify revisions", "Revision time", "Last verify run":
+	case "Verified revisions", "Passed revisions", "Failed revisions", "Integrity check", "Last verify run":
 		return "Verify"
-	default:
-		return "Status"
 	}
+	if strings.HasPrefix(name, "Revision ") {
+		return "Verify"
+	}
+	return "Status"
 }
 
 func healthExitCode(status string) int {

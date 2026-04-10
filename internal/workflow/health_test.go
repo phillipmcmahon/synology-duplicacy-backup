@@ -145,6 +145,9 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 	if report.Status != "healthy" || report.StorageLatestRevision != 8 {
 		t.Fatalf("report = %+v", report)
 	}
+	if report.StorageVisibleRevisionCount != 1 {
+		t.Fatalf("report = %+v", report)
+	}
 	if report.StorageLatestRevisionAt == "" || report.LocalLastSuccessAt == "" {
 		t.Fatalf("report = %+v", report)
 	}
@@ -172,8 +175,12 @@ func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 12:00\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 12:00\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "2026-04-10 12:10:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 	)
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
 		HealthCommand: "verify",
@@ -335,19 +342,142 @@ func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
 	}
 }
 
+func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n2026-04-10 20:00:01.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 7 exist\n"},
+	)
+
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand: "verify",
+		Source:        "homes",
+		ConfigDir:     configDir,
+	})
+	if code != 0 {
+		t.Fatalf("code = %d, report = %+v", code, report)
+	}
+	if report.StorageVisibleRevisionCount != 2 || report.VerifiedRevisionCount != 2 || report.PassedRevisionCount != 2 || report.FailedRevisionCount != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+	if len(report.RevisionResults) != 2 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
+	)
+
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand: "verify",
+		Source:        "homes",
+		ConfigDir:     configDir,
+	})
+	if code != 2 || report.Status != "unhealthy" {
+		t.Fatalf("code = %d, report = %+v", code, report)
+	}
+	if report.VerifiedRevisionCount != 1 || report.PassedRevisionCount != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if strings.Contains(issue.Message, "did not account for") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
 func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
-	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\n[remote]\ndestination = \"s3://gateway.example.invalid/backups\"\nthreads = 4\n")
-
-	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	if err := os.WriteFile(secretsFile, []byte("storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"), 0600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
+	owner, group := healthOwnerGroup(t)
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
 	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-90 * time.Minute)),
@@ -368,26 +498,25 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		t.Cleanup(log.Close)
 
 		runner := execpkg.NewMockRunner(
-			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\nSnapshot homes revision 2337 created at 2026-04-10 18:30\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
 			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
 			HealthCommand: "verify",
 			Source:        "homes",
 			ConfigDir:     configDir,
-			SecretsDir:    secretsDir,
-			RemoteMode:    true,
 		})
 		if code != 0 {
 			t.Fatalf("code = %d, report = %+v", code, report)
 		}
 	})
 
-	if !strings.Contains(stderr, "Verify revisions") {
-		t.Fatalf("stderr = %q", stderr)
-	}
-	if !strings.Contains(stderr, "Revision time") {
+	if !strings.Contains(stderr, "Visible revisions") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Last doctor run") {
@@ -399,12 +528,18 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Status") ||
 		!strings.Contains(stderr, "Inspecting visible storage revisions") ||
 		!strings.Contains(stderr, "Validating repository access") ||
-		!strings.Contains(stderr, "Verifying visible storage revisions") {
+		!strings.Contains(stderr, "Checking visible revisions (2 total)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Section: Status") ||
 		!strings.Contains(stderr, "Section: Doctor") ||
 		!strings.Contains(stderr, "Section: Verify") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Verified revisions") ||
+		!strings.Contains(stderr, "Passed revisions") ||
+		!strings.Contains(stderr, "Failed revisions") ||
+		!strings.Contains(stderr, "Integrity check") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if strings.Contains(stderr, "Verification storage listing") {
@@ -443,6 +578,7 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Webhook",
 		"Config",
 		"Remote secrets",
+		"Visible revisions",
 		"Storage revisions",
 		"Storage freshness",
 		"Source path",
@@ -450,8 +586,10 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Btrfs source",
 		"Repository access",
 		"Last doctor run",
-		"Verify revisions",
-		"Revision time",
+		"Verified revisions",
+		"Passed revisions",
+		"Failed revisions",
+		"Integrity check",
 		"Last verify run",
 	}
 
@@ -505,13 +643,13 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
-	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\n[remote]\ndestination = \"s3://gateway.example.invalid/backups\"\nthreads = 4\n")
-
-	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	if err := os.WriteFile(secretsFile, []byte("storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"), 0600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
+	owner, group := healthOwnerGroup(t)
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
 	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-90 * time.Minute)),
@@ -533,16 +671,18 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 		log.SetVerbose(true)
 
 		runner := execpkg.NewMockRunner(
-			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\nSnapshot homes revision 2337 created at 2026-04-10 18:30\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
 			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
 			HealthCommand: "verify",
 			Source:        "homes",
 			ConfigDir:     configDir,
-			SecretsDir:    secretsDir,
-			RemoteMode:    true,
 			Verbose:       true,
 		})
 		if code != 0 {

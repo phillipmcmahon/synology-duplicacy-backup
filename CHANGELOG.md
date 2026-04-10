@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Health state tracking**: Added per-label health/runtime state under
   `/var/lib/duplicacy-backup/<label>.json` to record recent successful runs
   and health-check cadence.
+- **Integrity verification reporting**: `health verify` now inventories
+  visible revisions, runs `duplicacy check -persist`, and reports per-label
+  revision counts plus failed revisions in both the human UI and JSON output.
 
 ### Changed
 - **Health screen layout polished**: Health output now uses the same block
@@ -30,12 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treated as a secondary alert path when config loads successfully, while
   Synology scheduled-task failure monitoring is the primary fallback for
   broken-environment and startup failures.
-
-### Notes
-- **Current scope of `health verify`**: Phase 1 verification checks storage
-  visibility, repository access, and freshness signals from visible revisions.
-  It does not yet run `duplicacy check` or provide per-revision chunk-integrity
-  reporting; that is planned for the next integrity-focused milestone.
 
 ## [v2.1.3] - 2026-04-10
 

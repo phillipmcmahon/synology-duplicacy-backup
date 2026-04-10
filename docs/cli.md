@@ -56,7 +56,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 |---|---|
 | `health status <label>` | Fast read-only health summary for operators and schedulers |
 | `health doctor <label>` | Read-only environment and storage diagnostic pass |
-| `health verify <label>` | Read-only storage visibility and freshness check using latest visible revisions |
+| `health verify <label>` | Read-only integrity check across visible revisions for the current label |
 
 ## Environment Variables
 
@@ -151,7 +151,9 @@ sudo duplicacy-backup health verify --remote homes
 - health commands are read-only and never prompt for confirmation
 - health commands use local state under `/var/lib/duplicacy-backup/<label>.json` together with live Duplicacy storage inspection
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
-- in phase 1, `health verify` does not yet run `duplicacy check` or validate chunk integrity across all revisions
+- `health status` reports visible revision count plus the latest visible revision and freshness
+- `health verify` uses `duplicacy check -persist` in the current repository context to validate all visible revisions for the current label
+- `health verify` reports visible, verified, passed, and failed revision counts, plus failed revision numbers in JSON
 - optional per-backup health policy lives in `[health]`
 - optional webhook notification settings live in `[health.notify]`
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML

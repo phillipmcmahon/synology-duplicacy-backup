@@ -119,6 +119,16 @@ func operatorPruneMessage(err *apperrors.PruneError) string {
 			"Could not inspect the latest storage revision",
 			"verify storage access and repository state",
 		)
+	case "revision-list":
+		return withHint(
+			"Could not inspect visible storage revisions",
+			"verify storage access and repository state",
+		)
+	case "revision-check":
+		return withHint(
+			"Could not complete the storage integrity check",
+			"verify storage access and repository state",
+		)
 	case "safe-preview":
 		return withHint(
 			"Safe prune preview failed",

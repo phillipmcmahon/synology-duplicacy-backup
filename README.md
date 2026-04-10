@@ -161,15 +161,13 @@ keeping the human-readable phase logs on stderr.
 The `health` command family adds read-only confidence checks:
 - `health status` gives a fast current-state summary
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
-- `health verify` goes further by checking visible storage revisions and freshness against health policy thresholds
-
-In phase 1, `health verify` is still an operational visibility/freshness check.
-It does not yet run `duplicacy check` or validate chunk integrity across all
-revisions.
+- `health verify` goes further by validating visible revisions with `duplicacy check -persist`
 
 Health commands combine local state stored under `/var/lib/duplicacy-backup/<label>.json`
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation
 times, those storage timestamps are used as the authoritative freshness signal.
+`health verify` also records how many visible revisions were checked, how many
+passed, and which revisions failed integrity validation.
 
 Health policy is configured per backup TOML in an optional `[health]` table:
 - `freshness_warn_hours`

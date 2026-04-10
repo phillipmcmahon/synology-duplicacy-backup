@@ -226,7 +226,7 @@ MODIFIERS:
 HEALTH COMMANDS:
     health status            Fast read-only health summary for automation and operators
     health doctor            Read-only environment and storage diagnostics
-    health verify            Moderate confidence check using storage revision visibility
+    health verify            Read-only integrity check across visible revisions
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
