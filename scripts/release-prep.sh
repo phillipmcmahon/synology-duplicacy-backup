@@ -100,7 +100,7 @@ COMMON_EXPORTS='set -eu; export PATH=/usr/local/go/bin:$PATH; export GOCACHE=/tm
 run_in_linux "$COMMON_EXPORTS go test ./..." >"$TEST_OUT" 2>&1
 run_in_linux "$COMMON_EXPORTS go vet ./..." >"$VET_OUT" 2>&1
 run_in_linux "$COMMON_EXPORTS go test -cover ./..." >"$COVER_OUT" 2>&1
-run_in_linux "$COMMON_EXPORTS go test -coverprofile=/tmp/cover.out ./... >/tmp/cover.txt; go tool cover -func=/tmp/cover.out | tail -n 1" >"$SUMMARY_OUT" 2>&1
+run_in_linux "$COMMON_EXPORTS go test -coverprofile=/tmp/cover.out ./... >/tmp/cover.txt 2>/dev/null; go tool cover -func=/tmp/cover.out | tail -n 1" >"$SUMMARY_OUT" 2>&1
 
 extract_pkg_coverage() {
     pkg="$1"
