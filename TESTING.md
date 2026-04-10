@@ -27,6 +27,25 @@ The macOS host environment is not treated as release-representative. Use the
 Linux Go 1.26 container for release validation, packaged-binary smoke checks,
 and any test runs that depend on Linux locking or filesystem behavior.
 
+## Current Release Baseline
+
+Current public release baseline: `v2.1.6`
+
+Representative Linux Go 1.26 validation for this release:
+
+- `go test ./...`
+- `go vet ./...`
+- `go test -cover ./...`
+
+Current Linux Go 1.26 coverage snapshot:
+
+- overall coverage: `83.7%`
+- `internal/workflow`: `83.7%`
+- `cmd/duplicacy-backup`: `60.8%`
+- `internal/duplicacy`: `79.4%`
+- `internal/exec`: `97.4%`
+- `internal/secrets`: `80.0%`
+
 ## Packaging Rule
 
 Release and test-package artifacts must be generated inside the Linux
