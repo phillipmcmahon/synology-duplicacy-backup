@@ -87,6 +87,25 @@ func currentUserGroup(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatalf("user.LookupGroupId() error = %v", err)
 	}
+	if u.Username != "root" && g.Name != "root" {
+		return u.Username, g.Name
+	}
+
+	for _, name := range []string{"nobody", "daemon"} {
+		if _, err := user.Lookup(name); err == nil {
+			u.Username = name
+			break
+		}
+	}
+	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
+		if _, err := user.LookupGroup(name); err == nil && name != "root" {
+			g.Name = name
+			break
+		}
+	}
+	if u.Username == "root" || g.Name == "root" {
+		t.Skip("no non-root owner/group available on this system")
+	}
 	return u.Username, g.Name
 }
 
@@ -123,7 +142,8 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
-		!strings.Contains(stdout, "--cleanup-storage") {
+		!strings.Contains(stdout, "--cleanup-storage") ||
+		!strings.Contains(stdout, "--json-summary") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
@@ -157,7 +177,8 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
-		!strings.Contains(stdout, "config explain --remote homes") {
+		!strings.Contains(stdout, "config explain --remote homes") ||
+		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -283,6 +304,9 @@ func TestRunWithArgs_ConfigPathsReturnsZero(t *testing.T) {
 		if !strings.Contains(stdout, "Resolved paths for homes") || !strings.Contains(stdout, "Config Dir") || !strings.Contains(stdout, "Secrets File") {
 			t.Fatalf("stdout = %q", stdout)
 		}
+		if strings.Contains(stdout, "Work Dir") || strings.Contains(stdout, "Snapshot") {
+			t.Fatalf("stdout = %q", stdout)
+		}
 	})
 }
 
@@ -342,6 +366,105 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 		}
 		if !strings.Contains(stderr, "Duration") {
 			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_JSONSummaryDryRunReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--json-summary", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(json dry-run) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Run completed -") || !strings.Contains(stderr, "Backup phase completed (dry-run)") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "No primary operation specified: defaulting to backup only.") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "\"label\": \"homes\"") ||
+			!strings.Contains(stdout, "\"result\": \"success\"") ||
+			!strings.Contains(stdout, "\"phases\"") ||
+			!strings.Contains(stdout, "\"name\": \"Backup\"") ||
+			!strings.Contains(stdout, "\"duration_seconds\": 0") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_JSONSummaryVerboseDryRunKeepsStartBlockFirst(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--json-summary", "--dry-run", "--verbose", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(json verbose dry-run) = %d", code)
+			}
+		})
+		if strings.Contains(stderr, "Configuration parsed for") ||
+			strings.Contains(stderr, "Verified '/volume1' is on a btrfs filesystem") ||
+			strings.Contains(stderr, "Acquiring lock for label") ||
+			strings.Contains(stderr, "Lock acquired:") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "  Label                :") ||
+			strings.Contains(stderr, "  Script               :") ||
+			strings.Contains(stderr, "  PID                  :") ||
+			strings.Contains(stderr, "  Lock Path            :") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Phase: Cleanup") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Run started -") || !strings.Contains(stderr, "Run Summary:") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "  Notice               : No primary operation specified: defaulting to backup only") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "\"operation\": \"Backup\"") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--json-summary", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(json failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Configuration file not found:") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "\"result\": \"failed\"") ||
+			!strings.Contains(stdout, "\"failure_message\": \"Configuration file not found:") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_JSONSummaryRequestFailureReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--json-summary", "--nope"}); code != 1 {
+				t.Fatalf("runWithArgs(json request failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "unknown option --nope") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "\"result\": \"failed\"") ||
+			!strings.Contains(stdout, "\"failure_message\": \"unknown option --nope\"") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if strings.Contains(stdout, "Usage:") {
+			t.Fatalf("stdout = %q", stdout)
 		}
 	})
 }

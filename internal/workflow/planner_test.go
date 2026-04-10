@@ -41,6 +41,25 @@ func currentUserGroup(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatalf("user.LookupGroupId() error = %v", err)
 	}
+	if u.Username != "root" && g.Name != "root" {
+		return u.Username, g.Name
+	}
+
+	for _, name := range []string{"nobody", "daemon"} {
+		if _, err := user.Lookup(name); err == nil {
+			u.Username = name
+			break
+		}
+	}
+	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
+		if _, err := user.LookupGroup(name); err == nil && name != "root" {
+			g.Name = name
+			break
+		}
+	}
+	if u.Username == "root" || g.Name == "root" {
+		t.Skip("no non-root owner/group available on this system")
+	}
 	return u.Username, g.Name
 }
 
@@ -66,8 +85,8 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if plan.OperationMode != "Backup only" {
-		t.Fatalf("OperationMode = %q, want %q", plan.OperationMode, "Backup only")
+	if plan.OperationMode != "Backup" {
+		t.Fatalf("OperationMode = %q, want %q", plan.OperationMode, "Backup")
 	}
 	if plan.BackupTarget != "/backups/homes" {
 		t.Fatalf("BackupTarget = %q", plan.BackupTarget)
@@ -109,7 +128,7 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if plan.OperationMode != "Fix permissions only" {
+	if plan.OperationMode != "Fix permissions" {
 		t.Fatalf("OperationMode = %q", plan.OperationMode)
 	}
 	if plan.ModeDisplay != "Local" {
@@ -146,7 +165,13 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	}
 
 	req := &Request{Source: "homes", DoBackup: true, RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+	)
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
 	plan, err := planner.Build(req)
 	if err != nil {
@@ -157,5 +182,8 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	}
 	if plan.SecretsFile != secretsFile {
 		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
+	}
+	if len(runner.Invocations) != 4 {
+		t.Fatalf("invocations = %d, want 4", len(runner.Invocations))
 	}
 }

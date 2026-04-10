@@ -18,6 +18,7 @@ type Plan struct {
 	RemoteMode     bool
 	DryRun         bool
 	Verbose        bool
+	JSONSummary    bool
 
 	NeedsDuplicacySetup bool
 	NeedsSnapshot       bool

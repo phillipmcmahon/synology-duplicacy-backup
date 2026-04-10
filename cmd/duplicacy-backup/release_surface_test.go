@@ -58,6 +58,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		filepath.Join(root, "README.md"): {
 			"--cleanup-storage",
 			"--fix-perms",
+			"--json-summary",
 			"config validate",
 			"/usr/local/lib/duplicacy-backup/.config",
 			"/root/.secrets",
@@ -66,6 +67,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		filepath.Join(root, "docs", "cli.md"): {
 			"--cleanup-storage",
 			"--fix-perms",
+			"--json-summary",
 			"config validate",
 			"S3-compatible",
 			"storj_s3_id",
@@ -114,6 +116,7 @@ func TestUsageText_RemoteHelpMatchesCurrentModel(t *testing.T) {
 	expected := []string{
 		"config <validate|explain|paths>",
 		"--remote                 Perform operation against remote S3-compatible target config",
+		"--json-summary           Write a machine-readable run summary to stdout",
 		"Current TOML keys: storj_s3_id and storj_s3_secret",
 		"--cleanup-storage        Request storage maintenance:",
 		"--fix-perms              Normalise local repository ownership and permissions",

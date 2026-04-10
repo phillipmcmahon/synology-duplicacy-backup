@@ -21,6 +21,7 @@ type Executor struct {
 
 	lock         *lock.Lock
 	dup          *duplicacy.Setup
+	report       *RunReport
 	startedAt    time.Time
 	exitCode     int
 	cleanedUp    bool
@@ -28,6 +29,7 @@ type Executor struct {
 }
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
+	startedAt := rt.Now()
 	return &Executor{
 		meta:      meta,
 		rt:        rt,
@@ -36,7 +38,8 @@ func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.R
 		plan:      plan,
 		view:      NewPresenter(meta, rt, log, plan.Verbose),
 		lock:      rt.NewLock(meta.LockParent, plan.BackupLabel),
-		startedAt: rt.Now(),
+		startedAt: startedAt,
+		report:    NewRunReport(plan, startedAt),
 	}
 }
 
@@ -44,9 +47,6 @@ func (e *Executor) Run() int {
 	e.installSignalHandler()
 	defer e.cleanup()
 
-	if e.plan.DefaultNotice != "" {
-		e.log.Info("%s", statusLinef("%s", e.plan.DefaultNotice))
-	}
 	e.log.CleanupOldLogs(e.plan.LogRetentionDays, e.plan.DryRun)
 	if err := e.confirmSafetyRails(); err != nil {
 		e.fail(err)
@@ -84,16 +84,10 @@ func (e *Executor) installSignalHandler() {
 }
 
 func (e *Executor) acquireLock() error {
-	if e.plan.Verbose {
-		e.log.Info("%s", statusLinef("Acquiring lock for label %q", e.plan.BackupLabel))
-	}
 	if err := e.lock.Acquire(); err != nil {
 		return err
 	}
 	e.lockAcquired = true
-	if e.plan.Verbose {
-		e.log.Info("%s", statusLinef("Lock acquired: %s", e.lock.Path))
-	}
 	return nil
 }
 
@@ -121,32 +115,52 @@ func (e *Executor) execute() error {
 	if e.plan.NeedsDuplicacySetup {
 		if e.plan.DoBackup {
 			e.view.PrintPhase("Backup")
-		}
-		if err := e.prepareDuplicacySetup(); err != nil {
-			return err
-		}
-	}
-	if e.plan.DoBackup {
-		if err := e.runBackupPhase(); err != nil {
-			return err
+			if err := e.runTrackedPhase("Backup", func() error {
+				if err := e.prepareDuplicacySetup(); err != nil {
+					return err
+				}
+				return e.runBackupPhase()
+			}); err != nil {
+				return err
+			}
+		} else {
+			if err := e.prepareDuplicacySetup(); err != nil {
+				return err
+			}
 		}
 	}
 	if e.plan.DoPrune {
-		if err := e.runPrunePhase(); err != nil {
+		if err := e.runTrackedPhase("Prune", e.runPrunePhase); err != nil {
 			return err
 		}
 	}
 	if e.plan.DoCleanupStore {
-		if err := e.runCleanupStoragePhase(); err != nil {
+		if err := e.runTrackedPhase("Storage cleanup", e.runCleanupStoragePhase); err != nil {
 			return err
 		}
 	}
 	if e.plan.FixPerms {
-		if err := e.runFixPermsPhase(); err != nil {
+		if err := e.runTrackedPhase("Fix permissions", e.runFixPermsPhase); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (e *Executor) runTrackedPhase(name string, fn func() error) error {
+	index := -1
+	if e.report != nil {
+		index = e.report.StartPhase(name, e.rt.Now())
+	}
+	err := fn()
+	if e.report != nil {
+		result := "success"
+		if err != nil {
+			result = "failed"
+		}
+		e.report.CompletePhase(index, result, e.rt.Now())
+	}
+	return err
 }
 
 func (e *Executor) prepareDuplicacySetup() error {
@@ -231,4 +245,11 @@ func (e *Executor) runBackupPhase() error {
 func (e *Executor) fail(err error) {
 	e.log.Error("%s", OperatorMessage(err))
 	e.exitCode = 1
+	if e.report != nil {
+		e.report.FailureMessage = OperatorMessage(err)
+	}
+}
+
+func (e *Executor) Report() *RunReport {
+	return e.report
 }

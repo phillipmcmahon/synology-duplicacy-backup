@@ -13,7 +13,7 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 		LocalOwner:    "backupuser",
 		LocalGroup:    "users",
 		BackupTarget:  "/backups/homes",
-		OperationMode: "Fix permissions only",
+		OperationMode: "Fix permissions",
 	}
 
 	lines := SummaryLines(plan)
@@ -58,7 +58,7 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		SecretsDir:     "/root/.secrets",
 		SecretsFile:    "/root/.secrets/duplicacy-homes.toml",
 		ModeDisplay:    "Remote",
-		OperationMode:  "Backup only",
+		OperationMode:  "Backup",
 	}
 
 	lines := SummaryLines(plan)

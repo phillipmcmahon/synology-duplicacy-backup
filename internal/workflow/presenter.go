@@ -27,16 +27,13 @@ var backupRevisionPattern = regexp.MustCompile(`(?i)revision\s+(\d+)\s+completed
 var backupDurationPattern = regexp.MustCompile(`(?i)^Total running time:\s*(.+)$`)
 var backupFilesPattern = regexp.MustCompile(`(?i)^Files:\s*(.+)$`)
 
-func (p *Presenter) PrintHeader(plan *Plan, lockPath string) {
+func (p *Presenter) PrintHeader(plan *Plan, _ string) {
 	p.log.PrintSeparator()
 	p.log.Info("%s", statusLinef("Run started - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Operation", plan.OperationMode)
 	p.log.PrintLine("Mode", plan.ModeDisplay)
-	if p.verbose {
-		p.log.PrintLine("Label", plan.BackupLabel)
-		p.log.PrintLine("Script", p.meta.ScriptName)
-		p.log.PrintLine("PID", fmt.Sprintf("%d", p.rt.Getpid()))
-		p.log.PrintLine("Lock Path", lockPath)
+	if p.verbose && plan.DefaultNotice != "" {
+		p.log.PrintLine("Notice", plan.DefaultNotice)
 	}
 }
 

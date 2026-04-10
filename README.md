@@ -95,6 +95,9 @@ sudo duplicacy-backup --dry-run homes
 
 # Detailed troubleshooting output
 sudo duplicacy-backup --verbose --backup --prune homes
+
+# Machine-readable completion summary on stdout
+sudo duplicacy-backup --json-summary --dry-run homes
 ```
 
 ## Common Commands
@@ -121,7 +124,7 @@ duplicacy-backup config validate homes
 # Explain resolved remote config values
 duplicacy-backup config explain --remote homes
 
-# Show resolved config, secrets, source, and work paths
+# Show resolved stable config, secrets, source, and log paths
 duplicacy-backup config paths homes
 ```
 
@@ -135,6 +138,9 @@ Config commands are read-only helpers:
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.
+
+`--json-summary` adds a machine-readable completion summary on stdout while
+keeping the human-readable phase logs on stderr.
 
 `--help` now shows a concise quick-reference view. Use `--help-full` for the
 detailed CLI reference, and `config --help-full` for the detailed config

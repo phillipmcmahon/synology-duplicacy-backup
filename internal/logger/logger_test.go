@@ -562,8 +562,8 @@ func TestCleanupOldLogs_DisabledWhenZero(t *testing.T) {
 	log.CleanupOldLogs(0, false)
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "Log retention disabled") {
-		t.Errorf("expected retention disabled message, got: %s", content)
+	if content != "" {
+		t.Errorf("expected no log output, got: %s", content)
 	}
 }
 
@@ -572,8 +572,8 @@ func TestCleanupOldLogs_DisabledWhenNegative(t *testing.T) {
 	log.CleanupOldLogs(-5, false)
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "Log retention disabled") {
-		t.Errorf("expected retention disabled message, got: %s", content)
+	if content != "" {
+		t.Errorf("expected no log output, got: %s", content)
 	}
 }
 
@@ -582,8 +582,8 @@ func TestCleanupOldLogs_DryRun(t *testing.T) {
 	log.CleanupOldLogs(30, true)
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "Dry run") {
-		t.Errorf("expected dry-run message, got: %s", content)
+	if content != "" {
+		t.Errorf("expected no log output, got: %s", content)
 	}
 }
 

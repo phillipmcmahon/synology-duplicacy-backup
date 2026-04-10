@@ -12,15 +12,36 @@ func (e *Executor) cleanup() {
 	}
 	e.cleanedUp = true
 
-	if e.plan.Verbose {
+	if e.plan.Verbose && e.cleanupHasDetails() {
 		e.view.PrintPhase("Cleanup")
 	}
 	e.cleanupSnapshot()
 	e.cleanupWorkRoot()
 	e.releaseLock()
 
+	if e.report != nil {
+		e.report.CompleteRun(e.exitCode, e.report.FailureMessage, e.rt.Now())
+	}
 	e.view.PrintCompletion(e.exitCode, e.startedAt)
 	e.log.Close()
+}
+
+func (e *Executor) cleanupHasDetails() bool {
+	if e.plan.NeedsSnapshot {
+		if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
+			return true
+		}
+	}
+
+	workRoot := e.plan.WorkRoot
+	if e.dup != nil {
+		workRoot = e.dup.WorkRoot
+	}
+	if _, err := os.Stat(workRoot); err == nil {
+		return true
+	}
+
+	return false
 }
 
 func (e *Executor) cleanupSnapshot() {

@@ -173,6 +173,17 @@ func TestParseRequest_Verbose(t *testing.T) {
 	}
 }
 
+func TestParseRequest_JSONSummary(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--json-summary", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Request.JSONSummary {
+		t.Fatal("expected JSONSummary true")
+	}
+}
+
 func TestParseRequest_FixPermsOnly(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"--fix-perms", "homes"}, meta, DefaultRuntime())

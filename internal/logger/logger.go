@@ -293,13 +293,11 @@ func (l *Logger) StartActivity(message string) func() {
 // CleanupOldLogs removes log files older than retentionDays.
 func (l *Logger) CleanupOldLogs(retentionDays int, dryRun bool) {
 	if retentionDays <= 0 {
-		l.Info("Log retention disabled")
 		return
 	}
 
 	pattern := filepath.Join(l.logDir, l.scriptName+"-*.log")
 	if dryRun {
-		l.DryRun("find %s -maxdepth 1 -type f -name %s-*.log -mtime +%d -delete", l.logDir, l.scriptName, retentionDays)
 		return
 	}
 

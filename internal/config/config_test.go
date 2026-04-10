@@ -31,6 +31,25 @@ func currentUserGroup(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatalf("user.LookupGroupId() error = %v", err)
 	}
+	if u.Username != "root" && g.Name != "root" {
+		return u.Username, g.Name
+	}
+
+	for _, name := range []string{"nobody", "daemon"} {
+		if _, err := user.Lookup(name); err == nil {
+			u.Username = name
+			break
+		}
+	}
+	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
+		if _, err := user.LookupGroup(name); err == nil && name != "root" {
+			g.Name = name
+			break
+		}
+	}
+	if u.Username == "root" || g.Name == "root" {
+		t.Skip("no non-root owner/group available on this system")
+	}
 	return u.Username, g.Name
 }
 

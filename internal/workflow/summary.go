@@ -11,10 +11,6 @@ type SummaryLine struct {
 }
 
 func OperationMode(req *Request) string {
-	if req.FixPermsOnly {
-		return "Fix permissions only"
-	}
-
 	var parts []string
 	if req.DoBackup {
 		parts = append(parts, "Backup")
@@ -36,8 +32,8 @@ func OperationMode(req *Request) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	if len(parts) == 1 && parts[0] == "Backup" {
-		return "Backup only"
+	if len(parts) == 1 {
+		return parts[0]
 	}
 	return strings.Join(parts, " + ")
 }

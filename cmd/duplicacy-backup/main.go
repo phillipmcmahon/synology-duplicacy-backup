@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	osexec "os/exec"
 	"time"
@@ -63,6 +64,10 @@ func runWithArgs(args []string) int {
 	log, err := initLogger(meta)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
+		if result.Request.JSONSummary {
+			now := rt.Now()
+			emitJSONFailureSummary(os.Stdout, result.Request, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
+		}
 		return 1
 	}
 	log.SetVerbose(result.Request.Verbose)
@@ -74,15 +79,28 @@ func runWithArgs(args []string) int {
 	if err != nil {
 		log.Error("%s", workflow.OperatorMessage(err))
 		printFailureCompletion(meta, rt, log, startedAt)
+		if result.Request.JSONSummary {
+			emitJSONFailureSummary(os.Stdout, result.Request, startedAt, rt.Now(), workflow.OperatorMessage(err))
+		}
 		log.Close()
 		return 1
 	}
 
 	executor := workflow.NewExecutor(meta, rt, log, runner, plan)
-	return executor.Run()
+	code = executor.Run()
+	if plan.JSONSummary {
+		if err := workflow.WriteRunReport(os.Stdout, executor.Report()); err != nil {
+			fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
+			if code == 0 {
+				return 1
+			}
+		}
+	}
+	return code
 }
 
 func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*workflow.ParseResult, int) {
+	startedAt := rt.Now()
 	result, err := workflow.ParseRequest(args, meta, rt)
 	if err == nil {
 		return result, 0
@@ -92,18 +110,43 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if logErr != nil {
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", logErr)
 		fmt.Fprintf(os.Stderr, "[ERRO] %v\n", err)
+		if wantsJSONSummary(args) {
+			emitJSONFailureSummary(os.Stdout, nil, startedAt, rt.Now(), err.Error())
+		}
 		return nil, 1
 	}
 	defer log.Close()
 
 	log.Error("%s", workflow.OperatorMessage(err))
-	printFailureCompletion(meta, rt, log, rt.Now())
+	completedAt := rt.Now()
+	printFailureCompletion(meta, rt, log, startedAt)
+	if wantsJSONSummary(args) {
+		emitJSONFailureSummary(os.Stdout, nil, startedAt, completedAt, workflow.OperatorMessage(err))
+	}
 	var requestErr *workflow.RequestError
-	if errors.As(err, &requestErr) && requestErr.ShowUsage {
+	if errors.As(err, &requestErr) && requestErr.ShowUsage && !wantsJSONSummary(args) {
 		fmt.Fprintln(os.Stderr)
 		fmt.Print(workflow.UsageText(meta, rt))
 	}
 	return nil, 1
+}
+
+func wantsJSONSummary(args []string) bool {
+	for _, arg := range args {
+		if arg == "--json-summary" {
+			return true
+		}
+	}
+	return false
+}
+
+func emitJSONFailureSummary(w io.Writer, req *workflow.Request, startedAt, completedAt time.Time, message string) {
+	if w == nil {
+		return
+	}
+	if err := workflow.WriteRunReport(w, workflow.NewFailureRunReport(req, startedAt, completedAt, 1, message)); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
+	}
 }
 
 func initLogger(meta workflow.Metadata) (*logger.Logger, error) {

@@ -31,6 +31,7 @@ type Request struct {
 	RemoteMode     bool
 	DryRun         bool
 	Verbose        bool
+	JSONSummary    bool
 	ConfigDir      string
 	SecretsDir     string
 	Source         string
@@ -136,6 +137,8 @@ func parseFlags(args []string) (*Request, error) {
 			req.DryRun = true
 		case "--verbose":
 			req.Verbose = true
+		case "--json-summary":
+			req.JSONSummary = true
 		case "--config-dir":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--config-dir requires a value")
@@ -158,7 +161,7 @@ func parseFlags(args []string) (*Request, error) {
 
 	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && !req.FixPerms {
 		req.DoBackup = true
-		req.DefaultNotice = "No primary operation specified: defaulting to backup only."
+		req.DefaultNotice = "No primary operation specified: defaulting to backup only"
 	}
 	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
 		req.DefaultNotice = "Primary operation specified: fix-perms only"

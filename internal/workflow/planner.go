@@ -111,6 +111,7 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		RemoteMode:          req.RemoteMode,
 		DryRun:              req.DryRun,
 		Verbose:             req.Verbose,
+		JSONSummary:         req.JSONSummary,
 		NeedsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
 		NeedsSnapshot:       req.DoBackup,
 		DefaultNotice:       req.DefaultNotice,
@@ -152,10 +153,6 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		return nil, err
 	}
 
-	if p.log != nil {
-		p.log.Debug("Configuration parsed for [common] + [%s].", targetSection)
-	}
-
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
 	}
@@ -185,15 +182,8 @@ func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 	if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
 		return err
 	}
-	if p.log != nil {
-		p.log.Debug("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
-	}
-
 	if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
 		return err
-	}
-	if p.log != nil {
-		p.log.Debug("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
 	}
 
 	return nil

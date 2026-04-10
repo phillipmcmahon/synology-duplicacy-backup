@@ -24,6 +24,38 @@ func testExecutorLogger(t *testing.T) *logger.Logger {
 	return log
 }
 
+func executorTestUserGroup(t *testing.T) (string, string) {
+	t.Helper()
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("user.Current() error = %v", err)
+	}
+	g, err := user.LookupGroupId(u.Gid)
+	if err != nil {
+		t.Fatalf("user.LookupGroupId() error = %v", err)
+	}
+	if u.Username != "root" && g.Name != "root" {
+		return u.Username, g.Name
+	}
+
+	for _, name := range []string{"nobody", "daemon"} {
+		if _, err := user.Lookup(name); err == nil {
+			u.Username = name
+			break
+		}
+	}
+	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
+		if _, err := user.LookupGroup(name); err == nil && name != "root" {
+			g.Name = name
+			break
+		}
+	}
+	if u.Username == "root" || g.Name == "root" {
+		t.Skip("no non-root owner/group available on this system")
+	}
+	return u.Username, g.Name
+}
+
 func readSingleLogFile(t *testing.T, dir string) string {
 	t.Helper()
 	entries, err := os.ReadDir(dir)
@@ -48,14 +80,7 @@ func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
 }
 
 func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
-	u, err := user.Current()
-	if err != nil {
-		t.Fatalf("user.Current() error = %v", err)
-	}
-	g, err := user.LookupGroupId(u.Gid)
-	if err != nil {
-		t.Fatalf("user.LookupGroupId() error = %v", err)
-	}
+	username, group := executorTestUserGroup(t)
 
 	lockParent := t.TempDir()
 	rt := testRuntime()
@@ -70,14 +95,14 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 		DryRun:                   true,
 		DefaultNotice:            "Primary operation specified: fix-perms only",
 		LogRetentionDays:         30,
-		LocalOwner:               u.Username,
-		LocalGroup:               g.Name,
-		OwnerGroup:               u.Username + ":" + g.Name,
+		LocalOwner:               username,
+		LocalGroup:               group,
+		OwnerGroup:               username + ":" + group,
 		BackupLabel:              "homes",
 		BackupTarget:             "/backups/homes",
 		WorkRoot:                 filepath.Join(t.TempDir(), "work"),
-		OperationMode:            "Fix permissions only",
-		FixPermsChownCommand:     "chown -R " + u.Username + ":" + g.Name + " /backups/homes",
+		OperationMode:            "Fix permissions",
+		FixPermsChownCommand:     "chown -R " + username + ":" + group + " /backups/homes",
 		FixPermsDirPermsCommand:  "find /backups/homes -type d -exec chmod 770 {} +",
 		FixPermsFilePermsCommand: "find /backups/homes -type f -exec chmod 660 {} +",
 	}
@@ -179,7 +204,7 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 		NeedsDuplicacySetup: true,
 		LogRetentionDays:    30,
 		BackupLabel:         "homes",
-		OperationMode:       "Backup only",
+		OperationMode:       "Backup",
 		ModeDisplay:         "Local",
 		WorkRoot:            workRoot,
 		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),

@@ -156,6 +156,7 @@ Common modifiers:
     --remote
     --dry-run
     --verbose
+    --json-summary
     --config-dir <path>
     --secrets-dir <path>
     --version, -v
@@ -165,11 +166,13 @@ Common modifiers:
 Examples:
     %s homes
     %s --backup --prune homes
+    %s --json-summary --dry-run homes
     %s --remote homes
     %s config validate homes
 
 Use --help-full for the detailed reference.
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -206,6 +209,7 @@ MODIFIERS:
     --remote                 Perform operation against remote S3-compatible target config
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
+    --json-summary           Write a machine-readable run summary to stdout
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
     --version, -v            Show version and build information
@@ -246,10 +250,15 @@ INTERACTIVE SAFETY RAILS:
       - cleanup-storage
     Non-interactive runs continue without confirmation so scheduled jobs are unaffected
 
+JSON SUMMARY:
+    --json-summary writes a machine-readable completion summary to stdout.
+    Human-readable logs continue to be written to stderr.
+
 EXAMPLES:
     %s homes
     %s --backup homes
     %s --backup --prune homes
+    %s --json-summary --dry-run homes
     %s --prune homes
     %s --cleanup-storage homes
     %s --prune --cleanup-storage homes
@@ -277,7 +286,7 @@ EXAMPLES:
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 	)
 }
 
@@ -317,7 +326,7 @@ func FullConfigUsageText(meta Metadata, rt Runtime) string {
 CONFIG COMMANDS:
     validate                Validate the resolved config and configured secrets
     explain                 Show the resolved config values for the selected mode
-    paths                   Show the resolved config, secrets, source, and work paths
+    paths                   Show the resolved stable config, secrets, source, and log paths
 
 OPTIONS:
     --remote                Use remote mode for explain/paths, or require remote validation

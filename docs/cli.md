@@ -33,6 +33,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--remote` | Use the remote S3-compatible config and secrets path |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
+| `--json-summary` | Write a machine-readable run summary to stdout |
 | `--config-dir <path>` | Override the config directory |
 | `--secrets-dir <path>` | Override the secrets directory |
 | `--version`, `-v` | Show version and build information |
@@ -46,7 +47,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `config validate <label>` | Validate resolved local config and, when configured, remote config and secrets |
 | `config explain <label>` | Show resolved config values for local mode by default |
 | `config explain --remote <label>` | Show resolved config values for remote mode |
-| `config paths <label>` | Show resolved config, secrets, source, snapshot, work, and log paths |
+| `config paths <label>` | Show resolved stable config, secrets, source, and log paths |
 
 ## Environment Variables
 
@@ -94,6 +95,9 @@ duplicacy-backup --remote --dry-run homes
 # Verbose troubleshooting run
 duplicacy-backup --verbose --backup --prune homes
 
+# Machine-readable completion summary
+duplicacy-backup --json-summary --dry-run homes
+
 # Validate config and remote secrets
 duplicacy-backup config validate homes
 
@@ -124,3 +128,4 @@ duplicacy-backup config paths homes
 - `config validate` always validates local config; if a `[remote]` table is present it also validates remote config and secrets
 - `config validate --remote` requires remote config and remote secrets to be valid
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
+- `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
