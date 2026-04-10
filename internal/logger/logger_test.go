@@ -70,6 +70,18 @@ func TestIsTerminal_RegularFile(t *testing.T) {
 	}
 }
 
+func TestIsTerminal_DevNull(t *testing.T) {
+	f, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatalf("failed to open /dev/null: %v", err)
+	}
+	defer f.Close()
+
+	if IsTerminal(f) {
+		t.Error("IsTerminal(/dev/null) = true, want false")
+	}
+}
+
 // ─── Level.String tests ─────────────────────────────────────────────────────
 
 func TestLevelString(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
 
 var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
@@ -46,14 +47,7 @@ func DefaultRuntime() Runtime {
 		Getenv:   os.Getenv,
 		Stdin:    func() *os.File { return os.Stdin },
 		StdinIsTTY: func() bool {
-			if os.Stdin == nil {
-				return false
-			}
-			fi, err := os.Stdin.Stat()
-			if err != nil {
-				return false
-			}
-			return (fi.Mode() & os.ModeCharDevice) != 0
+			return logger.IsTerminal(os.Stdin)
 		},
 		Executable:   os.Executable,
 		EvalSymlinks: filepath.EvalSymlinks,

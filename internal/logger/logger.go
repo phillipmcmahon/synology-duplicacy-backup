@@ -81,19 +81,13 @@ func StripColour(s string) string {
 }
 
 // IsTerminal reports whether the given file descriptor is connected to a
-// terminal (TTY). This is used to decide whether colour output is appropriate.
-// It works on Linux (including Synology DSM) by checking for the character
-// device mode bit, which is the portable Go approach and does not require
-// cgo or platform-specific ioctl calls.
+// terminal (TTY). This is used to decide whether colour output is appropriate
+// and whether interactive safety prompts should appear.
 func IsTerminal(f *os.File) bool {
 	if f == nil {
 		return false
 	}
-	fi, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
+	return isTerminalFD(f.Fd())
 }
 
 // New creates a new Logger instance.
