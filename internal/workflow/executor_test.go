@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -21,6 +22,22 @@ func testExecutorLogger(t *testing.T) *logger.Logger {
 	}
 	t.Cleanup(log.Close)
 	return log
+}
+
+func readSingleLogFile(t *testing.T, dir string) string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("log file count = %d, want 1", len(entries))
+	}
+	data, err := os.ReadFile(filepath.Join(dir, entries[0].Name()))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	return string(data)
 }
 
 func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
@@ -51,7 +68,7 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 		FixPerms:                 true,
 		FixPermsOnly:             true,
 		DryRun:                   true,
-		DefaultNotice:            "Primary operation specified: fix-perms only.",
+		DefaultNotice:            "Primary operation specified: fix-perms only",
 		LogRetentionDays:         30,
 		LocalOwner:               u.Username,
 		LocalGroup:               g.Name,
@@ -138,5 +155,61 @@ func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) 
 	}
 	if strings.Contains(output, "[REVISION-LIST]") {
 		t.Fatalf("expected revision listing to be suppressed, got %q", output)
+	}
+}
+
+func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+
+	lockParent := t.TempDir()
+	rt := testRuntime()
+	rt.NewLock = func(_, label string) *lock.Lock {
+		return lock.New(lockParent, label)
+	}
+	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
+
+	workRoot := filepath.Join(t.TempDir(), "work")
+	plan := &Plan{
+		DoBackup:            true,
+		NeedsDuplicacySetup: true,
+		LogRetentionDays:    30,
+		BackupLabel:         "homes",
+		OperationMode:       "Backup only",
+		ModeDisplay:         "Local",
+		WorkRoot:            workRoot,
+		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
+		RepositoryPath:      "/volume1/homes-snap",
+		BackupTarget:        "/backups/homes",
+		Threads:             4,
+	}
+	runner := execpkg.NewMockRunner(execpkg.MockResult{
+		Stdout: "Repository set to /volume1/homes-snap\n",
+		Stderr: "storage write failed\n",
+		Err:    errors.New("exit status 1"),
+	})
+
+	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, runner, plan)
+	if code := executor.Run(); code != 1 {
+		t.Fatalf("Run() = %d, want 1", code)
+	}
+
+	output := readSingleLogFile(t, logDir)
+	required := []string{
+		"Phase: Backup",
+		"Backup failed while running duplicacy backup",
+		"Result",
+		"Failed",
+		"Code",
+		"Run completed -",
+	}
+	for _, token := range required {
+		if !strings.Contains(output, token) {
+			t.Fatalf("expected %q in log output, got %q", token, output)
+		}
 	}
 }

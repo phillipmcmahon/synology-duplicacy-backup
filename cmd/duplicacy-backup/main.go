@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	osexec "os/exec"
+	"time"
 
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
@@ -56,12 +57,14 @@ func runWithArgs(args []string) int {
 		return 1
 	}
 	log.SetVerbose(result.Request.Verbose)
+	startedAt := rt.Now()
 
 	runner := execpkg.NewCommandRunner(log, result.Request.DryRun)
 	planner := workflow.NewPlanner(meta, rt, log, runner)
 	plan, err := planner.Build(result.Request)
 	if err != nil {
 		log.Error("%s", workflow.OperatorMessage(err))
+		printFailureCompletion(meta, rt, log, startedAt)
 		log.Close()
 		return 1
 	}
@@ -85,6 +88,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	defer log.Close()
 
 	log.Error("%s", workflow.OperatorMessage(err))
+	printFailureCompletion(meta, rt, log, rt.Now())
 	var requestErr *workflow.RequestError
 	if errors.As(err, &requestErr) && requestErr.ShowUsage {
 		fmt.Fprintln(os.Stderr)
@@ -96,4 +100,8 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 func initLogger(meta workflow.Metadata) (*logger.Logger, error) {
 	enableColour := logger.IsTerminal(os.Stderr)
 	return logger.New(meta.LogDir, meta.ScriptName, enableColour)
+}
+
+func printFailureCompletion(meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time) {
+	workflow.NewPresenter(meta, rt, log, false).PrintCompletion(1, startedAt)
 }

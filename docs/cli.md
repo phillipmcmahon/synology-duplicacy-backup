@@ -29,7 +29,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Flag | Description |
 |---|---|
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
-| `--remote` | Use the remote config and secrets path |
+| `--remote` | Use the remote S3-compatible config and secrets path |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--config-dir <path>` | Override the config directory |
@@ -88,10 +88,12 @@ duplicacy-backup --verbose --backup --prune homes
 
 - config files are TOML files named `<label>-backup.toml`
 - remote secrets files are TOML files named `duplicacy-<label>.toml`
+- current remote secrets keys are `storj_s3_id` and `storj_s3_secret`
 - `--fix-perms` is local-only and cannot be combined with `--remote`
 - combined phases all run in the same target mode for a single invocation; `--remote` applies to every requested phase
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
 - `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
+- `--cleanup-storage` runs `duplicacy prune -exhaustive -exclusive`, so it should be used only when no other client is actively writing to the same storage
 - `--force-prune` only affects prune threshold enforcement
 - `--force-prune` requires `--prune`
 - standalone `--fix-perms` does not require `duplicacy`

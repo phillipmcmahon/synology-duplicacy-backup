@@ -50,7 +50,7 @@ Values in the active target table override values from `[common]`.
 
 | Key | Required | Description |
 |---|---|---|
-| `destination` | Yes | Backup destination path or S3 URL |
+| `destination` | Yes | Backup destination path or S3-compatible gateway URL |
 | `threads` | Yes for backup | Duplicacy threads; power of 2, max 16 |
 | `prune` | Yes for prune | Duplicacy prune retention arguments |
 | `filter` | No | Duplicacy filter patterns |
@@ -85,7 +85,7 @@ threads = 8
 
 ## Secrets
 
-Remote mode loads secrets from:
+Remote mode loads gateway credentials from:
 
 ```text
 /root/.secrets/duplicacy-<label>.toml
@@ -110,6 +110,9 @@ Requirements:
 - only `storj_s3_id` and `storj_s3_secret` are allowed
 - `storj_s3_id` must be at least 28 characters
 - `storj_s3_secret` must be at least 53 characters
+
+The current schema uses `storj_s3_id` and `storj_s3_secret` because those
+values are passed through to Duplicacy for gateway-backed remote storage.
 
 ## Safe Prune Thresholds
 

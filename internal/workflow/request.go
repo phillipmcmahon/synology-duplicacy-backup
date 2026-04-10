@@ -120,7 +120,7 @@ func parseFlags(args []string) (*Request, error) {
 		req.DefaultNotice = "No primary operation specified: defaulting to backup only."
 	}
 	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
-		req.DefaultNotice = "Primary operation specified: fix-perms only."
+		req.DefaultNotice = "Primary operation specified: fix-perms only"
 	}
 
 	if len(positional) < 1 {

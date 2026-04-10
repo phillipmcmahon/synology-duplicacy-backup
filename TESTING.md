@@ -52,6 +52,7 @@ go test ./...
 - lock-acquisition failure translation
 - backup dry-run success
 - fix-perms-only dry-run success
+- representative install/help/doc consistency checks
 
 These tests use the same seams as production:
 
@@ -98,6 +99,7 @@ Workflow tests also cover:
 
 - operator-message translation
 - summary layout for fixed-perms-only and remote flows
+- logger activity rendering for interactive TTY runs
 
 ### `internal/btrfs`
 
@@ -161,3 +163,13 @@ When adding a new high-value error path, prefer:
 2. translate it in `internal/workflow/messages.go`
 3. add or update a table-driven translation test
 4. add a `runWithArgs` assertion if the message is part of the real entrypoint UX
+
+## Release-Gated Surfaces
+
+The following are treated as release-sensitive operator surfaces and should get
+targeted coverage whenever they change:
+
+- help text in `UsageText`
+- install script help/output
+- README / CLI / operations examples for the current flag set
+- phase-oriented stderr output for normal, verbose, dry-run, and failure paths

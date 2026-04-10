@@ -146,11 +146,12 @@ OPERATIONS:
     --prune                  Request threshold-guarded prune
     --cleanup-storage        Request storage maintenance:
                              duplicacy prune -exhaustive -exclusive
+                             Use only when no other client is writing to the same storage
     --fix-perms              Normalise local repository ownership and permissions
 
 MODIFIERS:
     --force-prune            Override safe prune thresholds during prune
-    --remote                 Perform operation against remote target config
+    --remote                 Perform operation against remote S3-compatible target config
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
@@ -178,9 +179,10 @@ CONFIG KEYS:
     safe_prune_min_total_for_percent
 
 REMOTE SECRETS:
-    Strict mode: remote credentials are loaded only from:
+    Strict mode: remote gateway credentials are loaded only from:
       %s/%s-<label>.toml
     Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
+    Current TOML keys: storj_s3_id and storj_s3_secret
 
 ARGUMENTS:
     source                   Source directory name under %s

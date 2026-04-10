@@ -23,6 +23,14 @@ and create a stable command path:
 
   <bin-dir>/duplicacy-backup -> <install-root>/current
 
+Config files stay under:
+
+  <install-root>/.config/
+
+Remote secrets are not modified by the installer and should stay under:
+
+  /root/.secrets/
+
 Options:
   --binary <path>         Install this binary instead of auto-detecting one
   --install-root <path>   Versioned binary directory
@@ -115,6 +123,7 @@ prune_old_binaries() {
             continue
         fi
         rm -f -- "$file"
+        echo "Pruned old binary: $(basename "$file")"
     done
 }
 
@@ -200,6 +209,10 @@ if [ "$ACTIVATE" -eq 1 ]; then
 else
     echo "Installed without activation. Re-run without --no-activate to switch current."
 fi
+if [ "$KEEP" -gt 0 ]; then
+    echo "Retention policy: keeping newest $KEEP installed binaries"
+fi
 echo "Default config directory: $CONFIG_DIR"
+echo "Remote secrets directory: /root/.secrets (not modified by installer)"
 echo "Scheduled tasks should call: $STABLE_LINK"
 echo "Rollback hint: ln -sfn <older-binary-name> $CURRENT_LINK"

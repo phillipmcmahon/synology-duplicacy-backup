@@ -64,6 +64,8 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 	lines := SummaryLines(plan)
 	foundSecretsFile := false
 	foundSecretsDir := false
+	foundAccessKey := false
+	foundSecretKey := false
 	for _, line := range lines {
 		if line.Label == "Secrets Dir" {
 			foundSecretsDir = true
@@ -71,8 +73,14 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		if line.Label == "Secrets File" {
 			foundSecretsFile = true
 		}
+		if line.Label == "Remote Access Key" {
+			foundAccessKey = true
+		}
+		if line.Label == "Remote Secret Key" {
+			foundSecretKey = true
+		}
 	}
-	if !foundSecretsDir || !foundSecretsFile {
+	if !foundSecretsDir || !foundSecretsFile || !foundAccessKey || !foundSecretKey {
 		t.Fatalf("expected secrets lines in summary, got %+v", lines)
 	}
 }

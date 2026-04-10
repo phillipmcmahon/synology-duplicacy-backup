@@ -4,14 +4,14 @@
 
 A compiled Go replacement for `duplicacy-backup.sh`.
 
-It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for local and remote (Storj S3) targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
+It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for local and remote S3-compatible targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
 ## Highlights
 
 - Read-only btrfs snapshots for consistent backups
-- Local and remote backup modes
+- Local and remote S3-compatible backup modes
 - Threshold-guarded prune with optional forced override
 - Optional local permission normalisation
 - Dry-run support for previewing actions
@@ -65,6 +65,10 @@ cp examples/duplicacy-homes.toml /root/.secrets/duplicacy-homes.toml
 chown root:root /root/.secrets/duplicacy-homes.toml
 chmod 600 /root/.secrets/duplicacy-homes.toml
 ```
+
+The current remote TOML schema uses `storj_s3_id` and `storj_s3_secret`
+because those values are passed through to Duplicacy for gateway-backed
+S3-compatible storage.
 
 ### 4. Run
 

@@ -39,6 +39,7 @@ By default this will:
 - create or update `current`
 - create or update `/usr/local/bin/duplicacy-backup`
 - create `/usr/local/lib/duplicacy-backup/.config` if needed
+- leave `/root/.secrets` untouched
 
 ### Installer options
 
@@ -57,6 +58,31 @@ sudo ./install.sh --install-root /volume1/tools/duplicacy-backup --bin-dir /usr/
 
 # Keep only the 3 newest installed binaries
 sudo ./install.sh --keep 3
+```
+
+### Upgrade and rollback
+
+Upgrading is the same as a fresh install:
+
+1. extract the new release tarball
+2. run `sudo ./install.sh`
+3. confirm `/usr/local/bin/duplicacy-backup --version`
+
+Config and secrets stay in their existing directories, so upgrades do not
+require copying TOML files again unless you are intentionally changing them.
+
+To install a new binary without switching immediately:
+
+```bash
+sudo ./install.sh --no-activate
+```
+
+To roll back after an upgrade:
+
+```bash
+cd /usr/local/lib/duplicacy-backup
+ls -1 duplicacy-backup_*_linux_*
+sudo ln -sfn <older-binary-name> current
 ```
 
 ### Config location after install
@@ -101,6 +127,11 @@ Example: remote storage cleanup
 ```bash
 /usr/local/bin/duplicacy-backup --remote --cleanup-storage homes
 ```
+
+`--remote` uses the remote TOML table plus the matching remote secrets file.
+The current remote secrets schema is still `storj_s3_id` / `storj_s3_secret`,
+because those values are passed through to Duplicacy for gateway-backed
+S3-compatible storage.
 
 ## Release Verification
 

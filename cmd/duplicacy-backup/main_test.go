@@ -99,6 +99,19 @@ func writeConfig(t *testing.T, dir, label, body string) string {
 	return path
 }
 
+func assertFailureFooter(t *testing.T, stderr string) {
+	t.Helper()
+	if !strings.Contains(stderr, "Result") || !strings.Contains(stderr, "Failed") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Code") || !strings.Contains(stderr, "1") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Duration") || !strings.Contains(stderr, "Run completed -") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
 func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help"}); code != 0 {
@@ -115,6 +128,9 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if !strings.Contains(stdout, "--verbose") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stdout, "remote S3-compatible target config") || !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if !strings.Contains(stdout, "    --fix-perms              Normalise local repository ownership and permissions") {
@@ -187,6 +203,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		assertFailureFooter(t, stderr)
 	})
 }
 
@@ -207,9 +224,10 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Lock acquisition failed:") || !strings.Contains(stderr, "not a directory") {
+		if !strings.Contains(stderr, "Cannot create the lock directory parent at") || !strings.Contains(stderr, "check that the lock parent path exists and is writable by root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		assertFailureFooter(t, stderr)
 	})
 }
 
@@ -244,9 +262,26 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(remote missing secrets) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml") {
+		if !strings.Contains(stderr, "Remote secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		assertFailureFooter(t, stderr)
+	})
+}
+
+func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads =\n[local]\n")
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--backup", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(invalid toml) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "contains invalid TOML") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		assertFailureFooter(t, stderr)
 	})
 }
 
