@@ -43,60 +43,50 @@ func OperationMode(req *Request) string {
 }
 
 func SummaryLines(plan *Plan) []SummaryLine {
-	lines := []SummaryLine{{Label: "Operation Mode", Value: plan.OperationMode}}
-
 	if plan.FixPermsOnly {
-		lines = append(lines,
+		return []SummaryLine{
+			{Label: "Operation Mode", Value: plan.OperationMode},
 			SummaryLine{Label: "Destination", Value: plan.BackupTarget},
 			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
 			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
 			SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
-		)
-		return lines
+		}
 	}
 
-	lines = append(lines,
+	lines := []SummaryLine{
+		{Label: "Operation Mode", Value: plan.OperationMode},
 		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
-		SummaryLine{Label: "Backup Label", Value: plan.BackupLabel},
 		SummaryLine{Label: "Mode", Value: plan.ModeDisplay},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
-	)
+	}
 	if plan.DoBackup {
 		lines = append(lines, SummaryLine{Label: "Snapshot", Value: plan.RepositoryPath})
 	}
-	lines = append(lines,
-		SummaryLine{Label: "Work Dir", Value: plan.WorkDir()},
-		SummaryLine{Label: "Destination", Value: plan.BackupTarget},
-	)
+	lines = append(lines, SummaryLine{Label: "Destination", Value: plan.BackupTarget})
 
 	if !plan.Verbose {
-		compact := []SummaryLine{
-			{Label: "Operation Mode", Value: plan.OperationMode},
-			{Label: "Config File", Value: plan.ConfigFile},
-			{Label: "Mode", Value: plan.ModeDisplay},
-			{Label: "Source", Value: plan.SnapshotSource},
-		}
-		if plan.DoBackup {
-			compact = append(compact, SummaryLine{Label: "Snapshot", Value: plan.RepositoryPath})
-		}
-		compact = append(compact, SummaryLine{Label: "Destination", Value: plan.BackupTarget})
 		if plan.DryRun {
-			compact = append(compact, SummaryLine{Label: "Dry Run", Value: "true"})
+			lines = append(lines, SummaryLine{Label: "Dry Run", Value: "true"})
 		}
 		if plan.ForcePrune {
-			compact = append(compact, SummaryLine{Label: "Force Prune", Value: "true"})
+			lines = append(lines, SummaryLine{Label: "Force Prune", Value: "true"})
 		}
 		if plan.DoCleanupStore {
-			compact = append(compact, SummaryLine{Label: "Cleanup Storage", Value: "true"})
+			lines = append(lines, SummaryLine{Label: "Cleanup Storage", Value: "true"})
 		}
 		if plan.FixPerms {
-			compact = append(compact,
+			lines = append(lines,
 				SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
 				SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
 			)
 		}
-		return compact
+		return lines
 	}
+
+	lines = append(lines,
+		SummaryLine{Label: "Backup Label", Value: plan.BackupLabel},
+		SummaryLine{Label: "Work Dir", Value: plan.WorkDir()},
+	)
 
 	if plan.Threads > 0 {
 		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", plan.Threads)})

@@ -149,6 +149,19 @@ func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_ExtraPositionalArgsReturnOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"homes", "extra"}); code != 1 {
+				t.Fatalf("runWithArgs(extra args) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "unexpected extra arguments: extra") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
 func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }

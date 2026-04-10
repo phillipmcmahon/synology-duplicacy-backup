@@ -138,3 +138,21 @@ func TestParseRequest_InvalidLabel(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestParseRequest_ExtraPositionalArgsFail(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"homes", "extra"}, meta, DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*RequestError)
+	if !ok {
+		t.Fatalf("error type = %T, want *RequestError", err)
+	}
+	if !reqErr.ShowUsage {
+		t.Fatal("expected ShowUsage true")
+	}
+	if got := err.Error(); got != "unexpected extra arguments: extra" {
+		t.Fatalf("error = %q", got)
+	}
+}

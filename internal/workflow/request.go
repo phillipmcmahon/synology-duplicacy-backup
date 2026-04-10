@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 )
 
 // RequestError describes a request-parsing or request-validation failure.
@@ -119,11 +120,14 @@ func parseFlags(args []string) (*Request, error) {
 		req.DefaultNotice = "No primary operation specified: defaulting to backup only."
 	}
 	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
-		req.DefaultNotice = "No primary operation specified: using fix-perms only."
+		req.DefaultNotice = "Primary operation specified: fix-perms only."
 	}
 
 	if len(positional) < 1 {
 		return nil, NewUsageRequestError("source directory required")
+	}
+	if len(positional) > 1 {
+		return nil, NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
 	}
 	req.Source = positional[0]
 	return req, nil

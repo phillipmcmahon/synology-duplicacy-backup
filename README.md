@@ -114,7 +114,7 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
-to include detailed operational logging and raw command output.
+to include detailed operational logging and command details.
 
 ## Documentation
 

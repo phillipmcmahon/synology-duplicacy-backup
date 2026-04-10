@@ -69,7 +69,7 @@ func (e *Executor) installSignalHandler() {
 	e.rt.SignalNotify(sigChan, SignalSet()...)
 	go func() {
 		sig := <-sigChan
-		e.log.Warn("%s", statusLinef("Received signal: %v — initiating cleanup", sig))
+		e.log.Warn("%s", statusLinef("Received signal: %v - initiating cleanup", sig))
 		e.exitCode = 1
 		e.cleanup()
 		os.Exit(1)

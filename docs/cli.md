@@ -31,7 +31,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
 | `--remote` | Use the remote config and secrets path |
 | `--dry-run` | Simulate actions without making changes |
-| `--verbose` | Show detailed operational logging and raw command output |
+| `--verbose` | Show detailed operational logging and command details |
 | `--config-dir <path>` | Override the config directory |
 | `--secrets-dir <path>` | Override the secrets directory |
 | `--version`, `-v` | Show version and build information |

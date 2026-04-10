@@ -152,7 +152,7 @@ MODIFIERS:
     --force-prune            Override safe prune thresholds during prune
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
-    --verbose                Show detailed operational logging and raw command output
+    --verbose                Show detailed operational logging and command details
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
     --version, -v            Show version and build information
