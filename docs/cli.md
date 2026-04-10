@@ -60,49 +60,49 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 ```bash
 # Default backup
-duplicacy-backup homes
+sudo duplicacy-backup homes
 
 # Explicit backup
-duplicacy-backup --backup homes
+sudo duplicacy-backup --backup homes
 
 # Backup, then safe prune
-duplicacy-backup --backup --prune homes
+sudo duplicacy-backup --backup --prune homes
 
 # Force prune
-duplicacy-backup --prune --force-prune homes
+sudo duplicacy-backup --prune --force-prune homes
 
 # Storage cleanup only
-duplicacy-backup --cleanup-storage homes
+sudo duplicacy-backup --cleanup-storage homes
 
 # Backup, then safe prune, then storage cleanup
-duplicacy-backup --backup --prune --cleanup-storage homes
+sudo duplicacy-backup --backup --prune --cleanup-storage homes
 
 # Backup, then forced prune, then storage cleanup
-duplicacy-backup --backup --prune --force-prune --cleanup-storage homes
+sudo duplicacy-backup --backup --prune --force-prune --cleanup-storage homes
 
 # Fix permissions only
-duplicacy-backup --fix-perms homes
+sudo duplicacy-backup --fix-perms homes
 
 # Backup, then fix permissions
-duplicacy-backup --backup --fix-perms homes
+sudo duplicacy-backup --backup --fix-perms homes
 
 # Backup, then safe prune, then fix permissions
-duplicacy-backup --prune --backup --fix-perms homes
+sudo duplicacy-backup --prune --backup --fix-perms homes
 
 # Remote backup preview
-duplicacy-backup --remote --dry-run homes
+sudo duplicacy-backup --remote --dry-run homes
 
 # Verbose troubleshooting run
-duplicacy-backup --verbose --backup --prune homes
+sudo duplicacy-backup --verbose --backup --prune homes
 
 # Machine-readable completion summary
-duplicacy-backup --json-summary --dry-run homes
+sudo duplicacy-backup --json-summary --dry-run homes
 
 # Validate config and remote secrets
-duplicacy-backup config validate homes
+sudo duplicacy-backup config validate homes
 
 # Explain remote config
-duplicacy-backup config explain --remote homes
+sudo duplicacy-backup config explain --remote homes
 
 # Show resolved paths
 duplicacy-backup config paths homes
@@ -129,3 +129,4 @@ duplicacy-backup config paths homes
 - `config validate --remote` requires remote config and remote secrets to be valid
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
+- installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception

@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release validation hardened**: Linux Go 1.26 is now the representative
   validation environment for testing and packaging, and release automation
   includes packaged-artifact smoke checks.
+- **Workflow coverage raised for release prep**: `internal/workflow` now
+  validates at 90.1%% statement coverage in the Linux Go 1.26 release
+  environment, with expanded tests across request parsing, planning,
+  observability, presentation, safety rails, and execution flow.
 
 ### Notes
 - **Version constant** updated to `2.1.3` in source (overridden by `-ldflags`

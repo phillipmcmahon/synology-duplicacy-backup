@@ -104,25 +104,25 @@ sudo duplicacy-backup --json-summary --dry-run homes
 
 ```bash
 # Explicit backup
-duplicacy-backup --backup homes
+sudo duplicacy-backup --backup homes
 
 # Safe prune + storage cleanup
-duplicacy-backup --prune --cleanup-storage homes
+sudo duplicacy-backup --prune --cleanup-storage homes
 
 # Fix permissions only
-duplicacy-backup --fix-perms homes
+sudo duplicacy-backup --fix-perms homes
 
 # Backup, then forced prune, then storage cleanup, then fix permissions
-duplicacy-backup --backup --prune --force-prune --cleanup-storage --fix-perms homes
+sudo duplicacy-backup --backup --prune --force-prune --cleanup-storage --fix-perms homes
 
 # Custom config directory
 duplicacy-backup --config-dir /opt/etc homes
 
-# Validate resolved config and secrets
-duplicacy-backup config validate homes
+# Validate resolved installed config and secrets
+sudo duplicacy-backup config validate homes
 
-# Explain resolved remote config values
-duplicacy-backup config explain --remote homes
+# Explain resolved installed remote config values
+sudo duplicacy-backup config explain --remote homes
 
 # Show resolved stable config, secrets, source, and log paths
 duplicacy-backup config paths homes
@@ -134,7 +134,7 @@ When operations are combined, execution order is fixed:
 Config commands are read-only helpers:
 - `config validate` checks the resolved TOML and any configured remote secrets
 - `config explain` shows the resolved values for local mode by default, or remote mode with `--remote`
-- `config paths` shows the resolved config, secrets, source, snapshot, work, and log paths
+- `config paths` shows the resolved stable config, secrets, source, and log paths
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.
@@ -149,6 +149,10 @@ subcommand reference.
 Interactive terminal runs ask for confirmation before forced prune and
 storage cleanup. Non-interactive runs continue unchanged so scheduled jobs are
 not blocked.
+
+For the installed Synology layout, runtime operations and installed-config
+inspection commands should normally be run with `sudo`. The main exception is
+`config paths`, which is useful as a normal-user discovery command.
 
 ## Documentation
 
