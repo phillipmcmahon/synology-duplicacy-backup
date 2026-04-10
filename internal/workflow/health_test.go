@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -337,8 +338,56 @@ func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
 	if strings.Contains(text, `"summary"`) {
 		t.Fatalf("health JSON should not include summary field: %s", text)
 	}
+	if strings.Contains(text, `"checks"`) {
+		t.Fatalf("health JSON should not include rendered checks: %s", text)
+	}
 	if !strings.Contains(text, `"status": "unhealthy"`) || !strings.Contains(text, `"check_type": "doctor"`) {
 		t.Fatalf("unexpected JSON: %s", text)
+	}
+}
+
+func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T) {
+	report := &HealthReport{
+		Status:                "healthy",
+		CheckType:             "verify",
+		Label:                 "homes",
+		Mode:                  "Local",
+		CheckedAt:             "2026-04-10T22:25:20Z",
+		LastVerifyRunAt:       "2026-04-10T22:25:20Z",
+		VerifiedRevisionCount: 79,
+		PassedRevisionCount:   79,
+		Checks: []HealthCheck{
+			{Name: "Verified revisions", Result: "pass", Message: "79"},
+			{Name: "Failed revisions", Result: "pass", Message: "0"},
+			{Name: "Last verify run", Result: "pass", Message: "<1m ago"},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := WriteHealthReport(&buf, report); err != nil {
+		t.Fatalf("WriteHealthReport() error = %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	if got, ok := payload["failed_revision_count"].(float64); !ok || got != 0 {
+		t.Fatalf("failed_revision_count = %#v, want 0", payload["failed_revision_count"])
+	}
+	failed, ok := payload["failed_revisions"].([]any)
+	if !ok || len(failed) != 0 {
+		t.Fatalf("failed_revisions = %#v, want []", payload["failed_revisions"])
+	}
+	if got := payload["last_verify_run_at"]; got != "2026-04-10T22:25:20Z" {
+		t.Fatalf("last_verify_run_at = %#v", got)
+	}
+	if _, ok := payload["checks"]; ok {
+		t.Fatalf("checks should not appear in JSON: %#v", payload["checks"])
+	}
+	if strings.Contains(buf.String(), `\u003c1m ago`) || strings.Contains(buf.String(), `"Last verify run"`) {
+		t.Fatalf("cadence check should not appear in JSON: %s", buf.String())
 	}
 }
 

@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Health screen layout polished**: Health output now uses the same block
   discipline as the rest of the tool, with shorter labels, clearer operator
   wording, compact recency strings, and structured alert reporting.
+- **Health JSON contract tightened**: Health JSON now omits rendered check
+  lines, always emits stable verify failure-summary fields, and uses explicit
+  machine timestamps such as `last_doctor_run_at` and `last_verify_run_at`.
 - **Verbose health output quieted**: Health runs no longer dump raw `exec:`
   command lines into the middle of the structured screen layout.
 - **Health result colouring fixed**: `Healthy`, `Degraded`, and `Unhealthy`

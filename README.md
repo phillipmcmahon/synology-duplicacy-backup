@@ -169,7 +169,9 @@ times, those storage timestamps are used as the authoritative freshness signal.
 `health verify` also records how many visible revisions were checked, how many
 passed, and which revisions failed integrity validation. The JSON report keeps
 summary counts on healthy runs and includes per-revision detail when failures
-need to be diagnosed.
+need to be diagnosed. Health JSON is machine-focused: it emits structured
+summary fields and timestamps rather than the rendered check lines shown in the
+interactive UI.
 
 Health policy is configured per backup TOML in an optional `[health]` table:
 - `freshness_warn_hours`

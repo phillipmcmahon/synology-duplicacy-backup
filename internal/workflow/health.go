@@ -46,6 +46,8 @@ type HealthReport struct {
 	Mode                        string                 `json:"mode"`
 	CheckedAt                   string                 `json:"checked_at"`
 	LocalLastSuccessAt          string                 `json:"local_last_success_at,omitempty"`
+	LastDoctorRunAt             string                 `json:"last_doctor_run_at,omitempty"`
+	LastVerifyRunAt             string                 `json:"last_verify_run_at,omitempty"`
 	StorageVisibleRevisionCount int                    `json:"storage_visible_revision_count,omitempty"`
 	StorageLatestRevision       int                    `json:"storage_latest_revision,omitempty"`
 	StorageLatestRevisionAt     string                 `json:"storage_latest_revision_at,omitempty"`
@@ -104,9 +106,11 @@ func WriteHealthReport(w io.Writer, report *HealthReport) error {
 	if report == nil {
 		return nil
 	}
+	payload := healthJSONReport(report)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(report)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(payload)
 }
 
 func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
@@ -471,12 +475,68 @@ func (h *HealthRunner) evaluateHealthRecency(report *HealthReport, cfg config.He
 		h.addCheck(report, name, "warn", "Prior health check timestamp is invalid")
 		return
 	}
+	switch kind {
+	case "doctor":
+		report.LastDoctorRunAt = formatReportTime(at)
+	case "verify":
+		report.LastVerifyRunAt = formatReportTime(at)
+	}
 	age := h.rt.Now().Sub(at)
 	if thresholdHours > 0 && age > time.Duration(thresholdHours)*time.Hour {
 		h.addCheck(report, name, "warn", humanAgo(age))
 		return
 	}
 	h.addCheck(report, name, "pass", humanAgo(age))
+}
+
+func healthJSONReport(report *HealthReport) map[string]any {
+	payload := map[string]any{
+		"status":       report.Status,
+		"check_type":   report.CheckType,
+		"label":        report.Label,
+		"mode":         report.Mode,
+		"checked_at":   report.CheckedAt,
+		"webhook_sent": report.WebhookSent,
+	}
+	if report.LocalLastSuccessAt != "" {
+		payload["local_last_success_at"] = report.LocalLastSuccessAt
+	}
+	if report.LastDoctorRunAt != "" {
+		payload["last_doctor_run_at"] = report.LastDoctorRunAt
+	}
+	if report.LastVerifyRunAt != "" {
+		payload["last_verify_run_at"] = report.LastVerifyRunAt
+	}
+	if report.StorageVisibleRevisionCount > 0 {
+		payload["storage_visible_revision_count"] = report.StorageVisibleRevisionCount
+	}
+	if report.StorageLatestRevision > 0 {
+		payload["storage_latest_revision"] = report.StorageLatestRevision
+	}
+	if report.StorageLatestRevisionAt != "" {
+		payload["storage_latest_revision_at"] = report.StorageLatestRevisionAt
+	}
+	if report.VerifiedRevisionCount > 0 {
+		payload["verified_revision_count"] = report.VerifiedRevisionCount
+	}
+	if report.PassedRevisionCount > 0 {
+		payload["passed_revision_count"] = report.PassedRevisionCount
+	}
+	if report.CheckType == "verify" {
+		payload["failed_revision_count"] = report.FailedRevisionCount
+		failed := report.FailedRevisions
+		if failed == nil {
+			failed = []int{}
+		}
+		payload["failed_revisions"] = failed
+	}
+	if len(report.RevisionResults) > 0 {
+		payload["revision_results"] = report.RevisionResults
+	}
+	if len(report.Issues) > 0 {
+		payload["issues"] = report.Issues
+	}
+	return payload
 }
 
 func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, status string) bool {

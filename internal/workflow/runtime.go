@@ -224,9 +224,9 @@ MODIFIERS:
     --help-full              Show the detailed help message
 
 HEALTH COMMANDS:
-    health status            Fast read-only health summary for automation and operators
+    health status            Fast read-only health summary for operators and schedulers
     health doctor            Read-only environment and storage diagnostics
-    health verify            Read-only integrity check across visible revisions
+    health verify            Read-only integrity check across visible revisions for the current label
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)

@@ -192,7 +192,8 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token") ||
-		!strings.Contains(stdout, "health status            Fast read-only health summary for automation and operators") ||
+		!strings.Contains(stdout, "health status            Fast read-only health summary for operators and schedulers") ||
+		!strings.Contains(stdout, "health verify            Read-only integrity check across visible revisions for the current label") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
 		!strings.Contains(stdout, "config explain --remote homes") ||
 		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {

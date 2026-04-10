@@ -140,6 +140,24 @@ Example: scheduled JSON health verification for monitoring
 /usr/local/bin/duplicacy-backup health verify --json-summary homes
 ```
 
+The health JSON report is intended for automation rather than terminal
+rendering. It exposes structured fields such as:
+
+- `status`
+- `storage_visible_revision_count`
+- `storage_latest_revision`
+- `storage_latest_revision_at`
+- `verified_revision_count`
+- `passed_revision_count`
+- `failed_revision_count`
+- `failed_revisions`
+- `last_doctor_run_at`
+- `last_verify_run_at`
+
+Healthy verify runs keep the JSON compact and omit per-revision detail. When
+integrity issues are found, `revision_results` is included so the failing
+revisions can be diagnosed.
+
 `--remote` uses the remote TOML table plus the matching remote secrets file.
 The current remote secrets schema is still `storj_s3_id` / `storj_s3_secret`,
 because those values are passed through to Duplicacy for gateway-backed
