@@ -50,6 +50,15 @@ func runWithArgs(args []string) int {
 		fmt.Print(result.Output)
 		return 0
 	}
+	if result.Request.ConfigCommand != "" {
+		output, err := workflow.HandleConfigCommand(result.Request, meta, rt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+			return 1
+		}
+		fmt.Print(output)
+		return 0
+	}
 
 	log, err := initLogger(meta)
 	if err != nil {

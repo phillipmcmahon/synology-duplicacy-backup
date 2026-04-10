@@ -131,6 +131,7 @@ func EffectiveConfigDir(rt Runtime) string {
 func UsageText(meta Metadata, rt Runtime) string {
 	cfgDir := EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
+       %s config <validate|explain|paths> [OPTIONS] <source>
 
 DEFAULT BEHAVIOUR:
     No primary operation specified = backup only
@@ -202,7 +203,11 @@ EXAMPLES:
     %s --verbose --backup --prune homes
     %s --config-dir /opt/etc homes
     %s --secrets-dir /opt/secrets --remote homes
+    %s config validate homes
+    %s config explain --remote homes
+    %s config paths homes
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		config.DefaultSecretsDir,
 		config.DefaultSafePruneMaxDeletePercent, config.DefaultSafePruneMaxDeletePercent,
@@ -214,6 +219,50 @@ EXAMPLES:
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName,
+	)
+}
+
+func ConfigUsageText(meta Metadata, rt Runtime) string {
+	cfgDir := EffectiveConfigDir(rt)
+	return fmt.Sprintf(`Usage: %s config <validate|explain|paths> [OPTIONS] <source>
+
+CONFIG COMMANDS:
+    validate                Validate the resolved config and configured secrets
+    explain                 Show the resolved config values for the selected mode
+    paths                   Show the resolved config, secrets, source, and work paths
+
+OPTIONS:
+    --remote                Use remote mode for explain/paths, or require remote validation
+    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --secrets-dir <path>    Override secrets directory (default: %s)
+    --help                  Show this help message
+
+BEHAVIOUR:
+    validate without --remote always validates local config.
+    If a [remote] table exists, validate also checks remote config and secrets.
+    validate with --remote requires remote config and remote secrets to be valid.
+
+DEFAULT LOCATIONS:
+    Config dir             : %s
+    Secrets dir            : %s
+
+EXAMPLES:
+    %s config validate homes
+    %s config validate --remote homes
+    %s config explain homes
+    %s config explain --remote homes
+    %s config paths homes
+`,
+		meta.ScriptName,
+		config.DefaultSecretsDir,
+		cfgDir,
+		config.DefaultSecretsDir,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
 	)
 }
 

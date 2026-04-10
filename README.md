@@ -112,10 +112,24 @@ duplicacy-backup --backup --prune --force-prune --cleanup-storage --fix-perms ho
 
 # Custom config directory
 duplicacy-backup --config-dir /opt/etc homes
+
+# Validate resolved config and secrets
+duplicacy-backup config validate homes
+
+# Explain resolved remote config values
+duplicacy-backup config explain --remote homes
+
+# Show resolved config, secrets, source, and work paths
+duplicacy-backup config paths homes
 ```
 
 When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
+
+Config commands are read-only helpers:
+- `config validate` checks the resolved TOML and any configured remote secrets
+- `config explain` shows the resolved values for local mode by default, or remote mode with `--remote`
+- `config paths` shows the resolved config, secrets, source, snapshot, work, and log paths
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.

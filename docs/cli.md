@@ -4,6 +4,7 @@
 
 ```text
 duplicacy-backup [OPTIONS] <source>
+duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 ```
 
 If no primary operation is specified, the binary defaults to backup mode.
@@ -36,6 +37,15 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--secrets-dir <path>` | Override the secrets directory |
 | `--version`, `-v` | Show version and build information |
 | `--help` | Show help |
+
+## Config Commands
+
+| Command | Description |
+|---|---|
+| `config validate <label>` | Validate resolved local config and, when configured, remote config and secrets |
+| `config explain <label>` | Show resolved config values for local mode by default |
+| `config explain --remote <label>` | Show resolved config values for remote mode |
+| `config paths <label>` | Show resolved config, secrets, source, snapshot, work, and log paths |
 
 ## Environment Variables
 
@@ -82,6 +92,15 @@ duplicacy-backup --remote --dry-run homes
 
 # Verbose troubleshooting run
 duplicacy-backup --verbose --backup --prune homes
+
+# Validate config and remote secrets
+duplicacy-backup config validate homes
+
+# Explain remote config
+duplicacy-backup config explain --remote homes
+
+# Show resolved paths
+duplicacy-backup config paths homes
 ```
 
 ## Notes
@@ -97,4 +116,6 @@ duplicacy-backup --verbose --backup --prune homes
 - `--force-prune` only affects prune threshold enforcement
 - `--force-prune` requires `--prune`
 - standalone `--fix-perms` does not require `duplicacy`
+- `config validate` always validates local config; if a `[remote]` table is present it also validates remote config and secrets
+- `config validate --remote` requires remote config and remote secrets to be valid
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs

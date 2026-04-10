@@ -25,6 +25,7 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 }
 
 type Request struct {
+	ConfigCommand  string
 	FixPerms       bool
 	ForcePrune     bool
 	RemoteMode     bool
@@ -47,6 +48,10 @@ type ParseResult struct {
 }
 
 func ParseRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error) {
+	if len(args) > 0 && args[0] == "config" {
+		return parseConfigRequest(args[1:], meta, rt)
+	}
+
 	for _, arg := range args {
 		if arg == "--help" {
 			return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
@@ -66,6 +71,36 @@ func ParseRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error
 	if err := req.validateCombos(); err != nil {
 		return nil, err
 	}
+	if err := ValidateLabel(req.Source); err != nil {
+		return nil, fmt.Errorf("Invalid source label: %w", err)
+	}
+
+	return &ParseResult{Request: req}, nil
+}
+
+func parseConfigRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error) {
+	if len(args) == 0 {
+		return &ParseResult{Handled: true, Output: ConfigUsageText(meta, rt)}, nil
+	}
+	for _, arg := range args {
+		if arg == "--help" {
+			return &ParseResult{Handled: true, Output: ConfigUsageText(meta, rt)}, nil
+		}
+	}
+
+	action := args[0]
+	switch action {
+	case "validate", "explain", "paths":
+	default:
+		return nil, NewUsageRequestError("unknown config command %s", action)
+	}
+
+	req, err := parseConfigFlags(args[1:])
+	if err != nil {
+		return nil, err
+	}
+	req.ConfigCommand = action
+
 	if err := ValidateLabel(req.Source); err != nil {
 		return nil, fmt.Errorf("Invalid source label: %w", err)
 	}
@@ -121,6 +156,44 @@ func parseFlags(args []string) (*Request, error) {
 	}
 	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
 		req.DefaultNotice = "Primary operation specified: fix-perms only"
+	}
+
+	if len(positional) < 1 {
+		return nil, NewUsageRequestError("source directory required")
+	}
+	if len(positional) > 1 {
+		return nil, NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
+	}
+	req.Source = positional[0]
+	return req, nil
+}
+
+func parseConfigFlags(args []string) (*Request, error) {
+	req := &Request{}
+	var positional []string
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--remote":
+			req.RemoteMode = true
+		case "--config-dir":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--config-dir requires a value")
+			}
+			i++
+			req.ConfigDir = args[i]
+		case "--secrets-dir":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--secrets-dir requires a value")
+			}
+			i++
+			req.SecretsDir = args[i]
+		default:
+			if len(args[i]) > 0 && args[i][0] == '-' {
+				return nil, NewUsageRequestError("unknown option %s", args[i])
+			}
+			positional = append(positional, args[i])
+		}
 	}
 
 	if len(positional) < 1 {

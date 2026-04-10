@@ -16,6 +16,48 @@ func TestParseRequest_HelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_ConfigHelpHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config", "--help"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled {
+		t.Fatal("expected handled result")
+	}
+	if result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_ConfigValidate(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config", "validate", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.ConfigCommand != "validate" {
+		t.Fatalf("ConfigCommand = %q", result.Request.ConfigCommand)
+	}
+	if result.Request.Source != "homes" {
+		t.Fatalf("Source = %q", result.Request.Source)
+	}
+}
+
+func TestParseRequest_ConfigExplainRemote(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config", "explain", "--remote", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.ConfigCommand != "explain" {
+		t.Fatalf("ConfigCommand = %q", result.Request.ConfigCommand)
+	}
+	if !result.Request.RemoteMode {
+		t.Fatal("expected RemoteMode true")
+	}
+}
+
 func TestParseRequest_DefaultBackupMode(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"homes"}, meta, DefaultRuntime())

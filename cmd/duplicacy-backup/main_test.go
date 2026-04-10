@@ -133,10 +133,27 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	if !strings.Contains(stdout, "remote S3-compatible target config") || !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+	if !strings.Contains(stdout, "config <validate|explain|paths>") {
+		t.Fatalf("stdout = %q", stdout)
+	}
 	if !strings.Contains(stdout, "    --fix-perms              Normalise local repository ownership and permissions") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if strings.Contains(stdout, "MODIFIERS:\n    --fix-perms") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_ConfigHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"config", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(config --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "CONFIG COMMANDS:") || !strings.Contains(stdout, "config validate homes") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -188,6 +205,64 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 		})
 		if !strings.Contains(stderr, "Must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		owner, group := currentUserGroup(t)
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(config validate) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "Config validation succeeded for homes") || !strings.Contains(stdout, "Local Config") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stdout, "Remote Config") || !strings.Contains(stdout, "Not configured") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigExplainReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		owner, group := currentUserGroup(t)
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "explain", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(config explain) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "Config explanation for homes") || !strings.Contains(stdout, "Destination") || !strings.Contains(stdout, "Local Owner") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigPathsReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "paths", "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(config paths) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "Resolved paths for homes") || !strings.Contains(stdout, "Config Dir") || !strings.Contains(stdout, "Secrets File") {
+			t.Fatalf("stdout = %q", stdout)
 		}
 	})
 }

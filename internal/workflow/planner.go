@@ -35,6 +35,9 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.validateBackupFilesystem(plan); err != nil {
+		return nil, err
+	}
 	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
@@ -149,7 +152,9 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		return nil, err
 	}
 
-	p.log.Debug("Configuration parsed for [common] + [%s].", targetSection)
+	if p.log != nil {
+		p.log.Debug("Configuration parsed for [common] + [%s].", targetSection)
+	}
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
@@ -167,18 +172,31 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		if err := cfg.ValidateThreads(); err != nil {
 			return nil, err
 		}
-		if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
-			return nil, err
-		}
-		p.log.Debug("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
-
-		if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
-			return nil, err
-		}
-		p.log.Debug("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
 	}
 
 	return cfg, nil
+}
+
+func (p *Planner) validateBackupFilesystem(plan *Plan) error {
+	if !plan.DoBackup {
+		return nil
+	}
+
+	if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
+		return err
+	}
+	if p.log != nil {
+		p.log.Debug("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
+	}
+
+	if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
+		return err
+	}
+	if p.log != nil {
+		p.log.Debug("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
+	}
+
+	return nil
 }
 
 func (p *Planner) populateCommands(plan *Plan) {
