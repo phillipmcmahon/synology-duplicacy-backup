@@ -48,6 +48,10 @@ func (e *Executor) Run() int {
 		e.log.Info("%s", statusLinef("%s", e.plan.DefaultNotice))
 	}
 	e.log.CleanupOldLogs(e.plan.LogRetentionDays, e.plan.DryRun)
+	if err := e.confirmSafetyRails(); err != nil {
+		e.fail(err)
+		return e.exitCode
+	}
 
 	if err := e.acquireLock(); err != nil {
 		e.fail(err)
@@ -89,6 +93,26 @@ func (e *Executor) acquireLock() error {
 	e.lockAcquired = true
 	if e.plan.Verbose {
 		e.log.Info("%s", statusLinef("Lock acquired: %s", e.lock.Path))
+	}
+	return nil
+}
+
+func (e *Executor) confirmSafetyRails() error {
+	stdin := e.rt.Stdin()
+	if !shouldPromptForSafety(e.plan, e.log.Interactive(), e.rt.StdinIsTTY()) {
+		return nil
+	}
+
+	for _, warning := range safetyWarnings(e.plan) {
+		e.log.Warn("%s", statusLinef("%s", warning))
+	}
+
+	confirmed, err := e.log.Confirm("Continue with requested operations? [y/N]:", stdin)
+	if err != nil {
+		return NewMessageError("Could not read confirmation from the terminal")
+	}
+	if !confirmed {
+		return NewMessageError("Operation cancelled at the interactive safety prompt")
 	}
 	return nil
 }

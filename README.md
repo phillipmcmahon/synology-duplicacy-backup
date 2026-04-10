@@ -138,6 +138,10 @@ to include detailed operational logging and command details.
 detailed CLI reference, and `config --help-full` for the detailed config
 subcommand reference.
 
+Interactive terminal runs ask for confirmation before forced prune and
+storage cleanup. Non-interactive runs continue unchanged so scheduled jobs are
+not blocked.
+
 ## Documentation
 
 - [CLI reference](docs/cli.md)

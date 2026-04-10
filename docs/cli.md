@@ -118,6 +118,8 @@ duplicacy-backup config paths homes
 - `--cleanup-storage` runs `duplicacy prune -exhaustive -exclusive`, so it should be used only when no other client is actively writing to the same storage
 - `--force-prune` only affects prune threshold enforcement
 - `--force-prune` requires `--prune`
+- interactive terminal runs ask for confirmation before forced prune and cleanup-storage
+- non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` always validates local config; if a `[remote]` table is present it also validates remote config and secrets
 - `config validate --remote` requires remote config and remote secrets to be valid

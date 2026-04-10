@@ -3,6 +3,7 @@
 package logger
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -401,4 +402,28 @@ func (l *Logger) SetVerbose(verbose bool) {
 
 func (l *Logger) Verbose() bool {
 	return l.verbose
+}
+
+func (l *Logger) Confirm(prompt string, input io.Reader) (bool, error) {
+	reader := bufio.NewReader(input)
+
+	l.mu.Lock()
+	if l.activity != nil {
+		l.clearActivityLocked()
+	}
+	message := l.formatMessage(WARNING, prompt)
+	fmt.Fprintf(l.stderr, "%s%s%s ", l.colourForLevel(WARNING), message, l.reset())
+	l.mu.Unlock()
+
+	response, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+
+	switch strings.ToLower(strings.TrimSpace(response)) {
+	case "y", "yes":
+		return true, nil
+	default:
+		return false, nil
+	}
 }

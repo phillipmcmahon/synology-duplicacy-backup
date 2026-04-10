@@ -173,6 +173,46 @@ func TestNew_WithColour(t *testing.T) {
 	}
 }
 
+func TestConfirm_AcceptsYes(t *testing.T) {
+	dir := t.TempDir()
+	log, err := New(dir, "test", false)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	defer log.Close()
+
+	var stderr bytes.Buffer
+	log.stderr = &stderr
+
+	ok, err := log.Confirm("Continue? [y/N]:", strings.NewReader("yes\n"))
+	if err != nil {
+		t.Fatalf("Confirm() error = %v", err)
+	}
+	if !ok {
+		t.Fatal("expected confirmation to be accepted")
+	}
+	if !strings.Contains(stderr.String(), "Continue? [y/N]:") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestConfirm_RejectsDefault(t *testing.T) {
+	dir := t.TempDir()
+	log, err := New(dir, "test", false)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	defer log.Close()
+
+	ok, err := log.Confirm("Continue? [y/N]:", strings.NewReader("\n"))
+	if err != nil {
+		t.Fatalf("Confirm() error = %v", err)
+	}
+	if ok {
+		t.Fatal("expected confirmation to be rejected")
+	}
+}
+
 func TestNew_CreatesDirectory(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "logdir")
 	log, err := New(dir, "test", false)

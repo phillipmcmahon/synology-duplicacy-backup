@@ -28,6 +28,8 @@ type Runtime struct {
 	TempDir      func() string
 	Getpid       func() int
 	Getenv       func(string) string
+	Stdin        func() *os.File
+	StdinIsTTY   func() bool
 	Executable   func() (string, error)
 	EvalSymlinks func(string) (string, error)
 	SignalNotify func(chan<- os.Signal, ...os.Signal)
@@ -35,13 +37,24 @@ type Runtime struct {
 
 func DefaultRuntime() Runtime {
 	return Runtime{
-		Geteuid:      os.Geteuid,
-		LookPath:     exec.LookPath,
-		NewLock:      lock.New,
-		Now:          time.Now,
-		TempDir:      os.TempDir,
-		Getpid:       os.Getpid,
-		Getenv:       os.Getenv,
+		Geteuid:  os.Geteuid,
+		LookPath: exec.LookPath,
+		NewLock:  lock.New,
+		Now:      time.Now,
+		TempDir:  os.TempDir,
+		Getpid:   os.Getpid,
+		Getenv:   os.Getenv,
+		Stdin:    func() *os.File { return os.Stdin },
+		StdinIsTTY: func() bool {
+			if os.Stdin == nil {
+				return false
+			}
+			fi, err := os.Stdin.Stat()
+			if err != nil {
+				return false
+			}
+			return (fi.Mode() & os.ModeCharDevice) != 0
+		},
 		Executable:   os.Executable,
 		EvalSymlinks: filepath.EvalSymlinks,
 		SignalNotify: func(ch chan<- os.Signal, sig ...os.Signal) {
@@ -232,6 +245,12 @@ REMOTE SECRETS:
 
 ARGUMENTS:
     source                   Source directory name under %s
+
+INTERACTIVE SAFETY RAILS:
+    Interactive terminal runs ask for confirmation before:
+      - forced prune
+      - cleanup-storage
+    Non-interactive runs continue without confirmation so scheduled jobs are unaffected
 
 EXAMPLES:
     %s homes

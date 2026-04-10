@@ -213,3 +213,78 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 		}
 	}
 }
+
+func TestShouldPromptForSafety(t *testing.T) {
+	cases := []struct {
+		name              string
+		plan              *Plan
+		stderrInteractive bool
+		stdinTTY          bool
+		want              bool
+	}{
+		{
+			name:              "force prune interactive tty",
+			plan:              &Plan{ForcePrune: true},
+			stderrInteractive: true,
+			stdinTTY:          true,
+			want:              true,
+		},
+		{
+			name:              "cleanup storage interactive tty",
+			plan:              &Plan{DoCleanupStore: true},
+			stderrInteractive: true,
+			stdinTTY:          true,
+			want:              true,
+		},
+		{
+			name:              "dry run does not prompt",
+			plan:              &Plan{ForcePrune: true, DryRun: true},
+			stderrInteractive: true,
+			stdinTTY:          true,
+			want:              false,
+		},
+		{
+			name:              "non interactive does not prompt",
+			plan:              &Plan{ForcePrune: true},
+			stderrInteractive: false,
+			stdinTTY:          true,
+			want:              false,
+		},
+		{
+			name:              "non tty stdin does not prompt",
+			plan:              &Plan{DoCleanupStore: true},
+			stderrInteractive: true,
+			stdinTTY:          false,
+			want:              false,
+		},
+		{
+			name:              "safe prune does not prompt",
+			plan:              &Plan{DoPrune: true},
+			stderrInteractive: true,
+			stdinTTY:          true,
+			want:              false,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldPromptForSafety(tt.plan, tt.stderrInteractive, tt.stdinTTY); got != tt.want {
+				t.Fatalf("shouldPromptForSafety() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafetyWarnings(t *testing.T) {
+	plan := &Plan{ForcePrune: true, DoCleanupStore: true}
+	warnings := safetyWarnings(plan)
+	if len(warnings) != 2 {
+		t.Fatalf("len(warnings) = %d, want 2", len(warnings))
+	}
+	if !strings.Contains(warnings[0], "Forced prune") {
+		t.Fatalf("warnings[0] = %q", warnings[0])
+	}
+	if !strings.Contains(warnings[1], "Storage cleanup") {
+		t.Fatalf("warnings[1] = %q", warnings[1])
+	}
+}
