@@ -225,15 +225,20 @@ func (l *Logger) FormatValue(value string) string {
 	return value
 }
 
-// FormatResult returns a formatted result string (Success=green, else red).
+// FormatResult returns a formatted result string using the standard semantic
+// colours for run and health summaries.
 func (l *Logger) FormatResult(result string) string {
 	if !l.enableColour {
 		return result
 	}
-	if result == "Success" {
+	switch result {
+	case "Success", "Healthy":
 		return fmt.Sprintf("%s%s%s", colourSuccess, result, colourReset)
+	case "Degraded":
+		return fmt.Sprintf("%s%s%s", colourWarn, result, colourReset)
+	default:
+		return fmt.Sprintf("%s%s%s", colourError, result, colourReset)
 	}
-	return fmt.Sprintf("%s%s%s", colourError, result, colourReset)
 }
 
 // PrintLine prints a label-value pair.

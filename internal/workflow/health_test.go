@@ -387,7 +387,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Verify revisions") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Verify metadata") {
+	if !strings.Contains(stderr, "Revision time") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Last doctor run") {
@@ -413,7 +413,16 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if strings.Contains(stderr, "Verification freshness") {
 		t.Fatalf("stderr = %q", stderr)
 	}
+	if strings.Contains(stderr, "Verify metadata") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "revision-latest") {
+		t.Fatalf("stderr = %q", stderr)
+	}
 	if strings.Contains(stderr, "Doctor freshness") || strings.Contains(stderr, "Verify freshness") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "30m0s ago") || strings.Contains(stderr, "90m0s") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if strings.Contains(stderr, "Summary") {
@@ -442,7 +451,7 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Repository access",
 		"Last doctor run",
 		"Verify revisions",
-		"Verify metadata",
+		"Revision time",
 		"Last verify run",
 	}
 
@@ -457,5 +466,99 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 func TestHealthCheckSection_WebhookUsesAlerts(t *testing.T) {
 	if got := healthCheckSection("Webhook"); got != "Alerts" {
 		t.Fatalf("healthCheckSection(Webhook) = %q, want Alerts", got)
+	}
+}
+
+func TestHumanAgeFormatting(t *testing.T) {
+	cases := []struct {
+		name string
+		in   time.Duration
+		want string
+	}{
+		{name: "sub-minute", in: 30 * time.Second, want: "less than 1m"},
+		{name: "minutes", in: 14 * time.Minute, want: "14m"},
+		{name: "hours-minutes", in: 2*time.Hour + 49*time.Minute, want: "2h49m"},
+		{name: "days-hours", in: 26 * time.Hour, want: "1d2h"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := humanAge(tc.in); got != tc.want {
+				t.Fatalf("humanAge(%s) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHumanAgoFormatting(t *testing.T) {
+	if got := humanAgo(45 * time.Second); got != "<1m ago" {
+		t.Fatalf("humanAgo(sub-minute) = %q", got)
+	}
+	if got := humanAgo(25 * time.Minute); got != "25m ago" {
+		t.Fatalf("humanAgo(25m) = %q", got)
+	}
+}
+
+func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+	configDir := t.TempDir()
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\n[remote]\ndestination = \"s3://gateway.example.invalid/backups\"\nthreads = 4\n")
+
+	secretsDir := t.TempDir()
+	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
+	if err := os.WriteFile(secretsFile, []byte("storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-90 * time.Minute)),
+		LastSuccessfulBackupRevision: 2338,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-90 * time.Minute)),
+		LastDoctorAt:                 formatReportTime(now.Add(-30 * time.Second)),
+		LastVerifyAt:                 formatReportTime(now.Add(-30 * time.Second)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+		log.SetVerbose(true)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\n"},
+		)
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+			SecretsDir:    secretsDir,
+			RemoteMode:    true,
+			Verbose:       true,
+		})
+		if code != 0 {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+	})
+
+	if strings.Contains(stderr, "exec: ") {
+		t.Fatalf("stderr should not contain raw exec debug lines: %q", stderr)
+	}
+	if !strings.Contains(stderr, "Section: Status") ||
+		!strings.Contains(stderr, "Section: Doctor") ||
+		!strings.Contains(stderr, "Section: Verify") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "<1m ago") {
+		t.Fatalf("stderr = %q", stderr)
 	}
 }

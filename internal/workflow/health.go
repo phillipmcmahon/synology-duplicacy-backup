@@ -107,6 +107,9 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		startedAt: checkedAt,
 	}
 
+	restoreDebugCommands := h.suppressCommandDebug()
+	defer restoreDebugCommands()
+
 	h.printHeader(report)
 
 	cfg, plan, sec, err := h.prepare(req)
@@ -242,7 +245,7 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) {
 	h.addCheck(report, "Config", "pass", fmt.Sprintf("Loaded %s", plan.ConfigFile))
 	if req.RemoteMode {
-		h.addCheck(report, "Remote secrets", "pass", fmt.Sprintf("Validated %s", plan.SecretsFile))
+		h.addCheck(report, "Remote secrets", "pass", fmt.Sprintf("Loaded %s", plan.SecretsFile))
 	}
 
 	stopInspecting := h.startStatusActivity("Inspecting visible storage revisions")
@@ -259,9 +262,9 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	report.StorageLatestRevision = latest.Revision
 	if !latest.CreatedAt.IsZero() {
 		report.StorageLatestRevisionAt = formatReportTime(latest.CreatedAt)
-		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision visible: %d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
+		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision: %d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
 	} else {
-		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision visible: %d", latest.Revision))
+		h.addCheck(report, "Storage revisions", "pass", fmt.Sprintf("Latest revision: %d", latest.Revision))
 	}
 
 	if !latest.CreatedAt.IsZero() {
@@ -270,11 +273,11 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	}
 
 	if state == nil {
-		h.addCheck(report, "Storage freshness", "warn", "Latest storage revision does not include a parsable creation time and no local backup state is available")
+		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup state exists")
 		return
 	}
 	if state.LastSuccessfulBackupAt == "" {
-		h.addCheck(report, "Storage freshness", "warn", "Latest storage revision does not include a parsable creation time and no successful backup timestamp is recorded locally")
+		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup timestamp is recorded")
 		return
 	}
 
@@ -288,7 +291,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 		return
 	}
 
-	h.addCheck(report, "Storage freshness", "warn", fmt.Sprintf("Latest storage revision is %d but local state last recorded successful backup revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
+	h.addCheck(report, "Storage freshness", "warn", fmt.Sprintf("Storage revision %d does not match local revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
 }
 
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
@@ -316,7 +319,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 		h.addCheck(report, "Repository access", "fail", OperatorMessage(err))
 	} else {
 		stopValidating()
-		h.addCheck(report, "Repository access", "pass", "Repository validated")
+		h.addCheck(report, "Repository access", "pass", "Validated")
 	}
 
 	h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
@@ -335,28 +338,28 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 	if !latest.CreatedAt.IsZero() {
-		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Confirmed latest revision %d is visible and dated %s", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
+		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Latest revision: %d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
 	} else {
-		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Confirmed latest revision %d is visible", latest.Revision))
+		h.addCheck(report, "Verify revisions", "pass", fmt.Sprintf("Latest revision: %d", latest.Revision))
 	}
 
 	if latest.CreatedAt.IsZero() {
 		switch {
 		case state == nil || state.LastSuccessfulBackupRevision == 0:
-			h.addCheck(report, "Verify metadata", "warn", "No recorded successful backup revision is available for timestamp fallback")
+			h.addCheck(report, "Revision time", "warn", "No local revision record for fallback")
 		case state.LastSuccessfulBackupRevision != latest.Revision:
-			h.addCheck(report, "Verify metadata", "warn", fmt.Sprintf("Latest storage revision %d does not match local recorded revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
+			h.addCheck(report, "Revision time", "warn", fmt.Sprintf("Storage revision %d does not match local revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
 		case state.LastSuccessfulBackupAt == "":
-			h.addCheck(report, "Verify metadata", "warn", "No local successful backup timestamp is available for revision fallback")
+			h.addCheck(report, "Revision time", "warn", "No local backup time for fallback")
 		default:
 			if _, parseErr := time.Parse(time.RFC3339, state.LastSuccessfulBackupAt); parseErr == nil {
-				h.addCheck(report, "Verify metadata", "pass", "Used local state as the timestamp fallback for the latest revision")
+				h.addCheck(report, "Revision time", "pass", "Used local backup time")
 			} else {
-				h.addCheck(report, "Verify metadata", "warn", "Stored local backup timestamp is invalid")
+				h.addCheck(report, "Revision time", "warn", "Stored local backup time is invalid")
 			}
 		}
 	} else {
-		h.addCheck(report, "Verify metadata", "pass", "Revision timestamp is available for freshness checks")
+		h.addCheck(report, "Revision time", "pass", "Timestamp available")
 	}
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 }
@@ -365,7 +368,7 @@ func (h *HealthRunner) evaluateFreshness(report *HealthReport, cfg config.Health
 	age := h.rt.Now().Sub(last)
 	warnAfter := time.Duration(cfg.FreshnessWarnHours) * time.Hour
 	failAfter := time.Duration(cfg.FreshnessFailHours) * time.Hour
-	message := fmt.Sprintf("Latest known backup is %s old", humanDuration(age))
+	message := fmt.Sprintf("%s old", humanAge(age))
 	switch {
 	case failAfter > 0 && age > failAfter:
 		h.addCheck(report, checkName, "fail", message)
@@ -406,10 +409,10 @@ func (h *HealthRunner) evaluateHealthRecency(report *HealthReport, cfg config.He
 	}
 	age := h.rt.Now().Sub(at)
 	if thresholdHours > 0 && age > time.Duration(thresholdHours)*time.Hour {
-		h.addCheck(report, name, "warn", fmt.Sprintf("Last %s run was %s ago", kind, humanDuration(age)))
+		h.addCheck(report, name, "warn", humanAgo(age))
 		return
 	}
-	h.addCheck(report, name, "pass", fmt.Sprintf("Last %s run was %s ago", kind, humanDuration(age)))
+	h.addCheck(report, name, "pass", humanAgo(age))
 }
 
 func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, status string) bool {
@@ -569,13 +572,31 @@ func (h *HealthRunner) startStatusActivity(status string) func() {
 	return func() {}
 }
 
+func (h *HealthRunner) suppressCommandDebug() func() {
+	type commandDebugController interface {
+		SetDebugCommands(bool)
+		DebugCommands() bool
+	}
+
+	controller, ok := h.runner.(commandDebugController)
+	if !ok {
+		return func() {}
+	}
+
+	previous := controller.DebugCommands()
+	controller.SetDebugCommands(false)
+	return func() {
+		controller.SetDebugCommands(previous)
+	}
+}
+
 func healthCheckSection(name string) string {
 	switch name {
 	case "Webhook":
 		return "Alerts"
 	case "Source path", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"
-	case "Verify revisions", "Verify metadata", "Last verify run":
+	case "Verify revisions", "Revision time", "Last verify run":
 		return "Verify"
 	default:
 		return "Status"
@@ -603,15 +624,42 @@ func chooseLocalSuccessTime(state *RunState) string {
 	return state.LastSuccessfulRunAt
 }
 
-func humanDuration(d time.Duration) string {
+func humanAge(d time.Duration) string {
 	if d < 0 {
 		d = 0
 	}
-	d = d.Truncate(time.Minute)
 	if d < time.Minute {
-		return "less than a minute"
+		return "less than 1m"
 	}
-	return d.String()
+	d = d.Truncate(time.Minute)
+	days := d / (24 * time.Hour)
+	d -= days * 24 * time.Hour
+	hours := d / time.Hour
+	d -= hours * time.Hour
+	minutes := d / time.Minute
+
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 && len(parts) < 2 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if len(parts) == 0 {
+		return "less than 1m"
+	}
+	return strings.Join(parts, "")
+}
+
+func humanAgo(d time.Duration) string {
+	age := humanAge(d)
+	if age == "less than 1m" {
+		return "<1m ago"
+	}
+	return age + " ago"
 }
 
 func healthCheckLabel(name string) string {

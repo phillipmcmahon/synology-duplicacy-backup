@@ -517,6 +517,22 @@ func TestFormatResult_WithColour_Success(t *testing.T) {
 	}
 }
 
+func TestFormatResult_WithColour_Healthy(t *testing.T) {
+	log := &Logger{enableColour: true}
+	got := log.FormatResult("Healthy")
+	if !strings.Contains(got, colourSuccess) {
+		t.Error("FormatResult(Healthy) should use green colour")
+	}
+}
+
+func TestFormatResult_WithColour_Degraded(t *testing.T) {
+	log := &Logger{enableColour: true}
+	got := log.FormatResult("Degraded")
+	if !strings.Contains(got, colourWarn) {
+		t.Error("FormatResult(Degraded) should use yellow colour")
+	}
+}
+
 func TestFormatResult_WithColour_Failure(t *testing.T) {
 	log := &Logger{enableColour: true}
 	got := log.FormatResult("Failed")
@@ -530,6 +546,14 @@ func TestFormatResult_WithColour_Other(t *testing.T) {
 	got := log.FormatResult("UNKNOWN_STATUS")
 	if !strings.Contains(got, colourError) {
 		t.Error("FormatResult(non-Success) should use red colour")
+	}
+}
+
+func TestFormatResult_WithColour_Unhealthy(t *testing.T) {
+	log := &Logger{enableColour: true}
+	got := log.FormatResult("Unhealthy")
+	if !strings.Contains(got, colourError) {
+		t.Error("FormatResult(Unhealthy) should use red colour")
 	}
 }
 

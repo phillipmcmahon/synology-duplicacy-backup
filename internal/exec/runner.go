@@ -65,8 +65,9 @@ type Runner interface {
 // [os/exec.CommandContext], logs every invocation, and optionally operates
 // in dry-run mode where no process is actually spawned.
 type CommandRunner struct {
-	log    *logger.Logger
-	dryRun bool
+	log           *logger.Logger
+	dryRun        bool
+	debugCommands bool
 }
 
 // NewCommandRunner returns a ready-to-use [CommandRunner].
@@ -77,9 +78,20 @@ type CommandRunner struct {
 //     RunWithInput return empty strings and a nil error.
 func NewCommandRunner(log *logger.Logger, dryRun bool) *CommandRunner {
 	return &CommandRunner{
-		log:    log,
-		dryRun: dryRun,
+		log:           log,
+		dryRun:        dryRun,
+		debugCommands: true,
 	}
+}
+
+// SetDebugCommands enables or suppresses raw command debug logging.
+func (r *CommandRunner) SetDebugCommands(enabled bool) {
+	r.debugCommands = enabled
+}
+
+// DebugCommands reports whether raw command debug logging is enabled.
+func (r *CommandRunner) DebugCommands() bool {
+	return r.debugCommands
 }
 
 // Run executes the command, capturing stdout and stderr into strings.
@@ -108,7 +120,9 @@ func (r *CommandRunner) run(ctx context.Context, dir string, input string, cmd s
 		return "", "", nil
 	}
 
-	r.log.Debug("exec: %s", cmdStr)
+	if r.debugCommands {
+		r.log.Debug("exec: %s", cmdStr)
+	}
 
 	c := exec.CommandContext(ctx, cmd, args...)
 

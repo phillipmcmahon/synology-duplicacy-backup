@@ -114,6 +114,11 @@ func operatorPruneMessage(err *apperrors.PruneError) string {
 			"Cannot run prune because the Duplicacy repository is not ready",
 			"run a backup first or verify the storage path and repository state",
 		)
+	case "revision-latest":
+		return withHint(
+			"Could not inspect the latest storage revision",
+			"verify storage access and repository state",
+		)
 	case "safe-preview":
 		return withHint(
 			"Safe prune preview failed",

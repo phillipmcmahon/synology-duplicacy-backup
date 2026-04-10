@@ -163,6 +163,10 @@ The `health` command family adds read-only confidence checks:
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
 - `health verify` goes further by checking visible storage revisions and freshness against health policy thresholds
 
+In phase 1, `health verify` is still an operational visibility/freshness check.
+It does not yet run `duplicacy check` or validate chunk integrity across all
+revisions.
+
 Health commands combine local state stored under `/var/lib/duplicacy-backup/<label>.json`
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation
 times, those storage timestamps are used as the authoritative freshness signal.
@@ -177,6 +181,12 @@ Optional webhook notifications can be configured in `[health.notify]`, with an
 optional `health_webhook_bearer_token` stored in the secrets TOML. Webhooks are
 intended for non-interactive health runs; interactive TTY runs do not notify by
 default.
+
+If the environment is broken early enough that the backup TOML cannot be read,
+built-in webhook delivery is not expected to work because the webhook policy
+itself lives in that config. For those hard-failure cases, rely on Synology
+scheduled-task monitoring and its mail/notification integration as the primary
+fallback alert path.
 
 `--help` now shows a concise quick-reference view. Use `--help-full` for the
 detailed CLI reference, and `config --help-full` for the detailed config

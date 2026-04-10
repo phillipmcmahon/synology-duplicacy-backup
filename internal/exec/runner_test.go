@@ -3,6 +3,8 @@ package exec
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -195,6 +197,42 @@ func TestCommandRunner_DryRun_DoesNotExecute(t *testing.T) {
 	_, _, err := r.Run(context.Background(), "nonexistent_binary_xyz_12345")
 	if err != nil {
 		t.Fatal("dry-run should not attempt to execute the command")
+	}
+}
+
+func TestCommandRunner_DebugCommandsCanBeDisabled(t *testing.T) {
+	log := newTestLogger(t)
+	log.SetVerbose(true)
+	r := NewCommandRunner(log, false)
+	r.SetDebugCommands(false)
+
+	oldStderr := os.Stderr
+	pipeR, pipeW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() error = %v", err)
+	}
+	os.Stderr = pipeW
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+		_ = pipeR.Close()
+		_ = pipeW.Close()
+	})
+
+	stdout, stderr, err := r.Run(context.Background(), "echo", "hello")
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if strings.TrimSpace(stdout) != "hello" || stderr != "" {
+		t.Fatalf("unexpected output stdout=%q stderr=%q", stdout, stderr)
+	}
+
+	_ = pipeW.Close()
+	data, err := io.ReadAll(pipeR)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v", err)
+	}
+	if strings.Contains(string(data), "exec: echo hello") {
+		t.Fatalf("stderr should not contain raw command debug line: %q", string(data))
 	}
 }
 

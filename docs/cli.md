@@ -56,7 +56,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 |---|---|
 | `health status <label>` | Fast read-only health summary for operators and schedulers |
 | `health doctor <label>` | Read-only environment and storage diagnostic pass |
-| `health verify <label>` | Read-only storage confidence check using latest visible revisions |
+| `health verify <label>` | Read-only storage visibility and freshness check using latest visible revisions |
 
 ## Environment Variables
 
@@ -151,8 +151,10 @@ sudo duplicacy-backup health verify --remote homes
 - health commands are read-only and never prompt for confirmation
 - health commands use local state under `/var/lib/duplicacy-backup/<label>.json` together with live Duplicacy storage inspection
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
+- in phase 1, `health verify` does not yet run `duplicacy check` or validate chunk integrity across all revisions
 - optional per-backup health policy lives in `[health]`
 - optional webhook notification settings live in `[health.notify]`
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
+- if config cannot be read at all, built-in health webhooks are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures

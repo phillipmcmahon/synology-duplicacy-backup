@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Health command family**: Added `health status`, `health doctor`, and
+  `health verify` as read-only operational confidence checks for Synology
+  backup environments.
+- **Health policy and notifications**: Added optional `[health]` and
+  `[health.notify]` config tables plus optional
+  `health_webhook_bearer_token` support in secrets TOML files.
+- **Health state tracking**: Added per-label health/runtime state under
+  `/var/lib/duplicacy-backup/<label>.json` to record recent successful runs
+  and health-check cadence.
+
+### Changed
+- **Health screen layout polished**: Health output now uses the same block
+  discipline as the rest of the tool, with shorter labels, clearer operator
+  wording, compact recency strings, and structured alert reporting.
+- **Verbose health output quieted**: Health runs no longer dump raw `exec:`
+  command lines into the middle of the structured screen layout.
+- **Health result colouring fixed**: `Healthy`, `Degraded`, and `Unhealthy`
+  now use the expected semantic result colours in interactive terminals.
+- **Operational alerting boundary clarified**: Built-in health webhooks are
+  treated as a secondary alert path when config loads successfully, while
+  Synology scheduled-task failure monitoring is the primary fallback for
+  broken-environment and startup failures.
+
+### Notes
+- **Current scope of `health verify`**: Phase 1 verification checks storage
+  visibility, repository access, and freshness signals from visible revisions.
+  It does not yet run `duplicacy check` or provide per-revision chunk-integrity
+  reporting; that is planned for the next integrity-focused milestone.
+
 ## [v2.1.3] - 2026-04-10
 
 ### Added
