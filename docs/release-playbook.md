@@ -38,6 +38,9 @@ on the macOS host.
 
 ### 3. Validate the release tree in Linux
 
+Use the standard Linux environment described in
+[`linux-environment.md`](linux-environment.md).
+
 Run these from the release candidate tree:
 
 ```bash
