@@ -41,6 +41,20 @@ on the macOS host.
 Use the standard Linux environment described in
 [`linux-environment.md`](linux-environment.md).
 
+Default command:
+
+```bash
+make release-prep
+```
+
+This command is the standard release-prep automation. It:
+
+- checks that the tree is clean
+- checks that you are on `main`
+- runs Linux Go 1.26 validation
+- captures coverage
+- writes a draft release-notes file under `build/release-prep/`
+
 Run these from the release candidate tree:
 
 ```bash

@@ -20,6 +20,15 @@ Use:
 
 This is the standard Linux machine for this project.
 
+For normal release work, prefer:
+
+```bash
+make release-prep
+```
+
+That command wraps the standard Linux validation flow and writes the release
+prep outputs into `build/release-prep/`.
+
 ## Rules
 
 - Run validation in Linux, not on the macOS host.

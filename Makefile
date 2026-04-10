@@ -3,8 +3,9 @@ VERSION     := $(shell git describe --tags --always --dirty 2>/dev/null || echo 
 BUILD_TIME  := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS     := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
 BUILD_DIR   := build
+RELEASE_VERSION ?=
 
-.PHONY: all clean build test fmt vet lint synology package-synology package-synology-amd64 package-synology-arm64 package-synology-armv7
+.PHONY: all clean build test fmt vet lint synology package-synology package-synology-amd64 package-synology-arm64 package-synology-armv7 release-prep
 
 # Default: build for current platform
 all: build
@@ -66,6 +67,10 @@ package-synology-armv7:
 		--goarch arm \
 		--goarm 7 \
 		--output-dir /work/build/linux-go1.26-packages
+
+release-prep:
+	@echo "Running strict release-prep flow..."
+	sh ./scripts/release-prep.sh $(if $(RELEASE_VERSION),--version "$(RELEASE_VERSION)",)
 
 test:
 	go test -v -race ./...
