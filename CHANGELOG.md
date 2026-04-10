@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.0] - 2026-04-10
+
+### Added
+- **Composable operations with fixed execution order**: Primary operations can
+  now be combined in one invocation and always run in a predictable sequence:
+  backup, prune, storage cleanup, then fix permissions.
+- **Standalone storage cleanup operation**: Added `--cleanup-storage` as a
+  first-class maintenance operation for `duplicacy prune -exhaustive -exclusive`
+  without tying it to retention-policy pruning.
+
+### Changed
+- **Prune semantics clarified**: `--force-prune` now overrides only safe prune
+  threshold enforcement. Storage cleanup is no longer presented as a stronger
+  form of prune.
+- **Runtime output redesigned**: Normal output is now phase-oriented and much
+  quieter by default, with clearer start/completion framing, user-focused phase
+  blocks, and lower-noise verbose and dry-run detail rendering.
+- **CLI validation tightened**: Extra positional arguments now fail fast
+  instead of being silently ignored.
+- **Help and docs updated**: Help text, README, CLI reference, operations, and
+  internal architecture/testing docs now reflect the combined-operation model
+  and current output behavior.
+
+### Notes
+- **Version constant** updated to `2.1.0` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.0.0] - 2026-04-09
 
 ### Changed

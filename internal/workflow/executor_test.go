@@ -51,7 +51,7 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 		FixPerms:                 true,
 		FixPermsOnly:             true,
 		DryRun:                   true,
-		DefaultNotice:            "No primary operation specified: using fix-perms only.",
+		DefaultNotice:            "Primary operation specified: fix-perms only.",
 		LogRetentionDays:         30,
 		LocalOwner:               u.Username,
 		LocalGroup:               g.Name,
