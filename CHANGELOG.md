@@ -7,27 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v2.1.5] - 2026-04-11
-
-### Added
-- **Linux-only packaging automation**: Added shared packaging scripts that
-  build, package, checksum, and smoke-test Synology release archives inside a
-  Linux environment, plus `Makefile` targets for the supported Synology
-  architecture matrix.
-
-### Changed
-- **GitHub Actions packaging flow stabilized**: The release workflow now uses
-  the shared Linux packaging script with safer argument handling for optional
-  `GOARM` values, matching the local packaging process more closely.
-- **Webhook listener tests stabilized**: Health webhook tests now use a more
-  controlled local-listener helper and skip cleanly in restricted environments,
-  avoiding CI failures caused by listener setup rather than application logic.
-
-### Notes
-- **Version constant** updated to `2.1.5` in source (overridden by `-ldflags`
-  at build time for release binaries).
-
-## [v2.1.4] - 2026-04-10
+## [v2.1.6] - 2026-04-11
 
 ### Added
 - **Health command family**: Added `health status`, `health doctor`, and
@@ -47,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desk cheat sheet**: Added a print-friendly quick reference under
   `docs/cheatsheet.md` with common commands, health checks, config commands,
   and installed-path reminders for day-to-day use.
+- **Linux-only packaging automation**: Added shared packaging scripts that
+  build, package, checksum, and smoke-test Synology release archives inside a
+  Linux environment, plus `Makefile` targets for the supported Synology
+  architecture matrix.
 
 ### Changed
 - **Health screen layout polished**: Health output now uses the same block
@@ -63,10 +47,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treated as a secondary alert path when config loads successfully, while
   Synology scheduled-task failure monitoring is the primary fallback for
   broken-environment and startup failures.
+- **GitHub Actions packaging flow stabilized**: The release workflow now uses
+  the shared Linux packaging script with safer argument handling for optional
+  `GOARM` values, matching the local packaging process more closely.
+
+### Fixed
+- **Webhook CI tests aligned with production secrets rules**: Health webhook
+  tests no longer depend on non-root temp secrets files or implicit
+  `/root/.secrets` lookups, so the GitHub Actions test job now exercises the
+  real webhook logic without failing on runner-specific file ownership and
+  permission behavior.
+- **Webhook listener tests stabilized**: Health webhook tests now use a more
+  controlled local-listener helper and skip cleanly in restricted environments,
+  avoiding CI failures caused by listener setup rather than application logic.
 
 ### Notes
-- **Version constant** updated to `2.1.4` in source (overridden by `-ldflags`
+- **Version constant** updated to `2.1.6` in source (overridden by `-ldflags`
   at build time for release binaries).
+
+## [v2.1.5] - 2026-04-11
+
+### Notes
+- **Superseded by `v2.1.6`** before a successful public release was published.
+
+## [v2.1.4] - 2026-04-10
+### Notes
+- **Superseded by `v2.1.6`** before a successful public release was published.
 
 ## [v2.1.3] - 2026-04-10
 
