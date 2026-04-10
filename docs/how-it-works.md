@@ -8,7 +8,7 @@ It is meant to answer questions like:
 - Which package owns which decisions?
 - Where does config become runtime behavior?
 - Where do operator-facing messages come from?
-- If I need to change backup, prune, or fix-perms behavior, where do I look?
+- If I need to change backup, prune, storage cleanup, or fix-perms behavior, where do I look?
 
 If you want the short version, start with [architecture.md](architecture.md).
 This document is the longer walkthrough.
@@ -101,7 +101,8 @@ It owns:
 - logger initialization
 - transition from CLI arguments into workflow
 
-It should not own business logic for backup, prune, or fix-perms behavior.
+It should not own business logic for backup, prune, storage cleanup, or
+fix-perms behavior.
 
 ### Workflow package
 
@@ -164,9 +165,9 @@ It does not answer:
 
 The `Request` type contains user intent only:
 
-- mode
+- requested operations such as backup, prune, and storage cleanup
 - `--fix-perms`
-- `--force-prune`
+- `--force-prune` as a prune-threshold override
 - `--remote`
 - `--dry-run`
 - config/secrets directory overrides
@@ -176,8 +177,26 @@ It also derives convenience booleans such as:
 
 - `DoBackup`
 - `DoPrune`
-- `DeepPruneMode`
+- `DoCleanupStore`
 - `FixPermsOnly`
+
+Those operation flags can be combined. The CLI order does not matter; runtime
+execution order is fixed as:
+
+1. backup
+2. prune
+3. cleanup-storage
+4. fix-perms
+
+`--cleanup-storage` requests `duplicacy prune -exhaustive -exclusive` as a
+standalone maintenance step. `--force-prune` only affects prune threshold
+enforcement, so these are all valid and distinct intents:
+
+- safe prune
+- storage cleanup
+- forced prune
+- safe prune + storage cleanup
+- forced prune + storage cleanup
 
 Those are still request-level concepts because they describe intent, not machine state.
 
@@ -362,7 +381,7 @@ The plan now carries many execution-ready command descriptions, such as:
 - repo validation
 - prune preview
 - policy prune
-- deep prune
+- storage cleanup
 - fix-perms commands
 
 These strings are used for:
@@ -531,7 +550,7 @@ When prune mode is active, the runtime path is roughly:
 5. executor runs safe-prune preview
 6. executor enforces count/percentage thresholds
 7. executor runs policy prune
-8. executor optionally runs deep prune
+8. executor optionally runs storage cleanup
 9. cleanup removes work directory
 10. lock is released
 
@@ -604,7 +623,8 @@ Workflow output uses the logger for:
 Current message rules are:
 
 - workflow owns final operator wording
-- operator-facing messages should be complete sentences
+- operator-facing messages should be concise and consistent
+- status lines should not force terminal punctuation
 - domain packages should avoid owning final tone/style
 
 ## Testing Strategy

@@ -32,9 +32,9 @@ func (l Level) String() string {
 	case SUCCESS:
 		return "SUCCESS"
 	case WARNING:
-		return "WARNING"
+		return "WARN"
 	case ERROR:
-		return "ERROR"
+		return "ERRO"
 	default:
 		return "UNKNOWN"
 	}
@@ -44,6 +44,7 @@ func (l Level) String() string {
 type Logger struct {
 	logFile      *os.File
 	enableColour bool
+	verbose      bool
 	scriptName   string
 	logDir       string
 }
@@ -102,6 +103,7 @@ func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 	return &Logger{
 		logFile:      f,
 		enableColour: enableColour,
+		verbose:      false,
 		scriptName:   scriptName,
 		logDir:       logDir,
 	}, nil
@@ -158,6 +160,9 @@ func (l *Logger) Log(level Level, format string, args ...interface{}) {
 
 // Debug logs at DEBUG level.
 func (l *Logger) Debug(format string, args ...interface{}) {
+	if !l.verbose {
+		return
+	}
 	l.Log(DEBUG, format, args...)
 }
 
@@ -184,7 +189,7 @@ func (l *Logger) Error(format string, args ...interface{}) {
 // DryRun logs a dry-run message.
 func (l *Logger) DryRun(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	l.Info("[DRY-RUN] Would run: %s", msg)
+	l.PrintLine("Dry run", msg)
 }
 
 // FormatLabel returns a formatted label string for config summaries.
@@ -203,12 +208,12 @@ func (l *Logger) FormatValue(value string) string {
 	return value
 }
 
-// FormatResult returns a formatted result string (SUCCESS=green, else red).
+// FormatResult returns a formatted result string (Success=green, else red).
 func (l *Logger) FormatResult(result string) string {
 	if !l.enableColour {
 		return result
 	}
-	if result == "SUCCESS" {
+	if result == "Success" {
 		return fmt.Sprintf("%s%s%s", colourSuccess, result, colourReset)
 	}
 	return fmt.Sprintf("%s%s%s", colourError, result, colourReset)
@@ -276,4 +281,11 @@ func (w *logWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	return len(p), nil
+}
+func (l *Logger) SetVerbose(verbose bool) {
+	l.verbose = verbose
+}
+
+func (l *Logger) Verbose() bool {
+	return l.verbose
 }

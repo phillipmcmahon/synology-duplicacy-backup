@@ -79,8 +79,8 @@ func TestLevelString(t *testing.T) {
 		{DEBUG, "DEBUG"},
 		{INFO, "INFO"},
 		{SUCCESS, "SUCCESS"},
-		{WARNING, "WARNING"},
-		{ERROR, "ERROR"},
+		{WARNING, "WARN"},
+		{ERROR, "ERRO"},
 		{Level(99), "UNKNOWN"},
 		{Level(-1), "UNKNOWN"},
 	}
@@ -272,7 +272,7 @@ func TestLog_FileHasNoColour(t *testing.T) {
 	if strings.Contains(content, "\033[") {
 		t.Error("log file should not contain ANSI colour codes")
 	}
-	if !strings.Contains(content, "[ERROR] error msg") {
+	if !strings.Contains(content, "[ERRO] error msg") {
 		t.Errorf("log file should contain plain message, got: %s", content)
 	}
 }
@@ -291,11 +291,22 @@ func TestLog_TimestampFormat(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	log := newTestLogger(t, false)
+	log.SetVerbose(true)
 	log.Debug("debug msg %s", "test")
 
 	content := readLogFile(t, log)
 	if !strings.Contains(content, "[DEBUG] debug msg test") {
 		t.Errorf("expected DEBUG level in log, got: %s", content)
+	}
+}
+
+func TestDebug_SuppressedWhenNotVerbose(t *testing.T) {
+	log := newTestLogger(t, false)
+	log.Debug("debug msg %s", "test")
+
+	content := readLogFile(t, log)
+	if strings.Contains(content, "[DEBUG] debug msg test") {
+		t.Errorf("expected DEBUG level to be suppressed, got: %s", content)
 	}
 }
 
@@ -324,8 +335,8 @@ func TestWarn(t *testing.T) {
 	log.Warn("warning %d", 1)
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "[WARNING] warning 1") {
-		t.Errorf("expected WARNING level in log, got: %s", content)
+	if !strings.Contains(content, "[WARN] warning 1") {
+		t.Errorf("expected WARN level in log, got: %s", content)
 	}
 }
 
@@ -334,8 +345,8 @@ func TestError(t *testing.T) {
 	log.Error("err: %v", "bad")
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "[ERROR] err: bad") {
-		t.Errorf("expected ERROR level in log, got: %s", content)
+	if !strings.Contains(content, "[ERRO] err: bad") {
+		t.Errorf("expected ERRO level in log, got: %s", content)
 	}
 }
 
@@ -344,7 +355,7 @@ func TestDryRun(t *testing.T) {
 	log.DryRun("some-command --flag")
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "[DRY-RUN] Would run: some-command --flag") {
+	if !strings.Contains(content, "Dry run") || !strings.Contains(content, "some-command --flag") {
 		t.Errorf("expected dry-run message, got: %s", content)
 	}
 }
@@ -400,27 +411,27 @@ func TestFormatValue_WithColour(t *testing.T) {
 
 func TestFormatResult_NoColour(t *testing.T) {
 	log := &Logger{enableColour: false}
-	if got := log.FormatResult("SUCCESS"); got != "SUCCESS" {
-		t.Errorf("FormatResult(SUCCESS) = %q", got)
+	if got := log.FormatResult("Success"); got != "Success" {
+		t.Errorf("FormatResult(Success) = %q", got)
 	}
-	if got := log.FormatResult("FAILED"); got != "FAILED" {
-		t.Errorf("FormatResult(FAILED) = %q", got)
+	if got := log.FormatResult("Failed"); got != "Failed" {
+		t.Errorf("FormatResult(Failed) = %q", got)
 	}
 }
 
 func TestFormatResult_WithColour_Success(t *testing.T) {
 	log := &Logger{enableColour: true}
-	got := log.FormatResult("SUCCESS")
+	got := log.FormatResult("Success")
 	if !strings.Contains(got, colourSuccess) {
-		t.Error("FormatResult(SUCCESS) should use green colour")
+		t.Error("FormatResult(Success) should use green colour")
 	}
 }
 
 func TestFormatResult_WithColour_Failure(t *testing.T) {
 	log := &Logger{enableColour: true}
-	got := log.FormatResult("FAILED")
+	got := log.FormatResult("Failed")
 	if !strings.Contains(got, colourError) {
-		t.Error("FormatResult(FAILED) should use red colour")
+		t.Error("FormatResult(Failed) should use red colour")
 	}
 }
 
@@ -428,7 +439,7 @@ func TestFormatResult_WithColour_Other(t *testing.T) {
 	log := &Logger{enableColour: true}
 	got := log.FormatResult("UNKNOWN_STATUS")
 	if !strings.Contains(got, colourError) {
-		t.Error("FormatResult(non-SUCCESS) should use red colour")
+		t.Error("FormatResult(non-Success) should use red colour")
 	}
 }
 
@@ -481,7 +492,7 @@ func TestCleanupOldLogs_DryRun(t *testing.T) {
 	log.CleanupOldLogs(30, true)
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "[DRY-RUN]") {
+	if !strings.Contains(content, "Dry run") {
 		t.Errorf("expected dry-run message, got: %s", content)
 	}
 }

@@ -84,10 +84,22 @@ You can still override this with:
 /usr/local/bin/duplicacy-backup homes
 ```
 
-Example: remote backup followed by local prune
+Example: remote backup followed by remote safe prune
 
 ```bash
-/usr/local/bin/duplicacy-backup --remote homes && /usr/local/bin/duplicacy-backup --prune homes
+/usr/local/bin/duplicacy-backup --remote --backup --prune homes
+```
+
+Example: remote forced prune
+
+```bash
+/usr/local/bin/duplicacy-backup --remote --prune --force-prune homes
+```
+
+Example: remote storage cleanup
+
+```bash
+/usr/local/bin/duplicacy-backup --remote --cleanup-storage homes
 ```
 
 ## Release Verification

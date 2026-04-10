@@ -108,7 +108,7 @@ func (r *CommandRunner) run(ctx context.Context, dir string, input string, cmd s
 		return "", "", nil
 	}
 
-	r.log.Info("exec: %s", cmdStr)
+	r.log.Debug("exec: %s", cmdStr)
 
 	c := exec.CommandContext(ctx, cmd, args...)
 

@@ -465,23 +465,23 @@ func TestRunPrune_UsesRunner(t *testing.T) {
 	}
 }
 
-// ─── RunDeepPrune DryRun test ───────────────────────────────────────────────
+// ─── RunCleanupStorage tests ────────────────────────────────────────────────
 
-func TestRunDeepPrune_DryRun(t *testing.T) {
+func TestRunCleanupStorage_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
-	_, _, err := s.RunDeepPrune()
+	_, _, err := s.RunCleanupStorage()
 	if err != nil {
-		t.Fatalf("RunDeepPrune (dry-run): %v", err)
+		t.Fatalf("RunCleanupStorage (dry-run): %v", err)
 	}
 }
 
-func TestRunDeepPrune_UsesRunner(t *testing.T) {
+func TestRunCleanupStorage_UsesRunner(t *testing.T) {
 	s, mock := newTestSetup(t, false, execpkg.MockResult{})
 
-	_, _, err := s.RunDeepPrune()
+	_, _, err := s.RunCleanupStorage()
 	if err != nil {
-		t.Fatalf("RunDeepPrune: %v", err)
+		t.Fatalf("RunCleanupStorage: %v", err)
 	}
 	if len(mock.Invocations) != 1 {
 		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
@@ -593,18 +593,18 @@ func TestRunPrune_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
 	}
 }
 
-func TestRunDeepPrune_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
+func TestRunCleanupStorage_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
 	s, mock := newTestSetup(t, false, execpkg.MockResult{})
 
-	_, _, err := s.RunDeepPrune()
+	_, _, err := s.RunCleanupStorage()
 	if err != nil {
-		t.Fatalf("RunDeepPrune: %v", err)
+		t.Fatalf("RunCleanupStorage: %v", err)
 	}
 	if len(mock.Invocations) != 1 {
 		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
 	}
 	if mock.Invocations[0].Dir != s.DuplicacyRoot {
-		t.Errorf("RunDeepPrune Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
+		t.Errorf("RunCleanupStorage Dir = %q, want DuplicacyRoot %q", mock.Invocations[0].Dir, s.DuplicacyRoot)
 	}
 }
 
@@ -631,13 +631,13 @@ func TestSafePrunePreview_CallsRunInDir_WithDuplicacyRoot(t *testing.T) {
 // invocations have a non-empty Dir field set to DuplicacyRoot.  If someone
 // accidentally changes a RunInDir call back to Run, this test will catch it.
 func TestAllDuplicacyOps_NeverUseRun_AlwaysUseRunInDir(t *testing.T) {
-	// Queue enough results for: RunBackup + ValidateRepo + GetTotalRevisionCount + RunPrune + RunDeepPrune
+	// Queue enough results for: RunBackup + ValidateRepo + GetTotalRevisionCount + RunPrune + RunCleanupStorage
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "backup ok\n"},  // RunBackup
 		execpkg.MockResult{},                       // ValidateRepo
 		execpkg.MockResult{Stdout: "revision 1\n"}, // GetTotalRevisionCount
 		execpkg.MockResult{},                       // RunPrune
-		execpkg.MockResult{},                       // RunDeepPrune
+		execpkg.MockResult{},                       // RunCleanupStorage
 	)
 	s := NewSetup(t.TempDir(), "/data/source", "/target", false, mock)
 
@@ -645,7 +645,7 @@ func TestAllDuplicacyOps_NeverUseRun_AlwaysUseRunInDir(t *testing.T) {
 	s.ValidateRepo()
 	s.GetTotalRevisionCount()
 	s.RunPrune([]string{"-keep", "0:365"})
-	s.RunDeepPrune()
+	s.RunCleanupStorage()
 
 	for i, inv := range mock.Invocations {
 		if inv.Dir == "" {
@@ -904,16 +904,16 @@ func TestRunPrune_Error_StructuredType(t *testing.T) {
 	}
 }
 
-func TestRunDeepPrune_Error_StructuredType(t *testing.T) {
-	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("deep prune failed")})
+func TestRunCleanupStorage_Error_StructuredType(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Err: errors.New("cleanup failed")})
 
-	_, _, err := s.RunDeepPrune()
+	_, _, err := s.RunCleanupStorage()
 	var pruneErr *apperrors.PruneError
 	if !errors.As(err, &pruneErr) {
 		t.Fatalf("expected *PruneError, got %T", err)
 	}
-	if pruneErr.Phase != "deep-prune" {
-		t.Errorf("phase = %q, want deep-prune", pruneErr.Phase)
+	if pruneErr.Phase != "cleanup-storage" {
+		t.Errorf("phase = %q, want cleanup-storage", pruneErr.Phase)
 	}
 }
 
@@ -946,14 +946,14 @@ func TestRunPrune_ReturnsOutput(t *testing.T) {
 	}
 }
 
-func TestRunDeepPrune_ReturnsOutput(t *testing.T) {
-	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "deep prune output\n"})
+func TestRunCleanupStorage_ReturnsOutput(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "cleanup output\n"})
 
-	stdout, _, err := s.RunDeepPrune()
+	stdout, _, err := s.RunCleanupStorage()
 	if err != nil {
-		t.Fatalf("RunDeepPrune: %v", err)
+		t.Fatalf("RunCleanupStorage: %v", err)
 	}
-	if stdout != "deep prune output\n" {
+	if stdout != "cleanup output\n" {
 		t.Errorf("stdout = %q", stdout)
 	}
 }

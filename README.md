@@ -4,7 +4,7 @@
 
 A compiled Go replacement for `duplicacy-backup.sh`.
 
-It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for local and remote (Storj S3) targets, safe prune thresholds, optional permission fixing, and directory-based locking.
+It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for local and remote (Storj S3) targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
@@ -12,7 +12,7 @@ The project builds as a single static binary for Synology-targeted Linux archite
 
 - Read-only btrfs snapshots for consistent backups
 - Local and remote backup modes
-- Safe prune thresholds with optional force override
+- Threshold-guarded prune with optional forced override
 - Optional local permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
@@ -72,14 +72,23 @@ chmod 600 /root/.secrets/duplicacy-homes.toml
 # Backup (default mode)
 sudo duplicacy-backup homes
 
-# Safe prune
-sudo duplicacy-backup --prune homes
+# Backup, then safe prune
+sudo duplicacy-backup --backup --prune homes
+
+# Forced prune
+sudo duplicacy-backup --prune --force-prune homes
+
+# Storage cleanup only
+sudo duplicacy-backup --cleanup-storage homes
 
 # Remote backup
 sudo duplicacy-backup --remote homes
 
 # Preview only
 sudo duplicacy-backup --dry-run homes
+
+# Detailed troubleshooting output
+sudo duplicacy-backup --verbose --backup --prune homes
 ```
 
 ## Common Commands
@@ -88,15 +97,24 @@ sudo duplicacy-backup --dry-run homes
 # Explicit backup
 duplicacy-backup --backup homes
 
-# Deep prune
-duplicacy-backup --prune-deep --force-prune homes
+# Safe prune + storage cleanup
+duplicacy-backup --prune --cleanup-storage homes
 
 # Fix permissions only
 duplicacy-backup --fix-perms homes
 
+# Backup, then forced prune, then storage cleanup, then fix permissions
+duplicacy-backup --backup --prune --force-prune --cleanup-storage --fix-perms homes
+
 # Custom config directory
 duplicacy-backup --config-dir /opt/etc homes
 ```
+
+When operations are combined, execution order is fixed:
+`backup -> prune -> cleanup-storage -> fix-perms`.
+
+Default output is phase-oriented and intentionally concise. Use `--verbose`
+to include detailed operational logging and raw command output.
 
 ## Documentation
 

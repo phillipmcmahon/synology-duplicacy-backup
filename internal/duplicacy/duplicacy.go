@@ -296,9 +296,9 @@ func (s *Setup) RunPrune(pruneArgs []string) (string, string, error) {
 	return stdout, stderr, nil
 }
 
-// RunDeepPrune executes `duplicacy prune -exhaustive -exclusive`.
+// RunCleanupStorage executes `duplicacy prune -exhaustive -exclusive`.
 // Stdout and stderr are returned for the coordinator to display.
-func (s *Setup) RunDeepPrune() (string, string, error) {
+func (s *Setup) RunCleanupStorage() (string, string, error) {
 	args := []string{"prune", "-exhaustive", "-exclusive"}
 
 	if s.DryRun {
@@ -307,7 +307,7 @@ func (s *Setup) RunDeepPrune() (string, string, error) {
 
 	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
 	if err != nil {
-		return stdout, stderr, apperrors.NewPruneError("deep-prune", fmt.Errorf("deep prune command failed: %w", err))
+		return stdout, stderr, apperrors.NewPruneError("cleanup-storage", fmt.Errorf("storage cleanup command failed: %w", err))
 	}
 	return stdout, stderr, nil
 }

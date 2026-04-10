@@ -51,7 +51,7 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	req := &Request{Mode: "backup", Source: "homes", DoBackup: true}
+	req := &Request{Source: "homes", DoBackup: true}
 	rt := testRuntime()
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
@@ -112,7 +112,7 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	if plan.OperationMode != "Fix permissions only" {
 		t.Fatalf("OperationMode = %q", plan.OperationMode)
 	}
-	if plan.ModeDisplay != "LOCAL" {
+	if plan.ModeDisplay != "Local" {
 		t.Fatalf("ModeDisplay = %q", plan.ModeDisplay)
 	}
 	if plan.OwnerGroup != owner+":"+group {
@@ -145,7 +145,7 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	req := &Request{Mode: "backup", Source: "homes", DoBackup: true, RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoBackup: true, RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 
 	plan, err := planner.Build(req)

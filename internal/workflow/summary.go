@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type SummaryLine struct {
 	Label string
@@ -8,36 +11,48 @@ type SummaryLine struct {
 }
 
 func OperationMode(req *Request) string {
-	switch {
-	case req.FixPermsOnly:
+	if req.FixPermsOnly {
 		return "Fix permissions only"
-	case req.DoBackup && req.FixPerms:
-		return "Backup + fix permissions"
-	case req.DoBackup:
-		return "Backup only"
-	case req.DoPrune && req.DeepPruneMode && req.FixPerms:
-		return "Prune deep + fix permissions"
-	case req.DoPrune && req.DeepPruneMode:
-		return "Prune deep"
-	case req.DoPrune && req.FixPerms:
-		return "Prune safe + fix permissions"
-	case req.DoPrune:
-		return "Prune safe"
-	default:
+	}
+
+	var parts []string
+	if req.DoBackup {
+		parts = append(parts, "Backup")
+	}
+	if req.DoPrune {
+		if req.ForcePrune {
+			parts = append(parts, "Forced prune")
+		} else {
+			parts = append(parts, "Safe prune")
+		}
+	}
+	if req.DoCleanupStore {
+		parts = append(parts, "Storage cleanup")
+	}
+	if req.FixPerms {
+		parts = append(parts, "Fix permissions")
+	}
+
+	if len(parts) == 0 {
 		return ""
 	}
+	if len(parts) == 1 && parts[0] == "Backup" {
+		return "Backup only"
+	}
+	return strings.Join(parts, " + ")
 }
 
 func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{{Label: "Operation Mode", Value: plan.OperationMode}}
 
 	if plan.FixPermsOnly {
-		return append(lines,
+		lines = append(lines,
 			SummaryLine{Label: "Destination", Value: plan.BackupTarget},
 			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
 			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
 			SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
 		)
+		return lines
 	}
 
 	lines = append(lines,
@@ -53,6 +68,35 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		SummaryLine{Label: "Work Dir", Value: plan.WorkDir()},
 		SummaryLine{Label: "Destination", Value: plan.BackupTarget},
 	)
+
+	if !plan.Verbose {
+		compact := []SummaryLine{
+			{Label: "Operation Mode", Value: plan.OperationMode},
+			{Label: "Config File", Value: plan.ConfigFile},
+			{Label: "Mode", Value: plan.ModeDisplay},
+			{Label: "Source", Value: plan.SnapshotSource},
+		}
+		if plan.DoBackup {
+			compact = append(compact, SummaryLine{Label: "Snapshot", Value: plan.RepositoryPath})
+		}
+		compact = append(compact, SummaryLine{Label: "Destination", Value: plan.BackupTarget})
+		if plan.DryRun {
+			compact = append(compact, SummaryLine{Label: "Dry Run", Value: "true"})
+		}
+		if plan.ForcePrune {
+			compact = append(compact, SummaryLine{Label: "Force Prune", Value: "true"})
+		}
+		if plan.DoCleanupStore {
+			compact = append(compact, SummaryLine{Label: "Cleanup Storage", Value: "true"})
+		}
+		if plan.FixPerms {
+			compact = append(compact,
+				SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
+				SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
+			)
+		}
+		return compact
+	}
 
 	if plan.Threads > 0 {
 		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", plan.Threads)})
@@ -76,6 +120,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		SummaryLine{Label: "Log Retention", Value: fmt.Sprintf("%d", plan.LogRetentionDays)},
 		SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
 		SummaryLine{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.ForcePrune)},
+		SummaryLine{Label: "Cleanup Storage", Value: fmt.Sprintf("%t", plan.DoCleanupStore)},
 		SummaryLine{Label: "Fix Perms", Value: fmt.Sprintf("%t", plan.FixPerms)},
 		SummaryLine{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeletePercent)},
 		SummaryLine{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeleteCount)},

@@ -34,12 +34,14 @@ It is responsible for:
 
 - parsing flags and the source label
 - handling `--help` and `--version`
-- deriving mode booleans
+- deriving requested operation flags
 - validating flag combinations
 - validating the backup label
 
 The `Request` type is intentionally small. It describes what the user asked
 for, not what the application has resolved from the filesystem or config yet.
+Requested operations can be combined, but execution order is fixed later in
+the workflow so CLI flag order never changes runtime sequencing.
 
 ## Plan
 
@@ -77,7 +79,7 @@ It is responsible for:
 - lock acquisition and release
 - runtime sequencing
 - Duplicacy working-directory setup
-- backup, prune, and fix-perms execution
+- backup, prune, storage cleanup, and fix-perms execution
 - final cleanup and result output
 
 This keeps operator-facing runtime behavior in one place and makes phase order

@@ -12,7 +12,9 @@ func (e *Executor) cleanup() {
 	}
 	e.cleanedUp = true
 
-	e.log.Info("%s", statusLinef("Starting cleanup."))
+	if e.plan.Verbose {
+		e.view.PrintPhase("Cleanup")
+	}
 	e.cleanupSnapshot()
 	e.cleanupWorkRoot()
 	e.releaseLock()
@@ -27,20 +29,26 @@ func (e *Executor) cleanupSnapshot() {
 	}
 
 	if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-		e.log.Info("%s", statusLinef("Deleting snapshot subvolume: %s.", e.plan.SnapshotTarget))
+		if e.plan.Verbose {
+			e.log.PrintLine("Snapshot", e.plan.SnapshotTarget)
+		}
 		if e.plan.DryRun {
 			e.log.DryRun("%s", e.plan.SnapshotDeleteCommand)
 		} else if delErr := btrfs.DeleteSnapshot(e.runner, e.plan.SnapshotTarget, false); delErr != nil {
-			e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v.", e.plan.SnapshotTarget, delErr))
+			e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v", e.plan.SnapshotTarget, delErr))
+		} else if e.plan.Verbose {
+			e.log.PrintLine("Snapshot", "Removed")
 		}
 	}
 
 	if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-		e.log.Info("%s", statusLinef("Removing snapshot directory: %s.", e.plan.SnapshotTarget))
+		if e.plan.Verbose {
+			e.log.PrintLine("Snapshot Dir", e.plan.SnapshotTarget)
+		}
 		if e.plan.DryRun {
 			e.log.DryRun("rm -rf %s", e.plan.SnapshotTarget)
 		} else if rmErr := os.RemoveAll(e.plan.SnapshotTarget); rmErr != nil {
-			e.log.Warn("%s", statusLinef("Failed to remove snapshot directory %s: %v.", e.plan.SnapshotTarget, rmErr))
+			e.log.Warn("%s", statusLinef("Failed to remove snapshot directory %s: %v", e.plan.SnapshotTarget, rmErr))
 		}
 	}
 }
@@ -54,7 +62,9 @@ func (e *Executor) cleanupWorkRoot() {
 		return
 	}
 
-	e.log.Info("%s", statusLinef("Removing duplicacy work directory: %s.", workRoot))
+	if e.plan.Verbose {
+		e.log.PrintLine("Work Dir", workRoot)
+	}
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.WorkDirRemoveCommand)
 		return
@@ -62,13 +72,17 @@ func (e *Executor) cleanupWorkRoot() {
 
 	if e.dup != nil {
 		if err := e.dup.Cleanup(); err != nil {
-			e.log.Warn("%s", statusLinef("Failed to remove work directory: %v.", err))
+			e.log.Warn("%s", statusLinef("Failed to remove work directory: %v", err))
+		} else if e.plan.Verbose {
+			e.log.PrintLine("Work Dir", "Removed")
 		}
 		return
 	}
 
 	if err := os.RemoveAll(workRoot); err != nil {
-		e.log.Warn("%s", statusLinef("Failed to remove work directory %s: %v.", workRoot, err))
+		e.log.Warn("%s", statusLinef("Failed to remove work directory %s: %v", workRoot, err))
+	} else if e.plan.Verbose {
+		e.log.PrintLine("Work Dir", "Removed")
 	}
 }
 

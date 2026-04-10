@@ -111,6 +111,18 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	if !strings.Contains(stdout, "<source>-backup.toml") || !strings.Contains(stdout, "duplicacy-<label>.toml") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+	if !strings.Contains(stdout, "Operations may be combined.") || !strings.Contains(stdout, "Execution order is fixed:") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stdout, "--verbose") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stdout, "    --fix-perms              Normalise local repository ownership and permissions") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if strings.Contains(stdout, "MODIFIERS:\n    --fix-perms") {
+		t.Fatalf("stdout = %q", stdout)
+	}
 }
 
 func TestRunWithArgs_VersionReturnsZero(t *testing.T) {
@@ -131,7 +143,7 @@ func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(--nope) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "unknown option --nope.") {
+		if !strings.Contains(stderr, "unknown option --nope") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -145,7 +157,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Must be run as root.") {
+		if !strings.Contains(stderr, "Must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -159,7 +171,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml.") {
+		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -182,7 +194,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Lock acquisition failed:") || !strings.Contains(stderr, "not a directory.") {
+		if !strings.Contains(stderr, "Lock acquisition failed:") || !strings.Contains(stderr, "not a directory") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -197,10 +209,7 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 				t.Fatalf("runWithArgs(backup dry-run) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Backup phase completed (dry-run).") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if !strings.Contains(stderr, "All operations completed.") {
+		if !strings.Contains(stderr, "Backup phase completed (dry-run)") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -216,7 +225,7 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(remote missing secrets) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml.") {
+		if !strings.Contains(stderr, "secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -232,10 +241,90 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 				t.Fatalf("runWithArgs(fix-perms dry-run) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Permission normalisation completed (dry-run).") {
+		if !strings.Contains(stderr, "Fix permissions phase completed (dry-run)") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stderr, "All operations completed.") {
+	})
+}
+
+func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--cleanup-storage", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Phase: Storage cleanup") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Storage cleanup phase completed (dry-run)") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Phase: Prune") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Storage cleanup") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_CombinedOperationsUseFixedExecutionOrder(t *testing.T) {
+	withTestGlobals(t, func() {
+		owner, group := currentUserGroup(t)
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(combined dry-run) = %d", code)
+			}
+		})
+
+		backupIdx := strings.Index(stderr, "Phase: Backup")
+		pruneIdx := strings.Index(stderr, "Phase: Prune")
+		fixPermsIdx := strings.Index(stderr, "Phase: Fix permissions")
+		if backupIdx < 0 || pruneIdx < 0 || fixPermsIdx < 0 {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !(backupIdx < pruneIdx && pruneIdx < fixPermsIdx) {
+			t.Fatalf("expected fixed phase order backup -> prune -> fix-perms, stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Backup + Safe prune + Fix permissions") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Run Summary:") || strings.Contains(stderr, "Acquiring lock for label") || strings.Contains(stderr, "Lock acquired:") {
+			t.Fatalf("expected default output to suppress technical startup details, stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "exec: ") {
+			t.Fatalf("expected default output to suppress raw exec lines, stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_CleanupStorageUsesFixedExecutionOrder(t *testing.T) {
+	withTestGlobals(t, func() {
+		owner, group := currentUserGroup(t)
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--cleanup-storage", "--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)
+			}
+		})
+
+		backupIdx := strings.Index(stderr, "Phase: Backup")
+		pruneIdx := strings.Index(stderr, "Phase: Prune")
+		cleanupIdx := strings.Index(stderr, "Phase: Storage cleanup")
+		fixPermsIdx := strings.Index(stderr, "Phase: Fix permissions")
+		if backupIdx < 0 || pruneIdx < 0 || cleanupIdx < 0 || fixPermsIdx < 0 {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !(backupIdx < pruneIdx && pruneIdx < cleanupIdx && cleanupIdx < fixPermsIdx) {
+			t.Fatalf("expected fixed phase order backup -> prune -> cleanup-storage -> fix-perms, stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Backup + Safe prune + Storage cleanup + Fix permissions") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})

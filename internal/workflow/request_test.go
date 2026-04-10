@@ -22,14 +22,90 @@ func TestParseRequest_DefaultBackupMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
-	if result.Request.Mode != "backup" {
-		t.Fatalf("Mode = %q, want backup", result.Request.Mode)
-	}
 	if !result.Request.DoBackup {
 		t.Fatal("expected DoBackup true")
 	}
 	if result.Request.DefaultNotice == "" {
 		t.Fatal("expected default notice")
+	}
+}
+
+func TestParseRequest_CombinedOperationsIgnoreFlagOrder(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--prune", "--backup", "--fix-perms", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Request.DoBackup {
+		t.Fatal("expected DoBackup true")
+	}
+	if !result.Request.DoPrune {
+		t.Fatal("expected DoPrune true")
+	}
+	if result.Request.DoCleanupStore {
+		t.Fatal("expected DoCleanupStore false")
+	}
+	if !result.Request.FixPerms {
+		t.Fatal("expected FixPerms true")
+	}
+	if result.Request.FixPermsOnly {
+		t.Fatal("expected FixPermsOnly false")
+	}
+}
+
+func TestParseRequest_CleanupStorageStandalone(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--cleanup-storage", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.DoBackup {
+		t.Fatal("expected DoBackup false")
+	}
+	if result.Request.DoPrune {
+		t.Fatal("expected DoPrune false")
+	}
+	if !result.Request.DoCleanupStore {
+		t.Fatal("expected DoCleanupStore true")
+	}
+}
+
+func TestParseRequest_BackupAndCleanupStorage(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--backup", "--cleanup-storage", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Request.DoBackup {
+		t.Fatal("expected DoBackup true")
+	}
+	if result.Request.DoPrune {
+		t.Fatal("expected DoPrune false")
+	}
+	if !result.Request.DoCleanupStore {
+		t.Fatal("expected DoCleanupStore true")
+	}
+}
+
+func TestParseRequest_ForcePruneWithoutPruneFails(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"--backup", "--force-prune", "homes"}, meta, DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "--force-prune requires --prune" {
+		t.Fatalf("error = %q", err)
+	}
+}
+
+func TestParseRequest_Verbose(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--verbose", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Request.Verbose {
+		t.Fatal("expected Verbose true")
 	}
 }
 

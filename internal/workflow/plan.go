@@ -9,14 +9,15 @@ import (
 type Plan struct {
 	Secrets *secrets.Secrets
 
-	DoBackup      bool
-	DoPrune       bool
-	DeepPruneMode bool
-	FixPerms      bool
-	FixPermsOnly  bool
-	ForcePrune    bool
-	RemoteMode    bool
-	DryRun        bool
+	DoBackup       bool
+	DoPrune        bool
+	DoCleanupStore bool
+	FixPerms       bool
+	FixPermsOnly   bool
+	ForcePrune     bool
+	RemoteMode     bool
+	DryRun         bool
+	Verbose        bool
 
 	NeedsDuplicacySetup bool
 	NeedsSnapshot       bool
@@ -66,7 +67,7 @@ type Plan struct {
 	ValidateRepoCommand      string
 	PrunePreviewCommand      string
 	PolicyPruneCommand       string
-	DeepPruneCommand         string
+	CleanupStorageCommand    string
 	FixPermsChownCommand     string
 	FixPermsDirPermsCommand  string
 	FixPermsFilePermsCommand string

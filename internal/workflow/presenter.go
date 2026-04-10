@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -11,36 +12,58 @@ import (
 // Presenter owns operator-facing runtime output for the workflow execution
 // path. Keeping rendering here lets Executor focus on sequencing and policy.
 type Presenter struct {
-	meta Metadata
-	rt   Runtime
-	log  *logger.Logger
+	meta    Metadata
+	rt      Runtime
+	log     *logger.Logger
+	verbose bool
 }
 
-func NewPresenter(meta Metadata, rt Runtime, log *logger.Logger) *Presenter {
-	return &Presenter{meta: meta, rt: rt, log: log}
+func NewPresenter(meta Metadata, rt Runtime, log *logger.Logger, verbose bool) *Presenter {
+	return &Presenter{meta: meta, rt: rt, log: log, verbose: verbose}
 }
 
-func (p *Presenter) PrintHeader(lockPath string) {
+var backupRevisionPattern = regexp.MustCompile(`(?i)revision\s+(\d+)\s+completed`)
+var backupDurationPattern = regexp.MustCompile(`(?i)^Total running time:\s*(.+)$`)
+var backupFilesPattern = regexp.MustCompile(`(?i)^Files:\s*(.+)$`)
+
+func (p *Presenter) PrintHeader(plan *Plan, lockPath string) {
 	p.log.PrintSeparator()
-	p.log.Info("%s", statusLinef("Backup script started - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
-	p.log.PrintLine("Script", p.meta.ScriptName)
-	p.log.PrintLine("PID", fmt.Sprintf("%d", p.rt.Getpid()))
-	p.log.PrintLine("Lock Path", lockPath)
-	p.log.PrintSeparator()
+	p.log.Info("%s", statusLinef("Run started - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
+	p.log.PrintLine("Operation", plan.OperationMode)
+	p.log.PrintLine("Mode", plan.ModeDisplay)
+	if p.verbose {
+		p.log.PrintLine("Label", plan.BackupLabel)
+		p.log.PrintLine("Script", p.meta.ScriptName)
+		p.log.PrintLine("PID", fmt.Sprintf("%d", p.rt.Getpid()))
+		p.log.PrintLine("Lock Path", lockPath)
+	}
 }
 
 func (p *Presenter) PrintSummary(plan *Plan) {
-	p.log.Info("%s", statusLinef("Configuration Summary:"))
+	p.log.PrintSeparator()
+	p.log.Info("%s", statusLinef("Run Summary:"))
 	for _, line := range plan.Summary {
 		p.log.PrintLine(line.Label, line.Value)
 	}
 }
 
-func (p *Presenter) PrintCommandOutput(stdout, stderr string) {
+func (p *Presenter) PrintPhase(name string) {
+	p.log.PrintSeparator()
+	p.log.Info("%s", statusLinef("Phase: %s", name))
+}
+
+func (p *Presenter) PrintCommandOutput(stdout, stderr string, force bool) {
+	if !p.verbose && !force {
+		return
+	}
 	if stdout != "" {
 		for _, line := range strings.Split(strings.TrimRight(stdout, "\n"), "\n") {
 			if line != "" {
-				p.log.Info("%s", line)
+				if p.verbose && !force {
+					p.log.PrintLine("Output", line)
+				} else {
+					p.log.Info("%s", line)
+				}
 			}
 		}
 	}
@@ -50,6 +73,48 @@ func (p *Presenter) PrintCommandOutput(stdout, stderr string) {
 				p.log.Warn("%s", line)
 			}
 		}
+	}
+}
+
+func (p *Presenter) PrintBackupResult(stdout, stderr string, force bool) {
+	if force {
+		p.PrintCommandOutput(stdout, stderr, true)
+		return
+	}
+	if p.verbose {
+		p.PrintCommandOutput(stdout, stderr, false)
+		return
+	}
+
+	var revision string
+	var files string
+	var duration string
+	for _, line := range strings.Split(strings.TrimRight(stdout, "\n"), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if match := backupRevisionPattern.FindStringSubmatch(line); len(match) > 1 {
+			revision = match[1]
+			continue
+		}
+		if match := backupFilesPattern.FindStringSubmatch(line); len(match) > 1 {
+			files = match[1]
+			continue
+		}
+		if match := backupDurationPattern.FindStringSubmatch(line); len(match) > 1 {
+			duration = match[1]
+		}
+	}
+
+	if revision != "" {
+		p.log.PrintLine("Revision", revision)
+	}
+	if files != "" {
+		p.log.PrintLine("Files", files)
+	}
+	if duration != "" {
+		p.log.PrintLine("Duration", duration)
 	}
 }
 
@@ -64,14 +129,13 @@ func (p *Presenter) PrintPrunePreview(preview *duplicacy.PrunePreview, minTotalF
 }
 
 func (p *Presenter) PrintCompletion(exitCode int) {
-	status := "SUCCESS"
+	status := "Success"
 	if exitCode != 0 {
-		status = "FAILED"
+		status = "Failed"
 	}
 	p.log.PrintSeparator()
-	p.log.Info("%s", statusLinef("Backup script completed:"))
 	p.log.PrintLine("Result", p.log.FormatResult(status))
 	p.log.PrintLine("Code", fmt.Sprintf("%d", exitCode))
-	p.log.PrintLine("Timestamp", p.rt.Now().Format("2006-01-02 15:04:05"))
+	p.log.Info("%s", statusLinef("Run completed - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
 	p.log.PrintSeparator()
 }

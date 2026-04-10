@@ -67,9 +67,9 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 
 func (p *Planner) validateEnvironment(req *Request) error {
 	if p.rt.Geteuid() != 0 {
-		return fmt.Errorf("Must be run as root.")
+		return fmt.Errorf("Must be run as root")
 	}
-	if req.DoBackup || req.DoPrune {
+	if req.DoBackup || req.DoPrune || req.DoCleanupStore {
 		if _, err := p.rt.LookPath("duplicacy"); err != nil {
 			return fmt.Errorf("Required command 'duplicacy' not found")
 		}
@@ -101,13 +101,14 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 	return &Plan{
 		DoBackup:            req.DoBackup,
 		DoPrune:             req.DoPrune,
-		DeepPruneMode:       req.DeepPruneMode,
+		DoCleanupStore:      req.DoCleanupStore,
 		FixPerms:            req.FixPerms,
 		FixPermsOnly:        req.FixPermsOnly,
 		ForcePrune:          req.ForcePrune,
 		RemoteMode:          req.RemoteMode,
 		DryRun:              req.DryRun,
-		NeedsDuplicacySetup: req.DoBackup || req.DoPrune,
+		Verbose:             req.Verbose,
+		NeedsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
 		NeedsSnapshot:       req.DoBackup,
 		DefaultNotice:       req.DefaultNotice,
 		ModeDisplay:         modeDisplay(req.RemoteMode),
@@ -127,7 +128,7 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Configuration file not found: %s.", plan.ConfigFile)
+		return nil, fmt.Errorf("Configuration file not found: %s", plan.ConfigFile)
 	}
 
 	cfg := config.NewDefaults()
@@ -148,7 +149,7 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		return nil, err
 	}
 
-	p.log.Info("Configuration parsed for [common] + [%s].", targetSection)
+	p.log.Debug("Configuration parsed for [common] + [%s].", targetSection)
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
@@ -169,12 +170,12 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 		if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
 			return nil, err
 		}
-		p.log.Info("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
+		p.log.Debug("Verified '%s' is on a btrfs filesystem.", p.meta.RootVolume)
 
 		if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
 			return nil, err
 		}
-		p.log.Info("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
+		p.log.Debug("Verified '%s' is on a btrfs filesystem.", plan.SnapshotSource)
 	}
 
 	return cfg, nil
@@ -198,7 +199,7 @@ func (p *Planner) populateCommands(plan *Plan) {
 	if plan.PolicyPruneCommand == "duplicacy prune" || plan.PolicyPruneCommand == "duplicacy prune " {
 		plan.PolicyPruneCommand = "duplicacy prune"
 	}
-	plan.DeepPruneCommand = "duplicacy prune -exhaustive -exclusive"
+	plan.CleanupStorageCommand = "duplicacy prune -exhaustive -exclusive"
 	plan.FixPermsChownCommand = fmt.Sprintf("chown -R %s %s", plan.OwnerGroup, plan.BackupTarget)
 	plan.FixPermsDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.BackupTarget)
 	plan.FixPermsFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.BackupTarget)
@@ -221,9 +222,9 @@ func splitNonEmptyLines(value string) []string {
 
 func modeDisplay(remote bool) string {
 	if remote {
-		return "REMOTE"
+		return "Remote"
 	}
-	return "LOCAL"
+	return "Local"
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {

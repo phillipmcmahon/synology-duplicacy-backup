@@ -6,24 +6,32 @@
 duplicacy-backup [OPTIONS] <source>
 ```
 
-If no primary mode is specified, the binary defaults to backup mode.
+If no primary operation is specified, the binary defaults to backup mode.
 
-## Modes
+Primary operations may be combined. When they are, execution order is fixed:
+
+1. `--backup`
+2. `--prune`
+3. `--cleanup-storage`
+4. `--fix-perms`
+
+## Primary Operations
 
 | Flag | Description |
 |---|---|
-| `--backup` | Perform backup only |
-| `--prune` | Perform safe, threshold-guarded policy prune only |
-| `--prune-deep` | Perform maintenance prune mode; requires `--force-prune` |
+| `--backup` | Request the backup phase |
+| `--prune` | Request the threshold-guarded prune phase |
+| `--cleanup-storage` | Run exhaustive exclusive storage cleanup |
+| `--fix-perms` | Normalise local repository ownership and permissions; can run alone or after backup/prune |
 
 ## Modifiers
 
 | Flag | Description |
 |---|---|
-| `--fix-perms` | Normalise local repository ownership and permissions; can run alone or after backup/prune |
-| `--force-prune` | Override safe prune thresholds, or authorize `--prune-deep` |
+| `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
 | `--remote` | Use the remote config and secrets path |
 | `--dry-run` | Simulate actions without making changes |
+| `--verbose` | Show detailed operational logging and raw command output |
 | `--config-dir <path>` | Override the config directory |
 | `--secrets-dir <path>` | Override the secrets directory |
 | `--version`, `-v` | Show version and build information |
@@ -45,23 +53,35 @@ duplicacy-backup homes
 # Explicit backup
 duplicacy-backup --backup homes
 
-# Safe prune
-duplicacy-backup --prune homes
+# Backup, then safe prune
+duplicacy-backup --backup --prune homes
 
 # Force prune
 duplicacy-backup --prune --force-prune homes
 
-# Deep prune
-duplicacy-backup --prune-deep --force-prune homes
+# Storage cleanup only
+duplicacy-backup --cleanup-storage homes
+
+# Backup, then safe prune, then storage cleanup
+duplicacy-backup --backup --prune --cleanup-storage homes
+
+# Backup, then forced prune, then storage cleanup
+duplicacy-backup --backup --prune --force-prune --cleanup-storage homes
 
 # Fix permissions only
 duplicacy-backup --fix-perms homes
 
-# Backup then fix permissions
+# Backup, then fix permissions
 duplicacy-backup --backup --fix-perms homes
+
+# Backup, then safe prune, then fix permissions
+duplicacy-backup --prune --backup --fix-perms homes
 
 # Remote backup preview
 duplicacy-backup --remote --dry-run homes
+
+# Verbose troubleshooting run
+duplicacy-backup --verbose --backup --prune homes
 ```
 
 ## Notes
@@ -69,6 +89,10 @@ duplicacy-backup --remote --dry-run homes
 - config files are TOML files named `<label>-backup.toml`
 - remote secrets files are TOML files named `duplicacy-<label>.toml`
 - `--fix-perms` is local-only and cannot be combined with `--remote`
-- `--prune-deep` requires `--force-prune`
-- `--force-prune` requires `--prune` or `--prune-deep`
+- combined phases all run in the same target mode for a single invocation; `--remote` applies to every requested phase
+- `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
+- `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
+- `--force-prune` only affects prune threshold enforcement
+- `--force-prune` requires `--prune`
 - standalone `--fix-perms` does not require `duplicacy`
+- default output is concise and phase-oriented; use `--verbose` for detailed operational logs

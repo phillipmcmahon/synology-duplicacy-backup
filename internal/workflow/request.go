@@ -24,20 +24,19 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 }
 
 type Request struct {
-	Mode       string
-	FixPerms   bool
-	ForcePrune bool
-	RemoteMode bool
-	DryRun     bool
-	ConfigDir  string
-	SecretsDir string
-	Source     string
-
-	DoBackup      bool
-	DoPrune       bool
-	DeepPruneMode bool
-	FixPermsOnly  bool
-	DefaultNotice string
+	FixPerms       bool
+	ForcePrune     bool
+	RemoteMode     bool
+	DryRun         bool
+	Verbose        bool
+	ConfigDir      string
+	SecretsDir     string
+	Source         string
+	DoBackup       bool
+	DoPrune        bool
+	DoCleanupStore bool
+	FixPermsOnly   bool
+	DefaultNotice  string
 }
 
 type ParseResult struct {
@@ -79,11 +78,12 @@ func parseFlags(args []string) (*Request, error) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--backup", "--prune", "--prune-deep":
-			if req.Mode != "" {
-				return nil, NewUsageRequestError("only one mode may be specified: --backup, --prune, or --prune-deep")
-			}
-			req.Mode = args[i][2:]
+		case "--backup":
+			req.DoBackup = true
+		case "--prune":
+			req.DoPrune = true
+		case "--cleanup-storage":
+			req.DoCleanupStore = true
 		case "--fix-perms":
 			req.FixPerms = true
 		case "--force-prune":
@@ -92,6 +92,8 @@ func parseFlags(args []string) (*Request, error) {
 			req.RemoteMode = true
 		case "--dry-run":
 			req.DryRun = true
+		case "--verbose":
+			req.Verbose = true
 		case "--config-dir":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--config-dir requires a value")
@@ -112,12 +114,12 @@ func parseFlags(args []string) (*Request, error) {
 		}
 	}
 
-	if req.Mode == "" && !req.FixPerms {
-		req.Mode = "backup"
-		req.DefaultNotice = "No mode specified: defaulting to backup only."
+	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && !req.FixPerms {
+		req.DoBackup = true
+		req.DefaultNotice = "No primary operation specified: defaulting to backup only."
 	}
-	if req.Mode == "" && req.FixPerms {
-		req.DefaultNotice = "No primary mode specified: using fix-perms only."
+	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
+		req.DefaultNotice = "No primary operation specified: using fix-perms only."
 	}
 
 	if len(positional) < 1 {
@@ -128,18 +130,12 @@ func parseFlags(args []string) (*Request, error) {
 }
 
 func (r *Request) deriveModes() {
-	r.DoBackup = r.Mode == "backup"
-	r.DoPrune = r.Mode == "prune" || r.Mode == "prune-deep"
-	r.DeepPruneMode = r.Mode == "prune-deep"
-	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune
+	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune && !r.DoCleanupStore
 }
 
 func (r *Request) validateCombos() error {
-	if r.DeepPruneMode && !r.ForcePrune {
-		return NewRequestError("--prune-deep requires --force-prune")
-	}
 	if r.ForcePrune && !r.DoPrune {
-		return NewRequestError("--force-prune requires --prune or --prune-deep")
+		return NewRequestError("--force-prune requires --prune")
 	}
 	if r.FixPerms && r.RemoteMode {
 		return NewRequestError("--fix-perms is only valid for local backups; cannot be used with --remote")

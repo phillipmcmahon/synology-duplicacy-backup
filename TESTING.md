@@ -150,8 +150,8 @@ Operator-facing wording is owned by `internal/workflow`.
 
 Rules:
 
-- translated operator messages should be complete sentences
-- translated operator messages should end with terminal punctuation
+- translated operator messages should be concise and consistent
+- status lines should not force terminal punctuation
 - domain packages should return typed errors rather than pre-formatted final wording
 - `internal/workflow/messages.go` is the translation contract for final stderr text
 

@@ -23,9 +23,9 @@ func testExecutorLogger(t *testing.T) *logger.Logger {
 	return log
 }
 
-func TestOperationMode_PruneDeepWithFixPerms(t *testing.T) {
-	req := &Request{DoPrune: true, DeepPruneMode: true, FixPerms: true}
-	if got := OperationMode(req); got != "Prune deep + fix permissions" {
+func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
+	req := &Request{DoCleanupStore: true, FixPerms: true}
+	if got := OperationMode(req); got != "Storage cleanup + Fix permissions" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }
@@ -51,7 +51,7 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 		FixPerms:                 true,
 		FixPermsOnly:             true,
 		DryRun:                   true,
-		DefaultNotice:            "No primary mode specified: using fix-perms only.",
+		DefaultNotice:            "No primary operation specified: using fix-perms only.",
 		LogRetentionDays:         30,
 		LocalOwner:               u.Username,
 		LocalGroup:               g.Name,
@@ -91,7 +91,7 @@ func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T
 	if err == nil {
 		t.Fatal("expected prune threshold error")
 	}
-	if got := OperatorMessage(err); got != "Refusing to continue because safe prune thresholds were exceeded." {
+	if got := OperatorMessage(err); got != "Refusing to continue because safe prune thresholds were exceeded" {
 		t.Fatalf("OperatorMessage() = %q", got)
 	}
 }
@@ -108,7 +108,7 @@ func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) 
 		testRuntime(),
 		log,
 		execpkg.NewMockRunner(),
-		&Plan{},
+		&Plan{Verbose: true},
 	)
 
 	preview := &duplicacy.PrunePreview{
@@ -133,7 +133,7 @@ func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) 
 	}
 
 	output := string(data)
-	if !strings.Contains(output, "[SAFE-PRUNE-PREVIEW] Repository set to /volume1/homes") {
+	if !strings.Contains(output, "Preview") || !strings.Contains(output, "Repository set to /volume1/homes") {
 		t.Fatalf("expected safe prune preview output, got %q", output)
 	}
 	if strings.Contains(output, "[REVISION-LIST]") {

@@ -52,9 +52,10 @@ func runWithArgs(args []string) int {
 
 	log, err := initLogger(meta)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Failed to initialise logger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
 		return 1
 	}
+	log.SetVerbose(result.Request.Verbose)
 
 	runner := execpkg.NewCommandRunner(log, result.Request.DryRun)
 	planner := workflow.NewPlanner(meta, rt, log, runner)
@@ -77,8 +78,8 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 
 	log, logErr := initLogger(meta)
 	if logErr != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Failed to initialise logger: %v\n", logErr)
-		fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", logErr)
+		fmt.Fprintf(os.Stderr, "[ERRO] %v\n", err)
 		return nil, 1
 	}
 	defer log.Close()

@@ -133,19 +133,26 @@ func UsageText(meta Metadata, rt Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
 
 DEFAULT BEHAVIOUR:
-    No mode specified = backup only
+    No primary operation specified = backup only
 
-MODES:
-    --backup                 Perform backup only
-    --prune                  Perform safe, threshold-guarded policy prune only
-    --prune-deep             Perform maintenance prune mode (requires --force-prune):
-                             policy prune + exhaustive exclusive prune
+OPERATIONS:
+    Operations may be combined. Execution order is fixed:
+      1. backup
+      2. prune
+      3. cleanup-storage
+      4. fix-perms
+
+    --backup                 Request backup
+    --prune                  Request threshold-guarded prune
+    --cleanup-storage        Request storage maintenance:
+                             duplicacy prune -exhaustive -exclusive
+    --fix-perms              Normalise local repository ownership and permissions
 
 MODIFIERS:
-    --fix-perms              Normalise local repository ownership and permissions
-    --force-prune            Override safe prune thresholds, or authorise --prune-deep
+    --force-prune            Override safe prune thresholds during prune
     --remote                 Perform operation against remote target config
     --dry-run                Simulate actions without making changes
+    --verbose                Show detailed operational logging and raw command output
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
     --version, -v            Show version and build information
@@ -181,11 +188,16 @@ ARGUMENTS:
 EXAMPLES:
     %s homes
     %s --backup homes
+    %s --backup --prune homes
     %s --prune homes
-    %s --prune --force-prune homes
-    %s --prune-deep --force-prune homes
+    %s --cleanup-storage homes
+    %s --prune --cleanup-storage homes
+    %s --prune --force-prune --cleanup-storage homes
+    %s --backup --prune --force-prune --cleanup-storage homes
     %s --fix-perms homes
+    %s --backup --fix-perms homes
     %s --remote homes
+    %s --verbose --backup --prune homes
     %s --config-dir /opt/etc homes
     %s --secrets-dir /opt/secrets --remote homes
 `,
@@ -197,6 +209,7 @@ EXAMPLES:
 		cfgDir,
 		config.DefaultSecretsDir, config.DefaultSecretsPrefix,
 		meta.RootVolume,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 	)

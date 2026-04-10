@@ -32,7 +32,7 @@ func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.R
 		log:    log,
 		runner: runner,
 		plan:   plan,
-		view:   NewPresenter(meta, rt, log),
+		view:   NewPresenter(meta, rt, log, plan.Verbose),
 		lock:   rt.NewLock(meta.LockParent, plan.BackupLabel),
 	}
 }
@@ -51,15 +51,16 @@ func (e *Executor) Run() int {
 		return e.exitCode
 	}
 
-	e.view.PrintHeader(e.lock.Path)
-	e.view.PrintSummary(e.plan)
+	e.view.PrintHeader(e.plan, e.lock.Path)
+	if e.plan.Verbose {
+		e.view.PrintSummary(e.plan)
+	}
 
 	if err := e.execute(); err != nil {
 		e.fail(err)
 		return e.exitCode
 	}
 
-	e.log.Info("%s", statusLinef("All operations completed."))
 	return 0
 }
 
@@ -68,7 +69,7 @@ func (e *Executor) installSignalHandler() {
 	e.rt.SignalNotify(sigChan, SignalSet()...)
 	go func() {
 		sig := <-sigChan
-		e.log.Warn("%s", statusLinef("Received signal: %v — initiating cleanup.", sig))
+		e.log.Warn("%s", statusLinef("Received signal: %v — initiating cleanup", sig))
 		e.exitCode = 1
 		e.cleanup()
 		os.Exit(1)
@@ -76,17 +77,24 @@ func (e *Executor) installSignalHandler() {
 }
 
 func (e *Executor) acquireLock() error {
-	e.log.Info("%s", statusLinef("Acquiring lock for label %q.", e.plan.BackupLabel))
+	if e.plan.Verbose {
+		e.log.Info("%s", statusLinef("Acquiring lock for label %q", e.plan.BackupLabel))
+	}
 	if err := e.lock.Acquire(); err != nil {
 		return err
 	}
 	e.lockAcquired = true
-	e.log.Info("%s", statusLinef("Lock acquired: %s.", e.lock.Path))
+	if e.plan.Verbose {
+		e.log.Info("%s", statusLinef("Lock acquired: %s", e.lock.Path))
+	}
 	return nil
 }
 
 func (e *Executor) execute() error {
 	if e.plan.NeedsDuplicacySetup {
+		if e.plan.DoBackup {
+			e.view.PrintPhase("Backup")
+		}
 		if err := e.prepareDuplicacySetup(); err != nil {
 			return err
 		}
@@ -101,6 +109,11 @@ func (e *Executor) execute() error {
 			return err
 		}
 	}
+	if e.plan.DoCleanupStore {
+		if err := e.runCleanupStoragePhase(); err != nil {
+			return err
+		}
+	}
 	if e.plan.FixPerms {
 		if err := e.runFixPermsPhase(); err != nil {
 			return err
@@ -111,13 +124,12 @@ func (e *Executor) execute() error {
 
 func (e *Executor) prepareDuplicacySetup() error {
 	if e.plan.NeedsSnapshot {
-		e.log.Info("%s", statusLinef("Creating btrfs snapshot: %s → %s.", e.plan.SnapshotSource, e.plan.SnapshotTarget))
 		if e.plan.DryRun {
 			e.log.DryRun("%s", e.plan.SnapshotCreateCommand)
 		} else if err := btrfs.CreateSnapshot(e.runner, e.plan.SnapshotSource, e.plan.SnapshotTarget, false); err != nil {
 			return err
 		} else {
-			e.log.Info("%s", statusLinef("Snapshot created successfully."))
+			e.log.PrintLine("Snapshot", e.plan.SnapshotTarget)
 		}
 	}
 
@@ -137,17 +149,16 @@ func (e *Executor) prepareDuplicacySetup() error {
 	}
 
 	if e.plan.DoBackup && e.plan.Filter != "" {
-		e.log.Info("%s", statusLinef("Creating filter definitions."))
 		if err := dup.WriteFilters(e.plan.Filter); err != nil {
 			return err
 		}
 		if e.plan.DryRun {
 			e.log.DryRun("%s", e.plan.FiltersWriteCommand)
-		} else {
-			e.log.Info("%s", statusLinef("Active filters:"))
 		}
-		for _, line := range e.plan.FilterLines {
-			e.log.Info("  %s", line)
+		if e.plan.Verbose {
+			for _, line := range e.plan.FilterLines {
+				e.log.PrintLine("Filter", line)
+			}
 		}
 	}
 
@@ -159,25 +170,26 @@ func (e *Executor) prepareDuplicacySetup() error {
 		e.log.DryRun("%s", e.plan.WorkDirFilePermsCommand)
 	}
 
-	e.log.Info("%s", statusLinef("Changing to directory: %s.", dup.DuplicacyRoot))
+	if e.plan.Verbose {
+		e.log.PrintLine("Directory", dup.DuplicacyRoot)
+	}
 	e.dup = dup
 	return nil
 }
 
 func (e *Executor) runBackupPhase() error {
-	e.log.Info("%s", statusLinef("Starting backup phase."))
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.BackupCommand)
-		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)."))
+		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)"))
 		return nil
 	}
 
 	stdout, stderr, err := e.dup.RunBackup(e.plan.Threads)
-	e.view.PrintCommandOutput(stdout, stderr)
+	e.view.PrintBackupResult(stdout, stderr, err != nil)
 	if err != nil {
 		return err
 	}
-	e.log.Info("%s", statusLinef("Backup phase completed successfully."))
+	e.log.Info("%s", statusLinef("Backup phase completed successfully"))
 	return nil
 }
 
