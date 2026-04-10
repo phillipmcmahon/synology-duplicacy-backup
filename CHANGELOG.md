@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Webhook listener tests stabilized**: Health webhook tests now use a more
   controlled local-listener helper and skip cleanly in restricted environments,
   avoiding CI failures caused by listener setup rather than application logic.
+- **Release CI now reflects real application health behavior more reliably**:
+  the webhook/listener test fixes remove false-negative release failures caused
+  by runner constraints rather than actual application regressions.
 
 ### Notes
 - **Version constant** updated to `2.1.6` in source (overridden by `-ldflags`
