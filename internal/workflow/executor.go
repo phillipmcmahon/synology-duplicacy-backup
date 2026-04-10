@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
@@ -19,13 +20,14 @@ type Executor struct {
 	plan   *Plan
 	view   *Presenter
 
-	lock         *lock.Lock
-	dup          *duplicacy.Setup
-	report       *RunReport
-	startedAt    time.Time
-	exitCode     int
-	cleanedUp    bool
-	lockAcquired bool
+	lock               *lock.Lock
+	dup                *duplicacy.Setup
+	report             *RunReport
+	startedAt          time.Time
+	exitCode           int
+	cleanedUp          bool
+	lockAcquired       bool
+	lastBackupRevision int
 }
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
@@ -242,6 +244,11 @@ func (e *Executor) runBackupPhase() error {
 	e.view.PrintBackupResult(stdout, stderr, err != nil)
 	if err != nil {
 		return err
+	}
+	if match := backupRevisionPattern.FindStringSubmatch(stdout); len(match) > 1 {
+		if revision, convErr := strconv.Atoi(match[1]); convErr == nil {
+			e.lastBackupRevision = revision
+		}
 	}
 	if e.plan.Verbose {
 		e.view.PrintDuration(start)

@@ -17,6 +17,7 @@ The project builds as a single static binary for Synology-targeted Linux archite
 - Dry-run support for previewing actions
 - Structured logging with rotation
 - TOML-based per-source configuration
+- Read-only health, doctor, and verify checks for automation
 
 ## Quick Start
 
@@ -98,6 +99,12 @@ sudo duplicacy-backup --verbose --backup --prune homes
 
 # Machine-readable completion summary on stdout
 sudo duplicacy-backup --json-summary --dry-run homes
+
+# Fast health summary
+sudo duplicacy-backup health status homes
+
+# Deeper diagnostic report in JSON
+sudo duplicacy-backup health doctor --json-summary homes
 ```
 
 ## Common Commands
@@ -126,6 +133,15 @@ sudo duplicacy-backup config explain --remote homes
 
 # Show resolved stable config, secrets, source, and log paths
 duplicacy-backup config paths homes
+
+# Fast read-only health summary
+sudo duplicacy-backup health status homes
+
+# Read-only diagnostic pass
+sudo duplicacy-backup health doctor homes
+
+# Storage confidence check
+sudo duplicacy-backup health verify homes
 ```
 
 When operations are combined, execution order is fixed:
@@ -141,6 +157,26 @@ to include detailed operational logging and command details.
 
 `--json-summary` adds a machine-readable completion summary on stdout while
 keeping the human-readable phase logs on stderr.
+
+The `health` command family adds read-only confidence checks:
+- `health status` gives a fast current-state summary
+- `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
+- `health verify` goes further by checking visible storage revisions and freshness against health policy thresholds
+
+Health commands combine local state stored under `/var/lib/duplicacy-backup/<label>.json`
+with live Duplicacy storage inspection. When Duplicacy exposes revision creation
+times, those storage timestamps are used as the authoritative freshness signal.
+
+Health policy is configured per backup TOML in an optional `[health]` table:
+- `freshness_warn_hours`
+- `freshness_fail_hours`
+- `doctor_warn_after_hours`
+- `verify_warn_after_hours`
+
+Optional webhook notifications can be configured in `[health.notify]`, with an
+optional `health_webhook_bearer_token` stored in the secrets TOML. Webhooks are
+intended for non-interactive health runs; interactive TTY runs do not notify by
+default.
 
 `--help` now shows a concise quick-reference view. Use `--help-full` for the
 detailed CLI reference, and `config --help-full` for the detailed config

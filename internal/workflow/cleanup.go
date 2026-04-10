@@ -22,6 +22,11 @@ func (e *Executor) cleanup() {
 	if e.report != nil {
 		e.report.CompleteRun(e.exitCode, e.report.FailureMessage, e.rt.Now())
 	}
+	if !e.plan.DryRun {
+		if err := updateRunState(e.meta, e.plan, e.report, e.lastBackupRevision); err != nil {
+			e.log.Warn("%s", statusLinef("Failed to update local run state: %v", err))
+		}
+	}
 	e.view.PrintCompletion(e.exitCode, e.startedAt)
 	e.log.Close()
 }

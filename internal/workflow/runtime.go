@@ -65,6 +65,7 @@ type Metadata struct {
 	RootVolume string
 	LockParent string
 	LogDir     string
+	StateDir   string
 }
 
 func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
@@ -75,6 +76,7 @@ func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
 		RootVolume: "/volume1",
 		LockParent: "/var/lock",
 		LogDir:     logDir,
+		StateDir:   "/var/lib/duplicacy-backup",
 	}
 }
 
@@ -138,6 +140,7 @@ func EffectiveConfigDir(rt Runtime) string {
 func UsageText(meta Metadata, rt Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
+       %s health <status|doctor|verify> [OPTIONS] <source>
 
 Default behaviour:
     No primary operation specified = backup only
@@ -169,9 +172,12 @@ Examples:
     %s --json-summary --dry-run homes
     %s --remote homes
     %s config validate homes
+    %s health status homes
 
 Use --help-full for the detailed reference.
 `,
+		meta.ScriptName,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -186,6 +192,7 @@ func FullUsageText(meta Metadata, rt Runtime) string {
 	cfgDir := EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
+       %s health <status|doctor|verify> [OPTIONS] <source>
 
 DEFAULT BEHAVIOUR:
     No primary operation specified = backup only
@@ -216,6 +223,11 @@ MODIFIERS:
     --help                   Show the concise help message
     --help-full              Show the detailed help message
 
+HEALTH COMMANDS:
+    health status            Fast read-only health summary for automation and operators
+    health doctor            Read-only environment and storage diagnostics
+    health verify            Moderate confidence check using storage revision visibility
+
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
     DUPLICACY_BACKUP_SECRETS_DIR  Override secrets directory (--secrets-dir takes precedence)
@@ -235,11 +247,32 @@ CONFIG KEYS:
     prune, threads, safe_prune_max_delete_count, safe_prune_max_delete_percent,
     safe_prune_min_total_for_percent
 
-REMOTE SECRETS:
-    Strict mode: remote gateway credentials are loaded only from:
-      %s/%s-<label>.toml
-    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-    Current TOML keys: storj_s3_id and storj_s3_secret
+	REMOTE SECRETS:
+	    Strict mode: remote gateway credentials are loaded only from:
+	      %s/%s-<label>.toml
+	    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
+	    Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token
+
+HEALTH STATE:
+    Local run and health state are stored under:
+      %s/<label>.json
+    Health commands combine this state with live storage inspection.
+
+HEALTH CONFIG:
+    Optional [health] table keys:
+      freshness_warn_hours
+      freshness_fail_hours
+      doctor_warn_after_hours
+      verify_warn_after_hours
+
+    Optional [health.notify] table keys:
+      webhook_url
+      notify_on = ["degraded", "unhealthy"]
+      send_for = ["doctor", "verify"]
+      interactive = false
+
+    Optional secrets key:
+      health_webhook_bearer_token
 
 ARGUMENTS:
     source                   Source directory name under %s
@@ -259,6 +292,9 @@ EXAMPLES:
     %s --backup homes
     %s --backup --prune homes
     %s --json-summary --dry-run homes
+    %s health status homes
+    %s health doctor --json-summary homes
+    %s health verify --remote homes
     %s --prune homes
     %s --cleanup-storage homes
     %s --prune --cleanup-storage homes
@@ -276,17 +312,20 @@ EXAMPLES:
 `,
 		meta.ScriptName,
 		meta.ScriptName,
+		meta.ScriptName,
 		config.DefaultSecretsDir,
 		config.DefaultSafePruneMaxDeletePercent, config.DefaultSafePruneMaxDeletePercent,
 		config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
 		config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
 		cfgDir,
 		config.DefaultSecretsDir, config.DefaultSecretsPrefix,
+		meta.StateDir,
 		meta.RootVolume,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName,
 	)
 }
 

@@ -128,10 +128,27 @@ Example: remote storage cleanup
 /usr/local/bin/duplicacy-backup --remote --cleanup-storage homes
 ```
 
+Example: scheduled health summary
+
+```bash
+/usr/local/bin/duplicacy-backup health status homes
+```
+
+Example: scheduled JSON health verification for monitoring
+
+```bash
+/usr/local/bin/duplicacy-backup health verify --json-summary homes
+```
+
 `--remote` uses the remote TOML table plus the matching remote secrets file.
 The current remote secrets schema is still `storj_s3_id` / `storj_s3_secret`,
 because those values are passed through to Duplicacy for gateway-backed
 S3-compatible storage.
+
+Health commands are read-only and do not prompt for confirmation. They are
+designed to be run separately from backup jobs so schedulers and external
+monitoring can check freshness and environment health without mutating backup
+state.
 
 ## Release Verification
 

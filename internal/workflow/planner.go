@@ -149,6 +149,7 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg.Health = raw.ResolveHealth()
 	if err := cfg.Apply(values); err != nil {
 		return nil, err
 	}

@@ -19,6 +19,14 @@ type Lock struct {
 	pid     int
 }
 
+type Status struct {
+	Path    string
+	PID     int
+	Present bool
+	Active  bool
+	Stale   bool
+}
+
 // New creates a new Lock for the given backup label.
 func New(lockParent, label string) *Lock {
 	lockPath := filepath.Join(lockParent, fmt.Sprintf("backup-%s.lock.d", label))
@@ -89,4 +97,27 @@ func (l *Lock) readPID() (int, error) {
 func processExists(pid int) bool {
 	_, err := os.Stat(fmt.Sprintf("/proc/%d", pid))
 	return err == nil
+}
+
+func Inspect(lockParent, label string) (*Status, error) {
+	l := New(lockParent, label)
+	status := &Status{Path: l.Path}
+
+	if _, err := os.Stat(l.Path); err != nil {
+		if os.IsNotExist(err) {
+			return status, nil
+		}
+		return nil, apperrors.NewLockError("stat", fmt.Errorf("failed to inspect lock path: %w", err), "path", l.Path)
+	}
+
+	status.Present = true
+	pid, err := l.readPID()
+	if err != nil {
+		status.Stale = true
+		return status, nil
+	}
+	status.PID = pid
+	status.Active = processExists(pid)
+	status.Stale = !status.Active
+	return status, nil
 }

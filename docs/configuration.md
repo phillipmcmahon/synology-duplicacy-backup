@@ -42,6 +42,8 @@ Config files use TOML tables:
 - `[common]`
 - `[local]`
 - `[remote]`
+- optional `[health]`
+- optional `[health.notify]`
 
 The active runtime loads `[common]` plus either `[local]` or `[remote]`.
 Values in the active target table override values from `[common]`.
@@ -60,6 +62,27 @@ Values in the active target table override values from `[common]`.
 | `safe_prune_max_delete_percent` | No | Default `10` |
 | `safe_prune_max_delete_count` | No | Default `25` |
 | `safe_prune_min_total_for_percent` | No | Default `20` |
+
+## Health Policy
+
+The optional `[health]` table controls read-only health checks:
+
+| Key | Required | Description |
+|---|---|---|
+| `freshness_warn_hours` | No | Warn when the latest known successful backup is older than this |
+| `freshness_fail_hours` | No | Fail when the latest known successful backup is older than this |
+| `doctor_warn_after_hours` | No | Warn when `health doctor` has not been run recently |
+| `verify_warn_after_hours` | No | Warn when `health verify` has not been run recently |
+
+The optional `[health.notify]` table controls webhook notifications for
+non-interactive health runs:
+
+| Key | Required | Description |
+|---|---|---|
+| `webhook_url` | No | Webhook destination URL |
+| `notify_on` | No | Statuses that should notify; defaults to `["degraded", "unhealthy"]` |
+| `send_for` | No | Health commands that may notify; defaults to `["doctor", "verify"]` |
+| `interactive` | No | Allow notifications from interactive TTY runs; defaults to `false` |
 
 ## Example Config
 
@@ -81,6 +104,18 @@ local_group = "users"
 [remote]
 destination = "s3://gateway.storjshare.io/my-backup-bucket"
 threads = 8
+
+[health]
+freshness_warn_hours = 30
+freshness_fail_hours = 48
+doctor_warn_after_hours = 48
+verify_warn_after_hours = 168
+
+[health.notify]
+webhook_url = "https://example.invalid/hooks/duplicacy-backup"
+notify_on = ["degraded", "unhealthy"]
+send_for = ["doctor", "verify"]
+interactive = false
 ```
 
 ## Secrets
@@ -101,13 +136,14 @@ Example:
 ```toml
 storj_s3_id = "your-access-key-id"
 storj_s3_secret = "your-secret-access-key"
+health_webhook_bearer_token = "optional-webhook-bearer-token"
 ```
 
 Requirements:
 
 - owned by `root:root`
 - permissions `0600`
-- only `storj_s3_id` and `storj_s3_secret` are allowed
+- only `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` are allowed
 - `storj_s3_id` must be at least 28 characters
 - `storj_s3_secret` must be at least 53 characters
 
@@ -123,6 +159,19 @@ values are passed through to Duplicacy for gateway-backed remote storage.
 | Min total for % check | 20 | Percentage threshold only applies at or above this total revision count |
 
 Use `--force-prune` to override threshold enforcement.
+
+## Health State
+
+Successful runs update a local state file under:
+
+```text
+/var/lib/duplicacy-backup/<label>.json
+```
+
+`health status`, `health doctor`, and `health verify` combine this local state
+with live Duplicacy storage inspection. When `duplicacy list` exposes revision
+creation times, those storage timestamps are used as the authoritative
+freshness signal.
 
 ## Conditional Validation
 

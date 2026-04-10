@@ -141,6 +141,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
+		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
 		!strings.Contains(stdout, "--cleanup-storage") ||
 		!strings.Contains(stdout, "--json-summary") {
@@ -148,6 +149,21 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	}
 	if strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
 		strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs(nil); code != 0 {
+			t.Fatalf("runWithArgs() = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -175,12 +191,30 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
+	if !strings.Contains(stdout, "Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token") ||
+		!strings.Contains(stdout, "health status            Fast read-only health summary for automation and operators") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
 		!strings.Contains(stdout, "config explain --remote homes") ||
 		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+}
+
+func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"health", "status", "--json-summary", "homes"}); code != 2 {
+				t.Fatalf("runWithArgs(health status non-root) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Health commands must be run as root") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, `"check_type": "status"`) || !strings.Contains(stdout, `"status": "unhealthy"`) {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
 }
 
 func TestRunWithArgs_ConfigHelpFullReturnsZero(t *testing.T) {

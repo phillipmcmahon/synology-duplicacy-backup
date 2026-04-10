@@ -29,8 +29,9 @@ type Secrets struct {
 }
 
 type fileSecrets struct {
-	StorjS3ID     *string `toml:"storj_s3_id"`
-	StorjS3Secret *string `toml:"storj_s3_secret"`
+	StorjS3ID                *string `toml:"storj_s3_id"`
+	StorjS3Secret            *string `toml:"storj_s3_secret"`
+	HealthWebhookBearerToken *string `toml:"health_webhook_bearer_token"`
 }
 
 var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
@@ -113,6 +114,45 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 	defer f.Close()
 
 	return ParseSecrets(f, path)
+}
+
+func LoadOptionalHealthWebhookToken(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", apperrors.NewSecretsError("stat", fmt.Errorf("cannot stat secrets file: %w", err), "path", path)
+	}
+	if err := ValidateFileAccess(path); err != nil {
+		return "", err
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return "", apperrors.NewSecretsError("open", fmt.Errorf("secrets file is not readable: %s", path), "path", path)
+	}
+	text := string(body)
+	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
+		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", path)
+	}
+
+	var raw fileSecrets
+	meta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets file %s contains invalid TOML: %w", path, err), "source", path)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		key := undecoded[0].String()
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, path), "source", path)
+	}
+	if raw.HealthWebhookBearerToken == nil {
+		return "", nil
+	}
+	return *raw.HealthWebhookBearerToken, nil
 }
 
 // Validate checks minimum length requirements for secrets.

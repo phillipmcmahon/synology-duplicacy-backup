@@ -5,6 +5,7 @@
 ```text
 duplicacy-backup [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
+duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
 If no primary operation is specified, the binary defaults to backup mode.
@@ -48,6 +49,14 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `config explain <label>` | Show resolved config values for local mode by default |
 | `config explain --remote <label>` | Show resolved config values for remote mode |
 | `config paths <label>` | Show resolved stable config, secrets, source, and log paths |
+
+## Health Commands
+
+| Command | Description |
+|---|---|
+| `health status <label>` | Fast read-only health summary for operators and schedulers |
+| `health doctor <label>` | Read-only environment and storage diagnostic pass |
+| `health verify <label>` | Read-only storage confidence check using latest visible revisions |
 
 ## Environment Variables
 
@@ -106,6 +115,15 @@ sudo duplicacy-backup config explain --remote homes
 
 # Show resolved paths
 duplicacy-backup config paths homes
+
+# Fast health summary
+sudo duplicacy-backup health status homes
+
+# Read-only health diagnostics in JSON
+sudo duplicacy-backup health doctor --json-summary homes
+
+# Remote storage verification
+sudo duplicacy-backup health verify --remote homes
 ```
 
 ## Notes
@@ -129,4 +147,12 @@ duplicacy-backup config paths homes
 - `config validate --remote` requires remote config and remote secrets to be valid
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
+- `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
+- health commands are read-only and never prompt for confirmation
+- health commands use local state under `/var/lib/duplicacy-backup/<label>.json` together with live Duplicacy storage inspection
+- when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
+- optional per-backup health policy lives in `[health]`
+- optional webhook notification settings live in `[health.notify]`
+- optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
+- default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception

@@ -42,6 +42,22 @@ type Config struct {
 	SafePruneMaxDeleteCount     int
 	SafePruneMinTotalForPercent int
 	PruneArgs                   []string
+	Health                      HealthConfig
+}
+
+type HealthConfig struct {
+	FreshnessWarnHours int
+	FreshnessFailHours int
+	DoctorWarnAfter    int
+	VerifyWarnAfter    int
+	Notify             HealthNotifyConfig
+}
+
+type HealthNotifyConfig struct {
+	WebhookURL  string
+	NotifyOn    []string
+	SendFor     []string
+	Interactive bool
 }
 
 type tableCommon struct {
@@ -73,6 +89,22 @@ type File struct {
 	Common *tableCommon `toml:"common"`
 	Local  *tableLocal  `toml:"local"`
 	Remote *tableCommon `toml:"remote"`
+	Health *tableHealth `toml:"health"`
+}
+
+type tableHealth struct {
+	FreshnessWarnHours *int               `toml:"freshness_warn_hours"`
+	FreshnessFailHours *int               `toml:"freshness_fail_hours"`
+	DoctorWarnAfter    *int               `toml:"doctor_warn_after_hours"`
+	VerifyWarnAfter    *int               `toml:"verify_warn_after_hours"`
+	Notify             *tableHealthNotify `toml:"notify"`
+}
+
+type tableHealthNotify struct {
+	WebhookURL  *string  `toml:"webhook_url"`
+	NotifyOn    []string `toml:"notify_on"`
+	SendFor     []string `toml:"send_for"`
+	Interactive *bool    `toml:"interactive"`
 }
 
 // NewDefaults returns a Config with all default values.
@@ -85,6 +117,17 @@ func NewDefaults() *Config {
 		SafePruneMaxDeletePercent:   DefaultSafePruneMaxDeletePercent,
 		SafePruneMaxDeleteCount:     DefaultSafePruneMaxDeleteCount,
 		SafePruneMinTotalForPercent: DefaultSafePruneMinTotalForPercent,
+		Health: HealthConfig{
+			FreshnessWarnHours: 30,
+			FreshnessFailHours: 48,
+			DoctorWarnAfter:    48,
+			VerifyWarnAfter:    168,
+			Notify: HealthNotifyConfig{
+				NotifyOn:    []string{"degraded", "unhealthy"},
+				SendFor:     []string{"doctor", "verify"},
+				Interactive: false,
+			},
+		},
 	}
 }
 
@@ -140,6 +183,41 @@ func (f *File) ResolveValues(targetSection, path string) (map[string]string, err
 	}
 
 	return values, nil
+}
+
+func (f *File) ResolveHealth() HealthConfig {
+	cfg := NewDefaults().Health
+	if f == nil || f.Health == nil {
+		return cfg
+	}
+
+	if f.Health.FreshnessWarnHours != nil {
+		cfg.FreshnessWarnHours = *f.Health.FreshnessWarnHours
+	}
+	if f.Health.FreshnessFailHours != nil {
+		cfg.FreshnessFailHours = *f.Health.FreshnessFailHours
+	}
+	if f.Health.DoctorWarnAfter != nil {
+		cfg.DoctorWarnAfter = *f.Health.DoctorWarnAfter
+	}
+	if f.Health.VerifyWarnAfter != nil {
+		cfg.VerifyWarnAfter = *f.Health.VerifyWarnAfter
+	}
+	if f.Health.Notify != nil {
+		if f.Health.Notify.WebhookURL != nil {
+			cfg.Notify.WebhookURL = *f.Health.Notify.WebhookURL
+		}
+		if f.Health.Notify.NotifyOn != nil {
+			cfg.Notify.NotifyOn = append([]string(nil), f.Health.Notify.NotifyOn...)
+		}
+		if f.Health.Notify.SendFor != nil {
+			cfg.Notify.SendFor = append([]string(nil), f.Health.Notify.SendFor...)
+		}
+		if f.Health.Notify.Interactive != nil {
+			cfg.Notify.Interactive = *f.Health.Notify.Interactive
+		}
+	}
+	return cfg
 }
 
 func mergeCommon(dst map[string]string, src *tableCommon) {
@@ -317,6 +395,24 @@ func (c *Config) ValidateThresholds() error {
 	if c.LogRetentionDays < 0 {
 		return apperrors.NewConfigError("log-retention-days", fmt.Errorf("log_retention_days must be non-negative (was %d)", c.LogRetentionDays))
 	}
+	if c.Health.FreshnessWarnHours < 0 {
+		return apperrors.NewConfigError("health-freshness-warn-hours", fmt.Errorf("health.freshness_warn_hours must be non-negative (was %d)", c.Health.FreshnessWarnHours))
+	}
+	if c.Health.FreshnessFailHours < 0 {
+		return apperrors.NewConfigError("health-freshness-fail-hours", fmt.Errorf("health.freshness_fail_hours must be non-negative (was %d)", c.Health.FreshnessFailHours))
+	}
+	if c.Health.DoctorWarnAfter < 0 {
+		return apperrors.NewConfigError("health-doctor-warn-after-hours", fmt.Errorf("health.doctor_warn_after_hours must be non-negative (was %d)", c.Health.DoctorWarnAfter))
+	}
+	if c.Health.VerifyWarnAfter < 0 {
+		return apperrors.NewConfigError("health-verify-warn-after-hours", fmt.Errorf("health.verify_warn_after_hours must be non-negative (was %d)", c.Health.VerifyWarnAfter))
+	}
+	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
+		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
+	}
+	if err := c.Health.Validate(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -370,6 +466,32 @@ func (c *Config) BuildPruneArgs() {
 		return
 	}
 	c.PruneArgs = strings.Fields(c.Prune)
+}
+
+func (h HealthConfig) Validate() error {
+	if err := validateHealthNotifyValues("health.notify.notify_on", h.Notify.NotifyOn, "degraded", "unhealthy"); err != nil {
+		return err
+	}
+	if err := validateHealthNotifyValues("health.notify.send_for", h.Notify.SendFor, "status", "doctor", "verify"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateHealthNotifyValues(field string, values []string, allowed ...string) error {
+	if len(values) == 0 {
+		return nil
+	}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, value := range allowed {
+		allowedSet[value] = struct{}{}
+	}
+	for _, value := range values {
+		if _, ok := allowedSet[value]; !ok {
+			return apperrors.NewConfigError(field, fmt.Errorf("%s contains unsupported value %q", field, value))
+		}
+	}
+	return nil
 }
 
 // strictAtoi converts a string to a non-negative integer.

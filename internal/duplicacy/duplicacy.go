@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
@@ -26,6 +27,12 @@ import (
 
 var revisionRegex = regexp.MustCompile(`(?i)\brevision\s+(\d+)\b`)
 var deleteRegex = regexp.MustCompile(`(?i)delet(?:ed?|ing)\s+.*?revision`)
+var revisionCreatedAtRegex = regexp.MustCompile(`(?i)\brevision\s+(\d+)\b.*?\bcreated at\s+([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)`)
+
+type RevisionInfo struct {
+	Revision  int
+	CreatedAt time.Time
+}
 
 // Setup represents a duplicacy working environment.
 type Setup struct {
@@ -213,6 +220,80 @@ func (s *Setup) GetTotalRevisionCount() (int, string, error) {
 	}
 
 	return len(seen), combined, nil
+}
+
+// GetLatestRevision returns the highest revision number reported by
+// `duplicacy list`. The combined command output is returned for logging.
+func (s *Setup) GetLatestRevision() (int, string, error) {
+	if s.DryRun {
+		return 0, "", nil
+	}
+
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list")
+	combined := stdout + stderr
+	if err != nil {
+		return 0, combined, apperrors.NewPruneError("revision-latest", fmt.Errorf("failed to list revisions for latest revision inspection"))
+	}
+
+	latest := 0
+	for _, match := range revisionRegex.FindAllStringSubmatch(combined, -1) {
+		if len(match) > 1 {
+			if n, convErr := strconv.Atoi(match[1]); convErr == nil && n > latest {
+				latest = n
+			}
+		}
+	}
+	return latest, combined, nil
+}
+
+func (s *Setup) GetLatestRevisionInfo() (*RevisionInfo, string, error) {
+	if s.DryRun {
+		return nil, "", nil
+	}
+
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list")
+	combined := stdout + stderr
+	if err != nil {
+		return nil, combined, apperrors.NewPruneError("revision-latest", fmt.Errorf("failed to list revisions for latest revision inspection"))
+	}
+
+	var latest *RevisionInfo
+	for _, match := range revisionCreatedAtRegex.FindAllStringSubmatch(combined, -1) {
+		if len(match) < 3 {
+			continue
+		}
+		revision, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		createdAt, parseErr := parseRevisionCreatedAt(match[2])
+		if parseErr != nil {
+			continue
+		}
+		if latest == nil || revision > latest.Revision {
+			latest = &RevisionInfo{Revision: revision, CreatedAt: createdAt}
+		}
+	}
+	if latest == nil {
+		latestRevision, _, latestErr := s.GetLatestRevision()
+		if latestErr != nil {
+			return nil, combined, latestErr
+		}
+		if latestRevision == 0 {
+			return nil, combined, nil
+		}
+		return &RevisionInfo{Revision: latestRevision}, combined, nil
+	}
+	return latest, combined, nil
+}
+
+func parseRevisionCreatedAt(value string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04"} {
+		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported revision timestamp %q", value)
 }
 
 // PrunePreview holds the results of a safe prune dry-run preview.

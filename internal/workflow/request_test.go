@@ -19,6 +19,20 @@ func TestParseRequest_HelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_NoArgsHandledAsHelp(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest(nil, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled {
+		t.Fatal("expected handled result")
+	}
+	if result.Output == "" {
+		t.Fatal("expected usage output")
+	}
+}
+
 func TestParseRequest_ConfigHelpHandled(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "--help"}, meta, DefaultRuntime())
@@ -80,6 +94,32 @@ func TestParseRequest_ConfigExplainRemote(t *testing.T) {
 	}
 	if !result.Request.RemoteMode {
 		t.Fatal("expected RemoteMode true")
+	}
+}
+
+func TestParseRequest_HealthStatus(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"health", "status", "--json-summary", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.HealthCommand != "status" {
+		t.Fatalf("HealthCommand = %q", result.Request.HealthCommand)
+	}
+	if !result.Request.JSONSummary {
+		t.Fatal("expected JSONSummary true")
+	}
+}
+
+func TestParseRequest_HealthUnknownCommandFails(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"health", "nope", "homes"}, meta, DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*RequestError)
+	if !ok || !reqErr.ShowUsage {
+		t.Fatalf("error = %#v", err)
 	}
 }
 

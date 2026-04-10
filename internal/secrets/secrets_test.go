@@ -186,6 +186,21 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestLoadOptionalHealthWebhookToken(t *testing.T) {
+	if token, err := LoadOptionalHealthWebhookToken(filepath.Join(t.TempDir(), "missing.toml")); err != nil || token != "" {
+		t.Fatalf("missing token = %q, err = %v", token, err)
+	}
+
+	p := writeTempSecrets(t, validSecretContent()+"health_webhook_bearer_token = \"secret-token\"\n", 0600)
+	token, err := LoadOptionalHealthWebhookToken(p)
+	if isRoot() && err != nil {
+		t.Fatalf("LoadOptionalHealthWebhookToken() error = %v", err)
+	}
+	if isRoot() && token != "secret-token" {
+		t.Fatalf("token = %q", token)
+	}
+}
+
 func TestMaskedHelpers(t *testing.T) {
 	if (&Secrets{StorjS3ID: "ABCDEFGHIJ"}).MaskedID() != "****GHIJ" {
 		t.Fatal("unexpected masked ID")

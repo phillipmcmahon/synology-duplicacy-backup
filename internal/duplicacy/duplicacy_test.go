@@ -958,6 +958,26 @@ func TestRunCleanupStorage_ReturnsOutput(t *testing.T) {
 	}
 }
 
+func TestGetLatestRevisionInfo_ParsesCreatedAt(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "Snapshot homes revision 7 created at 2026-04-10 17:10\nSnapshot homes revision 8 created at 2026-04-10 17:25\n",
+	})
+
+	info, output, err := s.GetLatestRevisionInfo()
+	if err != nil {
+		t.Fatalf("GetLatestRevisionInfo() error = %v", err)
+	}
+	if info == nil || info.Revision != 8 {
+		t.Fatalf("info = %+v", info)
+	}
+	if info.CreatedAt.IsZero() {
+		t.Fatal("expected CreatedAt to be parsed")
+	}
+	if !strings.Contains(output, "revision 8") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
 func TestGetTotalRevisionCount_ReturnsOutput(t *testing.T) {
 	s, _ := newTestSetup(t, false,
 		execpkg.MockResult{Stdout: "revision 1\nrevision 2\n"},

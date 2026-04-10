@@ -240,6 +240,51 @@ func TestRelease_Idempotent(t *testing.T) {
 	lk.Release()
 }
 
+func TestInspect_NoLockPresent(t *testing.T) {
+	status, err := Inspect(t.TempDir(), "homes")
+	if err != nil {
+		t.Fatalf("Inspect() error = %v", err)
+	}
+	if status.Present || status.Active || status.Stale {
+		t.Fatalf("status = %+v", status)
+	}
+}
+
+func TestInspect_ActiveAndStale(t *testing.T) {
+	requireLinuxProc(t)
+
+	dir := t.TempDir()
+	active := New(dir, "active")
+	if err := active.Acquire(); err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+	defer active.Release()
+
+	status, err := Inspect(dir, "active")
+	if err != nil {
+		t.Fatalf("Inspect(active) error = %v", err)
+	}
+	if !status.Present || !status.Active || status.Stale {
+		t.Fatalf("active status = %+v", status)
+	}
+
+	stale := New(dir, "stale")
+	if err := os.MkdirAll(stale.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(stale.PIDFile, []byte("99999999"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	status, err = Inspect(dir, "stale")
+	if err != nil {
+		t.Fatalf("Inspect(stale) error = %v", err)
+	}
+	if !status.Present || status.Active || !status.Stale {
+		t.Fatalf("stale status = %+v", status)
+	}
+}
+
 // ─── writePID / readPID tests ───────────────────────────────────────────────
 
 func TestWriteReadPID(t *testing.T) {

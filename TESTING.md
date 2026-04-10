@@ -173,7 +173,9 @@ The following are treated as release-sensitive operator surfaces and should get
 targeted coverage whenever they change:
 
 - help text in `UsageText`
+- health command help and output shape
 - install script help/output
 - README / CLI / operations examples for the current flag set
 - phase-oriented stderr output for normal, verbose, dry-run, and failure paths
+- JSON summaries for both run and health commands
 - release tarball smoke checks: archive contents, checksum validation, binary help/version, and installer help

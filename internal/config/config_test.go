@@ -102,6 +102,43 @@ local_group = "users"
 	}
 }
 
+func TestParseFile_ResolveHealthDefaultsAndOverrides(t *testing.T) {
+	p := writeTempConfig(t, `
+[common]
+destination = "/volume1/backups"
+
+[local]
+threads = 4
+local_owner = "admin"
+local_group = "users"
+
+[health]
+freshness_warn_hours = 12
+freshness_fail_hours = 24
+
+[health.notify]
+webhook_url = "https://example.invalid/hook"
+notify_on = ["unhealthy"]
+send_for = ["status", "verify"]
+interactive = true
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	health := raw.ResolveHealth()
+	if health.FreshnessWarnHours != 12 || health.FreshnessFailHours != 24 {
+		t.Fatalf("health = %+v", health)
+	}
+	if health.Notify.WebhookURL != "https://example.invalid/hook" || !health.Notify.Interactive {
+		t.Fatalf("health notify = %+v", health.Notify)
+	}
+	if got := strings.Join(health.Notify.SendFor, ","); got != "status,verify" {
+		t.Fatalf("SendFor = %q", got)
+	}
+}
+
 func TestParseFile_TargetTableOverridesCommon(t *testing.T) {
 	values := loadValues(t, `
 [common]

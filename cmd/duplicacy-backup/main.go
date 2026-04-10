@@ -60,6 +60,30 @@ func runWithArgs(args []string) int {
 		fmt.Print(output)
 		return 0
 	}
+	if result.Request.HealthCommand != "" {
+		log, err := initLogger(meta)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
+			if result.Request.JSONSummary {
+				report := workflow.NewFailureHealthReport(result.Request, result.Request.HealthCommand, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
+				_ = workflow.WriteHealthReport(os.Stdout, report)
+			}
+			return 2
+		}
+		log.SetVerbose(result.Request.Verbose)
+		runner := execpkg.NewCommandRunner(log, false)
+		report, code := workflow.NewHealthRunner(meta, rt, log, runner).Run(result.Request)
+		if result.Request.JSONSummary {
+			if err := workflow.WriteHealthReport(os.Stdout, report); err != nil {
+				fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
+				if code == 0 {
+					return 2
+				}
+			}
+		}
+		log.Close()
+		return code
+	}
 
 	log, err := initLogger(meta)
 	if err != nil {
@@ -121,7 +145,12 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	completedAt := rt.Now()
 	printFailureCompletion(meta, rt, log, startedAt)
 	if wantsJSONSummary(args) {
-		emitJSONFailureSummary(os.Stdout, nil, startedAt, completedAt, workflow.OperatorMessage(err))
+		if looksLikeHealthCommand(args) {
+			req := inferHealthFailureRequest(args)
+			_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(req, req.HealthCommand, workflow.OperatorMessage(err), completedAt))
+		} else {
+			emitJSONFailureSummary(os.Stdout, nil, startedAt, completedAt, workflow.OperatorMessage(err))
+		}
 	}
 	var requestErr *workflow.RequestError
 	if errors.As(err, &requestErr) && requestErr.ShowUsage && !wantsJSONSummary(args) {
@@ -138,6 +167,41 @@ func wantsJSONSummary(args []string) bool {
 		}
 	}
 	return false
+}
+
+func looksLikeHealthCommand(args []string) bool {
+	return len(args) > 0 && args[0] == "health"
+}
+
+func inferHealthFailureRequest(args []string) *workflow.Request {
+	req := &workflow.Request{}
+	if len(args) == 0 || args[0] != "health" {
+		return req
+	}
+	if len(args) > 1 && args[1] != "" && args[1][0] != '-' {
+		req.HealthCommand = args[1]
+	}
+	var positional []string
+	for i := 2; i < len(args); i++ {
+		switch args[i] {
+		case "--remote":
+			req.RemoteMode = true
+		case "--json-summary":
+			req.JSONSummary = true
+		case "--verbose":
+			req.Verbose = true
+		case "--config-dir", "--secrets-dir":
+			i++
+		default:
+			if len(args[i]) > 0 && args[i][0] != '-' {
+				positional = append(positional, args[i])
+			}
+		}
+	}
+	if len(positional) > 0 {
+		req.Source = positional[0]
+	}
+	return req
 }
 
 func emitJSONFailureSummary(w io.Writer, req *workflow.Request, startedAt, completedAt time.Time, message string) {
