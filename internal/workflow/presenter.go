@@ -57,6 +57,14 @@ func (p *Presenter) PrintStatus(status string) {
 	p.log.PrintLine("Status", status)
 }
 
+func (p *Presenter) StartStatusActivity(status string) func() {
+	if p.log.Interactive() {
+		return p.log.StartActivity(status)
+	}
+	p.PrintStatus(status)
+	return func() {}
+}
+
 func (p *Presenter) PrintDuration(start time.Time) {
 	duration := p.rt.Now().Sub(start)
 	if duration < 0 {

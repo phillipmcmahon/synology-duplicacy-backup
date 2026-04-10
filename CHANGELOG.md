@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.2] - 2026-04-10
+
+### Changed
+- **Interactive activity line aligned with normal log output**: The live
+  TTY-only status indicator for long-running phases now keeps the standard
+  timestamp and `[INFO]` prefix instead of rendering as an unprefixed line.
+- **Long-running phase activity expanded**: Backup now uses the same live
+  interactive activity pattern as prune, storage cleanup, and fix permissions
+  so all potentially quiet phases give a clearer sense of progress on a TTY.
+
+### Notes
+- **Version constant** updated to `2.1.2` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.1] - 2026-04-10
 
 ### Changed

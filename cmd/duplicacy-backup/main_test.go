@@ -225,6 +225,9 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 		if !strings.Contains(stderr, "Backup phase completed (dry-run)") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if !strings.Contains(stderr, "Status") || !strings.Contains(stderr, "Backing up snapshot") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 		if !strings.Contains(stderr, "Duration") {
 			t.Fatalf("stderr = %q", stderr)
 		}

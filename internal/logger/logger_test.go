@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,6 +120,43 @@ func TestNew_Success(t *testing.T) {
 	}
 	if log.enableColour != false {
 		t.Error("enableColour should be false")
+	}
+}
+
+func TestStartActivity_WritesOnlyToInteractiveStderr(t *testing.T) {
+	dir := t.TempDir()
+	log, err := New(dir, "testscript", false)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	defer log.Close()
+
+	var stderr bytes.Buffer
+	log.stderr = &stderr
+	log.interactive = true
+
+	stop := log.StartActivity("Inspecting repository revisions")
+	stop()
+
+	output := stderr.String()
+	if !strings.Contains(output, "Status") || !strings.Contains(output, "Inspecting repository revisions") {
+		t.Fatalf("stderr output = %q", output)
+	}
+	if !strings.Contains(output, "[INFO]") {
+		t.Fatalf("expected activity output to include log level prefix, got %q", output)
+	}
+	if !strings.Contains(output, "[20") {
+		t.Fatalf("expected activity output to include timestamp prefix, got %q", output)
+	}
+
+	timestamp := time.Now().Format("20060102")
+	logPath := filepath.Join(dir, "testscript-"+timestamp+".log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile() failed: %v", err)
+	}
+	if strings.Contains(string(data), "Inspecting repository revisions") {
+		t.Fatalf("expected activity output to stay out of log file, got %q", string(data))
 	}
 }
 

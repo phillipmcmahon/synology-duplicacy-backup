@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -43,10 +44,20 @@ func (l Level) String() string {
 // Logger handles logging to both stderr and a log file.
 type Logger struct {
 	logFile      *os.File
+	stderr       io.Writer
 	enableColour bool
+	interactive  bool
 	verbose      bool
 	scriptName   string
 	logDir       string
+	mu           sync.Mutex
+	activity     *activityState
+}
+
+type activityState struct {
+	message string
+	start   time.Time
+	stop    chan struct{}
 }
 
 // ANSI colour codes — matched to the original bash script.
@@ -102,7 +113,9 @@ func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 
 	return &Logger{
 		logFile:      f,
+		stderr:       os.Stderr,
 		enableColour: enableColour,
+		interactive:  IsTerminal(os.Stderr),
 		verbose:      false,
 		scriptName:   scriptName,
 		logDir:       logDir,
@@ -111,6 +124,7 @@ func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 
 // Close closes the log file.
 func (l *Logger) Close() {
+	l.stopActivity(nil)
 	if l.logFile != nil {
 		l.logFile.Close()
 	}
@@ -145,17 +159,25 @@ func (l *Logger) reset() string {
 
 // Log writes a log message at the given level.
 func (l *Logger) Log(level Level, format string, args ...interface{}) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	msg := fmt.Sprintf(format, args...)
-	message := fmt.Sprintf("[%s] [%s] %s", timestamp, level, msg)
+	message := l.formatMessage(level, msg)
 
-	// Write to stderr with colour
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.activity != nil {
+		l.clearActivityLocked()
+	}
+
 	colour := l.colourForLevel(level)
-	fmt.Fprintf(os.Stderr, "%s%s%s\n", colour, message, l.reset())
+	fmt.Fprintf(l.stderr, "%s%s%s\n", colour, message, l.reset())
 
-	// Write to file without colour
 	plain := StripColour(message)
 	fmt.Fprintln(l.logFile, plain)
+
+	if l.activity != nil {
+		l.renderActivityLocked(l.activity)
+	}
 }
 
 // Debug logs at DEBUG level.
@@ -229,6 +251,50 @@ func (l *Logger) PrintSeparator() {
 	l.Info("============================================================")
 }
 
+func (l *Logger) Interactive() bool {
+	return l.interactive
+}
+
+func (l *Logger) StartActivity(message string) func() {
+	if !l.interactive {
+		return func() {}
+	}
+
+	act := &activityState{
+		message: message,
+		start:   time.Now(),
+		stop:    make(chan struct{}),
+	}
+
+	l.stopActivity(nil)
+
+	l.mu.Lock()
+	l.activity = act
+	l.renderActivityLocked(act)
+	l.mu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				l.mu.Lock()
+				if l.activity == act {
+					l.renderActivityLocked(act)
+				}
+				l.mu.Unlock()
+			case <-act.stop:
+				return
+			}
+		}
+	}()
+
+	return func() {
+		l.stopActivity(act)
+	}
+}
+
 // CleanupOldLogs removes log files older than retentionDays.
 func (l *Logger) CleanupOldLogs(retentionDays int, dryRun bool) {
 	if retentionDays <= 0 {
@@ -260,6 +326,53 @@ func (l *Logger) CleanupOldLogs(retentionDays int, dryRun bool) {
 			}
 		}
 	}
+}
+
+func (l *Logger) stopActivity(act *activityState) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	current := l.activity
+	if current == nil {
+		return
+	}
+	if act != nil && current != act {
+		return
+	}
+
+	close(current.stop)
+	l.clearActivityLocked()
+	l.activity = nil
+}
+
+func (l *Logger) clearActivityLocked() {
+	if !l.interactive {
+		return
+	}
+	fmt.Fprint(l.stderr, "\r\033[2K")
+}
+
+func (l *Logger) renderActivityLocked(act *activityState) {
+	if !l.interactive {
+		return
+	}
+
+	elapsed := time.Since(act.start)
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	seconds := int(elapsed.Round(time.Second) / time.Second)
+	hours := seconds / 3600
+	minutes := (seconds % 3600) / 60
+	secs := seconds % 60
+	value := fmt.Sprintf("%s (%02d:%02d:%02d)", act.message, hours, minutes, secs)
+	message := l.formatMessage(INFO, fmt.Sprintf("  %s : %s", l.FormatLabel("Status"), l.FormatValue(value)))
+	fmt.Fprintf(l.stderr, "\r\033[2K%s%s%s", l.colourForLevel(INFO), message, l.reset())
+}
+
+func (l *Logger) formatMessage(level Level, msg string) string {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	return fmt.Sprintf("[%s] [%s] %s", timestamp, level, msg)
 }
 
 // Writer returns an io.Writer that logs each line at the given level.

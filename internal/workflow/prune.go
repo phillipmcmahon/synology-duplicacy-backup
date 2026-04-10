@@ -9,12 +9,13 @@ import (
 func (e *Executor) runPrunePhase() error {
 	start := e.rt.Now()
 	e.view.PrintPhase("Prune")
-	e.view.PrintStatus("Inspecting repository revisions")
+	stopInspecting := e.view.StartStatusActivity("Inspecting repository revisions")
 
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
 	} else {
 		if err := e.dup.ValidateRepo(); err != nil {
+			stopInspecting()
 			return err
 		}
 		if e.plan.Verbose {
@@ -26,6 +27,7 @@ func (e *Executor) runPrunePhase() error {
 		e.log.DryRun("%s", e.plan.PrunePreviewCommand)
 	}
 	preview, err := e.dup.SafePrunePreview(e.plan.PruneArgs, e.plan.SafePruneMinTotalForPercent)
+	stopInspecting()
 	if err != nil {
 		return err
 	}
@@ -39,8 +41,9 @@ func (e *Executor) runPrunePhase() error {
 		e.log.DryRun("%s", e.plan.PolicyPruneCommand)
 		e.log.Info("%s", statusLinef("Prune phase completed (dry-run)"))
 	} else {
-		e.view.PrintStatus("Applying retention policy")
+		stopApplying := e.view.StartStatusActivity("Applying retention policy")
 		stdout, stderr, err := e.dup.RunPrune(e.plan.PruneArgs)
+		stopApplying()
 		e.view.PrintCommandOutput(stdout, stderr, err != nil)
 		if err != nil {
 			return err
@@ -55,16 +58,18 @@ func (e *Executor) runPrunePhase() error {
 func (e *Executor) runCleanupStoragePhase() error {
 	start := e.rt.Now()
 	e.view.PrintPhase("Storage cleanup")
-	e.view.PrintStatus("Scanning storage for unreferenced chunks")
+	stopScanning := e.view.StartStatusActivity("Scanning storage for unreferenced chunks")
 
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
 		e.log.DryRun("%s", e.plan.CleanupStorageCommand)
+		stopScanning()
 		e.log.Info("%s", statusLinef("Storage cleanup phase completed (dry-run)"))
 		return nil
 	}
 
 	if err := e.dup.ValidateRepo(); err != nil {
+		stopScanning()
 		return err
 	}
 	if e.plan.Verbose {
@@ -72,6 +77,7 @@ func (e *Executor) runCleanupStoragePhase() error {
 	}
 
 	stdout, stderr, err := e.dup.RunCleanupStorage()
+	stopScanning()
 	e.view.PrintCommandOutput(stdout, stderr, err != nil)
 	if err != nil {
 		return err

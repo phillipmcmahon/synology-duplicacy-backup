@@ -181,16 +181,24 @@ func (e *Executor) prepareDuplicacySetup() error {
 }
 
 func (e *Executor) runBackupPhase() error {
+	start := e.rt.Now()
+	stopBackup := e.view.StartStatusActivity("Backing up snapshot")
+
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.BackupCommand)
+		stopBackup()
 		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)"))
 		return nil
 	}
 
 	stdout, stderr, err := e.dup.RunBackup(e.plan.Threads)
+	stopBackup()
 	e.view.PrintBackupResult(stdout, stderr, err != nil)
 	if err != nil {
 		return err
+	}
+	if e.plan.Verbose {
+		e.view.PrintDuration(start)
 	}
 	e.log.Info("%s", statusLinef("Backup phase completed successfully"))
 	return nil
