@@ -56,6 +56,9 @@ func ParseRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error
 		if arg == "--help" {
 			return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
 		}
+		if arg == "--help-full" {
+			return &ParseResult{Handled: true, Output: FullUsageText(meta, rt)}, nil
+		}
 		if arg == "--version" || arg == "-v" {
 			return &ParseResult{Handled: true, Output: VersionText(meta)}, nil
 		}
@@ -85,6 +88,9 @@ func parseConfigRequest(args []string, meta Metadata, rt Runtime) (*ParseResult,
 	for _, arg := range args {
 		if arg == "--help" {
 			return &ParseResult{Handled: true, Output: ConfigUsageText(meta, rt)}, nil
+		}
+		if arg == "--help-full" {
+			return &ParseResult{Handled: true, Output: FullConfigUsageText(meta, rt)}, nil
 		}
 	}
 

@@ -121,25 +121,13 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "<source>-backup.toml") || !strings.Contains(stdout, "duplicacy-<label>.toml") {
+	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
+		!strings.Contains(stdout, "--cleanup-storage") {
 		t.Fatalf("stdout = %q", stdout)
 	}
-	if !strings.Contains(stdout, "Operations may be combined.") || !strings.Contains(stdout, "Execution order is fixed:") {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if !strings.Contains(stdout, "--verbose") {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if !strings.Contains(stdout, "remote S3-compatible target config") || !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if !strings.Contains(stdout, "config <validate|explain|paths>") {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if !strings.Contains(stdout, "    --fix-perms              Normalise local repository ownership and permissions") {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if strings.Contains(stdout, "MODIFIERS:\n    --fix-perms") {
+	if strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
+		strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -153,7 +141,38 @@ func TestRunWithArgs_ConfigHelpReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "CONFIG COMMANDS:") || !strings.Contains(stdout, "config validate homes") {
+	if !strings.Contains(stdout, "Config commands:") || !strings.Contains(stdout, "Use --help-full for the detailed config reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"--help-full"}); code != 0 {
+			t.Fatalf("runWithArgs(--help-full) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
+		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
+		!strings.Contains(stdout, "config explain --remote homes") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_ConfigHelpFullReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"config", "--help-full"}); code != 0 {
+			t.Fatalf("runWithArgs(config --help-full) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "validate without --remote always validates local config.") ||
+		!strings.Contains(stdout, "--help-full             Show the detailed config help message") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }

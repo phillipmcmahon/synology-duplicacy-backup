@@ -108,7 +108,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 func TestUsageText_RemoteHelpMatchesCurrentModel(t *testing.T) {
 	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logDir)
 	rt := workflow.DefaultRuntime()
-	usage := workflow.UsageText(meta, rt)
+	usage := workflow.FullUsageText(meta, rt)
 
 	expected := []string{
 		"config <validate|explain|paths>",

@@ -129,6 +129,50 @@ func EffectiveConfigDir(rt Runtime) string {
 }
 
 func UsageText(meta Metadata, rt Runtime) string {
+	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
+       %s config <validate|explain|paths> [OPTIONS] <source>
+
+Default behaviour:
+    No primary operation specified = backup only
+
+Operations:
+    --backup
+    --prune
+    --cleanup-storage
+    --fix-perms
+
+Execution order:
+    backup -> prune -> cleanup-storage -> fix-perms
+
+Common modifiers:
+    --force-prune
+    --remote
+    --dry-run
+    --verbose
+    --config-dir <path>
+    --secrets-dir <path>
+    --version, -v
+    --help
+    --help-full
+
+Examples:
+    %s homes
+    %s --backup --prune homes
+    %s --remote homes
+    %s config validate homes
+
+Use --help-full for the detailed reference.
+`,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func FullUsageText(meta Metadata, rt Runtime) string {
 	cfgDir := EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
@@ -158,7 +202,8 @@ MODIFIERS:
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: %s)
     --version, -v            Show version and build information
-    --help                   Show this help message
+    --help                   Show the concise help message
+    --help-full              Show the detailed help message
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
@@ -224,6 +269,35 @@ EXAMPLES:
 }
 
 func ConfigUsageText(meta Metadata, rt Runtime) string {
+	return fmt.Sprintf(`Usage: %s config <validate|explain|paths> [OPTIONS] <source>
+
+Config commands:
+    validate
+    explain
+    paths
+
+Options:
+    --remote
+    --config-dir <path>
+    --secrets-dir <path>
+    --help
+    --help-full
+
+Examples:
+    %s config validate homes
+    %s config explain --remote homes
+    %s config paths homes
+
+Use --help-full for the detailed config reference.
+`,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func FullConfigUsageText(meta Metadata, rt Runtime) string {
 	cfgDir := EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s config <validate|explain|paths> [OPTIONS] <source>
 
@@ -236,7 +310,8 @@ OPTIONS:
     --remote                Use remote mode for explain/paths, or require remote validation
     --config-dir <path>     Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>    Override secrets directory (default: %s)
-    --help                  Show this help message
+    --help                  Show the concise help message
+    --help-full             Show the detailed config help message
 
 BEHAVIOUR:
     validate without --remote always validates local config.

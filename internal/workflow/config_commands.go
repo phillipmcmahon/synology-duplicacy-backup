@@ -118,8 +118,6 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		{Label: "Secrets Dir", Value: plan.SecretsDir},
 		{Label: "Secrets File", Value: plan.SecretsFile},
 		{Label: "Source Path", Value: plan.SnapshotSource},
-		{Label: "Snapshot Path", Value: plan.SnapshotTarget},
-		{Label: "Work Dir", Value: plan.WorkDir()},
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
 

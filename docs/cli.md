@@ -37,6 +37,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--secrets-dir <path>` | Override the secrets directory |
 | `--version`, `-v` | Show version and build information |
 | `--help` | Show help |
+| `--help-full` | Show the detailed help reference |
 
 ## Config Commands
 
@@ -105,6 +106,8 @@ duplicacy-backup config paths homes
 
 ## Notes
 
+- `--help` is intentionally concise; use `--help-full` for the detailed reference
+- `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
 - config files are TOML files named `<label>-backup.toml`
 - remote secrets files are TOML files named `duplicacy-<label>.toml`
 - current remote secrets keys are `storj_s3_id` and `storj_s3_secret`

@@ -30,6 +30,28 @@ func TestParseRequest_ConfigHelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_HelpFullHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"--help-full"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_ConfigHelpFullHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config", "--help-full"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_ConfigValidate(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "validate", "homes"}, meta, DefaultRuntime())

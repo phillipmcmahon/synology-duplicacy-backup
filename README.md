@@ -134,6 +134,10 @@ Config commands are read-only helpers:
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.
 
+`--help` now shows a concise quick-reference view. Use `--help-full` for the
+detailed CLI reference, and `config --help-full` for the detailed config
+subcommand reference.
+
 ## Documentation
 
 - [CLI reference](docs/cli.md)
