@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.4] - 2026-04-10
+
 ### Added
 - **Health command family**: Added `health status`, `health doctor`, and
   `health verify` as read-only operational confidence checks for Synology
@@ -22,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revision counts plus failed revisions in both the human UI and JSON output.
   Healthy JSON runs now stay compact and only include per-revision detail when
   failures need investigation.
+- **Desk cheat sheet**: Added a print-friendly quick reference under
+  `docs/cheatsheet.md` with common commands, health checks, config commands,
+  and installed-path reminders for day-to-day use.
 
 ### Changed
 - **Health screen layout polished**: Health output now uses the same block
@@ -38,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treated as a secondary alert path when config loads successfully, while
   Synology scheduled-task failure monitoring is the primary fallback for
   broken-environment and startup failures.
+
+### Notes
+- **Version constant** updated to `2.1.4` in source (overridden by `-ldflags`
+  at build time for release binaries).
 
 ## [v2.1.3] - 2026-04-10
 

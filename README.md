@@ -204,6 +204,7 @@ inspection commands should normally be run with `sudo`. The main exception is
 
 ## Documentation
 
+- [Desk cheat sheet](docs/cheatsheet.md)
 - [CLI reference](docs/cli.md)
 - [Configuration and secrets](docs/configuration.md)
 - [Architecture](docs/architecture.md)
