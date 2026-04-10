@@ -7,7 +7,9 @@ import (
 )
 
 func (e *Executor) runPrunePhase() error {
+	start := e.rt.Now()
 	e.view.PrintPhase("Prune")
+	e.view.PrintStatus("Inspecting repository revisions")
 
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
@@ -37,11 +39,13 @@ func (e *Executor) runPrunePhase() error {
 		e.log.DryRun("%s", e.plan.PolicyPruneCommand)
 		e.log.Info("%s", statusLinef("Prune phase completed (dry-run)"))
 	} else {
+		e.view.PrintStatus("Applying retention policy")
 		stdout, stderr, err := e.dup.RunPrune(e.plan.PruneArgs)
 		e.view.PrintCommandOutput(stdout, stderr, err != nil)
 		if err != nil {
 			return err
 		}
+		e.view.PrintDuration(start)
 		e.log.Info("%s", statusLinef("Prune phase completed successfully"))
 	}
 
@@ -49,8 +53,9 @@ func (e *Executor) runPrunePhase() error {
 }
 
 func (e *Executor) runCleanupStoragePhase() error {
+	start := e.rt.Now()
 	e.view.PrintPhase("Storage cleanup")
-	e.log.PrintLine("Action", "Exhaustive exclusive prune")
+	e.view.PrintStatus("Scanning storage for unreferenced chunks")
 
 	if e.plan.DryRun {
 		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
@@ -71,6 +76,7 @@ func (e *Executor) runCleanupStoragePhase() error {
 	if err != nil {
 		return err
 	}
+	e.view.PrintDuration(start)
 	e.log.Info("%s", statusLinef("Storage cleanup phase completed successfully"))
 	return nil
 }

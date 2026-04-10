@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
@@ -50,6 +51,22 @@ func (p *Presenter) PrintSummary(plan *Plan) {
 func (p *Presenter) PrintPhase(name string) {
 	p.log.PrintSeparator()
 	p.log.Info("%s", statusLinef("Phase: %s", name))
+}
+
+func (p *Presenter) PrintStatus(status string) {
+	p.log.PrintLine("Status", status)
+}
+
+func (p *Presenter) PrintDuration(start time.Time) {
+	duration := p.rt.Now().Sub(start)
+	if duration < 0 {
+		duration = 0
+	}
+	seconds := int(duration.Round(time.Second) / time.Second)
+	hours := seconds / 3600
+	minutes := (seconds % 3600) / 60
+	secs := seconds % 60
+	p.log.PrintLine("Duration", fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs))
 }
 
 func (p *Presenter) PrintCommandOutput(stdout, stderr string, force bool) {
@@ -128,7 +145,7 @@ func (p *Presenter) PrintPrunePreview(preview *duplicacy.PrunePreview, minTotalF
 	p.log.PrintLine("Preview Delete %", fmt.Sprintf("<not enforced; total revisions unavailable or below %d>", minTotalForPercent))
 }
 
-func (p *Presenter) PrintCompletion(exitCode int) {
+func (p *Presenter) PrintCompletion(exitCode int, start time.Time) {
 	status := "Success"
 	if exitCode != 0 {
 		status = "Failed"
@@ -136,6 +153,7 @@ func (p *Presenter) PrintCompletion(exitCode int) {
 	p.log.PrintSeparator()
 	p.log.PrintLine("Result", p.log.FormatResult(status))
 	p.log.PrintLine("Code", fmt.Sprintf("%d", exitCode))
+	p.PrintDuration(start)
 	p.log.Info("%s", statusLinef("Run completed - %s", p.rt.Now().Format("2006-01-02 15:04:05")))
 	p.log.PrintSeparator()
 }

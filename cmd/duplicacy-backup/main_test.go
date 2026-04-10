@@ -225,6 +225,9 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 		if !strings.Contains(stderr, "Backup phase completed (dry-run)") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if !strings.Contains(stderr, "Duration") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 	})
 }
 
@@ -257,6 +260,9 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 		if !strings.Contains(stderr, "Fix permissions phase completed (dry-run)") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if !strings.Contains(stderr, "Status") || !strings.Contains(stderr, "Applying ownership and permissions") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 	})
 }
 
@@ -270,6 +276,9 @@ func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
 			}
 		})
 		if !strings.Contains(stderr, "Phase: Storage cleanup") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Status") || !strings.Contains(stderr, "Scanning storage for unreferenced chunks") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stderr, "Storage cleanup phase completed (dry-run)") {
@@ -305,6 +314,9 @@ func TestRunWithArgs_CombinedOperationsUseFixedExecutionOrder(t *testing.T) {
 			t.Fatalf("expected fixed phase order backup -> prune -> fix-perms, stderr = %q", stderr)
 		}
 		if !strings.Contains(stderr, "Backup + Safe prune + Fix permissions") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Inspecting repository revisions") || !strings.Contains(stderr, "Applying ownership and permissions") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Run Summary:") || strings.Contains(stderr, "Acquiring lock for label") || strings.Contains(stderr, "Lock acquired:") {

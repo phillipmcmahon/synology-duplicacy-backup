@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.1] - 2026-04-10
+
+### Changed
+- **Long-running phase status lines added**: Prune, storage cleanup, and fix
+  permissions now emit in-phase status updates before slower work begins so the
+  UI no longer appears stalled while repository inspection or permission
+  changes are in progress.
+- **Duration reporting expanded**: Prune, storage cleanup, and fix permissions
+  now include per-phase duration lines, and the final completion block now
+  reports total run duration.
+- **Phase block presentation standardized**: Removed the storage-cleanup-only
+  `Action` row so all phase blocks follow the same cleaner structure.
+
+### Notes
+- **Version constant** updated to `2.1.1` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.0] - 2026-04-10
 
 ### Added

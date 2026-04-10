@@ -19,7 +19,7 @@ func (e *Executor) cleanup() {
 	e.cleanupWorkRoot()
 	e.releaseLock()
 
-	e.view.PrintCompletion(e.exitCode)
+	e.view.PrintCompletion(e.exitCode, e.startedAt)
 	e.log.Close()
 }
 

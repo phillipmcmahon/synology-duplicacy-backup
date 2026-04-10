@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"os"
+	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -20,6 +21,7 @@ type Executor struct {
 
 	lock         *lock.Lock
 	dup          *duplicacy.Setup
+	startedAt    time.Time
 	exitCode     int
 	cleanedUp    bool
 	lockAcquired bool
@@ -27,13 +29,14 @@ type Executor struct {
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
 	return &Executor{
-		meta:   meta,
-		rt:     rt,
-		log:    log,
-		runner: runner,
-		plan:   plan,
-		view:   NewPresenter(meta, rt, log, plan.Verbose),
-		lock:   rt.NewLock(meta.LockParent, plan.BackupLabel),
+		meta:      meta,
+		rt:        rt,
+		log:       log,
+		runner:    runner,
+		plan:      plan,
+		view:      NewPresenter(meta, rt, log, plan.Verbose),
+		lock:      rt.NewLock(meta.LockParent, plan.BackupLabel),
+		startedAt: rt.Now(),
 	}
 }
 

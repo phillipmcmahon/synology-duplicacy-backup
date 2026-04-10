@@ -5,8 +5,10 @@ import (
 )
 
 func (e *Executor) runFixPermsPhase() error {
+	start := e.rt.Now()
 	e.view.PrintPhase("Fix permissions")
 	e.log.PrintLine("Target", e.plan.BackupTarget)
+	e.view.PrintStatus("Applying ownership and permissions")
 	if e.plan.Verbose {
 		e.log.PrintLine("Local Owner", e.plan.LocalOwner)
 		e.log.PrintLine("Local Group", e.plan.LocalGroup)
@@ -23,6 +25,7 @@ func (e *Executor) runFixPermsPhase() error {
 	if err := permissions.Fix(e.runner, e.plan.BackupTarget, e.plan.LocalOwner, e.plan.LocalGroup, false); err != nil {
 		return err
 	}
+	e.view.PrintDuration(start)
 	e.log.Info("%s", statusLinef("Fix permissions phase completed successfully"))
 	return nil
 }
