@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
@@ -236,6 +237,66 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 		if !strings.Contains(output, token) {
 			t.Fatalf("expected %q in log output, got %q", token, output)
 		}
+	}
+}
+
+func TestExecutorStartVisibleRunResetsOverallStartTime(t *testing.T) {
+	log := testExecutorLogger(t)
+	defer log.Close()
+
+	base := time.Date(2026, 4, 10, 16, 47, 47, 900_000_000, time.UTC)
+	header := time.Date(2026, 4, 10, 16, 47, 50, 100_000_000, time.UTC)
+
+	rt := testRuntime()
+	rt.Now = func() time.Time { return header }
+
+	plan := &Plan{
+		BackupLabel:   "homes",
+		OperationMode: "Storage cleanup",
+		ModeDisplay:   "Local",
+	}
+
+	executor := &Executor{
+		meta:      DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()),
+		rt:        rt,
+		log:       log,
+		plan:      plan,
+		view:      NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, log, false),
+		startedAt: base,
+		report:    NewRunReport(plan, base),
+	}
+
+	executor.startVisibleRun()
+
+	if !executor.startedAt.Equal(header) {
+		t.Fatalf("startedAt = %v, want %v", executor.startedAt, header)
+	}
+	if executor.report.StartedAt != formatReportTime(header) {
+		t.Fatalf("report.StartedAt = %q, want %q", executor.report.StartedAt, formatReportTime(header))
+	}
+}
+
+func TestPresenterPrintDurationTruncates(t *testing.T) {
+	logDir := t.TempDir()
+	log, err := logger.New(logDir, "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	defer log.Close()
+
+	end := time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC)
+	start := time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC)
+
+	rt := testRuntime()
+	rt.Now = func() time.Time { return end }
+
+	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
+	presenter.PrintDuration(start)
+	log.Close()
+
+	output := readSingleLogFile(t, logDir)
+	if !strings.Contains(output, "Duration") || !strings.Contains(output, "00:00:03") {
+		t.Fatalf("output = %q", output)
 	}
 }
 

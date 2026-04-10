@@ -58,7 +58,8 @@ func (e *Executor) Run() int {
 		return e.exitCode
 	}
 
-	e.view.PrintHeader(e.plan, e.lock.Path)
+	e.startVisibleRun()
+	e.view.PrintHeader(e.plan, e.startedAt, e.lock.Path)
 	if e.plan.Verbose {
 		e.view.PrintSummary(e.plan)
 	}
@@ -69,6 +70,13 @@ func (e *Executor) Run() int {
 	}
 
 	return 0
+}
+
+func (e *Executor) startVisibleRun() {
+	e.startedAt = e.rt.Now()
+	if e.report != nil {
+		e.report.ResetStart(e.startedAt)
+	}
 }
 
 func (e *Executor) installSignalHandler() {

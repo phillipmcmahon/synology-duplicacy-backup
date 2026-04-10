@@ -47,6 +47,15 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 	return report
 }
 
+func (r *RunReport) ResetStart(startedAt time.Time) {
+	if r == nil {
+		return
+	}
+	r.StartedAt = formatReportTime(startedAt)
+	r.CompletedAt = ""
+	r.DurationSecond = 0
+}
+
 func NewFailureRunReport(req *Request, startedAt time.Time, completedAt time.Time, exitCode int, message string) *RunReport {
 	report := &RunReport{
 		Result:         "failed",
