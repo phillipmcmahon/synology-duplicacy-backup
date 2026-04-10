@@ -88,6 +88,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"install script help/output",
 			"phase-oriented stderr output",
 			"help text in `UsageText`",
+			"release tarball smoke checks",
 		},
 	}
 

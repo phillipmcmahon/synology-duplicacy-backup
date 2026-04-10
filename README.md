@@ -31,7 +31,9 @@ make synology
 ```
 
 Build outputs are written to `build/`, and GitHub releases publish packaged
-Synology tarballs.
+Synology tarballs. CI smoke-tests each packaged tarball before release by
+verifying archive contents, checksum validation, binary `--version` / `--help`,
+and installer `--help`.
 
 ### 2. Install on Synology
 

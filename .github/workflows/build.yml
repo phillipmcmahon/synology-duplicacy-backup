@@ -140,12 +140,44 @@ jobs:
           chmod 755 "${PACKAGE_ROOT}/install.sh"
 
           tar -czf "${BASENAME}.tar.gz" -C "${PKG_DIR}" "${BASENAME}"
+          sha256sum "${BASENAME}.tar.gz" > "${BASENAME}.tar.gz.sha256"
+
+      - name: Smoke test packaged artifact
+        env:
+          BASENAME: ${{ steps.package.outputs.basename }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXTRACT_DIR="$(mktemp -d)"
+          trap 'rm -rf "${EXTRACT_DIR}"' EXIT
+
+          tar -xzf "${BASENAME}.tar.gz" -C "${EXTRACT_DIR}"
+
+          PACKAGE_ROOT="${EXTRACT_DIR}/${BASENAME}"
+          BINARY_PATH="${PACKAGE_ROOT}/${BASENAME}"
+          INSTALLER_PATH="${PACKAGE_ROOT}/install.sh"
+
+          test -d "${PACKAGE_ROOT}"
+          test -f "${PACKAGE_ROOT}/README.md"
+          test -f "${PACKAGE_ROOT}/LICENSE"
+          test -x "${BINARY_PATH}"
+          test -x "${INSTALLER_PATH}"
+
+          sha256sum -c "${BASENAME}.tar.gz.sha256"
+
+          "${BINARY_PATH}" --version | grep -F "${VERSION}"
+          "${BINARY_PATH}" --help >/dev/null
+          sh "${INSTALLER_PATH}" --help >/dev/null
 
       - name: Upload tarball
         uses: actions/upload-artifact@v6
         with:
           name: tarball_${{ steps.package.outputs.basename }}
-          path: ${{ steps.package.outputs.basename }}.tar.gz
+          path: |
+            ${{ steps.package.outputs.basename }}.tar.gz
+            ${{ steps.package.outputs.basename }}.tar.gz.sha256
 
   release:
     name: Release
@@ -173,12 +205,11 @@ jobs:
           find artifacts -type f \
             -name '*.tar.gz' \
             -exec cp {} release/ \;
+          find artifacts -type f \
+            -name '*.tar.gz.sha256' \
+            -exec cp {} release/ \;
 
           cd release
-
-          for file in *.tar.gz; do
-            sha256sum "$file" > "${file}.sha256"
-          done
 
           sha256sum *.tar.gz > SHA256SUMS.txt
 

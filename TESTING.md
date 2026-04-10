@@ -173,3 +173,4 @@ targeted coverage whenever they change:
 - install script help/output
 - README / CLI / operations examples for the current flag set
 - phase-oriented stderr output for normal, verbose, dry-run, and failure paths
+- release tarball smoke checks: archive contents, checksum validation, binary help/version, and installer help
