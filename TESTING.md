@@ -34,7 +34,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v2.1.6`
+Current public release baseline: `v2.1.7`
 
 Representative Linux Go 1.26 validation for this release:
 
@@ -44,8 +44,8 @@ Representative Linux Go 1.26 validation for this release:
 
 Current Linux Go 1.26 coverage snapshot:
 
-- overall coverage: `83.7%`
-- `internal/workflow`: `83.7%`
+- overall coverage: `85.3%`
+- `internal/workflow`: `86.4%`
 - `cmd/duplicacy-backup`: `60.8%`
 - `internal/duplicacy`: `79.4%`
 - `internal/exec`: `97.4%`
