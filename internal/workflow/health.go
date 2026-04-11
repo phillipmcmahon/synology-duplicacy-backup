@@ -459,7 +459,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
 	}
-	h.addCheck(report, "Integrity check", "pass", "All revisions found for this backup validated")
+	h.addCheck(report, "Integrity check", "pass", "All revisions validated")
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 }
 
