@@ -325,15 +325,18 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 		} else {
 			h.addCheck(report, "Source path", "pass", plan.SnapshotSource)
 		}
-		if err := btrfs.CheckVolume(h.runner, h.meta.RootVolume, false); err != nil {
-			h.addCheck(report, "Btrfs root", "fail", OperatorMessage(err))
-		} else {
-			h.addCheck(report, "Btrfs root", "pass", h.meta.RootVolume)
-		}
-		if err := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false); err != nil {
-			h.addCheck(report, "Btrfs source", "fail", OperatorMessage(err))
-		} else {
+		rootErr := btrfs.CheckVolume(h.runner, h.meta.RootVolume, false)
+		sourceErr := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
+		switch {
+		case rootErr == nil && sourceErr == nil:
 			h.addCheck(report, "Btrfs source", "pass", plan.SnapshotSource)
+		default:
+			if rootErr != nil {
+				h.addCheck(report, "Btrfs root", "fail", OperatorMessage(rootErr))
+			}
+			if sourceErr != nil {
+				h.addCheck(report, "Btrfs source", "fail", OperatorMessage(sourceErr))
+			}
 		}
 	}
 

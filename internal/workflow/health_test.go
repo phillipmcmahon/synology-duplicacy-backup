@@ -743,6 +743,12 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		!strings.Contains(stderr, "Section: Verify") {
 		t.Fatalf("stderr = %q", stderr)
 	}
+	if strings.Contains(stderr, "Btrfs root") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Btrfs source") {
+		t.Fatalf("stderr = %q", stderr)
+	}
 	if !strings.Contains(stderr, "Verified revisions") ||
 		!strings.Contains(stderr, "Passed revisions") ||
 		!strings.Contains(stderr, "Failed revisions") ||
