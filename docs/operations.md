@@ -144,10 +144,10 @@ The health JSON report is intended for automation rather than terminal
 rendering. It exposes structured fields such as:
 
 - `status`
-- `storage_visible_revision_count`
-- `storage_latest_revision`
-- `storage_latest_revision_at`
-- `verified_revision_count`
+- `revision_count`
+- `latest_revision`
+- `latest_revision_at`
+- `checked_revision_count`
 - `passed_revision_count`
 - `failed_revision_count`
 - `failed_revisions`

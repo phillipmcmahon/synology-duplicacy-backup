@@ -40,27 +40,27 @@ type HealthRevisionResult struct {
 }
 
 type HealthReport struct {
-	Status                      string                 `json:"status"`
-	CheckType                   string                 `json:"check_type"`
-	Label                       string                 `json:"label"`
-	Mode                        string                 `json:"mode"`
-	CheckedAt                   string                 `json:"checked_at"`
-	LocalLastSuccessAt          string                 `json:"local_last_success_at,omitempty"`
-	LastDoctorRunAt             string                 `json:"last_doctor_run_at,omitempty"`
-	LastVerifyRunAt             string                 `json:"last_verify_run_at,omitempty"`
-	StorageVisibleRevisionCount int                    `json:"storage_visible_revision_count,omitempty"`
-	StorageLatestRevision       int                    `json:"storage_latest_revision,omitempty"`
-	StorageLatestRevisionAt     string                 `json:"storage_latest_revision_at,omitempty"`
-	VerifiedRevisionCount       int                    `json:"verified_revision_count,omitempty"`
-	PassedRevisionCount         int                    `json:"passed_revision_count,omitempty"`
-	FailedRevisionCount         int                    `json:"failed_revision_count,omitempty"`
-	FailedRevisions             []int                  `json:"failed_revisions,omitempty"`
-	RevisionResults             []HealthRevisionResult `json:"revision_results,omitempty"`
-	Issues                      []HealthIssue          `json:"issues,omitempty"`
-	Checks                      []HealthCheck          `json:"checks,omitempty"`
-	WebhookSent                 bool                   `json:"webhook_sent"`
-	startedAt                   time.Time              `json:"-"`
-	completedAt                 time.Time              `json:"-"`
+	Status               string                 `json:"status"`
+	CheckType            string                 `json:"check_type"`
+	Label                string                 `json:"label"`
+	Mode                 string                 `json:"mode"`
+	CheckedAt            string                 `json:"checked_at"`
+	LocalLastSuccessAt   string                 `json:"local_last_success_at,omitempty"`
+	LastDoctorRunAt      string                 `json:"last_doctor_run_at,omitempty"`
+	LastVerifyRunAt      string                 `json:"last_verify_run_at,omitempty"`
+	RevisionCount        int                    `json:"revision_count,omitempty"`
+	LatestRevision       int                    `json:"latest_revision,omitempty"`
+	LatestRevisionAt     string                 `json:"latest_revision_at,omitempty"`
+	CheckedRevisionCount int                    `json:"checked_revision_count,omitempty"`
+	PassedRevisionCount  int                    `json:"passed_revision_count,omitempty"`
+	FailedRevisionCount  int                    `json:"failed_revision_count,omitempty"`
+	FailedRevisions      []int                  `json:"failed_revisions,omitempty"`
+	RevisionResults      []HealthRevisionResult `json:"revision_results,omitempty"`
+	Issues               []HealthIssue          `json:"issues,omitempty"`
+	Checks               []HealthCheck          `json:"checks,omitempty"`
+	WebhookSent          bool                   `json:"webhook_sent"`
+	startedAt            time.Time              `json:"-"`
+	completedAt          time.Time              `json:"-"`
 }
 
 type HealthRunner struct {
@@ -274,7 +274,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 		h.addCheck(report, "Latest revision", "fail", OperatorMessage(err))
 		return nil
 	}
-	report.StorageVisibleRevisionCount = len(revisions)
+	report.RevisionCount = len(revisions)
 	if len(revisions) == 0 {
 		h.addCheck(report, "Revision count", "warn", "0")
 		h.addCheck(report, "Latest revision", "warn", "No revisions were visible in storage")
@@ -282,9 +282,9 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	}
 	h.addCheck(report, "Revision count", "pass", fmt.Sprintf("%d", len(revisions)))
 	latest := revisions[0]
-	report.StorageLatestRevision = latest.Revision
+	report.LatestRevision = latest.Revision
 	if !latest.CreatedAt.IsZero() {
-		report.StorageLatestRevisionAt = formatReportTime(latest.CreatedAt)
+		report.LatestRevisionAt = formatReportTime(latest.CreatedAt)
 		h.addCheck(report, "Latest revision", "pass", fmt.Sprintf("%d (%s)", latest.Revision, latest.CreatedAt.Format("2006-01-02 15:04:05")))
 	} else {
 		h.addCheck(report, "Latest revision", "pass", fmt.Sprintf("%d", latest.Revision))
@@ -305,7 +305,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	}
 
 	if state.LastSuccessfulBackupRevision == latest.Revision {
-		report.StorageLatestRevisionAt = state.LastSuccessfulBackupAt
+		report.LatestRevisionAt = state.LastSuccessfulBackupAt
 		if parsed, parseErr := time.Parse(time.RFC3339, state.LastSuccessfulBackupAt); parseErr == nil {
 			h.evaluateFreshness(report, cfg.Health, parsed, "Storage freshness")
 		} else {
@@ -354,9 +354,9 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 
 func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
 	if len(revisions) == 0 {
-		h.addCheck(report, "Verified revisions", "fail", "0")
-		h.addCheck(report, "Passed revisions", "pass", "0")
-		h.addCheck(report, "Failed revisions", "fail", "0")
+		h.addCheck(report, "Revisions checked", "fail", "0")
+		h.addCheck(report, "Revisions passed", "pass", "0")
+		h.addCheck(report, "Revisions failed", "fail", "0")
 		h.addCheck(report, "Integrity check", "fail", "No revisions were found for this backup")
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
@@ -377,7 +377,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		visibleByRevision[revision.Revision] = revision
 	}
 	accounted := make(map[int]bool, len(results))
-	report.VerifiedRevisionCount = len(results)
+	report.CheckedRevisionCount = len(results)
 	var detailChecks []HealthCheck
 
 	for _, result := range results {
@@ -434,8 +434,8 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	if len(missing) > 0 {
 		verifiedResult = "fail"
 	}
-	h.addCheck(report, "Verified revisions", verifiedResult, fmt.Sprintf("%d", report.VerifiedRevisionCount))
-	h.addCheck(report, "Passed revisions", "pass", fmt.Sprintf("%d", report.PassedRevisionCount))
+	h.addCheck(report, "Revisions checked", verifiedResult, fmt.Sprintf("%d", report.CheckedRevisionCount))
+	h.addCheck(report, "Revisions passed", "pass", fmt.Sprintf("%d", report.PassedRevisionCount))
 	failedResult := "pass"
 	if report.FailedRevisionCount > 0 {
 		failedResult = "fail"
@@ -444,7 +444,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	if report.FailedRevisionCount > 0 {
 		failedSummary = fmt.Sprintf("%d (%s)", report.FailedRevisionCount, summariseRevisionIDs(report.FailedRevisions, 4))
 	}
-	h.addCheck(report, "Failed revisions", failedResult, failedSummary)
+	h.addCheck(report, "Revisions failed", failedResult, failedSummary)
 
 	if len(missing) > 0 {
 		h.addCheck(report, "Integrity check", "fail", integrityCheckFailureMessage(report.FailedRevisions, missing))
@@ -541,17 +541,17 @@ func healthJSONReport(report *HealthReport) map[string]any {
 	if report.LastVerifyRunAt != "" {
 		payload["last_verify_run_at"] = report.LastVerifyRunAt
 	}
-	if report.StorageVisibleRevisionCount > 0 {
-		payload["storage_visible_revision_count"] = report.StorageVisibleRevisionCount
+	if report.RevisionCount > 0 {
+		payload["revision_count"] = report.RevisionCount
 	}
-	if report.StorageLatestRevision > 0 {
-		payload["storage_latest_revision"] = report.StorageLatestRevision
+	if report.LatestRevision > 0 {
+		payload["latest_revision"] = report.LatestRevision
 	}
-	if report.StorageLatestRevisionAt != "" {
-		payload["storage_latest_revision_at"] = report.StorageLatestRevisionAt
+	if report.LatestRevisionAt != "" {
+		payload["latest_revision_at"] = report.LatestRevisionAt
 	}
-	if report.VerifiedRevisionCount > 0 {
-		payload["verified_revision_count"] = report.VerifiedRevisionCount
+	if report.CheckedRevisionCount > 0 {
+		payload["checked_revision_count"] = report.CheckedRevisionCount
 	}
 	if report.PassedRevisionCount > 0 {
 		payload["passed_revision_count"] = report.PassedRevisionCount
@@ -760,7 +760,7 @@ func healthCheckSection(name string) string {
 		return "Doctor"
 	case "Revision count", "Latest revision":
 		return "Status"
-	case "Verified revisions", "Passed revisions", "Failed revisions", "Integrity check", "Last verify run":
+	case "Revisions checked", "Revisions passed", "Revisions failed", "Integrity check", "Last verify run":
 		return "Verify"
 	}
 	if strings.HasPrefix(name, "Revision ") {

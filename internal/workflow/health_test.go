@@ -167,13 +167,13 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
-	if report.Status != "healthy" || report.StorageLatestRevision != 8 {
+	if report.Status != "healthy" || report.LatestRevision != 8 {
 		t.Fatalf("report = %+v", report)
 	}
-	if report.StorageVisibleRevisionCount != 1 {
+	if report.RevisionCount != 1 {
 		t.Fatalf("report = %+v", report)
 	}
-	if report.StorageLatestRevisionAt == "" || report.LocalLastSuccessAt == "" {
+	if report.LatestRevisionAt == "" || report.LocalLastSuccessAt == "" {
 		t.Fatalf("report = %+v", report)
 	}
 }
@@ -372,17 +372,17 @@ func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
 
 func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T) {
 	report := &HealthReport{
-		Status:                "healthy",
-		CheckType:             "verify",
-		Label:                 "homes",
-		Mode:                  "Local",
-		CheckedAt:             "2026-04-10T22:25:20Z",
-		LastVerifyRunAt:       "2026-04-10T22:25:20Z",
-		VerifiedRevisionCount: 79,
-		PassedRevisionCount:   79,
+		Status:               "healthy",
+		CheckType:            "verify",
+		Label:                "homes",
+		Mode:                 "Local",
+		CheckedAt:            "2026-04-10T22:25:20Z",
+		LastVerifyRunAt:      "2026-04-10T22:25:20Z",
+		CheckedRevisionCount: 79,
+		PassedRevisionCount:  79,
 		Checks: []HealthCheck{
-			{Name: "Verified revisions", Result: "pass", Message: "79"},
-			{Name: "Failed revisions", Result: "pass", Message: "0"},
+			{Name: "Revisions checked", Result: "pass", Message: "79"},
+			{Name: "Revisions failed", Result: "pass", Message: "0"},
 			{Name: "Last verify run", Result: "pass", Message: "<1m ago"},
 		},
 	}
@@ -465,7 +465,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	if code != 0 {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
-	if report.StorageVisibleRevisionCount != 2 || report.VerifiedRevisionCount != 2 || report.PassedRevisionCount != 2 || report.FailedRevisionCount != 0 {
+	if report.RevisionCount != 2 || report.CheckedRevisionCount != 2 || report.PassedRevisionCount != 2 || report.FailedRevisionCount != 0 {
 		t.Fatalf("report = %+v", report)
 	}
 	if len(report.RevisionResults) != 0 {
@@ -523,7 +523,7 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	if code != 2 || report.Status != "unhealthy" {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
-	if report.VerifiedRevisionCount != 1 || report.PassedRevisionCount != 1 {
+	if report.CheckedRevisionCount != 1 || report.PassedRevisionCount != 1 {
 		t.Fatalf("report = %+v", report)
 	}
 	if len(report.RevisionResults) != 1 || report.RevisionResults[0].Message != "No integrity result returned" {
@@ -594,7 +594,7 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Failed revisions") || !strings.Contains(stderr, "2 (8, 7)") {
+	if !strings.Contains(stderr, "Revisions failed") || !strings.Contains(stderr, "2 (8, 7)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "2 revision(s) failed integrity checks: 8, 7") {
@@ -658,7 +658,7 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Verified revisions") || !strings.Contains(stderr, "1") {
+	if !strings.Contains(stderr, "Revisions checked") || !strings.Contains(stderr, "1") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "1 revision(s) returned no integrity result: 7") {
@@ -749,9 +749,9 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Btrfs source") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Verified revisions") ||
-		!strings.Contains(stderr, "Passed revisions") ||
-		!strings.Contains(stderr, "Failed revisions") ||
+	if !strings.Contains(stderr, "Revisions checked") ||
+		!strings.Contains(stderr, "Revisions passed") ||
+		!strings.Contains(stderr, "Revisions failed") ||
 		!strings.Contains(stderr, "Integrity check") {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -799,9 +799,9 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Btrfs source",
 		"Repository access",
 		"Last doctor run",
-		"Verified revisions",
-		"Passed revisions",
-		"Failed revisions",
+		"Revisions checked",
+		"Revisions passed",
+		"Revisions failed",
 		"Integrity check",
 		"Last verify run",
 	}

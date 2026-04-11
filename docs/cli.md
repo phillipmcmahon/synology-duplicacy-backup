@@ -151,10 +151,10 @@ sudo duplicacy-backup health verify --remote homes
 - health commands are read-only and never prompt for confirmation
 - health commands use local state under `/var/lib/duplicacy-backup/<label>.json` together with live Duplicacy storage inspection
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
-- `health status` reports visible revision count plus the latest visible revision and freshness
+- `health status` reports revision count plus the latest revision and freshness
 - `health verify` uses `duplicacy check -persist` in the current repository context to validate the revisions found for the current label
 - health JSON stays machine-focused and omits the rendered check list shown in stderr output
-- healthy `health verify` JSON includes summary fields such as `storage_visible_revision_count`, `verified_revision_count`, `passed_revision_count`, `failed_revision_count`, `failed_revisions`, `last_doctor_run_at`, and `last_verify_run_at`
+- healthy `health verify` JSON includes summary fields such as `revision_count`, `latest_revision`, `latest_revision_at`, `checked_revision_count`, `passed_revision_count`, `failed_revision_count`, `failed_revisions`, `last_doctor_run_at`, and `last_verify_run_at`
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
 - optional per-backup health policy lives in `[health]`
 - optional webhook notification settings live in `[health.notify]`
