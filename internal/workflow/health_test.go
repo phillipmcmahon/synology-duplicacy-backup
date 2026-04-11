@@ -526,15 +526,146 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	if report.VerifiedRevisionCount != 1 || report.PassedRevisionCount != 1 {
 		t.Fatalf("report = %+v", report)
 	}
+	if len(report.RevisionResults) != 1 || report.RevisionResults[0].Message != "No integrity result returned" {
+		t.Fatalf("report = %+v", report)
+	}
 	found := false
 	for _, issue := range report.Issues {
-		if strings.Contains(issue.Message, "did not account for") {
+		if strings.Contains(issue.Message, "returned no integrity result") {
 			found = true
 			break
 		}
 	}
 	if !found {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 8 are missing\n2026-04-10 20:00:01.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 7 are missing\n"},
+		)
+
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+	})
+
+	if !strings.Contains(stderr, "Failed revisions") || !strings.Contains(stderr, "2 (8, 7)") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "2 revision(s) failed integrity checks: 8, 7") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Revision 8") || !strings.Contains(stderr, "Revision 7") || !strings.Contains(stderr, "Missing chunks") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
+		)
+
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+	})
+
+	if !strings.Contains(stderr, "Verified revisions") || !strings.Contains(stderr, "1") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "1 revision(s) returned no integrity result: 7") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Revision 7") || !strings.Contains(stderr, "No integrity result returned") {
+		t.Fatalf("stderr = %q", stderr)
 	}
 }
 
@@ -604,7 +735,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Status") ||
 		!strings.Contains(stderr, "Inspecting visible storage revisions") ||
 		!strings.Contains(stderr, "Validating repository access") ||
-		!strings.Contains(stderr, "Checking visible revisions (2 total)") {
+		!strings.Contains(stderr, "Checking revisions for this backup (2 total)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Section: Status") ||

@@ -36,7 +36,7 @@ sudo duplicacy-backup health status homes
 # Environment + access
 sudo duplicacy-backup health doctor homes
 
-# Integrity across visible revisions
+# Integrity across revisions found for this backup
 sudo duplicacy-backup health verify homes
 
 # Health JSON

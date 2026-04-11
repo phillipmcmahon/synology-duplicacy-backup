@@ -354,12 +354,12 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		h.addCheck(report, "Verified revisions", "fail", "0")
 		h.addCheck(report, "Passed revisions", "pass", "0")
 		h.addCheck(report, "Failed revisions", "fail", "0")
-		h.addCheck(report, "Integrity check", "fail", "No visible revisions are available to verify")
+		h.addCheck(report, "Integrity check", "fail", "No revisions were found for this backup")
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
 	}
 
-	status := fmt.Sprintf("Checking visible revisions (%d total)", len(revisions))
+	status := fmt.Sprintf("Checking revisions for this backup (%d total)", len(revisions))
 	stopVerifying := h.startStatusActivity(status)
 	results, _, err := dup.CheckVisibleRevisions()
 	stopVerifying()
@@ -375,6 +375,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	}
 	accounted := make(map[int]bool, len(results))
 	report.VerifiedRevisionCount = len(results)
+	var detailChecks []HealthCheck
 
 	for _, result := range results {
 		revisionInfo, ok := visibleByRevision[result.Revision]
@@ -394,7 +395,11 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 			report.RevisionResults = append(report.RevisionResults, entry)
 			report.FailedRevisionCount++
 			report.FailedRevisions = append(report.FailedRevisions, result.Revision)
-			h.addCheck(report, fmt.Sprintf("Revision %d", result.Revision), "fail", result.Message)
+			detailChecks = append(detailChecks, HealthCheck{
+				Name:    fmt.Sprintf("Revision %d", result.Revision),
+				Result:  "fail",
+				Message: result.Message,
+			})
 			continue
 		}
 		report.PassedRevisionCount++
@@ -406,6 +411,20 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 			continue
 		}
 		missing = append(missing, revision.Revision)
+		entry := HealthRevisionResult{
+			Revision: revision.Revision,
+			Result:   "fail",
+			Message:  "No integrity result returned",
+		}
+		if !revision.CreatedAt.IsZero() {
+			entry.CreatedAt = formatReportTime(revision.CreatedAt)
+		}
+		report.RevisionResults = append(report.RevisionResults, entry)
+		detailChecks = append(detailChecks, HealthCheck{
+			Name:    fmt.Sprintf("Revision %d", revision.Revision),
+			Result:  "fail",
+			Message: "No integrity result returned",
+		})
 	}
 
 	verifiedResult := "pass"
@@ -418,19 +437,29 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	if report.FailedRevisionCount > 0 {
 		failedResult = "fail"
 	}
-	h.addCheck(report, "Failed revisions", failedResult, fmt.Sprintf("%d", report.FailedRevisionCount))
+	failedSummary := fmt.Sprintf("%d", report.FailedRevisionCount)
+	if report.FailedRevisionCount > 0 {
+		failedSummary = fmt.Sprintf("%d (%s)", report.FailedRevisionCount, summariseRevisionIDs(report.FailedRevisions, 4))
+	}
+	h.addCheck(report, "Failed revisions", failedResult, failedSummary)
 
 	if len(missing) > 0 {
-		h.addCheck(report, "Integrity check", "fail", fmt.Sprintf("Integrity results did not account for %d visible revision(s)", len(missing)))
+		h.addCheck(report, "Integrity check", "fail", integrityCheckFailureMessage(report.FailedRevisions, missing))
+		for _, check := range detailChecks {
+			h.addDisplayCheck(report, check.Name, check.Result, check.Message)
+		}
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
 	}
 	if report.FailedRevisionCount > 0 {
-		h.addCheck(report, "Integrity check", "fail", "One or more visible revisions failed integrity checks")
+		h.addCheck(report, "Integrity check", "fail", integrityCheckFailureMessage(report.FailedRevisions, nil))
+		for _, check := range detailChecks {
+			h.addDisplayCheck(report, check.Name, check.Result, check.Message)
+		}
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
 	}
-	h.addCheck(report, "Integrity check", "pass", "All visible revisions validated")
+	h.addCheck(report, "Integrity check", "pass", "All revisions found for this backup validated")
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 }
 
@@ -633,6 +662,10 @@ func (h *HealthRunner) addCheck(report *HealthReport, name, result, message stri
 	}
 }
 
+func (h *HealthRunner) addDisplayCheck(report *HealthReport, name, result, message string) {
+	report.Checks = append(report.Checks, HealthCheck{Name: name, Result: result, Message: normaliseOperatorSentence(message)})
+}
+
 func (h *HealthRunner) finalizeReport(report *HealthReport) {
 	hasWarnings := false
 	report.Status = "healthy"
@@ -797,6 +830,58 @@ func healthCheckLabel(name string) string {
 	default:
 		return name
 	}
+}
+
+func summariseRevisionIDs(revisions []int, limit int) string {
+	if len(revisions) == 0 {
+		return ""
+	}
+	if limit <= 0 {
+		limit = len(revisions)
+	}
+	parts := make([]string, 0, minInt(len(revisions), limit)+1)
+	for i, revision := range revisions {
+		if i >= limit {
+			break
+		}
+		parts = append(parts, fmt.Sprintf("%d", revision))
+	}
+	if extra := len(revisions) - limit; extra > 0 {
+		parts = append(parts, fmt.Sprintf("+%d more", extra))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func integrityCheckFailureMessage(failedRevisions, missingRevisions []int) string {
+	switch {
+	case len(failedRevisions) > 0 && len(missingRevisions) > 0:
+		return fmt.Sprintf(
+			"%d failed; %d returned no result",
+			len(failedRevisions),
+			len(missingRevisions),
+		)
+	case len(missingRevisions) > 0:
+		return fmt.Sprintf(
+			"%d revision(s) returned no integrity result: %s",
+			len(missingRevisions),
+			summariseRevisionIDs(missingRevisions, 4),
+		)
+	case len(failedRevisions) > 0:
+		return fmt.Sprintf(
+			"%d revision(s) failed integrity checks: %s",
+			len(failedRevisions),
+			summariseRevisionIDs(failedRevisions, 4),
+		)
+	default:
+		return "Integrity validation did not succeed"
+	}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func formatClockDuration(duration time.Duration) string {

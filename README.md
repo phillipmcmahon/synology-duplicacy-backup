@@ -144,7 +144,7 @@ sudo duplicacy-backup health status homes
 # Read-only diagnostic pass
 sudo duplicacy-backup health doctor homes
 
-# Integrity check across visible revisions
+# Integrity check across revisions found for this backup
 sudo duplicacy-backup health verify homes
 ```
 
@@ -165,12 +165,12 @@ keeping the human-readable phase logs on stderr.
 The `health` command family adds read-only confidence checks:
 - `health status` gives a fast current-state summary
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
-- `health verify` goes further by validating visible revisions with `duplicacy check -persist`
+- `health verify` goes further by validating the revisions found for the current backup with `duplicacy check -persist`
 
 Health commands combine local state stored under `/var/lib/duplicacy-backup/<label>.json`
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation
 times, those storage timestamps are used as the authoritative freshness signal.
-`health verify` also records how many visible revisions were checked, how many
+`health verify` also records how many revisions were checked, how many
 passed, and which revisions failed integrity validation. The JSON report keeps
 summary counts on healthy runs and includes per-revision detail when failures
 need to be diagnosed. Health JSON is machine-focused: it emits structured
