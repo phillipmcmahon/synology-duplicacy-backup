@@ -473,6 +473,79 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	}
 }
 
+func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: ""},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+		)
+
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+		if report.RevisionCount != 0 || report.CheckedRevisionCount != 0 || report.PassedRevisionCount != 0 || report.FailedRevisionCount != 0 {
+			t.Fatalf("report = %+v", report)
+		}
+		found := false
+		for _, issue := range report.Issues {
+			if strings.Contains(issue.Message, "No revisions were found for this backup") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("report = %+v", report)
+		}
+	})
+
+	if !strings.Contains(stderr, "Revision count") || !strings.Contains(stderr, "0") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "No revisions were found for this backup") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
 func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
@@ -538,6 +611,124 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	}
 	if !found {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 10,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	var report *HealthReport
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 10 created at 2026-04-10 17:45\nSnapshot homes revision 9 created at 2026-04-10 17:15\nSnapshot homes revision 8 created at 2026-04-10 16:45\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 10 exist\n2026-04-10 20:00:01.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 9 are missing\n"},
+		)
+
+		var code int
+		report, code = NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+	})
+
+	if report.RevisionCount != 3 || report.CheckedRevisionCount != 2 || report.PassedRevisionCount != 1 || report.FailedRevisionCount != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	if !reflect.DeepEqual(report.FailedRevisions, []int{9}) {
+		t.Fatalf("FailedRevisions = %#v, want []int{9}", report.FailedRevisions)
+	}
+	if len(report.RevisionResults) != 2 {
+		t.Fatalf("report = %+v", report)
+	}
+	if report.RevisionResults[0].Revision != 9 || report.RevisionResults[0].Result != "fail" || report.RevisionResults[0].Message != "Missing chunks" {
+		t.Fatalf("report.RevisionResults[0] = %+v", report.RevisionResults[0])
+	}
+	if report.RevisionResults[1].Revision != 8 || report.RevisionResults[1].Result != "fail" || report.RevisionResults[1].Message != "No integrity result returned" {
+		t.Fatalf("report.RevisionResults[1] = %+v", report.RevisionResults[1])
+	}
+	if !strings.Contains(stderr, "Revisions failed") || !strings.Contains(stderr, "1 (9)") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "1 failed; 1 returned no result") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Revision 9") || !strings.Contains(stderr, "Missing chunks") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Revision 8") || !strings.Contains(stderr, "No integrity result returned") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+
+	var buf bytes.Buffer
+	if err := WriteHealthReport(&buf, report); err != nil {
+		t.Fatalf("WriteHealthReport() error = %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	for _, legacyKey := range []string{"storage_visible_revision_count", "storage_latest_revision", "storage_latest_revision_at", "verified_revision_count", "checks"} {
+		if _, ok := payload[legacyKey]; ok {
+			t.Fatalf("payload unexpectedly included %q: %#v", legacyKey, payload[legacyKey])
+		}
+	}
+	if got, ok := payload["revision_count"].(float64); !ok || got != 3 {
+		t.Fatalf("revision_count = %#v, want 3", payload["revision_count"])
+	}
+	if got, ok := payload["checked_revision_count"].(float64); !ok || got != 2 {
+		t.Fatalf("checked_revision_count = %#v, want 2", payload["checked_revision_count"])
+	}
+	if got, ok := payload["passed_revision_count"].(float64); !ok || got != 1 {
+		t.Fatalf("passed_revision_count = %#v, want 1", payload["passed_revision_count"])
+	}
+	if got, ok := payload["failed_revision_count"].(float64); !ok || got != 1 {
+		t.Fatalf("failed_revision_count = %#v, want 1", payload["failed_revision_count"])
+	}
+	failed, ok := payload["failed_revisions"].([]any)
+	if !ok || len(failed) != 1 || failed[0].(float64) != 9 {
+		t.Fatalf("failed_revisions = %#v, want [9]", payload["failed_revisions"])
+	}
+	results, ok := payload["revision_results"].([]any)
+	if !ok || len(results) != 2 {
+		t.Fatalf("revision_results = %#v, want 2 entries", payload["revision_results"])
 	}
 }
 
