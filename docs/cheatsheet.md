@@ -80,6 +80,7 @@ duplicacy-backup config paths homes
 - Use `--cleanup-storage` only when no other client is writing to the same storage.
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
 - JSON goes to `stdout`; human logs stay on `stderr`.
+- Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - If health config cannot be read, rely on Synology scheduled-task alerts as the fallback.
 
 ## Help
