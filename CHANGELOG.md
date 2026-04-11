@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.7] - 2026-04-11
+
+### Added
+- **Release-prep automation**: Added `make release-prep` plus a strict
+  `scripts/release-prep.sh` flow that validates the release tree in Linux Go
+  1.26, captures coverage, and writes a draft release-notes bundle under
+  `build/release-prep/`.
+- **Release environment guides**: Added concise repo documentation for the
+  Linux validation environment and the standard public release process in
+  `docs/linux-environment.md` and `docs/release-playbook.md`.
+
+### Changed
+- **Health verify wording polished**: Operator-facing health output now uses
+  shorter and more natural verify labels and summaries such as `Revisions
+  checked`, `Revisions passed`, `Revisions failed`, and `All revisions
+  validated`, with cleaner Btrfs wording in healthy doctor output.
+- **Unhealthy verify JSON tightened**: Unhealthy `health verify` now emits
+  stable machine failure fields including `failure_code`, `failure_codes`, and
+  `recommended_action_codes`, while keeping the healthy JSON surface compact.
+- **Unhealthy verify screen simplified**: Hard verify failures now use shorter
+  terminal messages such as `Could not inspect storage revisions`,
+  `Repository is not ready`, and `Revision inspection failed`, without
+  repeating low-value recency lines in the middle of the failure story.
+- **Examples and operator docs clarified**: README, CLI, operations, examples,
+  testing guidance, and the desk cheat sheet now reflect the settled health
+  model, Linux-only packaging rules, and the current release process.
+
+### Fixed
+- **Verify failure reporting is easier to automate**: Unhealthy `health verify`
+  no longer leaks rendered counter values into JSON issues, and the unhealthy
+  machine contract now stays concise and predictable for monitoring.
+- **Verify unhappy-path coverage expanded**: `internal/workflow` now covers
+  controlled no-revision, failed-revision, missing-attribution, listing-failure,
+  and verify-access-failure scenarios more thoroughly.
+
+### Notes
+- **Version constant** updated to `2.1.7` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.6] - 2026-04-11
 
 ### Added
