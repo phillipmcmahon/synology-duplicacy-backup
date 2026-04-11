@@ -134,7 +134,7 @@ Example: scheduled health summary
 /usr/local/bin/duplicacy-backup health status homes
 ```
 
-Example: scheduled JSON health verification for monitoring
+Example: scheduled JSON integrity verification for monitoring
 
 ```bash
 /usr/local/bin/duplicacy-backup health verify --json-summary homes
@@ -159,9 +159,9 @@ integrity issues are found, `revision_results` is included so the failing
 revisions can be diagnosed.
 
 `--remote` uses the remote TOML table plus the matching remote secrets file.
-The current remote secrets schema is still `storj_s3_id` / `storj_s3_secret`,
-because those values are passed through to Duplicacy for gateway-backed
-S3-compatible storage.
+The current remote secrets schema uses `storj_s3_id` and `storj_s3_secret` for
+gateway-backed S3-compatible storage, with optional
+`health_webhook_bearer_token` support for authenticated health notifications.
 
 Health commands are read-only and do not prompt for confirmation. They are
 designed to be run separately from backup jobs so schedulers and external

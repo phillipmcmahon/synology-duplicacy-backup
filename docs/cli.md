@@ -107,7 +107,7 @@ sudo duplicacy-backup --verbose --backup --prune homes
 # Machine-readable completion summary
 sudo duplicacy-backup --json-summary --dry-run homes
 
-# Validate config and remote secrets
+# Validate local config and, when present, remote config/secrets
 sudo duplicacy-backup config validate homes
 
 # Explain remote config
@@ -122,7 +122,7 @@ sudo duplicacy-backup health status homes
 # Read-only health diagnostics in JSON
 sudo duplicacy-backup health doctor --json-summary homes
 
-# Remote storage verification
+# Remote integrity verification
 sudo duplicacy-backup health verify --remote homes
 ```
 
@@ -132,7 +132,7 @@ sudo duplicacy-backup health verify --remote homes
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
 - config files are TOML files named `<label>-backup.toml`
 - remote secrets files are TOML files named `duplicacy-<label>.toml`
-- current remote secrets keys are `storj_s3_id` and `storj_s3_secret`
+- current remote secrets keys are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token`
 - `--fix-perms` is local-only and cannot be combined with `--remote`
 - combined phases all run in the same target mode for a single invocation; `--remote` applies to every requested phase
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`

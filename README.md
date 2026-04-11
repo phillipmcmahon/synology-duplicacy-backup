@@ -37,6 +37,8 @@ verifying archive contents, checksum validation, binary `--version` / `--help`,
 and installer `--help`.
 
 Release preparation should follow [`docs/release-playbook.md`](docs/release-playbook.md).
+The standard Linux validation and packaging environment is documented in
+[`docs/linux-environment.md`](docs/linux-environment.md).
 
 ### 2. Install on Synology
 
@@ -142,7 +144,7 @@ sudo duplicacy-backup health status homes
 # Read-only diagnostic pass
 sudo duplicacy-backup health doctor homes
 
-# Storage confidence check
+# Integrity check across visible revisions
 sudo duplicacy-backup health verify homes
 ```
 
@@ -209,6 +211,8 @@ inspection commands should normally be run with `sudo`. The main exception is
 - [Desk cheat sheet](docs/cheatsheet.md)
 - [CLI reference](docs/cli.md)
 - [Configuration and secrets](docs/configuration.md)
+- [Linux validation and packaging environment](docs/linux-environment.md)
+- [Release playbook](docs/release-playbook.md)
 - [Architecture](docs/architecture.md)
 - [How it works internally](docs/how-it-works.md)
 - [Operations](docs/operations.md)

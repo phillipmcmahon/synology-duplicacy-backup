@@ -5,6 +5,8 @@
 #   [common]  - Settings shared across local and remote modes
 #   [local]   - Settings for local backup mode (default)
 #   [remote]  - Settings for remote backup mode (--remote flag)
+#   [health]  - Optional read-only health policy
+#   [health.notify] - Optional webhook policy for non-interactive health runs
 #
 # If both [common] and the active target table define the same key,
 # the active target table wins.
@@ -28,3 +30,15 @@ local_group = "users"
 [remote]
 destination = "s3://gateway.storjshare.io/my-backup-bucket"
 threads = 8
+
+[health]
+freshness_warn_hours = 30
+freshness_fail_hours = 48
+doctor_warn_after_hours = 48
+verify_warn_after_hours = 168
+
+[health.notify]
+webhook_url = "https://example.invalid/hooks/duplicacy-backup"
+notify_on = ["degraded", "unhealthy"]
+send_for = ["doctor", "verify"]
+interactive = false
