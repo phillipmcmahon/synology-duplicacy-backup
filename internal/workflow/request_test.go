@@ -95,6 +95,23 @@ func TestParseRequest_ConfigExplainRemote(t *testing.T) {
 	if !result.Request.RemoteMode {
 		t.Fatal("expected RemoteMode true")
 	}
+	if result.Request.Target() != "remote" {
+		t.Fatalf("Target() = %q", result.Request.Target())
+	}
+}
+
+func TestParseRequest_TargetFlag(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"health", "verify", "--target", "offsite", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.Target() != "offsite" {
+		t.Fatalf("Target() = %q", result.Request.Target())
+	}
+	if result.Request.RemoteMode {
+		t.Fatal("expected RemoteMode false for non-remote target")
+	}
 }
 
 func TestParseRequest_HealthStatus(t *testing.T) {

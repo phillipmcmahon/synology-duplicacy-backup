@@ -29,7 +29,21 @@ type Status struct {
 
 // New creates a new Lock for the given backup label.
 func New(lockParent, label string) *Lock {
-	lockPath := filepath.Join(lockParent, fmt.Sprintf("backup-%s.lock.d", label))
+	return newLock(lockParent, fmt.Sprintf("backup-%s.lock.d", label))
+}
+
+// NewTarget creates a target-scoped repository lock for the given label/target pair.
+func NewTarget(lockParent, label, target string) *Lock {
+	return newLock(lockParent, fmt.Sprintf("backup-%s-%s.lock.d", label, target))
+}
+
+// NewSource creates a short-lived source lock for snapshot operations on a label.
+func NewSource(lockParent, label string) *Lock {
+	return newLock(lockParent, fmt.Sprintf("source-%s.lock.d", label))
+}
+
+func newLock(lockParent, lockName string) *Lock {
+	lockPath := filepath.Join(lockParent, lockName)
 	return &Lock{
 		Path:    lockPath,
 		PIDFile: filepath.Join(lockPath, "pid"),
@@ -101,6 +115,18 @@ func processExists(pid int) bool {
 
 func Inspect(lockParent, label string) (*Status, error) {
 	l := New(lockParent, label)
+	return inspectLock(l)
+}
+
+func InspectTarget(lockParent, label, target string) (*Status, error) {
+	return inspectLock(NewTarget(lockParent, label, target))
+}
+
+func InspectSource(lockParent, label string) (*Status, error) {
+	return inspectLock(NewSource(lockParent, label))
+}
+
+func inspectLock(l *Lock) (*Status, error) {
 	status := &Status{Path: l.Path}
 
 	if _, err := os.Stat(l.Path); err != nil {

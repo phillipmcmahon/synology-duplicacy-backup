@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,9 +42,10 @@ type HealthReport struct {
 	Status               string                 `json:"status"`
 	CheckType            string                 `json:"check_type"`
 	Label                string                 `json:"label"`
+	Target               string                 `json:"target"`
 	Mode                 string                 `json:"mode"`
 	CheckedAt            string                 `json:"checked_at"`
-	LocalLastSuccessAt   string                 `json:"local_last_success_at,omitempty"`
+	LastSuccessAt        string                 `json:"last_success_at,omitempty"`
 	LastDoctorRunAt      string                 `json:"last_doctor_run_at,omitempty"`
 	LastVerifyRunAt      string                 `json:"last_verify_run_at,omitempty"`
 	RevisionCount        int                    `json:"revision_count,omitempty"`
@@ -94,11 +94,11 @@ func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execp
 func NewFailureHealthReport(req *Request, checkType, message string, checkedAt time.Time) *HealthReport {
 	mode := "Local"
 	label := ""
+	target := targetLocal
 	if req != nil {
 		label = req.Source
-		if req.RemoteMode {
-			mode = "Remote"
-		}
+		target = req.Target()
+		mode = modeDisplay(req.Target(), "")
 		if checkType == "" {
 			checkType = req.HealthCommand
 		}
@@ -107,6 +107,7 @@ func NewFailureHealthReport(req *Request, checkType, message string, checkedAt t
 		Status:    "unhealthy",
 		CheckType: checkType,
 		Label:     label,
+		Target:    target,
 		Mode:      mode,
 		CheckedAt: formatReportTime(checkedAt),
 		Issues: []HealthIssue{
@@ -136,7 +137,8 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		Status:    "healthy",
 		CheckType: req.HealthCommand,
 		Label:     req.Source,
-		Mode:      modeDisplay(req.RemoteMode),
+		Target:    req.Target(),
+		Mode:      modeDisplay(req.Target(), ""),
 		CheckedAt: formatReportTime(checkedAt),
 		startedAt: checkedAt,
 	}
@@ -155,19 +157,19 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		return report, healthExitCode(report.Status)
 	}
 
-	state, stateErr := loadRunState(h.meta, req.Source)
+	state, stateErr := loadRunState(h.meta, req.Source, req.Target())
 	if stateErr != nil {
 		if os.IsNotExist(stateErr) {
-			h.addCheck(report, "Local state", "warn", fmt.Sprintf("No prior local state found at %s", stateFilePath(h.meta, req.Source)))
+			h.addCheck(report, "Local state", "warn", fmt.Sprintf("No prior local state found at %s", stateFilePath(h.meta, req.Source, req.Target())))
 		} else {
 			h.addCheck(report, "Local state", "warn", fmt.Sprintf("Could not read local state: %v", stateErr))
 		}
 	} else {
 		h.addCheck(report, "Local state", "pass", "Read successfully")
-		report.LocalLastSuccessAt = chooseLocalSuccessTime(state)
+		report.LastSuccessAt = chooseLocalSuccessTime(state)
 	}
 
-	lockStatus, lockErr := lock.Inspect(h.meta.LockParent, req.Source)
+	lockStatus, lockErr := lock.InspectTarget(h.meta.LockParent, req.Source, req.Target())
 	if lockErr != nil {
 		h.addCheck(report, "Lock", "warn", OperatorMessage(lockErr))
 	} else {
@@ -199,7 +201,7 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		h.runVerifyChecks(report, cfg, dup, visibleRevisions)
 	}
 
-	if err := updateHealthCheckState(h.meta, req.Source, req.HealthCommand, checkedAt); err != nil {
+	if err := updateHealthCheckState(h.meta, req.Source, req.Target(), req.HealthCommand, checkedAt); err != nil {
 		h.addCheck(report, "Health state", "warn", err.Error())
 	}
 
@@ -228,15 +230,22 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)
 	plan := planner.derivePlan(req)
 
-	cfgReq := configValidationRequest(req, req.RemoteMode)
+	cfgReq := configValidationRequest(req, req.Target())
 	cfgPlan := planner.derivePlan(cfgReq)
 	cfg, err := planner.loadConfig(cfgPlan)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
-	plan.ModeDisplay = modeDisplay(req.RemoteMode)
+	plan.Target = cfg.Target
+	plan.TargetType = cfg.TargetType
+	plan.RemoteMode = cfg.TargetType == targetRemote
+	plan.ConfigFile = cfgPlan.ConfigFile
+	plan.SecretsFile = cfgPlan.SecretsFile
+	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
+	plan.SnapshotSource = cfg.SourcePath
+	plan.RepositoryPath = cfg.SourcePath
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
 	plan.OperationMode = "Health " + strings.Title(req.HealthCommand)
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
@@ -247,7 +256,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
-	if req.RemoteMode {
+	if cfg.TargetType == targetRemote {
 		sec, err = planner.loadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err
@@ -278,7 +287,7 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	h.addCheck(report, "Config", "pass", fmt.Sprintf("Loaded %s", plan.ConfigFile))
-	if req.RemoteMode {
+	if plan.TargetType == targetRemote {
 		h.addCheck(report, "Remote secrets", "pass", fmt.Sprintf("Loaded %s", plan.SecretsFile))
 	}
 
@@ -337,24 +346,22 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 }
 
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
-	if !req.RemoteMode {
-		if _, err := os.Stat(plan.SnapshotSource); err != nil {
-			h.addCheck(report, "Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
-		} else {
-			h.addCheck(report, "Source path", "pass", plan.SnapshotSource)
+	if _, err := os.Stat(plan.SnapshotSource); err != nil {
+		h.addCheck(report, "Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
+	} else {
+		h.addCheck(report, "Source path", "pass", plan.SnapshotSource)
+	}
+	rootErr := btrfs.CheckVolume(h.runner, h.meta.RootVolume, false)
+	sourceErr := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
+	switch {
+	case rootErr == nil && sourceErr == nil:
+		h.addCheck(report, "Btrfs", "pass", "Yes")
+	default:
+		if rootErr != nil {
+			h.addCheck(report, "Btrfs root", "fail", OperatorMessage(rootErr))
 		}
-		rootErr := btrfs.CheckVolume(h.runner, h.meta.RootVolume, false)
-		sourceErr := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
-		switch {
-		case rootErr == nil && sourceErr == nil:
-			h.addCheck(report, "Btrfs", "pass", "Yes")
-		default:
-			if rootErr != nil {
-				h.addCheck(report, "Btrfs root", "fail", OperatorMessage(rootErr))
-			}
-			if sourceErr != nil {
-				h.addCheck(report, "Btrfs source", "fail", OperatorMessage(sourceErr))
-			}
+		if sourceErr != nil {
+			h.addCheck(report, "Btrfs source", "fail", OperatorMessage(sourceErr))
 		}
 	}
 
@@ -554,7 +561,7 @@ func (h *HealthRunner) populateHealthRecencyTimestamp(report *HealthReport, kind
 }
 
 func (h *HealthRunner) loadHealthRecencyTime(report *HealthReport, kind string) (*RunState, time.Time, bool) {
-	state, err := loadRunState(h.meta, report.Label)
+	state, err := loadRunState(h.meta, report.Label, report.Target)
 	if err != nil || state == nil {
 		return nil, time.Time{}, false
 	}
@@ -589,12 +596,13 @@ func healthJSONReport(report *HealthReport) map[string]any {
 		"status":       report.Status,
 		"check_type":   report.CheckType,
 		"label":        report.Label,
+		"target":       report.Target,
 		"mode":         report.Mode,
 		"checked_at":   report.CheckedAt,
 		"webhook_sent": report.WebhookSent,
 	}
-	if report.LocalLastSuccessAt != "" {
-		payload["local_last_success_at"] = report.LocalLastSuccessAt
+	if report.LastSuccessAt != "" {
+		payload["last_success_at"] = report.LastSuccessAt
 	}
 	if report.LastDoctorRunAt != "" {
 		payload["last_doctor_run_at"] = report.LastDoctorRunAt
@@ -717,21 +725,16 @@ func (h *HealthRunner) loadHealthNotifyConfig(req *Request) (config.HealthConfig
 		return config.HealthConfig{}, "", false
 	}
 
-	configDir := ResolveDir(h.rt, req.ConfigDir, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(h.rt))
-	configFile := filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", req.Source))
-	raw, err := config.ParseFile(configFile)
+	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)
+	plan := planner.derivePlan(configValidationRequest(req, req.Target()))
+	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return config.HealthConfig{}, "", false
 	}
-
-	cfg := raw.ResolveHealth()
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.Health.Validate(); err != nil {
 		return config.HealthConfig{}, "", false
 	}
-
-	secretsDir := ResolveDir(h.rt, req.SecretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
-	secretsFile := secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, req.Source)
-	return cfg, secretsFile, true
+	return cfg.Health, plan.SecretsFile, true
 }
 
 func (h *HealthRunner) sendWebhook(cfg config.HealthNotifyConfig, secretsFile string, report *HealthReport) error {

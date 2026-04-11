@@ -25,22 +25,33 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 }
 
 type Request struct {
-	ConfigCommand  string
-	HealthCommand  string
-	FixPerms       bool
-	ForcePrune     bool
-	RemoteMode     bool
-	DryRun         bool
-	Verbose        bool
-	JSONSummary    bool
-	ConfigDir      string
-	SecretsDir     string
-	Source         string
-	DoBackup       bool
-	DoPrune        bool
-	DoCleanupStore bool
-	FixPermsOnly   bool
-	DefaultNotice  string
+	ConfigCommand   string
+	HealthCommand   string
+	FixPerms        bool
+	ForcePrune      bool
+	RemoteMode      bool
+	RequestedTarget string
+	DryRun          bool
+	Verbose         bool
+	JSONSummary     bool
+	ConfigDir       string
+	SecretsDir      string
+	Source          string
+	DoBackup        bool
+	DoPrune         bool
+	DoCleanupStore  bool
+	FixPermsOnly    bool
+	DefaultNotice   string
+}
+
+func (r *Request) Target() string {
+	if r != nil && r.RequestedTarget != "" {
+		return r.RequestedTarget
+	}
+	if r != nil && r.RemoteMode {
+		return targetRemote
+	}
+	return targetLocal
 }
 
 type ParseResult struct {
@@ -173,6 +184,12 @@ func parseFlags(args []string) (*Request, error) {
 			req.ForcePrune = true
 		case "--remote":
 			req.RemoteMode = true
+		case "--target":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--target requires a value")
+			}
+			i++
+			req.RequestedTarget = args[i]
 		case "--dry-run":
 			req.DryRun = true
 		case "--verbose":
@@ -225,6 +242,12 @@ func parseConfigFlags(args []string) (*Request, error) {
 		switch args[i] {
 		case "--remote":
 			req.RemoteMode = true
+		case "--target":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--target requires a value")
+			}
+			i++
+			req.RequestedTarget = args[i]
 		case "--config-dir":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--config-dir requires a value")
@@ -263,6 +286,12 @@ func parseHealthFlags(args []string) (*Request, error) {
 		switch args[i] {
 		case "--remote":
 			req.RemoteMode = true
+		case "--target":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--target requires a value")
+			}
+			i++
+			req.RequestedTarget = args[i]
 		case "--verbose":
 			req.Verbose = true
 		case "--json-summary":
@@ -298,6 +327,14 @@ func parseHealthFlags(args []string) (*Request, error) {
 }
 
 func (r *Request) deriveModes() {
+	if r.RequestedTarget == "" {
+		if r.RemoteMode {
+			r.RequestedTarget = targetRemote
+		} else {
+			r.RequestedTarget = targetLocal
+		}
+	}
+	r.RemoteMode = r.RequestedTarget == targetRemote
 	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune && !r.DoCleanupStore
 }
 
@@ -305,8 +342,14 @@ func (r *Request) validateCombos() error {
 	if r.ForcePrune && !r.DoPrune {
 		return NewRequestError("--force-prune requires --prune")
 	}
-	if r.FixPerms && r.RemoteMode {
-		return NewRequestError("--fix-perms is only valid for local backups; cannot be used with --remote")
+	if r.RemoteMode && r.RequestedTarget != "" && r.RequestedTarget != targetRemote {
+		return NewRequestError("--remote cannot be combined with --target %q", r.RequestedTarget)
+	}
+	if r.FixPerms && r.Target() == targetRemote {
+		return NewRequestError("--fix-perms is not valid for target %q", r.Target())
+	}
+	if err := ValidateTargetName(r.Target()); err != nil {
+		return err
 	}
 	return nil
 }

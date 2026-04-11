@@ -12,7 +12,7 @@ sudo duplicacy-backup homes
 sudo duplicacy-backup --backup --prune homes
 
 # Remote backup
-sudo duplicacy-backup --remote homes
+sudo duplicacy-backup --target remote homes
 
 # Preview only
 sudo duplicacy-backup --dry-run homes
@@ -58,7 +58,7 @@ sudo duplicacy-backup config validate homes
 sudo duplicacy-backup config explain homes
 
 # Explain remote config
-sudo duplicacy-backup config explain --remote homes
+sudo duplicacy-backup config explain --target remote homes
 
 # Show stable paths
 duplicacy-backup config paths homes
@@ -68,9 +68,9 @@ duplicacy-backup config paths homes
 
 ```text
 /usr/local/bin/duplicacy-backup
-/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
-/root/.secrets/duplicacy-<label>.toml
-/var/lib/duplicacy-backup/<label>.json
+/usr/local/lib/duplicacy-backup/.config/<label>-<target>-backup.toml
+/root/.secrets/duplicacy-<label>-<target>.toml
+/var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
 ## Rules Of Thumb

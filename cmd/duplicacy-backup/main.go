@@ -23,6 +23,7 @@ var cliArgs = func() []string { return os.Args[1:] }
 var geteuid = os.Geteuid
 var lookPath = osexec.LookPath
 var newLock = lock.New
+var newSourceLock = lock.NewSource
 
 const scriptName = "duplicacy-backup"
 
@@ -42,6 +43,7 @@ func runWithArgs(args []string) int {
 	rt.Geteuid = geteuid
 	rt.LookPath = lookPath
 	rt.NewLock = newLock
+	rt.NewSourceLock = newSourceLock
 
 	result, code := buildRequest(args, meta, rt)
 	if code != 0 {
@@ -186,6 +188,11 @@ func inferHealthFailureRequest(args []string) *workflow.Request {
 		switch args[i] {
 		case "--remote":
 			req.RemoteMode = true
+		case "--target":
+			if i+1 < len(args) {
+				i++
+				req.RequestedTarget = args[i]
+			}
 		case "--json-summary":
 			req.JSONSummary = true
 		case "--verbose":

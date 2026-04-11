@@ -66,10 +66,7 @@ func currentUserGroup(t *testing.T) (string, string) {
 
 func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
-	configFile := filepath.Join(dir, "homes-backup.toml")
-	if err := os.WriteFile(configFile, []byte("[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n"), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, ""))
 
 	req := &Request{Source: "homes", DoBackup: true}
 	rt := testRuntime()
@@ -115,11 +112,7 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	dir := t.TempDir()
 	owner, group := currentUserGroup(t)
-	configFile := filepath.Join(dir, "homes-backup.toml")
-	content := "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \"" + owner + "\"\nlocal_group = \"" + group + "\"\n"
-	if err := os.WriteFile(configFile, []byte(content), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 0, ""))
 
 	req := &Request{FixPerms: true, FixPermsOnly: true, Source: "homes"}
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
@@ -153,19 +146,10 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	configFile := filepath.Join(configDir, "homes-backup.toml")
-	configBody := "[common]\ndestination = \"s3://bucket\"\nthreads = 4\n[remote]\n"
-	if err := os.WriteFile(configFile, []byte(configBody), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, ""))
+	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "remote")
 
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	secretsBody := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
-	if err := os.WriteFile(secretsFile, []byte(secretsBody), 0600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	req := &Request{Source: "homes", DoBackup: true, RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "remote", RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -236,7 +220,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	}
 
 	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
+	secretsFile := filepath.Join(secretsDir, "duplicacy-homes-remote.toml")
 	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -257,11 +241,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 
 func TestPlannerLoadConfig_FixPermsRequiresOwnerGroup(t *testing.T) {
 	configDir := t.TempDir()
-	configFile := filepath.Join(configDir, "homes-backup.toml")
-	body := "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n"
-	if err := os.WriteFile(configFile, []byte(body), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	configFile := writeTargetTestConfig(t, configDir, "homes", "local", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[target]\nname = \"local\"\ntype = \"local\"\nallow_local_accounts = true\n\n[storage]\ndestination = \"/backups\"\nrepository = \"homes\"\n\n[capture]\nthreads = 4\n")
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
@@ -284,13 +264,47 @@ func TestPlannerLoadConfig_MissingFile(t *testing.T) {
 	}
 }
 
+func TestPlannerLoadConfig_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
+	configDir := t.TempDir()
+	legacyFile := filepath.Join(configDir, "homes-backup.toml")
+	if err := os.WriteFile(legacyFile, []byte(localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365")), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	_, err := planner.loadConfig(&Plan{
+		ConfigDir:   configDir,
+		ConfigFile:  filepath.Join(configDir, "homes-remote-backup.toml"),
+		BackupLabel: "homes",
+		Target:      "remote",
+	})
+	if err == nil || !strings.Contains(err.Error(), "homes-remote-backup.toml") {
+		t.Fatalf("loadConfig() error = %v", err)
+	}
+}
+
+func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
+	configDir := t.TempDir()
+	configFile := writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("plexaudio", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
+
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	_, err := planner.loadConfig(&Plan{
+		ConfigFile:  configFile,
+		BackupLabel: "homes",
+		Target:      "remote",
+	})
+	if err == nil || !strings.Contains(err.Error(), "expected \"homes\"") {
+		t.Fatalf("loadConfig() error = %v", err)
+	}
+}
+
 func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("remote secrets access validation requires root-owned test file")
 	}
 
 	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
+	secretsFile := filepath.Join(secretsDir, "duplicacy-homes-remote.toml")
 	body := "storj_s3_id = \"short\"\nstorj_s3_secret = \"also-short\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -302,6 +316,28 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile})
 	if err == nil || !strings.Contains(err.Error(), "storj_s3_id must be at least 28 characters") {
+		t.Fatalf("loadSecrets() error = %v", err)
+	}
+}
+
+func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("remote secrets access validation requires root-owned test file")
+	}
+
+	secretsDir := t.TempDir()
+	legacyFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
+	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	if err := os.WriteFile(legacyFile, []byte(body), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	if err := os.Chown(legacyFile, 0, 0); err != nil {
+		t.Fatalf("Chown() error = %v", err)
+	}
+
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	_, err := planner.loadSecrets(&Plan{SecretsDir: secretsDir, SecretsFile: filepath.Join(secretsDir, "duplicacy-homes-remote.toml"), BackupLabel: "homes", Target: "remote"})
+	if err == nil || !strings.Contains(err.Error(), "duplicacy-homes-remote.toml") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
 }
@@ -324,11 +360,7 @@ func TestPlannerValidateBackupFilesystem(t *testing.T) {
 func TestPlannerLoadConfigAndFilesystemHelpers(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	dir := t.TempDir()
-	configFile := filepath.Join(dir, "homes-backup.toml")
-	content := "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \"" + owner + "\"\nlocal_group = \"" + group + "\"\n"
-	if err := os.WriteFile(configFile, []byte(content), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	plan := planner.derivePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir})

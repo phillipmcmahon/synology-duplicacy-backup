@@ -50,6 +50,14 @@ func TestGetSecretsFilePath(t *testing.T) {
 	if GetSecretsFilePath("", "duplicacy", "homes") != "duplicacy-homes.toml" {
 		t.Fatal("empty dir should still use .toml file name")
 	}
+
+	targetPath := GetTargetSecretsFilePath("/root/.secrets", "duplicacy", "homes", "remote")
+	if targetPath != "/root/.secrets/duplicacy-homes-remote.toml" {
+		t.Fatalf("GetTargetSecretsFilePath() = %q", targetPath)
+	}
+	if GetTargetSecretsFilePath("", "duplicacy", "homes", "remote") != "duplicacy-homes-remote.toml" {
+		t.Fatal("empty dir should still use target .toml file name")
+	}
 }
 
 func TestLoadSecretsFile_MissingFile(t *testing.T) {

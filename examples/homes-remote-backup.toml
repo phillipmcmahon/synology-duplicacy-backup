@@ -1,0 +1,37 @@
+# Example target config for homes/remote.
+# Place in <executable-dir>/.config/homes-remote-backup.toml
+
+label = "homes"
+source_path = "/volume1/homes"
+
+[target]
+name = "remote"
+type = "remote"
+requires_network = true
+
+[storage]
+destination = "s3://gateway.storjshare.io/my-backup-bucket"
+repository = "homes"
+
+[capture]
+threads = 8
+filter = "e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\\.DS_Store|\\._.*|Thumbs\\.db)$"
+
+[retention]
+keep = ["1:728", "91:364", "28:182", "7:28"]
+log_retention_days = 30
+safe_prune_max_delete_percent = 10
+safe_prune_max_delete_count = 25
+safe_prune_min_total_for_percent = 20
+
+[health]
+freshness_warn_hours = 30
+freshness_fail_hours = 48
+doctor_warn_after_hours = 48
+verify_warn_after_hours = 168
+
+[notify]
+webhook_url = "https://example.invalid/hooks/duplicacy-backup"
+notify_on = ["degraded", "unhealthy"]
+send_for = ["doctor", "verify"]
+interactive = false

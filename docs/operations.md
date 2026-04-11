@@ -90,7 +90,7 @@ sudo ln -sfn <older-binary-name> current
 With the recommended layout, the effective default config file path becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<source>-backup.toml
+/usr/local/lib/duplicacy-backup/.config/<label>-<target>-backup.toml
 ```
 
 You can still override this with:
@@ -113,19 +113,19 @@ You can still override this with:
 Example: remote backup followed by remote safe prune
 
 ```bash
-/usr/local/bin/duplicacy-backup --remote --backup --prune homes
+/usr/local/bin/duplicacy-backup --target remote --backup --prune homes
 ```
 
 Example: remote forced prune
 
 ```bash
-/usr/local/bin/duplicacy-backup --remote --prune --force-prune homes
+/usr/local/bin/duplicacy-backup --target remote --prune --force-prune homes
 ```
 
 Example: remote storage cleanup
 
 ```bash
-/usr/local/bin/duplicacy-backup --remote --cleanup-storage homes
+/usr/local/bin/duplicacy-backup --target remote --cleanup-storage homes
 ```
 
 Example: scheduled health summary
@@ -164,7 +164,8 @@ Unhealthy verify runs also emit machine-focused classification fields:
 - `failure_codes`
 - `recommended_action_codes`
 
-`--remote` uses the remote TOML table plus the matching remote secrets file.
+`--target <name>` selects one label-target pair. `--remote` remains an alias
+for `--target remote`.
 The current remote secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional
 `health_webhook_bearer_token` support for authenticated health notifications.

@@ -17,35 +17,43 @@ import (
 )
 
 var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+var targetPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+const (
+	targetLocal  = "local"
+	targetRemote = "remote"
+)
 
 // Runtime provides the environment-facing functions used by request parsing,
 // planning, and execution. Tests can replace individual functions without
 // needing to stub whole packages.
 type Runtime struct {
-	Geteuid      func() int
-	LookPath     func(string) (string, error)
-	NewLock      func(string, string) *lock.Lock
-	Now          func() time.Time
-	TempDir      func() string
-	Getpid       func() int
-	Getenv       func(string) string
-	Stdin        func() *os.File
-	StdinIsTTY   func() bool
-	Executable   func() (string, error)
-	EvalSymlinks func(string) (string, error)
-	SignalNotify func(chan<- os.Signal, ...os.Signal)
+	Geteuid       func() int
+	LookPath      func(string) (string, error)
+	NewLock       func(string, string) *lock.Lock
+	NewSourceLock func(string, string) *lock.Lock
+	Now           func() time.Time
+	TempDir       func() string
+	Getpid        func() int
+	Getenv        func(string) string
+	Stdin         func() *os.File
+	StdinIsTTY    func() bool
+	Executable    func() (string, error)
+	EvalSymlinks  func(string) (string, error)
+	SignalNotify  func(chan<- os.Signal, ...os.Signal)
 }
 
 func DefaultRuntime() Runtime {
 	return Runtime{
-		Geteuid:  os.Geteuid,
-		LookPath: exec.LookPath,
-		NewLock:  lock.New,
-		Now:      time.Now,
-		TempDir:  os.TempDir,
-		Getpid:   os.Getpid,
-		Getenv:   os.Getenv,
-		Stdin:    func() *os.File { return os.Stdin },
+		Geteuid:       os.Geteuid,
+		LookPath:      exec.LookPath,
+		NewLock:       lock.New,
+		NewSourceLock: lock.NewSource,
+		Now:           time.Now,
+		TempDir:       os.TempDir,
+		Getpid:        os.Getpid,
+		Getenv:        os.Getenv,
+		Stdin:         func() *os.File { return os.Stdin },
 		StdinIsTTY: func() bool {
 			return logger.IsTerminal(os.Stdin)
 		},
@@ -99,6 +107,25 @@ func ValidateLabel(label string) error {
 	return nil
 }
 
+func ValidateTargetName(target string) error {
+	if target == "" {
+		return NewRequestError("target must not be empty")
+	}
+	if strings.Contains(target, "/") || strings.Contains(target, "\\") || strings.Contains(target, "..") {
+		return NewRequestError(
+			"target %q contains path traversal characters (/, \\, or ..); only alphanumeric characters, hyphens, and underscores are allowed",
+			target,
+		)
+	}
+	if !targetPattern.MatchString(target) {
+		return NewRequestError(
+			"target %q contains invalid characters; only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed, and must start with an alphanumeric character",
+			target,
+		)
+	}
+	return nil
+}
+
 func JoinDestination(destination, label string) string {
 	if idx := strings.Index(destination, "://"); idx >= 0 {
 		scheme := destination[:idx+3]
@@ -106,6 +133,13 @@ func JoinDestination(destination, label string) string {
 		return scheme + rest + "/" + label
 	}
 	return filepath.Join(destination, label)
+}
+
+func targetName(remote bool) string {
+	if remote {
+		return targetRemote
+	}
+	return targetLocal
 }
 
 func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
@@ -156,6 +190,7 @@ Execution order:
 
 Common modifiers:
     --force-prune
+    --target <name>
     --remote
     --dry-run
     --verbose
@@ -170,12 +205,14 @@ Examples:
     %s homes
     %s --backup --prune homes
     %s --json-summary --dry-run homes
+    %s --target remote homes
     %s --remote homes
     %s config validate homes
     %s health status homes
 
 Use --help-full for the detailed reference.
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -213,7 +250,8 @@ OPERATIONS:
 
 MODIFIERS:
     --force-prune            Override safe prune thresholds during prune
-    --remote                 Perform operation against remote S3-compatible target config
+    --target <name>          Perform operation against the named target config (default: local)
+    --remote                 Alias for --target remote
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable run summary to stdout
@@ -238,24 +276,30 @@ SAFE PRUNE THRESHOLDS:
     Min revisions for %% check: %d (default %d)
 
 CONFIG FILE LOCATION:
-    <binary-dir>/.config/<source>-backup.toml
-    Effective default: %s/<source>-backup.toml
+    <binary-dir>/.config/<label>-<target>-backup.toml
+    Effective default: %s/<label>-<target>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
-CONFIG KEYS:
-    destination, filter, local_owner, local_group, log_retention_days,
-    prune, threads, safe_prune_max_delete_count, safe_prune_max_delete_percent,
-    safe_prune_min_total_for_percent
+CONFIG STRUCTURE:
+    label-target config files define:
+      source_path
+      [target]
+      [storage]
+      [capture]
+      [retention]
+      [health]
+      [notify]
 
-	REMOTE SECRETS:
-	    Strict mode: remote gateway credentials are loaded only from:
-	      %s/%s-<label>.toml
-	    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-	    Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token
+TARGET SECRETS:
+    Remote targets load credentials from:
+      %s/%s-<label>-<target>.toml
+    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
+    Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token
 
 HEALTH STATE:
-    Local run and health state are stored under:
-      %s/<label>.json
+    Target-specific run and health state are stored under:
+      %s/<label>.local.json
+      %s/<label>.remote.json
     Health commands combine this state with live storage inspection.
 
 HEALTH CONFIG:
@@ -265,7 +309,7 @@ HEALTH CONFIG:
       doctor_warn_after_hours
       verify_warn_after_hours
 
-    Optional [health.notify] table keys:
+    Optional [notify] table keys:
       webhook_url
       notify_on = ["degraded", "unhealthy"]
       send_for = ["doctor", "verify"]
@@ -275,7 +319,7 @@ HEALTH CONFIG:
       health_webhook_bearer_token
 
 ARGUMENTS:
-    source                   Source directory name under %s
+    source                   Backup label
 
 INTERACTIVE SAFETY RAILS:
     Interactive terminal runs ask for confirmation before:
@@ -294,7 +338,7 @@ EXAMPLES:
     %s --json-summary --dry-run homes
     %s health status homes
     %s health doctor --json-summary homes
-    %s health verify --remote homes
+    %s health verify --target remote homes
     %s --prune homes
     %s --cleanup-storage homes
     %s --prune --cleanup-storage homes
@@ -302,12 +346,13 @@ EXAMPLES:
     %s --backup --prune --force-prune --cleanup-storage homes
     %s --fix-perms homes
     %s --backup --fix-perms homes
+    %s --target remote homes
     %s --remote homes
     %s --verbose --backup --prune homes
     %s --config-dir /opt/etc homes
-    %s --secrets-dir /opt/secrets --remote homes
+    %s --secrets-dir /opt/secrets --target remote homes
     %s config validate homes
-    %s config explain --remote homes
+    %s config explain --target remote homes
     %s config paths homes
 `,
 		meta.ScriptName,
@@ -320,10 +365,10 @@ EXAMPLES:
 		cfgDir,
 		config.DefaultSecretsDir, config.DefaultSecretsPrefix,
 		meta.StateDir,
-		meta.RootVolume,
+		meta.StateDir,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName,
 	)
@@ -338,6 +383,7 @@ Config commands:
     paths
 
 Options:
+    --target <name>
     --remote
     --config-dir <path>
     --secrets-dir <path>
@@ -346,7 +392,7 @@ Options:
 
 Examples:
     %s config validate homes
-    %s config explain --remote homes
+    %s config explain --target remote homes
     %s config paths homes
 
 Use --help-full for the detailed config reference.
@@ -364,20 +410,20 @@ func FullConfigUsageText(meta Metadata, rt Runtime) string {
 
 CONFIG COMMANDS:
     validate                Validate the resolved config and configured secrets
-    explain                 Show the resolved config values for the selected mode
+    explain                 Show the resolved config values for the selected target
     paths                   Show the resolved stable config, secrets, source, and log paths
 
 OPTIONS:
-    --remote                Use remote mode for explain/paths, or require remote validation
+    --target <name>         Select the named target (default: local)
+    --remote                Alias for --target remote
     --config-dir <path>     Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>    Override secrets directory (default: %s)
     --help                  Show the concise help message
     --help-full             Show the detailed config help message
 
 BEHAVIOUR:
-    validate without --remote always validates local config.
-    If a [remote] table exists, validate also checks remote config and secrets.
-    validate with --remote requires remote config and remote secrets to be valid.
+    validate, explain, and paths operate on one label-target pair at a time.
+    Without --target, config commands use target local.
 
 DEFAULT LOCATIONS:
     Config dir             : %s
@@ -385,9 +431,9 @@ DEFAULT LOCATIONS:
 
 EXAMPLES:
     %s config validate homes
-    %s config validate --remote homes
+    %s config validate --target remote homes
     %s config explain homes
-    %s config explain --remote homes
+    %s config explain --target remote homes
     %s config paths homes
 `,
 		meta.ScriptName,

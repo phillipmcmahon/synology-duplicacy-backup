@@ -1,6 +1,7 @@
 // Package config handles TOML configuration file parsing and validation.
-// It supports [common] and per-mode tables ([local]/[remote]) with strict
-// key validation matching the current workflow semantics.
+// It supports both the legacy [common]/[local]/[remote] model and the
+// current per-label-target config model with explicit [target], [storage],
+// [capture], and [retention] sections.
 package config
 
 import (
@@ -31,10 +32,17 @@ var upperCaseConfigKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`
 
 // Config holds all parsed and validated configuration values.
 type Config struct {
+	Label                       string
+	Target                      string
+	TargetType                  string
+	SourcePath                  string
 	Destination                 string
+	Repository                  string
 	Filter                      string
 	LocalOwner                  string
 	LocalGroup                  string
+	AllowLocalAccounts          bool
+	RequiresNetwork             bool
 	LogRetentionDays            int
 	Prune                       string
 	Threads                     int
@@ -84,12 +92,47 @@ type tableLocal struct {
 	SafePruneMinTotalForPercent *int    `toml:"safe_prune_min_total_for_percent"`
 }
 
+type tableTargetMeta struct {
+	Name               *string `toml:"name"`
+	Type               *string `toml:"type"`
+	AllowLocalAccounts *bool   `toml:"allow_local_accounts"`
+	RequiresNetwork    *bool   `toml:"requires_network"`
+	LocalOwner         *string `toml:"local_owner"`
+	LocalGroup         *string `toml:"local_group"`
+}
+
+type tableStorage struct {
+	Destination *string `toml:"destination"`
+	Repository  *string `toml:"repository"`
+}
+
+type tableCapture struct {
+	Filter  *string `toml:"filter"`
+	Threads *int    `toml:"threads"`
+}
+
+type tableRetention struct {
+	Prune                       *string  `toml:"prune"`
+	Keep                        []string `toml:"keep"`
+	LogRetentionDays            *int     `toml:"log_retention_days"`
+	SafePruneMaxDeletePercent   *int     `toml:"safe_prune_max_delete_percent"`
+	SafePruneMaxDeleteCount     *int     `toml:"safe_prune_max_delete_count"`
+	SafePruneMinTotalForPercent *int     `toml:"safe_prune_min_total_for_percent"`
+}
+
 // File holds the decoded TOML config file before mode-specific resolution.
 type File struct {
-	Common *tableCommon `toml:"common"`
-	Local  *tableLocal  `toml:"local"`
-	Remote *tableCommon `toml:"remote"`
-	Health *tableHealth `toml:"health"`
+	Label      *string            `toml:"label"`
+	SourcePath *string            `toml:"source_path"`
+	Common     *tableCommon       `toml:"common"`
+	Local      *tableLocal        `toml:"local"`
+	Remote     *tableCommon       `toml:"remote"`
+	TargetMeta *tableTargetMeta   `toml:"target"`
+	Storage    *tableStorage      `toml:"storage"`
+	Capture    *tableCapture      `toml:"capture"`
+	Retention  *tableRetention    `toml:"retention"`
+	Health     *tableHealth       `toml:"health"`
+	Notify     *tableHealthNotify `toml:"notify"`
 }
 
 type tableHealth struct {
@@ -157,9 +200,21 @@ func ParseFile(path string) (*File, error) {
 	return &raw, nil
 }
 
-// ResolveValues merges [common] and the active mode table into the existing
-// key/value shape used by Config.Apply, with mode values overriding common.
-func (f *File) ResolveValues(targetSection, path string) (map[string]string, error) {
+// ResolveValues merges the decoded file into the existing key/value shape used
+// by Config.Apply. It supports both the legacy local/remote table layout and
+// the current target-aware layout.
+func (f *File) ResolveValues(targetName, path string) (map[string]string, error) {
+	if f.usesTargetLayout() {
+		return f.resolveTargetValues(targetName, path)
+	}
+	return f.resolveLegacyValues(targetName, path)
+}
+
+func (f *File) usesTargetLayout() bool {
+	return f.Label != nil || f.SourcePath != nil || f.TargetMeta != nil || f.Storage != nil || f.Capture != nil || f.Retention != nil || f.Notify != nil
+}
+
+func (f *File) resolveLegacyValues(targetName, path string) (map[string]string, error) {
 	if f.Common == nil {
 		return nil, apperrors.NewConfigError("section-common", fmt.Errorf("config file %s is missing required [common] table", path), "path", path)
 	}
@@ -167,21 +222,79 @@ func (f *File) ResolveValues(targetSection, path string) (map[string]string, err
 	values := make(map[string]string)
 	mergeCommon(values, f.Common)
 
-	switch targetSection {
+	switch targetName {
 	case "local":
 		if f.Local == nil {
-			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [local] table for current mode", path), "path", path, "section", targetSection)
+			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [local] table for current mode", path), "path", path, "section", targetName)
 		}
 		mergeLocal(values, f.Local)
+		values["TARGET"] = "local"
+		values["TARGET_TYPE"] = "local"
+		values["ALLOW_LOCAL_ACCOUNTS"] = "true"
+		values["REQUIRES_NETWORK"] = "false"
 	case "remote":
 		if f.Remote == nil {
-			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [remote] table for current mode", path), "path", path, "section", targetSection)
+			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [remote] table for current mode", path), "path", path, "section", targetName)
 		}
 		mergeCommon(values, f.Remote)
+		values["TARGET"] = "remote"
+		values["TARGET_TYPE"] = "remote"
+		values["ALLOW_LOCAL_ACCOUNTS"] = "false"
+		values["REQUIRES_NETWORK"] = "true"
 	default:
-		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("unsupported target section %q", targetSection), "path", path, "section", targetSection)
+		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("unsupported target section %q", targetName), "path", path, "section", targetName)
 	}
 
+	return values, nil
+}
+
+func (f *File) resolveTargetValues(targetName, path string) (map[string]string, error) {
+	values := make(map[string]string)
+	if f.TargetMeta == nil {
+		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [target] table", path), "path", path)
+	}
+	if f.Storage == nil {
+		return nil, apperrors.NewConfigError("section-storage", fmt.Errorf("config file %s is missing required [storage] table", path), "path", path)
+	}
+	if f.TargetMeta.Name == nil || strings.TrimSpace(*f.TargetMeta.Name) == "" {
+		return nil, apperrors.NewConfigError("target-name", fmt.Errorf("config file %s is missing required target.name value", path), "path", path)
+	}
+	resolvedTarget := strings.TrimSpace(*f.TargetMeta.Name)
+	if targetName != "" && targetName != resolvedTarget {
+		return nil, apperrors.NewConfigError("target-name", fmt.Errorf("config file %s defines target %q, expected %q", path, resolvedTarget, targetName), "path", path, "target", resolvedTarget)
+	}
+	if f.SourcePath == nil || strings.TrimSpace(*f.SourcePath) == "" {
+		return nil, apperrors.NewConfigError("source-path", fmt.Errorf("config file %s is missing required source_path value", path), "path", path)
+	}
+	if f.Storage.Destination == nil || strings.TrimSpace(*f.Storage.Destination) == "" {
+		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required storage.destination value", path), "path", path)
+	}
+	values["TARGET"] = resolvedTarget
+	values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
+	if f.Label != nil {
+		values["LABEL"] = strings.TrimSpace(*f.Label)
+	}
+	if f.TargetMeta.Type != nil {
+		values["TARGET_TYPE"] = strings.TrimSpace(*f.TargetMeta.Type)
+	}
+	if f.TargetMeta.AllowLocalAccounts != nil {
+		values["ALLOW_LOCAL_ACCOUNTS"] = fmt.Sprintf("%t", *f.TargetMeta.AllowLocalAccounts)
+	}
+	if f.TargetMeta.RequiresNetwork != nil {
+		values["REQUIRES_NETWORK"] = fmt.Sprintf("%t", *f.TargetMeta.RequiresNetwork)
+	}
+	if f.TargetMeta.LocalOwner != nil {
+		values["LOCAL_OWNER"] = *f.TargetMeta.LocalOwner
+	}
+	if f.TargetMeta.LocalGroup != nil {
+		values["LOCAL_GROUP"] = *f.TargetMeta.LocalGroup
+	}
+	values["DESTINATION"] = strings.TrimSpace(*f.Storage.Destination)
+	if f.Storage.Repository != nil && strings.TrimSpace(*f.Storage.Repository) != "" {
+		values["REPOSITORY"] = strings.TrimSpace(*f.Storage.Repository)
+	}
+	mergeCapture(values, f.Capture)
+	mergeRetention(values, f.Retention)
 	return values, nil
 }
 
@@ -215,6 +328,20 @@ func (f *File) ResolveHealth() HealthConfig {
 		}
 		if f.Health.Notify.Interactive != nil {
 			cfg.Notify.Interactive = *f.Health.Notify.Interactive
+		}
+	}
+	if f.Notify != nil {
+		if f.Notify.WebhookURL != nil {
+			cfg.Notify.WebhookURL = *f.Notify.WebhookURL
+		}
+		if f.Notify.NotifyOn != nil {
+			cfg.Notify.NotifyOn = append([]string(nil), f.Notify.NotifyOn...)
+		}
+		if f.Notify.SendFor != nil {
+			cfg.Notify.SendFor = append([]string(nil), f.Notify.SendFor...)
+		}
+		if f.Notify.Interactive != nil {
+			cfg.Notify.Interactive = *f.Notify.Interactive
 		}
 	}
 	return cfg
@@ -286,6 +413,53 @@ func mergeLocal(dst map[string]string, src *tableLocal) {
 	}
 }
 
+func mergeCapture(dst map[string]string, src *tableCapture) {
+	if src == nil {
+		return
+	}
+	if src.Filter != nil {
+		dst["FILTER"] = *src.Filter
+	}
+	if src.Threads != nil {
+		dst["THREADS"] = fmt.Sprintf("%d", *src.Threads)
+	}
+}
+
+func mergeRetention(dst map[string]string, src *tableRetention) {
+	if src == nil {
+		return
+	}
+	if src.Prune != nil {
+		dst["PRUNE"] = *src.Prune
+	} else if len(src.Keep) > 0 {
+		dst["PRUNE"] = buildKeepPolicy(src.Keep)
+	}
+	if src.LogRetentionDays != nil {
+		dst["LOG_RETENTION_DAYS"] = fmt.Sprintf("%d", *src.LogRetentionDays)
+	}
+	if src.SafePruneMaxDeletePercent != nil {
+		dst["SAFE_PRUNE_MAX_DELETE_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeletePercent)
+	}
+	if src.SafePruneMaxDeleteCount != nil {
+		dst["SAFE_PRUNE_MAX_DELETE_COUNT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeleteCount)
+	}
+	if src.SafePruneMinTotalForPercent != nil {
+		dst["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMinTotalForPercent)
+	}
+}
+
+func buildKeepPolicy(values []string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		parts = append(parts, "-keep "+value)
+	}
+	return strings.Join(parts, " ")
+}
+
 func unexpectedTOMLKey(path string, key toml.Key) error {
 	parts := []string(key)
 	if len(parts) == 0 {
@@ -298,8 +472,8 @@ func unexpectedTOMLKey(path string, key toml.Key) error {
 
 	section := parts[0]
 	field := parts[len(parts)-1]
-	if (field == "local_owner" || field == "local_group") && section != "local" {
-		return apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is only allowed in [local] table, not [%s]", field, section), "path", path)
+	if (field == "local_owner" || field == "local_group") && section != "local" && section != "target" {
+		return apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is only allowed in [local] or [target] table, not [%s]", field, section), "path", path)
 	}
 
 	return apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is not permitted in [%s]", field, section), "path", path)
@@ -308,8 +482,23 @@ func unexpectedTOMLKey(path string, key toml.Key) error {
 // Apply populates a Config struct from parsed key-value pairs.
 // Returns an error if any numeric value is not a valid non-negative integer.
 func (c *Config) Apply(values map[string]string) error {
+	if v, ok := values["LABEL"]; ok {
+		c.Label = v
+	}
+	if v, ok := values["TARGET"]; ok {
+		c.Target = v
+	}
+	if v, ok := values["TARGET_TYPE"]; ok {
+		c.TargetType = v
+	}
+	if v, ok := values["SOURCE_PATH"]; ok {
+		c.SourcePath = v
+	}
 	if v, ok := values["DESTINATION"]; ok {
 		c.Destination = v
+	}
+	if v, ok := values["REPOSITORY"]; ok {
+		c.Repository = v
 	}
 	if v, ok := values["FILTER"]; ok {
 		c.Filter = v
@@ -322,6 +511,12 @@ func (c *Config) Apply(values map[string]string) error {
 	}
 	if v, ok := values["PRUNE"]; ok {
 		c.Prune = v
+	}
+	if v, ok := values["ALLOW_LOCAL_ACCOUNTS"]; ok {
+		c.AllowLocalAccounts = strings.EqualFold(v, "true")
+	}
+	if v, ok := values["REQUIRES_NETWORK"]; ok {
+		c.RequiresNetwork = strings.EqualFold(v, "true")
 	}
 	if v, ok := values["LOG_RETENTION_DAYS"]; ok {
 		n, err := strictAtoi(v)
@@ -366,13 +561,13 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 	var missing []string
 
 	if c.Destination == "" {
-		missing = append(missing, "destination")
+		missing = append(missing, "storage.destination")
 	}
 	if doBackup && c.Threads == 0 {
-		missing = append(missing, "threads")
+		missing = append(missing, "capture.threads")
 	}
 	if doPrune && c.Prune == "" {
-		missing = append(missing, "prune")
+		missing = append(missing, "retention.keep/prune")
 	}
 
 	if len(missing) > 0 {
@@ -410,6 +605,9 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
+	if c.TargetType != "" && c.TargetType != "local" && c.TargetType != "remote" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"local\" or \"remote\" (was %q)", c.TargetType))
+	}
 	if err := c.Health.Validate(); err != nil {
 		return err
 	}
@@ -423,11 +621,14 @@ func (c *Config) ValidateThresholds() error {
 // user for security. This method should NOT be called when operating in
 // remote mode (--remote), as remote targets do not use local file ownership.
 func (c *Config) ValidateOwnerGroup() error {
+	if (c.Target != "" || c.TargetType != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
+		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not allow local account ownership or permission management", c.Target))
+	}
 	if c.LocalOwner == "" {
-		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner is mandatory: set it in your TOML config under [local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")"))
+		return apperrors.NewConfigError("local-owner", fmt.Errorf("target.local_owner is mandatory: set it under [target] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")"))
 	}
 	if c.LocalGroup == "" {
-		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group is mandatory: set it in your TOML config under [local] to the group that should own backup files (e.g. local_group = \"users\")"))
+		return apperrors.NewConfigError("local-group", fmt.Errorf("target.local_group is mandatory: set it under [target] to the group that should own backup files (e.g. local_group = \"users\")"))
 	}
 	if !ownerPattern.MatchString(c.LocalOwner) {
 		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner has invalid value %q", c.LocalOwner), "value", c.LocalOwner)

@@ -11,6 +11,7 @@ import (
 
 type RunState struct {
 	Label                        string `json:"label,omitempty"`
+	Target                       string `json:"target,omitempty"`
 	LastRunStartedAt             string `json:"last_run_started_at,omitempty"`
 	LastRunCompletedAt           string `json:"last_run_completed_at,omitempty"`
 	LastRunResult                string `json:"last_run_result,omitempty"`
@@ -24,26 +25,37 @@ type RunState struct {
 	LastVerifyAt                 string `json:"last_verify_at,omitempty"`
 }
 
-func stateFilePath(meta Metadata, label string) string {
-	return filepath.Join(meta.StateDir, label+".json")
+func stateFilePath(meta Metadata, label string, target ...string) string {
+	resolvedTarget := targetLocal
+	if len(target) > 0 && target[0] != "" {
+		resolvedTarget = target[0]
+	}
+	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, resolvedTarget))
 }
 
-func loadRunState(meta Metadata, label string) (*RunState, error) {
-	body, err := os.ReadFile(stateFilePath(meta, label))
+func loadRunState(meta Metadata, label string, target ...string) (*RunState, error) {
+	path := stateFilePath(meta, label, target...)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	var state RunState
 	if err := json.Unmarshal(body, &state); err != nil {
-		return nil, fmt.Errorf("invalid state file %s: %w", stateFilePath(meta, label), err)
+		return nil, fmt.Errorf("invalid state file %s: %w", path, err)
 	}
 	if state.Label == "" {
 		state.Label = label
 	}
+	if state.Target == "" {
+		state.Target = targetLocal
+		if len(target) > 0 && target[0] != "" {
+			state.Target = target[0]
+		}
+	}
 	return &state, nil
 }
 
-func saveRunState(meta Metadata, label string, state *RunState) error {
+func saveRunState(meta Metadata, label string, state *RunState, target ...string) error {
 	if state == nil {
 		return nil
 	}
@@ -54,13 +66,18 @@ func saveRunState(meta Metadata, label string, state *RunState) error {
 		return fmt.Errorf("failed to set state directory permissions on %s: %w", meta.StateDir, err)
 	}
 	state.Label = label
+	state.Target = targetLocal
+	if len(target) > 0 && target[0] != "" {
+		state.Target = target[0]
+	}
 	body, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to encode state file: %w", err)
 	}
 	body = append(body, '\n')
-	if err := os.WriteFile(stateFilePath(meta, label), body, 0600); err != nil {
-		return fmt.Errorf("failed to write state file %s: %w", stateFilePath(meta, label), err)
+	path := stateFilePath(meta, label, target...)
+	if err := os.WriteFile(path, body, 0600); err != nil {
+		return fmt.Errorf("failed to write state file %s: %w", path, err)
 	}
 	return nil
 }
@@ -71,7 +88,7 @@ func updateRunState(meta Metadata, plan *Plan, report *RunReport, backupRevision
 	}
 
 	state := &RunState{}
-	if existing, err := loadRunState(meta, plan.BackupLabel); err == nil {
+	if existing, err := loadRunState(meta, plan.BackupLabel, plan.TargetName()); err == nil {
 		state = existing
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -92,15 +109,15 @@ func updateRunState(meta Metadata, plan *Plan, report *RunReport, backupRevision
 		state.LastFailureSummary = report.FailureMessage
 	}
 
-	return saveRunState(meta, plan.BackupLabel, state)
+	return saveRunState(meta, plan.BackupLabel, state, plan.TargetName())
 }
 
-func updateHealthCheckState(meta Metadata, label string, checkType string, checkedAt time.Time) error {
+func updateHealthCheckState(meta Metadata, label, target string, checkType string, checkedAt time.Time) error {
 	if label == "" {
 		return nil
 	}
 	state := &RunState{}
-	if existing, err := loadRunState(meta, label); err == nil {
+	if existing, err := loadRunState(meta, label, target); err == nil {
 		state = existing
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -115,5 +132,5 @@ func updateHealthCheckState(meta Metadata, label string, checkType string, check
 	case "verify":
 		state.LastVerifyAt = formatted
 	}
-	return saveRunState(meta, label, state)
+	return saveRunState(meta, label, state, target)
 }

@@ -41,6 +41,12 @@ func GetSecretsFilePath(secretsDir, prefix, label string) string {
 	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s.toml", prefix, label))
 }
 
+// GetTargetSecretsFilePath returns the expected secrets file path for a label
+// and target pair.
+func GetTargetSecretsFilePath(secretsDir, prefix, label, target string) string {
+	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s-%s.toml", prefix, label, target))
+}
+
 // ValidateFileAccess checks that the secrets file at path exists, has 0600
 // permissions, and is owned by root:root.
 func ValidateFileAccess(path string) error {

@@ -60,18 +60,21 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldGeteuid := geteuid
 	oldLookPath := lookPath
 	oldNewLock := newLock
+	oldNewSourceLock := newSourceLock
 
 	logDir = t.TempDir()
 	geteuid = func() int { return 0 }
 	lookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	lockParent := t.TempDir()
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 
 	t.Cleanup(func() {
 		logDir = oldLogDir
 		geteuid = oldGeteuid
 		lookPath = oldLookPath
 		newLock = oldNewLock
+		newSourceLock = oldNewSourceLock
 	})
 
 	fn()
@@ -111,11 +114,61 @@ func currentUserGroup(t *testing.T) (string, string) {
 
 func writeConfig(t *testing.T, dir, label, body string) string {
 	t.Helper()
-	path := filepath.Join(dir, fmt.Sprintf("%s-backup.toml", label))
+	path := filepath.Join(dir, fmt.Sprintf("%s-local-backup.toml", label))
 	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	return path
+}
+
+func writeTargetConfig(t *testing.T, dir, label, target, body string) string {
+	t.Helper()
+	path := filepath.Join(dir, fmt.Sprintf("%s-%s-backup.toml", label, target))
+	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	return path
+}
+
+func localConfigBody(label, destination, owner, group string, threads int, prune string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "label = %q\n", label)
+	fmt.Fprintf(&b, "source_path = %q\n\n", "/volume1/"+label)
+	fmt.Fprintf(&b, "[target]\nname = %q\ntype = %q\n", "local", "local")
+	if owner != "" || group != "" {
+		b.WriteString("allow_local_accounts = true\n")
+	} else {
+		b.WriteString("allow_local_accounts = false\n")
+	}
+	if owner != "" {
+		fmt.Fprintf(&b, "local_owner = %q\n", owner)
+	}
+	if group != "" {
+		fmt.Fprintf(&b, "local_group = %q\n", group)
+	}
+	fmt.Fprintf(&b, "\n[storage]\ndestination = %q\nrepository = %q\n", destination, label)
+	if threads > 0 {
+		fmt.Fprintf(&b, "\n[capture]\nthreads = %d\n", threads)
+	}
+	if prune != "" {
+		fmt.Fprintf(&b, "\n[retention]\nprune = %q\n", prune)
+	}
+	return b.String()
+}
+
+func remoteConfigBody(label, destination string, threads int, prune string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "label = %q\n", label)
+	fmt.Fprintf(&b, "source_path = %q\n\n", "/volume1/"+label)
+	fmt.Fprintf(&b, "[target]\nname = %q\ntype = %q\nrequires_network = true\n", "remote", "remote")
+	fmt.Fprintf(&b, "\n[storage]\ndestination = %q\nrepository = %q\n", destination, label)
+	if threads > 0 {
+		fmt.Fprintf(&b, "\n[capture]\nthreads = %d\n", threads)
+	}
+	if prune != "" {
+		fmt.Fprintf(&b, "\n[retention]\nprune = %q\n", prune)
+	}
+	return b.String()
 }
 
 func assertFailureFooter(t *testing.T, stderr string) {
@@ -195,7 +248,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "health status            Fast read-only health summary for operators and schedulers") ||
 		!strings.Contains(stdout, "health verify            Read-only integrity check across revisions found for the current label") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
-		!strings.Contains(stdout, "config explain --remote homes") ||
+		!strings.Contains(stdout, "config explain --target remote homes") ||
 		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -227,7 +280,7 @@ func TestRunWithArgs_ConfigHelpFullReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "validate without --remote always validates local config.") ||
+	if !strings.Contains(stdout, "validate, explain, and paths operate on one label-target pair at a time.") ||
 		!strings.Contains(stdout, "--help-full             Show the detailed config help message") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -289,7 +342,7 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 		geteuid = func() int { return 1000 }
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"config", "validate", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(config validate) = %d", code)
@@ -298,10 +351,10 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 		if stderr != "" {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, "Config validation succeeded for homes") || !strings.Contains(stdout, "Local Config") {
+		if !strings.Contains(stdout, "Config validation succeeded for homes/local") || !strings.Contains(stdout, "Target") {
 			t.Fatalf("stdout = %q", stdout)
 		}
-		if !strings.Contains(stdout, "Remote Config") || !strings.Contains(stdout, "Not configured") {
+		if !strings.Contains(stdout, "homes-local-backup.toml") || strings.Contains(stdout, "Not configured") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -311,7 +364,7 @@ func TestRunWithArgs_ConfigExplainReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"config", "explain", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(config explain) = %d", code)
@@ -320,7 +373,7 @@ func TestRunWithArgs_ConfigExplainReturnsZero(t *testing.T) {
 		if stderr != "" {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, "Config explanation for homes") || !strings.Contains(stdout, "Destination") || !strings.Contains(stdout, "Local Owner") {
+		if !strings.Contains(stdout, "Config explanation for homes/local") || !strings.Contains(stdout, "Destination") || !strings.Contains(stdout, "Local Owner") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -353,7 +406,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml") {
+		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-local-backup.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureFooter(t, stderr)
@@ -364,13 +417,14 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, ""))
 
 		blocker := filepath.Join(t.TempDir(), "not-a-dir")
 		if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
 			t.Fatalf("WriteFile() error = %v", err)
 		}
 		newLock = func(_, label string) *lock.Lock { return lock.New(blocker, label) }
+		newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(blocker, label) }
 
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
@@ -387,7 +441,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--backup", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(backup dry-run) = %d", code)
@@ -408,7 +462,7 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 func TestRunWithArgs_JSONSummaryDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--json-summary", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(json dry-run) = %d", code)
@@ -433,7 +487,7 @@ func TestRunWithArgs_JSONSummaryDryRunReturnsZero(t *testing.T) {
 func TestRunWithArgs_JSONSummaryVerboseDryRunKeepsStartBlockFirst(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--json-summary", "--dry-run", "--verbose", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(json verbose dry-run) = %d", code)
@@ -508,13 +562,13 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		secretsDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"s3://bucket\"\nthreads = 4\n[remote]\n")
+		writeTargetConfig(t, configDir, "homes", "remote", remoteConfigBody("homes", "s3://bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--remote", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(remote missing secrets) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Remote secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes.toml") {
+		if !strings.Contains(stderr, "Remote secrets file not found:") || !strings.Contains(stderr, "duplicacy-homes-remote.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureFooter(t, stderr)
@@ -524,7 +578,7 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads =\n[local]\n")
+		writeConfig(t, configDir, "homes", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[target]\nname = \"local\"\ntype = \"local\"\nallow_local_accounts = false\n\n[storage]\ndestination = \"/backups\"\nrepository = \"homes\"\n\n[capture]\nthreads =\n")
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--backup", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(invalid toml) = %d", code)
@@ -541,7 +595,7 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(fix-perms dry-run) = %d", code)
@@ -559,7 +613,7 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nthreads = 4\n[local]\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--cleanup-storage", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)
@@ -587,7 +641,7 @@ func TestRunWithArgs_CombinedOperationsUseFixedExecutionOrder(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(combined dry-run) = %d", code)
@@ -622,7 +676,7 @@ func TestRunWithArgs_CleanupStorageUsesFixedExecutionOrder(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--cleanup-storage", "--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)

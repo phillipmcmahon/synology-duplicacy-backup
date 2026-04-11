@@ -116,6 +116,9 @@ func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
 	rt.NewLock = func(_, label string) *lock.Lock {
 		return lock.New(lockParent, label)
 	}
+	rt.NewSourceLock = func(_, label string) *lock.Lock {
+		return lock.NewSource(lockParent, label)
+	}
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{
@@ -224,6 +227,9 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 	rt := testRuntime()
 	rt.NewLock = func(_, label string) *lock.Lock {
 		return lock.New(lockParent, label)
+	}
+	rt.NewSourceLock = func(_, label string) *lock.Lock {
+		return lock.NewSource(lockParent, label)
 	}
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
@@ -523,6 +529,7 @@ func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
 	workRoot := t.TempDir()
 	rt := testRuntime()
 	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{
@@ -581,6 +588,7 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 
 	rt := testRuntime()
 	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(badParent, label) }
+	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(badParent, label) }
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
@@ -615,6 +623,7 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 	workRoot := t.TempDir()
 	rt := testRuntime()
 	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{

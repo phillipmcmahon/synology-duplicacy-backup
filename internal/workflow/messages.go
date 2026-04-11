@@ -201,9 +201,9 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 		if err.Cause != nil {
 			switch err.Context["section"] {
 			case "remote":
-				return withHint(err.Cause.Error(), "add a [remote] table for --remote runs or drop --remote")
+				return withHint(err.Cause.Error(), "create a dedicated <label>-remote-backup.toml file or choose a different --target")
 			case "local":
-				return withHint(err.Cause.Error(), "add a [local] table for local runs")
+				return withHint(err.Cause.Error(), "create a dedicated <label>-local-backup.toml file")
 			default:
 				return err.Cause.Error()
 			}
@@ -232,16 +232,16 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		if path := err.Context["path"]; path != "" {
 			return withHint(
 				fmt.Sprintf("Remote secrets file not found: %s", path),
-				"create duplicacy-<label>.toml under /root/.secrets or override the directory with --secrets-dir",
+				"create duplicacy-<label>-<target>.toml under /root/.secrets or override the directory with --secrets-dir",
 			)
 		}
 	case "permissions":
 		if err.Cause != nil {
-			return withHint(err.Cause.Error(), "run chmod 600 on the remote secrets file")
+			return withHint(err.Cause.Error(), "run chmod 600 on the target secrets file")
 		}
 	case "ownership":
 		if err.Cause != nil {
-			return withHint(err.Cause.Error(), "run chown root:root on the remote secrets file")
+			return withHint(err.Cause.Error(), "run chown root:root on the target secrets file")
 		}
 	case "parse":
 		if err.Cause != nil {

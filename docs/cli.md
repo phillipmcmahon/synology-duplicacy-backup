@@ -31,7 +31,8 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Flag | Description |
 |---|---|
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
-| `--remote` | Use the remote S3-compatible config and secrets path |
+| `--target <name>` | Use the named target config; defaults to `local` |
+| `--remote` | Alias for `--target remote` |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -45,9 +46,10 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 | Command | Description |
 |---|---|
-| `config validate <label>` | Validate resolved local config and, when configured, remote config and secrets |
-| `config explain <label>` | Show resolved config values for local mode by default |
-| `config explain --remote <label>` | Show resolved config values for remote mode |
+| `config validate <label>` | Validate the resolved config for `local` by default |
+| `config validate --target <target> <label>` | Validate the resolved config and any target secrets for that label-target pair |
+| `config explain <label>` | Show resolved config values for `local` by default |
+| `config explain --target <target> <label>` | Show resolved config values for that label-target pair |
 | `config paths <label>` | Show resolved stable config, secrets, source, and log paths |
 
 ## Health Commands
@@ -99,7 +101,7 @@ sudo duplicacy-backup --backup --fix-perms homes
 sudo duplicacy-backup --prune --backup --fix-perms homes
 
 # Remote backup preview
-sudo duplicacy-backup --remote --dry-run homes
+sudo duplicacy-backup --target remote --dry-run homes
 
 # Verbose troubleshooting run
 sudo duplicacy-backup --verbose --backup --prune homes
@@ -111,7 +113,7 @@ sudo duplicacy-backup --json-summary --dry-run homes
 sudo duplicacy-backup config validate homes
 
 # Explain remote config
-sudo duplicacy-backup config explain --remote homes
+sudo duplicacy-backup config explain --target remote homes
 
 # Show resolved paths
 duplicacy-backup config paths homes
@@ -123,18 +125,18 @@ sudo duplicacy-backup health status homes
 sudo duplicacy-backup health doctor --json-summary homes
 
 # Remote integrity verification
-sudo duplicacy-backup health verify --remote homes
+sudo duplicacy-backup health verify --target remote homes
 ```
 
 ## Notes
 
 - `--help` is intentionally concise; use `--help-full` for the detailed reference
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
-- config files are TOML files named `<label>-backup.toml`
-- remote secrets files are TOML files named `duplicacy-<label>.toml`
-- current remote secrets keys are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token`
-- `--fix-perms` is local-only and cannot be combined with `--remote`
-- combined phases all run in the same target mode for a single invocation; `--remote` applies to every requested phase
+- config files are TOML files named `<label>-<target>-backup.toml`
+- target secrets files are TOML files named `duplicacy-<label>-<target>.toml`
+- current remote secrets keys are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` for gateway-backed S3-compatible storage
+- `--fix-perms` is local-account aware and cannot be combined with a target that does not allow local accounts
+- combined phases all run against one label-target pair for a single invocation
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
 - `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
 - `--cleanup-storage` runs `duplicacy prune -exhaustive -exclusive`, so it should be used only when no other client is actively writing to the same storage
@@ -143,13 +145,13 @@ sudo duplicacy-backup health verify --remote homes
 - interactive terminal runs ask for confirmation before forced prune and cleanup-storage
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
-- `config validate` always validates local config; if a `[remote]` table is present it also validates remote config and secrets
-- `config validate --remote` requires remote config and remote secrets to be valid
+- `config validate` works on one label-target pair at a time
+- `config validate --target remote` requires the remote target config and target secrets to be valid
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
 - health commands are read-only and never prompt for confirmation
-- health commands use local state under `/var/lib/duplicacy-backup/<label>.json` together with live Duplicacy storage inspection
+- health commands use target-specific state under `/var/lib/duplicacy-backup/<label>.<target>.json` together with live Duplicacy storage inspection
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
 - `health status` reports revision count plus the latest revision and freshness
 - `health verify` uses `duplicacy check -persist` in the current repository context to validate the revisions found for the current label
@@ -158,7 +160,7 @@ sudo duplicacy-backup health verify --remote homes
 - unhealthy `health verify` JSON also emits `failure_code`, `failure_codes`, and `recommended_action_codes` so automation can classify the failure without parsing human text
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
 - optional per-backup health policy lives in `[health]`
-- optional webhook notification settings live in `[health.notify]`
+- optional webhook notification settings live in `[notify]`
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception

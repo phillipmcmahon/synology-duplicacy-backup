@@ -25,6 +25,8 @@ type Plan struct {
 
 	DefaultNotice string
 	ModeDisplay   string
+	Target        string
+	TargetType    string
 
 	BackupLabel    string
 	RunTimestamp   string
@@ -76,7 +78,7 @@ type Plan struct {
 }
 
 func (p *Plan) IsRemote() bool {
-	return p.RemoteMode
+	return p.TargetType == targetRemote || p.TargetName() == targetRemote || p.RemoteMode
 }
 
 func (p *Plan) ModeLabel() string {
@@ -88,4 +90,14 @@ func (p *Plan) WorkDir() string {
 		return p.DuplicacyRoot
 	}
 	return filepath.Join(p.WorkRoot, "duplicacy")
+}
+
+func (p *Plan) TargetName() string {
+	if p != nil && p.Target != "" {
+		return p.Target
+	}
+	if p != nil && p.RemoteMode {
+		return targetRemote
+	}
+	return targetLocal
 }

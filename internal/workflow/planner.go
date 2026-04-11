@@ -8,6 +8,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
@@ -35,10 +36,20 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	plan.Target = cfg.Target
+	plan.TargetType = cfg.TargetType
+	plan.RemoteMode = cfg.TargetType == targetRemote
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+	plan.SnapshotSource = cfg.SourcePath
+	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
+	plan.RepositoryPath = cfg.SourcePath
+	if req.DoBackup {
+		plan.RepositoryPath = plan.SnapshotTarget
+	}
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
-	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
+	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
@@ -54,7 +65,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
 	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
-	if req.RemoteMode {
+	if plan.TargetType == targetRemote {
 		sec, err := p.loadSecrets(plan)
 		if err != nil {
 			return nil, err
@@ -88,12 +99,13 @@ func (p *Planner) validateEnvironment(req *Request) error {
 func (p *Planner) derivePlan(req *Request) *Plan {
 	runTimestamp := p.rt.Now().Format("20060102-150405")
 	backupLabel := req.Source
+	target := req.Target()
 	workRoot := filepath.Join(
 		p.rt.TempDir(),
 		fmt.Sprintf("%s-%s-%s-%d", p.meta.ScriptName, backupLabel, runTimestamp, p.rt.Getpid()),
 	)
 	snapshotSource := filepath.Join(p.meta.RootVolume, backupLabel)
-	snapshotTarget := filepath.Join(p.meta.RootVolume, fmt.Sprintf("%s-%s", backupLabel, runTimestamp))
+	snapshotTarget := filepath.Join(p.meta.RootVolume, fmt.Sprintf("%s-%s-%s-%d", backupLabel, target, runTimestamp, p.rt.Getpid()))
 	repositoryPath := snapshotSource
 	if req.DoBackup {
 		repositoryPath = snapshotTarget
@@ -115,7 +127,8 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		NeedsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
 		NeedsSnapshot:       req.DoBackup,
 		DefaultNotice:       req.DefaultNotice,
-		ModeDisplay:         modeDisplay(req.RemoteMode),
+		ModeDisplay:         modeDisplay(target, ""),
+		Target:              target,
 		BackupLabel:         backupLabel,
 		RunTimestamp:        runTimestamp,
 		SnapshotSource:      snapshotSource,
@@ -124,9 +137,9 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		WorkRoot:            workRoot,
 		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
 		ConfigDir:           configDir,
-		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", backupLabel)),
+		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-%s-backup.toml", backupLabel, target)),
 		SecretsDir:          secretsDir,
-		SecretsFile:         secrets.GetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel),
+		SecretsFile:         secrets.GetTargetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel, target),
 	}
 }
 
@@ -136,22 +149,39 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	}
 
 	cfg := config.NewDefaults()
-	targetSection := "local"
-	if plan.RemoteMode {
-		targetSection = "remote"
-	}
-
 	raw, err := config.ParseFile(plan.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
-	values, err := raw.ResolveValues(targetSection, plan.ConfigFile)
+	values, err := raw.ResolveValues(plan.TargetName(), plan.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
 	cfg.Health = raw.ResolveHealth()
 	if err := cfg.Apply(values); err != nil {
 		return nil, err
+	}
+	if cfg.Label == "" {
+		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s is missing required label value", plan.ConfigFile), "path", plan.ConfigFile)
+	}
+	if cfg.Label != plan.BackupLabel {
+		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s defines label %q, expected %q", plan.ConfigFile, cfg.Label, plan.BackupLabel), "path", plan.ConfigFile, "label", cfg.Label)
+	}
+	if cfg.Target == "" {
+		cfg.Target = plan.TargetName()
+	}
+	if cfg.TargetType == "" {
+		if cfg.Target == targetLocal {
+			cfg.TargetType = targetLocal
+		} else {
+			cfg.TargetType = targetRemote
+		}
+	}
+	if cfg.SourcePath == "" {
+		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
+	}
+	if cfg.Repository == "" {
+		cfg.Repository = plan.BackupLabel
 	}
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
@@ -229,11 +259,40 @@ func splitNonEmptyLines(value string) []string {
 	return result
 }
 
-func modeDisplay(remote bool) string {
-	if remote {
+func modeDisplay(targetName, targetType string) string {
+	switch targetType {
+	case targetLocal:
+		return "Local"
+	case targetRemote:
 		return "Remote"
 	}
-	return "Local"
+	switch targetName {
+	case targetLocal:
+		return "Local"
+	case targetRemote:
+		return "Remote"
+	default:
+		if targetName == "" {
+			return "Unknown"
+		}
+		return strings.ToUpper(targetName[:1]) + targetName[1:]
+	}
+}
+
+func rootVolumeForSource(sourcePath string) string {
+	clean := filepath.Clean(sourcePath)
+	if clean == "." || clean == "/" {
+		return clean
+	}
+	if !filepath.IsAbs(clean) {
+		return clean
+	}
+	trimmed := strings.TrimPrefix(clean, string(filepath.Separator))
+	parts := strings.Split(trimmed, string(filepath.Separator))
+	if len(parts) == 0 || parts[0] == "" {
+		return string(filepath.Separator)
+	}
+	return string(filepath.Separator) + parts[0]
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {

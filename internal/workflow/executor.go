@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -20,28 +21,35 @@ type Executor struct {
 	plan   *Plan
 	view   *Presenter
 
-	lock               *lock.Lock
+	sourceLock         *lock.Lock
+	targetLock         *lock.Lock
 	dup                *duplicacy.Setup
 	report             *RunReport
 	startedAt          time.Time
 	exitCode           int
 	cleanedUp          bool
-	lockAcquired       bool
+	targetLockAcquired bool
 	lastBackupRevision int
 }
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
 	startedAt := rt.Now()
+	targetLockKey := targetRepositoryLockKey(plan.BackupLabel, plan.TargetName())
+	sourceLock := rt.NewLock(meta.LockParent, "source-"+plan.BackupLabel)
+	if rt.NewSourceLock != nil {
+		sourceLock = rt.NewSourceLock(meta.LockParent, plan.BackupLabel)
+	}
 	return &Executor{
-		meta:      meta,
-		rt:        rt,
-		log:       log,
-		runner:    runner,
-		plan:      plan,
-		view:      NewPresenter(meta, rt, log, plan.Verbose),
-		lock:      rt.NewLock(meta.LockParent, plan.BackupLabel),
-		startedAt: startedAt,
-		report:    NewRunReport(plan, startedAt),
+		meta:       meta,
+		rt:         rt,
+		log:        log,
+		runner:     runner,
+		plan:       plan,
+		view:       NewPresenter(meta, rt, log, plan.Verbose),
+		sourceLock: sourceLock,
+		targetLock: rt.NewLock(meta.LockParent, targetLockKey),
+		startedAt:  startedAt,
+		report:     NewRunReport(plan, startedAt),
 	}
 }
 
@@ -55,13 +63,13 @@ func (e *Executor) Run() int {
 		return e.exitCode
 	}
 
-	if err := e.acquireLock(); err != nil {
+	if err := e.acquireTargetLock(); err != nil {
 		e.fail(err)
 		return e.exitCode
 	}
 
 	e.startVisibleRun()
-	e.view.PrintHeader(e.plan, e.startedAt, e.lock.Path)
+	e.view.PrintHeader(e.plan, e.startedAt, e.targetLock.Path)
 	if e.plan.Verbose {
 		e.view.PrintSummary(e.plan)
 	}
@@ -93,11 +101,11 @@ func (e *Executor) installSignalHandler() {
 	}()
 }
 
-func (e *Executor) acquireLock() error {
-	if err := e.lock.Acquire(); err != nil {
+func (e *Executor) acquireTargetLock() error {
+	if err := e.targetLock.Acquire(); err != nil {
 		return err
 	}
-	e.lockAcquired = true
+	e.targetLockAcquired = true
 	return nil
 }
 
@@ -175,12 +183,18 @@ func (e *Executor) runTrackedPhase(name string, fn func() error) error {
 
 func (e *Executor) prepareDuplicacySetup() error {
 	if e.plan.NeedsSnapshot {
-		if e.plan.DryRun {
-			e.log.DryRun("%s", e.plan.SnapshotCreateCommand)
-		} else if err := btrfs.CreateSnapshot(e.runner, e.plan.SnapshotSource, e.plan.SnapshotTarget, false); err != nil {
-			return err
-		} else {
+		if err := e.withSourceLock(func() error {
+			if e.plan.DryRun {
+				e.log.DryRun("%s", e.plan.SnapshotCreateCommand)
+				return nil
+			}
+			if err := btrfs.CreateSnapshot(e.runner, e.plan.SnapshotSource, e.plan.SnapshotTarget, false); err != nil {
+				return err
+			}
 			e.log.PrintLine("Snapshot", e.plan.SnapshotTarget)
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -267,4 +281,19 @@ func (e *Executor) fail(err error) {
 
 func (e *Executor) Report() *RunReport {
 	return e.report
+}
+
+func (e *Executor) withSourceLock(fn func() error) error {
+	if e.sourceLock == nil {
+		return fn()
+	}
+	if err := e.sourceLock.Acquire(); err != nil {
+		return err
+	}
+	defer e.sourceLock.Release()
+	return fn()
+}
+
+func targetRepositoryLockKey(label, target string) string {
+	return fmt.Sprintf("%s-%s", label, target)
 }

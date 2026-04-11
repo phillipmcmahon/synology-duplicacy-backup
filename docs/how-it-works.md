@@ -168,7 +168,7 @@ The `Request` type contains user intent only:
 - requested operations such as backup, prune, and storage cleanup
 - `--fix-perms`
 - `--force-prune` as a prune-threshold override
-- `--remote`
+- `--target <name>` with `--remote` as an alias for `remote`
 - `--dry-run`
 - config/secrets directory overrides
 - source label
@@ -235,6 +235,7 @@ It provides injectable functions for:
 - effective user id
 - `PATH` lookups
 - lock construction
+- source-lock construction
 - time
 - temp dir
 - PID
@@ -254,6 +255,30 @@ mocking whole packages.
 - root volume
 - lock directory parent
 - log directory
+
+## Label-Target Model
+
+The operational identity is now:
+
+```text
+label + target
+```
+
+Examples:
+
+- `homes/local`
+- `homes/remote`
+
+That identity flows through:
+
+- config selection: `<label>-<target>-backup.toml`
+- secrets selection: `duplicacy-<label>-<target>.toml`
+- state files: `<label>.<target>.json`
+- machine JSON summaries: `label` plus `target`
+- repository-phase locking: one lock per label-target pair
+
+This lets one source label keep multiple independent destinations without
+forcing revision parity or schedule alignment between them.
 
 ## Plan Phase
 
@@ -333,7 +358,15 @@ This is where config becomes behavior.
 It:
 
 - checks the config file exists
-- parses `[common]` plus `[local]` or `[remote]`
+- parses the target file structure
+  - top-level `label`
+  - top-level `source_path`
+  - `[target]`
+  - `[storage]`
+  - `[capture]`
+  - `[retention]`
+  - optional `[health]`
+  - optional `[notify]`
 - applies values into `config.Config`
 - validates required keys
 - validates thresholds
@@ -355,7 +388,7 @@ After this step, the plan is populated with things the executor can use directly
 
 ### `loadSecrets`
 
-This only runs in remote mode.
+This only runs for targets that require remote credentials.
 
 It:
 

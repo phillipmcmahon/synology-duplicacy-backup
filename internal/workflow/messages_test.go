@@ -55,13 +55,13 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "config owner validation",
-			err:  apperrors.NewConfigError("local-owner", errors.New("local_owner is mandatory: set it in your TOML config under [local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
-			want: "local_owner is mandatory: set it in your TOML config under [local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")",
+			err:  apperrors.NewConfigError("local-owner", errors.New("target.local_owner is mandatory: set it under [target] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
+			want: "target.local_owner is mandatory: set it under [target] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")",
 		},
 		{
 			name: "config missing remote table includes remote hint",
 			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [remote] table for current mode"), "section", "remote"),
-			want: "config file /tmp/homes-backup.toml is missing required [remote] table for current mode; add a [remote] table for --remote runs or drop --remote",
+			want: "config file /tmp/homes-backup.toml is missing required [remote] table for current mode; create a dedicated <label>-remote-backup.toml file or choose a different --target",
 		},
 		{
 			name: "secrets validate",
@@ -71,12 +71,12 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "secrets permissions",
 			err:  apperrors.NewSecretsError("permissions", errors.New("secrets file permissions are 0644, expected 0600: /tmp/test.toml")),
-			want: "secrets file permissions are 0644, expected 0600: /tmp/test.toml; run chmod 600 on the remote secrets file",
+			want: "secrets file permissions are 0644, expected 0600: /tmp/test.toml; run chmod 600 on the target secrets file",
 		},
 		{
 			name: "secrets stat includes creation hint",
-			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/duplicacy-homes.toml"),
-			want: "Remote secrets file not found: /root/.secrets/duplicacy-homes.toml; create duplicacy-<label>.toml under /root/.secrets or override the directory with --secrets-dir",
+			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/duplicacy-homes-remote.toml"),
+			want: "Remote secrets file not found: /root/.secrets/duplicacy-homes-remote.toml; create duplicacy-<label>-<target>.toml under /root/.secrets or override the directory with --secrets-dir",
 		},
 		{
 			name: "permissions chown includes target hint",
@@ -178,12 +178,12 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "config missing local section",
 			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [local] table for current mode"), "section", "local"),
-			want: "config file /tmp/homes-backup.toml is missing required [local] table for current mode; add a [local] table for local runs",
+			want: "config file /tmp/homes-backup.toml is missing required [local] table for current mode; create a dedicated <label>-local-backup.toml file",
 		},
 		{
 			name: "secrets ownership",
 			err:  apperrors.NewSecretsError("ownership", errors.New("secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml")),
-			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; run chown root:root on the remote secrets file",
+			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; run chown root:root on the target secrets file",
 		},
 		{
 			name: "secrets parse",

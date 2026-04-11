@@ -17,7 +17,7 @@ func (e *Executor) cleanup() {
 	}
 	e.cleanupSnapshot()
 	e.cleanupWorkRoot()
-	e.releaseLock()
+	e.releaseTargetLock()
 
 	if e.report != nil {
 		e.report.CompleteRun(e.exitCode, e.report.FailureMessage, e.rt.Now())
@@ -53,6 +53,16 @@ func (e *Executor) cleanupSnapshot() {
 	if !e.plan.NeedsSnapshot {
 		return
 	}
+
+	releaseSource := func() {}
+	if e.sourceLock != nil {
+		if err := e.sourceLock.Acquire(); err != nil {
+			e.log.Warn("%s", statusLinef("Failed to acquire source lock for snapshot cleanup: %v", err))
+		} else {
+			releaseSource = e.sourceLock.Release
+		}
+	}
+	defer releaseSource()
 
 	if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
 		if e.plan.Verbose {
@@ -112,8 +122,8 @@ func (e *Executor) cleanupWorkRoot() {
 	}
 }
 
-func (e *Executor) releaseLock() {
-	if e.lockAcquired {
-		e.lock.Release()
+func (e *Executor) releaseTargetLock() {
+	if e.targetLockAcquired && e.targetLock != nil {
+		e.targetLock.Release()
 	}
 }

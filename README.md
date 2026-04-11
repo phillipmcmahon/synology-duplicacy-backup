@@ -4,7 +4,7 @@
 
 A compiled Go replacement for `duplicacy-backup.sh`.
 
-It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for local and remote S3-compatible targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
+It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for named per-label targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
@@ -16,7 +16,7 @@ The project builds as a single static binary for Synology-targeted Linux archite
 - Optional local permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
-- TOML-based per-source configuration
+- TOML-based per-label-target configuration
 - Read-only health, doctor, and verify checks for automation
 
 ## Quick Start
@@ -55,22 +55,23 @@ layout and upgrade workflow.
 With the recommended installer layout, the default config location is:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<source>-backup.toml
+/usr/local/lib/duplicacy-backup/.config/<label>-<target>-backup.toml
 ```
 
 Example:
 
 ```bash
 mkdir -p /usr/local/lib/duplicacy-backup/.config
-cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+cp examples/homes-local-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-local-backup.toml
+cp examples/homes-remote-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-remote-backup.toml
 ```
 
-For remote mode, create a matching secrets file under `/root/.secrets`:
+For remote targets, create a matching secrets file under `/root/.secrets`:
 
 ```bash
-cp examples/duplicacy-homes.toml /root/.secrets/duplicacy-homes.toml
-chown root:root /root/.secrets/duplicacy-homes.toml
-chmod 600 /root/.secrets/duplicacy-homes.toml
+cp examples/duplicacy-homes-remote.toml /root/.secrets/duplicacy-homes-remote.toml
+chown root:root /root/.secrets/duplicacy-homes-remote.toml
+chmod 600 /root/.secrets/duplicacy-homes-remote.toml
 ```
 
 The current remote TOML schema uses `storj_s3_id` and `storj_s3_secret`
@@ -92,8 +93,8 @@ sudo duplicacy-backup --prune --force-prune homes
 # Storage cleanup only
 sudo duplicacy-backup --cleanup-storage homes
 
-# Remote backup
-sudo duplicacy-backup --remote homes
+# Named target backup
+sudo duplicacy-backup --target remote homes
 
 # Preview only
 sudo duplicacy-backup --dry-run homes
@@ -132,8 +133,8 @@ duplicacy-backup --config-dir /opt/etc homes
 # Validate resolved installed config and secrets
 sudo duplicacy-backup config validate homes
 
-# Explain resolved installed remote config values
-sudo duplicacy-backup config explain --remote homes
+# Explain resolved installed remote target config values
+sudo duplicacy-backup config explain --target remote homes
 
 # Show resolved stable config, secrets, source, and log paths
 duplicacy-backup config paths homes
@@ -152,8 +153,8 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the resolved TOML and any configured remote secrets
-- `config explain` shows the resolved values for local mode by default, or remote mode with `--remote`
+- `config validate` checks one label-target pair and any configured target secrets
+- `config explain` shows the resolved values for the selected target, defaulting to `local`
 - `config paths` shows the resolved stable config, secrets, source, and log paths
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
@@ -167,7 +168,7 @@ The `health` command family adds read-only confidence checks:
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
 - `health verify` goes further by validating the revisions found for the current backup with `duplicacy check -persist`
 
-Health commands combine local state stored under `/var/lib/duplicacy-backup/<label>.json`
+Health commands combine target-specific state stored under `/var/lib/duplicacy-backup/<label>.<target>.json`
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation
 times, those storage timestamps are used as the authoritative freshness signal.
 `health verify` also records how many revisions were checked, how many
@@ -184,7 +185,7 @@ Health policy is configured per backup TOML in an optional `[health]` table:
 - `doctor_warn_after_hours`
 - `verify_warn_after_hours`
 
-Optional webhook notifications can be configured in `[health.notify]`, with an
+Optional webhook notifications can be configured in `[notify]`, with an
 optional `health_webhook_bearer_token` stored in the secrets TOML. Webhooks are
 intended for non-interactive health runs; interactive TTY runs do not notify by
 default.

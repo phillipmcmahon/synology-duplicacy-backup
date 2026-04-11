@@ -2,58 +2,34 @@ package workflow
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
-
-func writeWorkflowConfig(t *testing.T, dir, body string) string {
-	t.Helper()
-	path := filepath.Join(dir, "homes-backup.toml")
-	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-	return path
-}
-
-func writeWorkflowSecrets(t *testing.T, dir string) string {
-	t.Helper()
-	path := filepath.Join(dir, "duplicacy-homes.toml")
-	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-	if os.Getuid() == 0 {
-		if err := os.Chown(path, 0, 0); err != nil {
-			t.Fatalf("Chown() error = %v", err)
-		}
-	}
-	return path
-}
 
 func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("remote secrets validation requires root-owned test file")
 	}
 
-	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	writeWorkflowConfig(t, configDir, "[common]\ndestination = \"s3://bucket\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n[remote]\n")
-	writeWorkflowSecrets(t, secretsDir)
+	writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "homes", "remote")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "remote", RemoteMode: true}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
 
 	required := []string{
-		"Config validation succeeded for homes",
-		"Local Config",
+		"Config validation succeeded for homes/remote",
+		"Target",
+		"remote",
+		"Config File",
+		"homes-remote-backup.toml",
 		"Valid",
-		"Remote Config",
-		"Remote Secrets",
+		"Secrets",
 	}
 	for _, token := range required {
 		if !strings.Contains(out, token) {
@@ -65,14 +41,31 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 func TestHandleConfigCommand_ValidateLocalOnlyConfig(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeWorkflowConfig(t, configDir, "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+	writeTargetTestConfig(t, configDir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	if !strings.Contains(out, "Remote Config") || !strings.Contains(out, "Not configured") {
+	if !strings.Contains(out, "Config validation succeeded for homes/local") ||
+		!strings.Contains(out, "Target") ||
+		!strings.Contains(out, "homes-local-backup.toml") ||
+		strings.Contains(out, "Not configured") {
+		t.Fatalf("output = %q", out)
+	}
+}
+
+func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "local", buildTargetConfig("homes", "local", "local", "/volume1/homes", "/backups", "homes", "", "", 0, ""))
+
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	if err != nil {
+		t.Fatalf("HandleConfigCommand() error = %v", err)
+	}
+	if !strings.Contains(out, "Config validation succeeded for homes/local") {
 		t.Fatalf("output = %q", out)
 	}
 }
@@ -82,18 +75,17 @@ func TestHandleConfigCommand_ValidateRemoteMode(t *testing.T) {
 		t.Skip("remote secrets validation requires root-owned test file")
 	}
 
-	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	writeWorkflowConfig(t, configDir, "[common]\ndestination = \"s3://bucket\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n[remote]\n")
-	writeWorkflowSecrets(t, secretsDir)
+	writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "homes", "remote")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RemoteMode: true}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "remote", RemoteMode: true}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config validation succeeded for homes", "Remote Config", "Remote Secrets"} {
+	for _, token := range []string{"Config validation succeeded for homes/remote", "Target", "remote", "Secrets"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
@@ -103,7 +95,7 @@ func TestHandleConfigCommand_ValidateRemoteMode(t *testing.T) {
 func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeWorkflowConfig(t, configDir, "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+	writeTargetTestConfig(t, configDir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := testRuntime()
@@ -113,7 +105,7 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(explain) error = %v", err)
 	}
-	for _, token := range []string{"Config explanation for homes", "Local Owner", owner, "Local Group", group, "Destination", "/backups/homes"} {
+	for _, token := range []string{"Config explanation for homes/local", "Target", "local", "Local Owner", owner, "Local Group", group, "Destination", "/backups/homes"} {
 		if !strings.Contains(explainOut, token) {
 			t.Fatalf("explain output missing %q:\n%s", token, explainOut)
 		}
@@ -141,15 +133,15 @@ func TestHandleConfigCommand_ExplainRemoteMasksSecrets(t *testing.T) {
 
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	writeWorkflowConfig(t, configDir, "[common]\ndestination = \"s3://bucket\"\nprune = \"-keep 0:365\"\nthreads = 4\n[remote]\n")
-	writeWorkflowSecrets(t, secretsDir)
+	writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "homes", "remote")
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RemoteMode: true}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "remote", RemoteMode: true}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config explanation for homes", "Secrets File", "Remote Access Key", "****YZ01", "Remote Secret Key"} {
+	for _, token := range []string{"Config explanation for homes/remote", "Secrets File", "duplicacy-homes-remote.toml", "Remote Access Key", "****YZ01", "Remote Secret Key"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}

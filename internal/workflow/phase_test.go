@@ -24,6 +24,7 @@ func newPhaseExecutor(t *testing.T, plan *Plan, runner *execpkg.MockRunner) (*Ex
 	rt := testRuntime()
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(t.TempDir(), label) }
+	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(t.TempDir(), label) }
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, runner, plan)
 	executor.dup = duplicacy.NewSetup(plan.WorkRoot, plan.RepositoryPath, plan.BackupTarget, plan.DryRun, runner)
 	return executor, logDir

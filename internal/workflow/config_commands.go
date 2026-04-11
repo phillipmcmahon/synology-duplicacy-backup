@@ -3,8 +3,6 @@ package workflow
 import (
 	"fmt"
 	"strings"
-
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 )
 
 func HandleConfigCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
@@ -23,59 +21,49 @@ func HandleConfigCommand(req *Request, meta Metadata, rt Runtime) (string, error
 }
 
 func handleConfigValidate(req *Request, planner *Planner) (string, error) {
+	target := req.Target()
+	planReq := configValidationRequest(req, target)
+	plan := planner.derivePlan(planReq)
 	lines := []SummaryLine{
-		{Label: "Config File", Value: planner.derivePlan(req).ConfigFile},
+		{Label: "Target", Value: target},
+		{Label: "Config File", Value: plan.ConfigFile},
 	}
 
-	localPlan := planner.derivePlan(configValidationRequest(req, false))
-	if _, err := planner.loadConfig(localPlan); err != nil {
+	if _, err := planner.loadConfig(plan); err != nil {
 		return "", err
 	}
-	lines = append(lines, SummaryLine{Label: "Local Config", Value: "Valid"})
+	lines[1].Value = plan.ConfigFile
+	lines = append(lines, SummaryLine{Label: "Config", Value: "Valid"})
 
-	if req.RemoteMode {
-		if err := validateRemoteConfig(planner, req); err != nil {
+	if plan.TargetType == targetRemote {
+		if _, err := planner.loadSecrets(plan); err != nil {
 			return "", err
 		}
-		lines = append(lines,
-			SummaryLine{Label: "Remote Config", Value: "Valid"},
-			SummaryLine{Label: "Remote Secrets", Value: "Valid"},
-		)
-	} else {
-		raw, err := config.ParseFile(localPlan.ConfigFile)
-		if err != nil {
-			return "", err
-		}
-		if raw.Remote != nil {
-			if err := validateRemoteConfig(planner, req); err != nil {
-				return "", err
-			}
-			lines = append(lines,
-				SummaryLine{Label: "Remote Config", Value: "Valid"},
-				SummaryLine{Label: "Remote Secrets", Value: "Valid"},
-			)
-		} else {
-			lines = append(lines, SummaryLine{Label: "Remote Config", Value: "Not configured"})
-		}
+		lines = append(lines, SummaryLine{Label: "Secrets", Value: "Valid"})
 	}
 
-	return formatConfigOutput(fmt.Sprintf("Config validation succeeded for %s", req.Source), lines), nil
+	return formatConfigOutput(fmt.Sprintf("Config validation succeeded for %s/%s", req.Source, target), lines), nil
 }
 
 func handleConfigExplain(req *Request, planner *Planner) (string, error) {
-	planReq := configValidationRequest(req, req.RemoteMode)
+	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err
 	}
-	plan.BackupTarget = JoinDestination(cfg.Destination, plan.BackupLabel)
+	plan.Target = cfg.Target
+	plan.TargetType = cfg.TargetType
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+	plan.SnapshotSource = cfg.SourcePath
+	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
 	plan.Threads = cfg.Threads
 	plan.PruneOptions = cfg.Prune
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
 
 	lines := []SummaryLine{
+		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Mode", Value: plan.ModeDisplay},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source", Value: plan.SnapshotSource},
@@ -89,7 +77,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
 	}
 
-	if req.RemoteMode {
+	if plan.TargetType == targetRemote {
 		sec, err := planner.loadSecrets(plan)
 		if err != nil {
 			return "", err
@@ -101,17 +89,22 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		)
 	} else {
 		lines = append(lines,
+			SummaryLine{Label: "Allow Local Accounts", Value: fmt.Sprintf("%t", cfg.AllowLocalAccounts)},
 			SummaryLine{Label: "Local Owner", Value: cfg.LocalOwner},
 			SummaryLine{Label: "Local Group", Value: cfg.LocalGroup},
 		)
 	}
 
-	return formatConfigOutput(fmt.Sprintf("Config explanation for %s", req.Source), lines), nil
+	return formatConfigOutput(fmt.Sprintf("Config explanation for %s/%s", req.Source, plan.TargetName()), lines), nil
 }
 
 func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req)
+	if _, err := planner.loadConfig(plan); err == nil {
+		// Use the resolved config path when the file exists.
+	}
 	lines := []SummaryLine{
+		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Mode", Value: plan.ModeDisplay},
 		{Label: "Config Dir", Value: plan.ConfigDir},
 		{Label: "Config File", Value: plan.ConfigFile},
@@ -124,25 +117,17 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 	return formatConfigOutput(fmt.Sprintf("Resolved paths for %s", req.Source), lines)
 }
 
-func validateRemoteConfig(planner *Planner, req *Request) error {
-	remotePlan := planner.derivePlan(configValidationRequest(req, true))
-	if _, err := planner.loadConfig(remotePlan); err != nil {
-		return err
-	}
-	_, err := planner.loadSecrets(remotePlan)
-	return err
-}
-
-func configValidationRequest(req *Request, remote bool) *Request {
+func configValidationRequest(req *Request, target string) *Request {
 	return &Request{
-		Source:         req.Source,
-		ConfigDir:      req.ConfigDir,
-		SecretsDir:     req.SecretsDir,
-		RemoteMode:     remote,
-		DoBackup:       true,
-		DoPrune:        true,
-		DoCleanupStore: false,
-		FixPerms:       !remote,
+		Source:          req.Source,
+		ConfigDir:       req.ConfigDir,
+		SecretsDir:      req.SecretsDir,
+		RequestedTarget: target,
+		RemoteMode:      target == targetRemote,
+		DoBackup:        false,
+		DoPrune:         false,
+		DoCleanupStore:  false,
+		FixPerms:        false,
 	}
 }
 

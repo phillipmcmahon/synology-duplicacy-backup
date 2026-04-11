@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -126,10 +128,128 @@ func newHealthRuntime(now time.Time, tempDir string) Runtime {
 
 func writeHealthConfig(t *testing.T, dir, label string, body string) {
 	t.Helper()
-	path := filepath.Join(dir, label+"-backup.toml")
-	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+	path := filepath.Join(dir, label+"-local-backup.toml")
+	sourcePath := filepath.Join(dir, label+"-source")
+	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	configBody := body
+	if !strings.Contains(configBody, "[target]") {
+		configBody = convertLegacyHealthConfigBody(label, sourcePath, body)
+	}
+	if err := os.WriteFile(path, []byte(configBody), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
+}
+
+func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
+	sections := map[string][]string{}
+	current := ""
+	for _, rawLine := range strings.Split(body, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			current = strings.Trim(line, "[]")
+			continue
+		}
+		sections[current] = append(sections[current], line)
+	}
+
+	classify := func(lines []string, storage, capture, retention *[]string) {
+		for _, line := range lines {
+			key := line
+			if i := strings.Index(key, "="); i >= 0 {
+				key = strings.TrimSpace(key[:i])
+			}
+			switch key {
+			case "destination", "repository":
+				*storage = append(*storage, line)
+			case "threads", "filter":
+				*capture = append(*capture, line)
+			case "prune", "keep", "log_retention_days", "safe_prune_max_delete_percent", "safe_prune_max_delete_count", "safe_prune_min_total_for_percent":
+				*retention = append(*retention, line)
+			}
+		}
+	}
+
+	var storageLines, captureLines, retentionLines []string
+	classify(sections["common"], &storageLines, &captureLines, &retentionLines)
+	classify(sections["local"], &storageLines, &captureLines, &retentionLines)
+
+	ownerLine := ""
+	groupLine := ""
+	for _, line := range sections["local"] {
+		switch {
+		case strings.HasPrefix(line, "local_owner"):
+			ownerLine = line
+		case strings.HasPrefix(line, "local_group"):
+			groupLine = line
+		}
+	}
+	if !containsConfigKey(storageLines, "repository") {
+		storageLines = append(storageLines, fmt.Sprintf("repository = %s", strconv.Quote(label)))
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "label = %s\n", strconv.Quote(label))
+	fmt.Fprintf(&b, "source_path = %s\n\n", strconv.Quote(sourcePath))
+	b.WriteString("[target]\n")
+	b.WriteString("name = \"local\"\n")
+	b.WriteString("type = \"local\"\n")
+	if ownerLine != "" || groupLine != "" {
+		b.WriteString("allow_local_accounts = true\n")
+		if ownerLine != "" {
+			b.WriteString(ownerLine + "\n")
+		}
+		if groupLine != "" {
+			b.WriteString(groupLine + "\n")
+		}
+	} else {
+		b.WriteString("allow_local_accounts = false\n")
+	}
+
+	if len(storageLines) > 0 {
+		b.WriteString("\n[storage]\n")
+		for _, line := range storageLines {
+			b.WriteString(line + "\n")
+		}
+	}
+	if len(captureLines) > 0 {
+		b.WriteString("\n[capture]\n")
+		for _, line := range captureLines {
+			b.WriteString(line + "\n")
+		}
+	}
+	if len(retentionLines) > 0 {
+		b.WriteString("\n[retention]\n")
+		for _, line := range retentionLines {
+			b.WriteString(line + "\n")
+		}
+	}
+	if lines := sections["health"]; len(lines) > 0 {
+		b.WriteString("\n[health]\n")
+		for _, line := range lines {
+			b.WriteString(line + "\n")
+		}
+	}
+	if lines := sections["health.notify"]; len(lines) > 0 {
+		b.WriteString("\n[health.notify]\n")
+		for _, line := range lines {
+			b.WriteString(line + "\n")
+		}
+	}
+	return b.String()
+}
+
+func containsConfigKey(lines []string, key string) bool {
+	for _, line := range lines {
+		if strings.HasPrefix(line, key+" ") || strings.HasPrefix(line, key+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestHealthRunner_StatusHealthy(t *testing.T) {
@@ -173,8 +293,44 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 	if report.RevisionCount != 1 {
 		t.Fatalf("report = %+v", report)
 	}
-	if report.LatestRevisionAt == "" || report.LocalLastSuccessAt == "" {
+	if report.LatestRevisionAt == "" || report.LastSuccessAt == "" {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testing.T) {
+	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "local", buildTargetConfig("homes", "local", "local", "/volume1/homes", "/backups", "homes", "", "", 0, ""))
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", state, "local"); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	runner := execpkg.NewMockRunner(execpkg.MockResult{
+		Stdout: "Snapshot homes revision 8 created at 2026-04-10 16:30\n",
+	})
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand: "status",
+		Source:        "homes",
+		ConfigDir:     configDir,
+	})
+	if code != 0 || report.Status != "healthy" {
+		t.Fatalf("code = %d, report = %+v", code, report)
 	}
 }
 

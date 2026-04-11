@@ -8,6 +8,7 @@ import (
 
 type RunReport struct {
 	Label          string        `json:"label,omitempty"`
+	Target         string        `json:"target,omitempty"`
 	Operation      string        `json:"operation,omitempty"`
 	Mode           string        `json:"mode,omitempty"`
 	Result         string        `json:"result"`
@@ -40,6 +41,7 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 	}
 
 	report.Label = plan.BackupLabel
+	report.Target = plan.TargetName()
 	report.Operation = plan.OperationMode
 	report.Mode = plan.ModeDisplay
 	report.DryRun = plan.DryRun
@@ -69,12 +71,9 @@ func NewFailureRunReport(req *Request, startedAt time.Time, completedAt time.Tim
 	}
 	if req != nil {
 		report.Label = req.Source
+		report.Target = req.Target()
 		report.Operation = OperationMode(req)
-		if req.RemoteMode {
-			report.Mode = "Remote"
-		} else {
-			report.Mode = "Local"
-		}
+		report.Mode = modeDisplay(req.Target(), "")
 	}
 	return report
 }

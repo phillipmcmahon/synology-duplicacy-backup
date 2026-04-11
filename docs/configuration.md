@@ -5,14 +5,15 @@
 By default the binary resolves config files relative to the executable:
 
 ```text
-<binary-dir>/.config/<source>-backup.toml
+<binary-dir>/.config/<label>-<target>-backup.toml
 ```
 
 With the recommended installer layout from [`operations.md`](operations.md),
 the effective default becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+/usr/local/lib/duplicacy-backup/.config/homes-local-backup.toml
+/usr/local/lib/duplicacy-backup/.config/homes-remote-backup.toml
 ```
 
 If you are using the stable installer path:
@@ -37,31 +38,35 @@ Overrides:
 
 ## Config File Format
 
-Config files use TOML tables:
+Each config file defines one label-target pair. The target model is explicit:
 
-- `[common]`
-- `[local]`
-- `[remote]`
+- top-level `label`
+- top-level `source_path`
+- `[target]`
+- `[storage]`
+- `[capture]`
+- `[retention]`
 - optional `[health]`
-- optional `[health.notify]`
-
-The active runtime loads `[common]` plus either `[local]` or `[remote]`.
-Values in the active target table override values from `[common]`.
+- optional `[notify]`
 
 ## Config Keys
 
 | Key | Required | Description |
 |---|---|---|
-| `destination` | Yes | Backup destination path or S3-compatible gateway URL |
-| `threads` | Yes for backup | Duplicacy threads; power of 2, max 16 |
-| `prune` | Yes for prune | Duplicacy prune retention arguments |
-| `filter` | No | Duplicacy filter patterns |
-| `local_owner` | Yes when `--fix-perms` is used locally | Non-root local owner |
-| `local_group` | Yes when `--fix-perms` is used locally | Local group |
-| `log_retention_days` | No | Log retention days; default `30` |
-| `safe_prune_max_delete_percent` | No | Default `10` |
-| `safe_prune_max_delete_count` | No | Default `25` |
-| `safe_prune_min_total_for_percent` | No | Default `20` |
+| `label` | Yes | Source label used on the CLI |
+| `source_path` | Yes | Real source directory for this label |
+| `target.name` | Yes | Target name such as `local` or `remote` |
+| `target.type` | Yes | `local` or `remote` |
+| `target.allow_local_accounts` | Needed for local owner/group operations | Explicitly allows local owner/group management |
+| `storage.destination` | Yes | Backup destination path or S3-compatible gateway URL |
+| `storage.repository` | No | Repository name; defaults to `label` |
+| `capture.threads` | Yes for backup | Duplicacy threads; power of 2, max 16 |
+| `capture.filter` | No | Duplicacy filter patterns |
+| `retention.prune` or `retention.keep` | Yes for prune | Duplicacy retention policy |
+| `retention.log_retention_days` | No | Log retention days; default `30` |
+| `retention.safe_prune_max_delete_percent` | No | Default `10` |
+| `retention.safe_prune_max_delete_count` | No | Default `25` |
+| `retention.safe_prune_min_total_for_percent` | No | Default `20` |
 
 ## Health Policy
 
@@ -74,7 +79,7 @@ The optional `[health]` table controls read-only health checks:
 | `doctor_warn_after_hours` | No | Warn when `health doctor` has not been run recently |
 | `verify_warn_after_hours` | No | Warn when `health verify` has not been run recently |
 
-The optional `[health.notify]` table controls webhook notifications for
+The optional `[notify]` table controls webhook notifications for
 non-interactive health runs:
 
 | Key | Required | Description |
@@ -87,23 +92,30 @@ non-interactive health runs:
 ## Example Config
 
 ```toml
-[common]
-prune = "-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28"
+label = "homes"
+source_path = "/volume1/homes"
+
+[target]
+name = "local"
+type = "local"
+allow_local_accounts = true
+local_owner = "myuser"
+local_group = "users"
+
+[storage]
+destination = "/volume2/backups"
+repository = "homes"
+
+[capture]
+threads = 4
 filter = "e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\\.DS_Store|\\._.*|Thumbs\\.db)$"
+
+[retention]
+keep = ["1:728", "91:364", "28:182", "7:28"]
 log_retention_days = 30
 safe_prune_max_delete_percent = 10
 safe_prune_max_delete_count = 25
 safe_prune_min_total_for_percent = 20
-
-[local]
-destination = "/volume2/backups"
-threads = 4
-local_owner = "myuser"
-local_group = "users"
-
-[remote]
-destination = "s3://gateway.storjshare.io/my-backup-bucket"
-threads = 8
 
 [health]
 freshness_warn_hours = 30
@@ -111,7 +123,7 @@ freshness_fail_hours = 48
 doctor_warn_after_hours = 48
 verify_warn_after_hours = 168
 
-[health.notify]
+[notify]
 webhook_url = "https://example.invalid/hooks/duplicacy-backup"
 notify_on = ["degraded", "unhealthy"]
 send_for = ["doctor", "verify"]
@@ -123,7 +135,7 @@ interactive = false
 Remote mode loads gateway credentials from:
 
 ```text
-/root/.secrets/duplicacy-<label>.toml
+/root/.secrets/duplicacy-<label>-<target>.toml
 ```
 
 Overrides:
@@ -162,10 +174,10 @@ Use `--force-prune` to override threshold enforcement.
 
 ## Health State
 
-Successful runs update a local state file under:
+Successful runs update a target-specific state file under:
 
 ```text
-/var/lib/duplicacy-backup/<label>.json
+/var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
 `health status`, `health doctor`, and `health verify` combine this local state
@@ -180,19 +192,14 @@ freshness signal.
 | `duplicacy` binary check | backup or prune |
 | `btrfs` binary check | backup |
 | `local_owner` / `local_group` validation | local `--fix-perms` |
-| remote secrets loading | `--remote` |
+| target secrets loading | remote targets and any target that requires secrets |
 
-## Breaking Migration Note
+## Current File Naming
 
-This release removes support for legacy INI config and `.env` secrets files.
-
-You must convert and rename both files before upgrading:
+The preferred operational layout is one file per label-target pair:
 
 ```text
-homes-backup.conf        -> homes-backup.toml
-duplicacy-homes.env      -> duplicacy-homes.toml
-DESTINATION              -> destination
-THREADS                  -> threads
-LOCAL_OWNER              -> local_owner
-STORJ_S3_ID              -> storj_s3_id
+homes-local-backup.toml
+homes-remote-backup.toml
+duplicacy-homes-remote.toml
 ```

@@ -1,5 +1,5 @@
-# Example TOML secrets file for remote backup mode.
-# Place in /root/.secrets/duplicacy-<label>.toml
+# Example secrets file for homes/remote.
+# Place in /root/.secrets/duplicacy-homes-remote.toml
 #
 # IMPORTANT:
 #   - File must be owned by root:root
@@ -8,8 +8,8 @@
 #     health_webhook_bearer_token are allowed
 #
 # To set correct permissions:
-#   chown root:root /root/.secrets/duplicacy-homes.toml
-#   chmod 600 /root/.secrets/duplicacy-homes.toml
+#   chown root:root /root/.secrets/duplicacy-homes-remote.toml
+#   chmod 600 /root/.secrets/duplicacy-homes-remote.toml
 
 storj_s3_id = "your-storj-s3-access-key-id-here"
 storj_s3_secret = "your-storj-s3-secret-access-key-here"
