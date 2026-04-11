@@ -155,6 +155,7 @@ sudo duplicacy-backup health verify --remote homes
 - `health verify` uses `duplicacy check -persist` in the current repository context to validate the revisions found for the current label
 - health JSON stays machine-focused and omits the rendered check list shown in stderr output
 - healthy `health verify` JSON includes summary fields such as `revision_count`, `latest_revision`, `latest_revision_at`, `checked_revision_count`, `passed_revision_count`, `failed_revision_count`, `failed_revisions`, `last_doctor_run_at`, and `last_verify_run_at`
+- unhealthy `health verify` JSON also emits `failure_code`, `failure_codes`, and `recommended_action_codes` so automation can classify the failure without parsing human text
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
 - optional per-backup health policy lives in `[health]`
 - optional webhook notification settings live in `[health.notify]`

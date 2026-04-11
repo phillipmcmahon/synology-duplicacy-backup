@@ -26,7 +26,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "prune validate repo",
 			err:  apperrors.NewPruneError("validate-repo", errors.New("boom")),
-			want: "Cannot run prune because the Duplicacy repository is not ready; run a backup first or verify the storage path and repository state",
+			want: "Repository is not ready",
 		},
 		{
 			name: "prune revision count fallback cause",
@@ -119,6 +119,16 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 			name: "backup set permissions",
 			err:  apperrors.NewBackupError("set-permissions", errors.New("boom"), "path", "/tmp/work"),
 			want: "Backup setup failed: could not set permissions in /tmp/work; check ownership and filesystem permissions on the work directory",
+		},
+		{
+			name: "prune revision list",
+			err:  apperrors.NewPruneError("revision-list", errors.New("boom")),
+			want: "Could not inspect storage revisions",
+		},
+		{
+			name: "prune revision check",
+			err:  apperrors.NewPruneError("revision-check", errors.New("boom")),
+			want: "Integrity check did not complete",
 		},
 		{
 			name: "prune safe preview",

@@ -158,6 +158,12 @@ Healthy verify runs keep the JSON compact and omit per-revision detail. When
 integrity issues are found, `revision_results` is included so the failing
 revisions can be diagnosed.
 
+Unhealthy verify runs also emit machine-focused classification fields:
+
+- `failure_code`
+- `failure_codes`
+- `recommended_action_codes`
+
 `--remote` uses the remote TOML table plus the matching remote secrets file.
 The current remote secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional

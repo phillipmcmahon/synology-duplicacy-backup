@@ -110,25 +110,16 @@ func operatorBackupMessage(err *apperrors.BackupError) string {
 func operatorPruneMessage(err *apperrors.PruneError) string {
 	switch err.Phase {
 	case "validate-repo":
-		return withHint(
-			"Cannot run prune because the Duplicacy repository is not ready",
-			"run a backup first or verify the storage path and repository state",
-		)
+		return "Repository is not ready"
 	case "revision-latest":
 		return withHint(
 			"Could not inspect the latest storage revision",
 			"verify storage access and repository state",
 		)
 	case "revision-list":
-		return withHint(
-			"Could not inspect visible storage revisions",
-			"verify storage access and repository state",
-		)
+		return "Could not inspect storage revisions"
 	case "revision-check":
-		return withHint(
-			"Could not complete the storage integrity check",
-			"verify storage access and repository state",
-		)
+		return "Integrity check did not complete"
 	case "safe-preview":
 		return withHint(
 			"Safe prune preview failed",

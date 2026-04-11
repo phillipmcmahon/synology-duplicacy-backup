@@ -55,6 +55,9 @@ type HealthReport struct {
 	PassedRevisionCount  int                    `json:"passed_revision_count,omitempty"`
 	FailedRevisionCount  int                    `json:"failed_revision_count,omitempty"`
 	FailedRevisions      []int                  `json:"failed_revisions,omitempty"`
+	FailureCode          string                 `json:"failure_code,omitempty"`
+	FailureCodes         []string               `json:"failure_codes,omitempty"`
+	RecommendedActions   []string               `json:"recommended_action_codes,omitempty"`
 	RevisionResults      []HealthRevisionResult `json:"revision_results,omitempty"`
 	Issues               []HealthIssue          `json:"issues,omitempty"`
 	Checks               []HealthCheck          `json:"checks,omitempty"`
@@ -71,6 +74,18 @@ type HealthRunner struct {
 }
 
 var loadOptionalHealthWebhookToken = secrets.LoadOptionalHealthWebhookToken
+
+const (
+	verifyFailureNoRevisionsFound  = "no_revisions_found"
+	verifyFailureIntegrityFailed   = "integrity_check_failed"
+	verifyFailureResultMissing     = "integrity_result_missing"
+	verifyFailureAccessFailed      = "verify_access_failed"
+	verifyFailureListingFailed     = "verify_listing_failed"
+	verifyActionRunBackup          = "run_backup"
+	verifyActionCheckStorageAccess = "check_storage_access"
+	verifyActionRecheckRepository  = "recheck_repository_state"
+	verifyActionRerunVerify        = "rerun_verify"
+)
 
 func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner) *HealthRunner {
 	return &HealthRunner{meta: meta, rt: rt, log: log, runner: runner}
@@ -271,6 +286,9 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	revisions, _, err := dup.ListVisibleRevisions()
 	stopInspecting()
 	if err != nil {
+		if req.HealthCommand == "verify" {
+			h.addVerifyFailureCode(report, verifyFailureListingFailed)
+		}
 		h.addCheck(report, "Latest revision", "fail", OperatorMessage(err))
 		return nil
 	}
@@ -343,6 +361,9 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 	stopValidating := h.startStatusActivity("Validating repository access")
 	if err := dup.ValidateRepo(); err != nil {
 		stopValidating()
+		if req.HealthCommand == "verify" {
+			h.addVerifyFailureCode(report, verifyFailureAccessFailed)
+		}
 		h.addCheck(report, "Repository access", "fail", OperatorMessage(err))
 	} else {
 		stopValidating()
@@ -353,10 +374,24 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 }
 
 func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
+	if h.hasVerifyFailureCode(report, verifyFailureListingFailed) {
+		report.RevisionCount = 0
+		report.CheckedRevisionCount = 0
+		report.PassedRevisionCount = 0
+		report.FailedRevisionCount = 0
+		h.addDisplayCheck(report, "Revisions checked", "fail", "0")
+		h.addDisplayCheck(report, "Revisions passed", "pass", "0")
+		h.addDisplayCheck(report, "Revisions failed", "pass", "0")
+		h.addCheck(report, "Integrity check", "fail", "Revision inspection failed")
+		h.populateHealthRecencyTimestamp(report, "verify")
+		return
+	}
+
 	if len(revisions) == 0 {
-		h.addCheck(report, "Revisions checked", "fail", "0")
-		h.addCheck(report, "Revisions passed", "pass", "0")
-		h.addCheck(report, "Revisions failed", "fail", "0")
+		h.addVerifyFailureCode(report, verifyFailureNoRevisionsFound)
+		h.addDisplayCheck(report, "Revisions checked", "fail", "0")
+		h.addDisplayCheck(report, "Revisions passed", "pass", "0")
+		h.addDisplayCheck(report, "Revisions failed", "pass", "0")
 		h.addCheck(report, "Integrity check", "fail", "No revisions were found for this backup")
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 		return
@@ -367,8 +402,15 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	results, _, err := dup.CheckVisibleRevisions()
 	stopVerifying()
 	if err != nil {
-		h.addCheck(report, "Integrity check", "fail", OperatorMessage(err))
-		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
+		h.addVerifyFailureCode(report, verifyFailureAccessFailed)
+		report.CheckedRevisionCount = 0
+		report.PassedRevisionCount = 0
+		report.FailedRevisionCount = 0
+		h.addDisplayCheck(report, "Revisions checked", "fail", "0")
+		h.addDisplayCheck(report, "Revisions passed", "pass", "0")
+		h.addDisplayCheck(report, "Revisions failed", "pass", "0")
+		h.addCheck(report, "Integrity check", "fail", "Integrity check did not complete")
+		h.populateHealthRecencyTimestamp(report, "verify")
 		return
 	}
 
@@ -387,6 +429,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		}
 		accounted[result.Revision] = true
 		if result.Result == "fail" {
+			h.addVerifyFailureCode(report, verifyFailureIntegrityFailed)
 			entry := HealthRevisionResult{
 				Revision: result.Revision,
 				Result:   result.Result,
@@ -413,6 +456,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		if accounted[revision.Revision] {
 			continue
 		}
+		h.addVerifyFailureCode(report, verifyFailureResultMissing)
 		missing = append(missing, revision.Revision)
 		entry := HealthRevisionResult{
 			Revision: revision.Revision,
@@ -434,8 +478,8 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	if len(missing) > 0 {
 		verifiedResult = "fail"
 	}
-	h.addCheck(report, "Revisions checked", verifiedResult, fmt.Sprintf("%d", report.CheckedRevisionCount))
-	h.addCheck(report, "Revisions passed", "pass", fmt.Sprintf("%d", report.PassedRevisionCount))
+	h.addDisplayCheck(report, "Revisions checked", verifiedResult, fmt.Sprintf("%d", report.CheckedRevisionCount))
+	h.addDisplayCheck(report, "Revisions passed", "pass", fmt.Sprintf("%d", report.PassedRevisionCount))
 	failedResult := "pass"
 	if report.FailedRevisionCount > 0 {
 		failedResult = "fail"
@@ -444,7 +488,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	if report.FailedRevisionCount > 0 {
 		failedSummary = fmt.Sprintf("%d (%s)", report.FailedRevisionCount, summariseRevisionIDs(report.FailedRevisions, 4))
 	}
-	h.addCheck(report, "Revisions failed", failedResult, failedSummary)
+	h.addDisplayCheck(report, "Revisions failed", failedResult, failedSummary)
 
 	if len(missing) > 0 {
 		h.addCheck(report, "Integrity check", "fail", integrityCheckFailureMessage(report.FailedRevisions, missing))
@@ -482,38 +526,19 @@ func (h *HealthRunner) evaluateFreshness(report *HealthReport, cfg config.Health
 }
 
 func (h *HealthRunner) evaluateHealthRecency(report *HealthReport, cfg config.HealthConfig, kind, name string) {
-	state, err := loadRunState(h.meta, report.Label)
-	if err != nil || state == nil {
+	_, at, ok := h.loadHealthRecencyTime(report, kind)
+	if !ok {
 		h.addCheck(report, name, "warn", "No prior health state is available")
 		return
 	}
-
-	var last string
 	var thresholdHours int
 	switch kind {
 	case "doctor":
-		last = state.LastDoctorAt
 		thresholdHours = cfg.DoctorWarnAfter
 	case "verify":
-		last = state.LastVerifyAt
 		thresholdHours = cfg.VerifyWarnAfter
 	default:
 		return
-	}
-	if last == "" {
-		h.addCheck(report, name, "warn", "This health check has not been recorded before")
-		return
-	}
-	at, parseErr := time.Parse(time.RFC3339, last)
-	if parseErr != nil {
-		h.addCheck(report, name, "warn", "Prior health check timestamp is invalid")
-		return
-	}
-	switch kind {
-	case "doctor":
-		report.LastDoctorRunAt = formatReportTime(at)
-	case "verify":
-		report.LastVerifyRunAt = formatReportTime(at)
 	}
 	age := h.rt.Now().Sub(at)
 	if thresholdHours > 0 && age > time.Duration(thresholdHours)*time.Hour {
@@ -521,6 +546,42 @@ func (h *HealthRunner) evaluateHealthRecency(report *HealthReport, cfg config.He
 		return
 	}
 	h.addCheck(report, name, "pass", humanAgo(age))
+}
+
+func (h *HealthRunner) populateHealthRecencyTimestamp(report *HealthReport, kind string) bool {
+	_, _, ok := h.loadHealthRecencyTime(report, kind)
+	return ok
+}
+
+func (h *HealthRunner) loadHealthRecencyTime(report *HealthReport, kind string) (*RunState, time.Time, bool) {
+	state, err := loadRunState(h.meta, report.Label)
+	if err != nil || state == nil {
+		return nil, time.Time{}, false
+	}
+
+	var last string
+	switch kind {
+	case "doctor":
+		last = state.LastDoctorAt
+	case "verify":
+		last = state.LastVerifyAt
+	default:
+		return state, time.Time{}, false
+	}
+	if last == "" {
+		return state, time.Time{}, false
+	}
+	at, parseErr := time.Parse(time.RFC3339, last)
+	if parseErr != nil {
+		return state, time.Time{}, false
+	}
+	switch kind {
+	case "doctor":
+		report.LastDoctorRunAt = formatReportTime(at)
+	case "verify":
+		report.LastVerifyRunAt = formatReportTime(at)
+	}
+	return state, at, true
 }
 
 func healthJSONReport(report *HealthReport) map[string]any {
@@ -541,7 +602,7 @@ func healthJSONReport(report *HealthReport) map[string]any {
 	if report.LastVerifyRunAt != "" {
 		payload["last_verify_run_at"] = report.LastVerifyRunAt
 	}
-	if report.RevisionCount > 0 {
+	if report.CheckType == "verify" || report.RevisionCount > 0 {
 		payload["revision_count"] = report.RevisionCount
 	}
 	if report.LatestRevision > 0 {
@@ -550,10 +611,10 @@ func healthJSONReport(report *HealthReport) map[string]any {
 	if report.LatestRevisionAt != "" {
 		payload["latest_revision_at"] = report.LatestRevisionAt
 	}
-	if report.CheckedRevisionCount > 0 {
+	if report.CheckType == "verify" || report.CheckedRevisionCount > 0 {
 		payload["checked_revision_count"] = report.CheckedRevisionCount
 	}
-	if report.PassedRevisionCount > 0 {
+	if report.CheckType == "verify" || report.PassedRevisionCount > 0 {
 		payload["passed_revision_count"] = report.PassedRevisionCount
 	}
 	if report.CheckType == "verify" {
@@ -563,6 +624,11 @@ func healthJSONReport(report *HealthReport) map[string]any {
 			failed = []int{}
 		}
 		payload["failed_revisions"] = failed
+		if len(report.FailureCodes) > 0 {
+			payload["failure_code"] = report.FailureCode
+			payload["failure_codes"] = report.FailureCodes
+			payload["recommended_action_codes"] = report.RecommendedActions
+		}
 	}
 	if len(report.RevisionResults) > 0 {
 		payload["revision_results"] = report.RevisionResults
@@ -571,6 +637,47 @@ func healthJSONReport(report *HealthReport) map[string]any {
 		payload["issues"] = report.Issues
 	}
 	return payload
+}
+
+func (h *HealthRunner) addVerifyFailureCode(report *HealthReport, code string) {
+	if report == nil || report.CheckType != "verify" || code == "" {
+		return
+	}
+	if report.FailureCode == "" {
+		report.FailureCode = code
+	}
+	if !containsString(report.FailureCodes, code) {
+		report.FailureCodes = append(report.FailureCodes, code)
+	}
+	for _, action := range verifyRecommendedActions(code) {
+		if !containsString(report.RecommendedActions, action) {
+			report.RecommendedActions = append(report.RecommendedActions, action)
+		}
+	}
+}
+
+func (h *HealthRunner) hasVerifyFailureCode(report *HealthReport, code string) bool {
+	if report == nil || code == "" {
+		return false
+	}
+	return containsString(report.FailureCodes, code)
+}
+
+func verifyRecommendedActions(code string) []string {
+	switch code {
+	case verifyFailureNoRevisionsFound:
+		return []string{verifyActionRunBackup}
+	case verifyFailureIntegrityFailed:
+		return []string{verifyActionCheckStorageAccess, verifyActionRecheckRepository, verifyActionRerunVerify}
+	case verifyFailureResultMissing:
+		return []string{verifyActionCheckStorageAccess, verifyActionRerunVerify}
+	case verifyFailureAccessFailed:
+		return []string{verifyActionCheckStorageAccess, verifyActionRecheckRepository}
+	case verifyFailureListingFailed:
+		return []string{verifyActionCheckStorageAccess, verifyActionRecheckRepository}
+	default:
+		return nil
+	}
 }
 
 func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, status string) bool {

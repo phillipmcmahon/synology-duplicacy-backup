@@ -377,6 +377,9 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 		Label:                "homes",
 		Mode:                 "Local",
 		CheckedAt:            "2026-04-10T22:25:20Z",
+		RevisionCount:        79,
+		LatestRevision:       2338,
+		LatestRevisionAt:     "2026-04-10T22:15:20Z",
 		LastVerifyRunAt:      "2026-04-10T22:25:20Z",
 		CheckedRevisionCount: 79,
 		PassedRevisionCount:  79,
@@ -400,6 +403,15 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 	if got, ok := payload["failed_revision_count"].(float64); !ok || got != 0 {
 		t.Fatalf("failed_revision_count = %#v, want 0", payload["failed_revision_count"])
 	}
+	if got, ok := payload["revision_count"].(float64); !ok || got != 79 {
+		t.Fatalf("revision_count = %#v, want 79", payload["revision_count"])
+	}
+	if got, ok := payload["checked_revision_count"].(float64); !ok || got != 79 {
+		t.Fatalf("checked_revision_count = %#v, want 79", payload["checked_revision_count"])
+	}
+	if got, ok := payload["passed_revision_count"].(float64); !ok || got != 79 {
+		t.Fatalf("passed_revision_count = %#v, want 79", payload["passed_revision_count"])
+	}
 	failed, ok := payload["failed_revisions"].([]any)
 	if !ok || len(failed) != 0 {
 		t.Fatalf("failed_revisions = %#v, want []", payload["failed_revisions"])
@@ -412,6 +424,9 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 	}
 	if strings.Contains(buf.String(), `\u003c1m ago`) || strings.Contains(buf.String(), `"Last verify run"`) {
 		t.Fatalf("cadence check should not appear in JSON: %s", buf.String())
+	}
+	if strings.Contains(buf.String(), `"message": "0"`) {
+		t.Fatalf("counter values should not appear as JSON issues: %s", buf.String())
 	}
 }
 
@@ -544,6 +559,52 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "No revisions were found for this backup") {
 		t.Fatalf("stderr = %q", stderr)
 	}
+
+	var buf bytes.Buffer
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: ""},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+	)
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand: "verify",
+		Source:        "homes",
+		ConfigDir:     configDir,
+	})
+	if code != 2 {
+		t.Fatalf("code = %d, report = %+v", code, report)
+	}
+	if err := WriteHealthReport(&buf, report); err != nil {
+		t.Fatalf("WriteHealthReport() error = %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if got := payload["failure_code"]; got != verifyFailureNoRevisionsFound {
+		t.Fatalf("failure_code = %#v, want %q", got, verifyFailureNoRevisionsFound)
+	}
+	if got, ok := payload["revision_count"].(float64); !ok || got != 0 {
+		t.Fatalf("revision_count = %#v, want 0", payload["revision_count"])
+	}
+	if got, ok := payload["checked_revision_count"].(float64); !ok || got != 0 {
+		t.Fatalf("checked_revision_count = %#v, want 0", payload["checked_revision_count"])
+	}
+	if got, ok := payload["passed_revision_count"].(float64); !ok || got != 0 {
+		t.Fatalf("passed_revision_count = %#v, want 0", payload["passed_revision_count"])
+	}
+	actions, ok := payload["recommended_action_codes"].([]any)
+	if !ok || len(actions) != 1 || actions[0].(string) != verifyActionRunBackup {
+		t.Fatalf("recommended_action_codes = %#v, want [%q]", payload["recommended_action_codes"], verifyActionRunBackup)
+	}
 }
 
 func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t *testing.T) {
@@ -611,6 +672,9 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	}
 	if !found {
 		t.Fatalf("report = %+v", report)
+	}
+	if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureResultMissing}) {
+		t.Fatalf("FailureCodes = %#v, want [%q]", report.FailureCodes, verifyFailureResultMissing)
 	}
 }
 
@@ -722,6 +786,17 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 	if got, ok := payload["failed_revision_count"].(float64); !ok || got != 1 {
 		t.Fatalf("failed_revision_count = %#v, want 1", payload["failed_revision_count"])
 	}
+	if got := payload["failure_code"]; got != verifyFailureIntegrityFailed {
+		t.Fatalf("failure_code = %#v, want %q", got, verifyFailureIntegrityFailed)
+	}
+	codes, ok := payload["failure_codes"].([]any)
+	if !ok || len(codes) != 2 || codes[0].(string) != verifyFailureIntegrityFailed || codes[1].(string) != verifyFailureResultMissing {
+		t.Fatalf("failure_codes = %#v, want [%q, %q]", payload["failure_codes"], verifyFailureIntegrityFailed, verifyFailureResultMissing)
+	}
+	actions, ok := payload["recommended_action_codes"].([]any)
+	if !ok || len(actions) != 3 {
+		t.Fatalf("recommended_action_codes = %#v", payload["recommended_action_codes"])
+	}
 	failed, ok := payload["failed_revisions"].([]any)
 	if !ok || len(failed) != 1 || failed[0].(float64) != 9 {
 		t.Fatalf("failed_revisions = %#v, want [9]", payload["failed_revisions"])
@@ -793,6 +868,209 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Revision 8") || !strings.Contains(stderr, "Revision 7") || !strings.Contains(stderr, "Missing chunks") {
 		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "fatal failure\n", Err: errors.New("check failed")},
+	)
+
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand: "verify",
+		Source:        "homes",
+		ConfigDir:     configDir,
+	})
+	if code != 2 || report.Status != "unhealthy" {
+		t.Fatalf("code = %d, report = %+v", code, report)
+	}
+	if report.CheckedRevisionCount != 0 || report.PassedRevisionCount != 0 || report.FailedRevisionCount != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+	if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureAccessFailed}) {
+		t.Fatalf("FailureCodes = %#v, want [%q]", report.FailureCodes, verifyFailureAccessFailed)
+	}
+	var buf bytes.Buffer
+	if err := WriteHealthReport(&buf, report); err != nil {
+		t.Fatalf("WriteHealthReport() error = %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if got := payload["failure_code"]; got != verifyFailureAccessFailed {
+		t.Fatalf("failure_code = %#v, want %q", got, verifyFailureAccessFailed)
+	}
+}
+
+func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(execpkg.MockResult{Err: errors.New("list failed")})
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+		if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureListingFailed}) {
+			t.Fatalf("FailureCodes = %#v, want [%q]", report.FailureCodes, verifyFailureListingFailed)
+		}
+		var buf bytes.Buffer
+		if err := WriteHealthReport(&buf, report); err != nil {
+			t.Fatalf("WriteHealthReport() error = %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
+			t.Fatalf("json.Unmarshal() error = %v", err)
+		}
+		if got := payload["failure_code"]; got != verifyFailureListingFailed {
+			t.Fatalf("failure_code = %#v, want %q", got, verifyFailureListingFailed)
+		}
+		if got, ok := payload["revision_count"].(float64); !ok || got != 0 {
+			t.Fatalf("revision_count = %#v, want 0", payload["revision_count"])
+		}
+		if got, ok := payload["last_verify_run_at"]; ok && got == "" {
+			t.Fatalf("last_verify_run_at = %#v", got)
+		}
+	})
+
+	if !strings.Contains(stderr, "Latest revision") || !strings.Contains(stderr, "Could not inspect storage revisions") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "Revision inspection failed") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "Last verify run") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityFailure(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Stdout: "btrfs\n"},
+			execpkg.MockResult{},
+			execpkg.MockResult{Err: errors.New("repository invalid")},
+			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
+		)
+
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand: "verify",
+			Source:        "homes",
+			ConfigDir:     configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+		if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureAccessFailed}) {
+			t.Fatalf("FailureCodes = %#v, want [%q]", report.FailureCodes, verifyFailureAccessFailed)
+		}
+		if report.PassedRevisionCount != 1 || report.FailedRevisionCount != 0 {
+			t.Fatalf("report = %+v", report)
+		}
+	})
+
+	if !strings.Contains(stderr, "Repository access") || !strings.Contains(stderr, "Repository is not ready") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "All revisions validated") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestHealthRunner_AddVerifyFailureCodeDeduplicatesActions(t *testing.T) {
+	runner := &HealthRunner{}
+	report := &HealthReport{CheckType: "verify"}
+
+	runner.addVerifyFailureCode(report, verifyFailureIntegrityFailed)
+	runner.addVerifyFailureCode(report, verifyFailureResultMissing)
+	runner.addVerifyFailureCode(report, verifyFailureIntegrityFailed)
+
+	if report.FailureCode != verifyFailureIntegrityFailed {
+		t.Fatalf("FailureCode = %q, want %q", report.FailureCode, verifyFailureIntegrityFailed)
+	}
+	if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureIntegrityFailed, verifyFailureResultMissing}) {
+		t.Fatalf("FailureCodes = %#v", report.FailureCodes)
+	}
+	if !runner.hasVerifyFailureCode(report, verifyFailureIntegrityFailed) {
+		t.Fatal("expected integrity failure code to be present")
+	}
+	if !runner.hasVerifyFailureCode(report, verifyFailureResultMissing) {
+		t.Fatal("expected missing-result failure code to be present")
+	}
+	if reflect.DeepEqual(report.RecommendedActions, []string{}) || len(report.RecommendedActions) != 3 {
+		t.Fatalf("RecommendedActions = %#v", report.RecommendedActions)
 	}
 }
 
