@@ -746,7 +746,13 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if strings.Contains(stderr, "Btrfs root") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Btrfs source") {
+	if !strings.Contains(stderr, "Btrfs") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stderr, "Yes") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "Btrfs source         : /") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Revisions checked") ||
@@ -795,6 +801,7 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Latest revision",
 		"Storage freshness",
 		"Source path",
+		"Btrfs",
 		"Btrfs root",
 		"Btrfs source",
 		"Repository access",

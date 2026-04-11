@@ -329,7 +329,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 		sourceErr := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
 		switch {
 		case rootErr == nil && sourceErr == nil:
-			h.addCheck(report, "Btrfs source", "pass", plan.SnapshotSource)
+			h.addCheck(report, "Btrfs", "pass", "Yes")
 		default:
 			if rootErr != nil {
 				h.addCheck(report, "Btrfs root", "fail", OperatorMessage(rootErr))
@@ -756,7 +756,7 @@ func healthCheckSection(name string) string {
 	switch name {
 	case "Webhook":
 		return "Alerts"
-	case "Source path", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
+	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"
 	case "Revision count", "Latest revision":
 		return "Status"
