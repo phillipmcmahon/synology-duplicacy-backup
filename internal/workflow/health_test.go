@@ -395,19 +395,16 @@ func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 	})
 
 	assertOrderedTokens(t, stderr,
-		"Check",
-		"Status",
-		"Label",
-		"homes",
-		"Target",
-		"offsite-storj",
+		"Check                : Status",
+		"Label                : homes",
+		"Target               : offsite-storj",
 	)
 	assertOrderedTokens(t, stderr,
-		"Config file",
-		"Revision count",
-		"Latest revision",
-		"Backup freshness",
-		"Secrets",
+		"Config file          :",
+		"Revision count       :",
+		"Latest revision      :",
+		"Backup freshness     :",
+		"Secrets              :",
 	)
 }
 

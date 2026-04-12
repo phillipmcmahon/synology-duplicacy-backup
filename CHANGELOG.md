@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.1.1] - 2026-04-12
+
+### Changed
+- **Operator output now starts with explicit identity everywhere**: runtime,
+  health, and `config` screens now consistently surface the selected
+  `label + target` at the start of operator-facing output, making local and
+  remote runs easier to distinguish at a glance.
+- **Dry-run phase flow is now more coherent**: prune-only and
+  cleanup-storage-only dry-runs now show a dedicated `Setup` phase rather
+  than interleaving setup commands into the run header area.
+- **Runtime wording is more precise**: `fix-perms` now labels the resolved
+  storage path as `Destination`, avoiding the old collision where `Target`
+  could mean either the named target or the filesystem path.
+
+### Fixed
+- **Pre-run failures now carry useful run scope**: runtime failures that occur
+  before the visible run starts now show `Run could not start` together with
+  `Operation`, `Label`, and `Target` before the error and final result block.
+- **Output-ordering regressions are better protected**: workflow and CLI tests
+  now assert ordering and identity for runtime headers, health screens,
+  dry-run setup phases, `fix-perms`, and the flat `config explain` /
+  `config paths` views.
+
+### Validation
+- **Local**: `go test ./...`
+- **Local**: `go vet ./...`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.5%`
+  - `cmd/duplicacy-backup`: `85.7%`
+  - `internal/workflow`: `85.2%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `85.8%`
+  - `internal/secrets`: `81.0%`
+
 ## [v3.1.0] - 2026-04-12
 
 ### Added
