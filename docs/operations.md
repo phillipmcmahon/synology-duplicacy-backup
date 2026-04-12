@@ -112,19 +112,19 @@ You can still override this with:
 /usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
 ```
 
-Example: offsite target backup followed by safe prune
+Example: backup followed by safe prune for target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --backup --prune homes
 ```
 
-Example: offsite target forced prune
+Example: forced prune for target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --prune --force-prune homes
 ```
 
-Example: offsite target storage cleanup
+Example: storage cleanup for target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --cleanup-storage homes

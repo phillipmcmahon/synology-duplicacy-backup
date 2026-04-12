@@ -93,7 +93,7 @@ sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
 # Storage cleanup only
 sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
-# Named target backup
+# Backup the offsite-storj target
 sudo duplicacy-backup --target offsite-storj --backup homes
 
 # Preview only
@@ -130,13 +130,13 @@ sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --clean
 # Custom config directory for a runtime command
 duplicacy-backup --target onsite-usb --config-dir /opt/etc --backup homes
 
-# Validate resolved installed config and secrets
+# Validate the onsite-usb target config and any applicable secrets
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain resolved installed offsite target config values
+# Explain resolved values for the offsite-storj target
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show resolved stable config, source, log, and any applicable secrets paths
+# Show resolved paths for the onsite-usb target
 duplicacy-backup config paths --target onsite-usb homes
 
 # Fast read-only health summary

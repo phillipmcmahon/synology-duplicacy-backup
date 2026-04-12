@@ -15,7 +15,7 @@ sudo duplicacy-backup --target onsite-usb --backup homes
 # Backup, then safe prune
 sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
-# Backup to the offsite target
+# Backup the offsite-storj target
 sudo duplicacy-backup --target offsite-storj --backup homes
 
 # Preview only
@@ -55,19 +55,19 @@ Exit codes:
 ## Config Commands
 
 ```bash
-# Validate installed config
+# Validate the onsite-usb target config
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain config
+# Explain the onsite-usb target config
 sudo duplicacy-backup config explain --target onsite-usb homes
 
-# Explain the offsite target config
+# Explain the offsite-storj target config
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show stable paths
+# Show paths for the onsite-usb target
 duplicacy-backup config paths --target onsite-usb homes
 
-# Show offsite paths, including secrets
+# Show paths for the offsite-storj target
 duplicacy-backup config paths --target offsite-storj homes
 ```
 

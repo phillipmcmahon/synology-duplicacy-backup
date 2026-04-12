@@ -105,13 +105,13 @@ sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
 # Machine-readable completion summary
 sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
-# Validate one selected target and any applicable secrets
+# Validate the onsite-usb target config and any applicable secrets
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain offsite target config
+# Explain the offsite-storj target config
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show resolved paths
+# Show paths for the onsite-usb target
 duplicacy-backup config paths --target onsite-usb homes
 
 # Fast health summary
