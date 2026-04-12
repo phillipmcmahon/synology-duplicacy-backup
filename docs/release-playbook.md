@@ -108,6 +108,9 @@ Rules for release notes:
 - Push `main`.
 - Tag the release from that exact commit.
 - Push the tag.
+- Let the tag-triggered GitHub Actions workflow publish the release artefacts.
+- Do not manually upload release tarballs to GitHub after tagging unless you
+  are explicitly repairing a broken release.
 
 Example:
 
@@ -123,6 +126,9 @@ After the release workflow finishes:
 
 - confirm the GitHub release exists
 - confirm the release notes body is correct
+- confirm there is one canonical asset set only, with filenames like
+  `duplicacy-backup_3.1.0_linux_amd64.tar.gz` and no duplicate `v3.1.0`
+  variants
 - confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story

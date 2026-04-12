@@ -84,7 +84,9 @@ jobs:
           set -euo pipefail
 
           VERSION="${GITHUB_REF#refs/tags/}"
-          if [[ ! "$VERSION" =~ ^v ]]; then
+          if [[ "$VERSION" =~ ^v ]]; then
+            VERSION="${VERSION#v}"
+          else
             VERSION="dev-${GITHUB_SHA::8}"
           fi
 
