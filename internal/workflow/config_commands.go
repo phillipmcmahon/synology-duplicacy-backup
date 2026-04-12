@@ -12,8 +12,10 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 var newConfigCommandRunner = func() execpkg.Runner {
@@ -62,6 +64,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	resolved := []SummaryLine{
+		{Label: "Label", Value: req.Source},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Config File", Value: plan.ConfigFile},
 	}
@@ -70,14 +73,12 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resolved[1].Value = plan.ConfigFile
+	resolved[2].Value = plan.ConfigFile
 	plan.Target = cfg.Target
 	plan.TargetType = cfg.TargetType
 	plan.SnapshotSource = cfg.SourcePath
-	resolved = append(resolved,
-		SummaryLine{Label: "Source Path", Value: plan.SnapshotSource},
-		SummaryLine{Label: "Destination", Value: cfg.Destination},
-	)
+	plan.RepositoryPath = cfg.SourcePath
+	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
 	sourceAccessible, sourceStatus, err := validateConfigSourcePathAccess(plan.SnapshotSource)
@@ -91,7 +92,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 
 	collector.addStatus("Required Settings", "Valid", cfg.ValidateRequired(true, false))
 	collector.addStatus("Health Thresholds", "Valid", cfg.ValidateThresholds())
-	collector.addStatus("Threads", fmt.Sprintf("Valid (%d)", cfg.Threads), cfg.ValidateThreads())
+	collector.addStatus("Threads", "Valid", cfg.ValidateThreads())
 
 	if cfg.Prune != "" {
 		collector.addStatus("Prune Policy", "Valid", cfg.ValidatePrunePolicy())
@@ -103,7 +104,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	if cfg.TargetType == targetLocal {
 		localAccounts := "Not enabled"
 		if cfg.AllowLocalAccounts && cfg.LocalOwner != "" && cfg.LocalGroup != "" {
-			localAccounts = fmt.Sprintf("Valid (%s:%s)", cfg.LocalOwner, cfg.LocalGroup)
+			localAccounts = "Valid"
 		}
 		collector.addStatus("Local Accounts", localAccounts, targetSemanticsErr)
 	} else {
@@ -116,15 +117,36 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		collector.addStatus("Destination Access", destinationStatus, destinationErr)
 	}
 
+	var sec *secrets.Secrets
+	var secretsErr error
 	if plan.TargetType == targetRemote {
-		_, err := planner.loadSecrets(plan)
-		collector.addStatus("Secrets", "Valid", err)
+		sec, secretsErr = planner.loadSecrets(plan)
+		collector.addStatus("Secrets", "Valid", secretsErr)
+	}
+
+	if sourceAccessible && destinationErr == nil && (plan.TargetType != targetRemote || secretsErr == nil) {
+		repoStatus, repoErr, repoHint := validateConfigRepository(plan, cfg, planner.runner, sec)
+		switch {
+		case repoErr != nil:
+			collector.addStatus("Repository Access", repoStatus, repoErr)
+		case repoStatus == "Not initialized":
+			collector.addFailure("Repository Access", repoStatus, "Repository is reachable but not initialized", repoHint)
+		default:
+			collector.addStatic("Repository Access", repoStatus)
+		}
+	} else {
+		collector.addUnchecked("Repository Access")
 	}
 
 	if collector.failed() {
-		output := formatConfigValidationOutput(fmt.Sprintf("Config validation failed for %s/%s", req.Source, plan.TargetName()), resolved, collector.lines, "Failed")
+		title := fmt.Sprintf("Config validation failed for %s/%s", req.Source, plan.TargetName())
+		output := formatConfigValidationOutput(title, resolved, collector.lines, "Failed")
+		message := title
+		if hint := collector.failureHint(); hint != "" {
+			message = fmt.Sprintf("%s; %s", message, hint)
+		}
 		return "", &ConfigCommandError{
-			Message: fmt.Sprintf("Config validation failed for %s/%s", req.Source, plan.TargetName()),
+			Message: message,
 			Output:  output,
 		}
 	}
@@ -260,14 +282,13 @@ func colourizeConfigValidationValue(value string, enableColour bool) string {
 	switch {
 	case strings.HasPrefix(value, "Invalid ("):
 		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
-	case value == "Not checked":
+	case value == "Not checked" || value == "Not initialized":
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
 	case value == "Valid",
-		strings.HasPrefix(value, "Valid ("),
 		value == "Readable",
 		value == "Writable",
-		strings.HasPrefix(value, "Resolved ("),
-		strings.HasPrefix(value, "Parsed ("):
+		value == "Resolved",
+		value == "Parsed":
 		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
 	default:
 		return value
@@ -290,6 +311,7 @@ func colourizeConfigValidationResult(value string, enableColour bool) string {
 type configValidationCollector struct {
 	lines  []SummaryLine
 	errors []string
+	hints  []string
 }
 
 func newConfigValidationCollector(lines []SummaryLine) *configValidationCollector {
@@ -314,8 +336,25 @@ func (c *configValidationCollector) addStatus(label, okValue string, err error) 
 	c.lines = append(c.lines, SummaryLine{Label: label, Value: okValue})
 }
 
+func (c *configValidationCollector) addFailure(label, value, message, hint string) {
+	c.lines = append(c.lines, SummaryLine{Label: label, Value: value})
+	if message != "" {
+		c.errors = append(c.errors, message)
+	}
+	if hint != "" {
+		c.hints = append(c.hints, hint)
+	}
+}
+
 func (c *configValidationCollector) failed() bool {
 	return len(c.errors) > 0
+}
+
+func (c *configValidationCollector) failureHint() string {
+	if len(c.hints) == 0 {
+		return ""
+	}
+	return c.hints[0]
 }
 
 func validateConfigSourcePathAccess(sourcePath string) (bool, string, error) {
@@ -361,6 +400,70 @@ func validateConfigDestination(cfg *config.Config) (string, error) {
 	}
 }
 
+func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Runner, sec *secrets.Secrets) (string, error, string) {
+	if cfg.TargetType == targetLocal {
+		if status, err, hint := validateLocalRepositoryReadiness(plan.BackupTarget); err != nil || status == "Not initialized" {
+			return status, err, hint
+		}
+	}
+
+	dup, err := prepareConfigValidationProbe(plan, runner, sec)
+	if err != nil {
+		return "", err, ""
+	}
+	defer dup.Cleanup()
+
+	state, _, err := dup.ProbeRepository()
+	switch state {
+	case duplicacy.RepositoryAccessible:
+		return "Valid", nil, ""
+	case duplicacy.RepositoryUninitialized:
+		return "Not initialized", nil, "initialize the repository before running backups"
+	default:
+		return "", err, ""
+	}
+}
+
+func validateLocalRepositoryReadiness(repoPath string) (string, error, string) {
+	if repoPath == "" {
+		return "", configPathError("repository path must not be empty"), ""
+	}
+	info, err := os.Stat(repoPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "Not initialized", nil, "initialize the repository before running backups"
+		}
+		return "", configPathError(fmt.Sprintf("local repository path is not accessible: %v", err)), ""
+	}
+	if !info.IsDir() {
+		return "", configPathError(fmt.Sprintf("local repository path must be a directory: %s", repoPath)), ""
+	}
+	snapshotsDir := filepath.Join(repoPath, "snapshots")
+	if snapshotInfo, statErr := os.Stat(snapshotsDir); statErr != nil || !snapshotInfo.IsDir() {
+		if statErr != nil && !os.IsNotExist(statErr) {
+			return "", configPathError(fmt.Sprintf("local repository snapshots directory is not accessible: %v", statErr)), ""
+		}
+		return "Not initialized", nil, "initialize the repository before running backups"
+	}
+	return "Valid", nil, ""
+}
+
+func prepareConfigValidationProbe(plan *Plan, runner execpkg.Runner, sec *secrets.Secrets) (*duplicacy.Setup, error) {
+	dup := duplicacy.NewSetup(plan.WorkRoot, plan.RepositoryPath, plan.BackupTarget, false, runner)
+	if err := dup.CreateDirs(); err != nil {
+		return nil, err
+	}
+	if err := dup.WritePreferences(sec); err != nil {
+		_ = dup.Cleanup()
+		return nil, err
+	}
+	if err := dup.SetPermissions(); err != nil {
+		_ = dup.Cleanup()
+		return nil, err
+	}
+	return dup, nil
+}
+
 func validateLocalDestination(destination string) (string, error) {
 	if destination == "" {
 		return "", configPathError("destination must not be empty")
@@ -403,7 +506,7 @@ func validateRemoteDestination(destination string, requiresNetwork bool) (string
 		return "", configPathError(fmt.Sprintf("remote destination host could not be determined from %q", destination))
 	}
 	if !requiresNetwork {
-		return fmt.Sprintf("Parsed (%s)", host), nil
+		return "Parsed", nil
 	}
 	addrs, err := resolveConfigDestinationHost(host)
 	if err != nil {
@@ -412,7 +515,18 @@ func validateRemoteDestination(destination string, requiresNetwork bool) (string
 	if len(addrs) == 0 {
 		return "", configPathError(fmt.Sprintf("remote destination host resolved without any addresses: %s", host))
 	}
-	return fmt.Sprintf("Resolved (%s)", host), nil
+	return "Resolved", nil
+}
+
+func configDestinationHost(destination, targetType string) string {
+	if targetType != targetRemote {
+		return ""
+	}
+	parsed, err := url.Parse(destination)
+	if err != nil {
+		return ""
+	}
+	return parsed.Hostname()
 }
 
 func configPathError(message string) error {

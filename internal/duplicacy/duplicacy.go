@@ -33,6 +33,14 @@ var checkRevisionPassRegex = regexp.MustCompile(`(?i)all chunks referenced by sn
 var checkRevisionFailRegex = regexp.MustCompile(`(?i)some chunks referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+are missing`)
 var checkChunkMissingRegex = regexp.MustCompile(`(?i)chunk\s+[0-9a-f]+\s+referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+does not exist`)
 
+type RepositoryProbeState string
+
+const (
+	RepositoryAccessible    RepositoryProbeState = "accessible"
+	RepositoryUninitialized RepositoryProbeState = "uninitialized"
+	RepositoryInaccessible  RepositoryProbeState = "inaccessible"
+)
+
 type RevisionInfo struct {
 	Revision  int
 	CreatedAt time.Time
@@ -206,6 +214,26 @@ func (s *Setup) ValidateRepo() error {
 	return nil
 }
 
+// ProbeRepository runs the same read-only repository validation command as
+// ValidateRepo, but returns a richer readiness classification for callers that
+// need to distinguish an uninitialised repository from a broader access
+// failure.
+func (s *Setup) ProbeRepository() (RepositoryProbeState, string, error) {
+	if s.DryRun {
+		return RepositoryAccessible, "", nil
+	}
+
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list", "-files")
+	combined := stdout + stderr
+	if err == nil {
+		return RepositoryAccessible, combined, nil
+	}
+	if looksUninitializedRepositoryOutput(combined) {
+		return RepositoryUninitialized, combined, nil
+	}
+	return RepositoryInaccessible, combined, apperrors.NewPruneError("validate-repo", fmt.Errorf("repository validation failed"))
+}
+
 // GetTotalRevisionCount returns the number of unique revisions via `duplicacy list`.
 // On error it returns 0 and a structured error; the combined output is returned
 // for the coordinator to log if needed.
@@ -350,6 +378,34 @@ func parseVisibleRevisions(output string) []RevisionInfo {
 		return revisions[i].Revision > revisions[j].Revision
 	})
 	return revisions
+}
+
+func looksUninitializedRepositoryOutput(output string) bool {
+	if output == "" {
+		return false
+	}
+	lower := strings.ToLower(output)
+	patterns := []string{
+		"not initialized",
+		"not been initialized",
+		"initialize the storage",
+		"initialize this storage",
+		"storage has not been initialized",
+		"repository has not been initialized",
+		"snapshot directory not found",
+		"snapshots directory not found",
+		"snapshots/ does not exist",
+		"snapshots directory does not exist",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	if strings.Contains(lower, "snapshots/") && strings.Contains(lower, "not found") {
+		return true
+	}
+	return false
 }
 
 func parseRevisionCheckResults(output string) []RevisionCheckResult {

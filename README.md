@@ -153,7 +153,7 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, and validates any configured target secrets
+- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, validates any configured target secrets, and performs a read-only repository readiness probe that distinguishes ready repositories from reachable-but-uninitialized ones
 - `config explain` shows the resolved values for the selected target
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths
 

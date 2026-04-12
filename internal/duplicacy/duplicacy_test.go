@@ -354,6 +354,94 @@ func TestValidateRepo_Failure(t *testing.T) {
 	}
 }
 
+func TestProbeRepository_DryRun(t *testing.T) {
+	s, _ := newTestSetup(t, true)
+
+	state, output, err := s.ProbeRepository()
+	if err != nil {
+		t.Fatalf("ProbeRepository (dry-run): %v", err)
+	}
+	if state != RepositoryAccessible {
+		t.Fatalf("state = %q, want %q", state, RepositoryAccessible)
+	}
+	if output != "" {
+		t.Fatalf("output = %q, want empty", output)
+	}
+}
+
+func TestProbeRepository_Accessible(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: "Listing all revisions for storage storj\n"})
+
+	state, output, err := s.ProbeRepository()
+	if err != nil {
+		t.Fatalf("ProbeRepository: %v", err)
+	}
+	if state != RepositoryAccessible {
+		t.Fatalf("state = %q, want %q", state, RepositoryAccessible)
+	}
+	if !strings.Contains(output, "Listing all revisions") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestProbeRepository_Uninitialized(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stderr: "Storage has not been initialized yet; initialize the storage first\n",
+		Err:    errors.New("list failed"),
+	})
+
+	state, output, err := s.ProbeRepository()
+	if err != nil {
+		t.Fatalf("ProbeRepository() unexpected error = %v", err)
+	}
+	if state != RepositoryUninitialized {
+		t.Fatalf("state = %q, want %q", state, RepositoryUninitialized)
+	}
+	if !strings.Contains(strings.ToLower(output), "initialized") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestProbeRepository_Inaccessible(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stderr: "Access denied\n",
+		Err:    errors.New("list failed"),
+	})
+
+	state, _, err := s.ProbeRepository()
+	if state != RepositoryInaccessible {
+		t.Fatalf("state = %q, want %q", state, RepositoryInaccessible)
+	}
+	if err == nil {
+		t.Fatal("expected error from ProbeRepository")
+	}
+	var pruneErr *apperrors.PruneError
+	if !errors.As(err, &pruneErr) {
+		t.Errorf("expected *PruneError, got %T", err)
+	}
+}
+
+func TestLooksUninitializedRepositoryOutput(t *testing.T) {
+	cases := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "empty", output: "", want: false},
+		{name: "initialized phrase", output: "Storage has not been initialized yet", want: true},
+		{name: "repository phrase", output: "Repository has not been initialized", want: true},
+		{name: "snapshots not found", output: "Failed to read snapshots/abc: not found", want: true},
+		{name: "access denied", output: "Access denied", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := looksUninitializedRepositoryOutput(tc.output); got != tc.want {
+				t.Fatalf("looksUninitializedRepositoryOutput(%q) = %t, want %t", tc.output, got, tc.want)
+			}
+		})
+	}
+}
+
 // ─── GetTotalRevisionCount DryRun test ──────────────────────────────────────
 
 func TestGetTotalRevisionCount_DryRun(t *testing.T) {

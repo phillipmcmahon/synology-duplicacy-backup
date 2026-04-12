@@ -230,6 +230,7 @@ freshness signal.
 | target local-account consistency | `config validate`, local `--fix-perms` |
 | Btrfs `source_path` check | `config validate`, backup |
 | destination accessibility check | `config validate` |
+| repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | local `--fix-perms` |
 | target secrets loading | targets that require secrets |
 

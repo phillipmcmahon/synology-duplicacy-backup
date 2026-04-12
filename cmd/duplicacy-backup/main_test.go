@@ -380,7 +380,7 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			return "Config validation succeeded for homes/onsite-usb\n  Target               : onsite-usb\n  Config File          : /tmp/homes-backup.toml\n  Config               : Valid\n  Source Path          : /volume1/homes\n  Btrfs Source         : Valid\n", nil
+			return "Config validation succeeded for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Writable\n    Repository Access  : Valid\n  Result               : Passed\n", nil
 		}
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"config", "validate", "--target", "onsite-usb", "--config-dir", t.TempDir(), "homes"}); code != 0 {
@@ -390,10 +390,15 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 		if stderr != "" {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, "Config validation succeeded for homes/onsite-usb") || !strings.Contains(stdout, "Target") {
+		if !strings.Contains(stdout, "Config validation succeeded for homes/onsite-usb") || !strings.Contains(stdout, "Section: Resolved") || !strings.Contains(stdout, "Section: Validation") {
 			t.Fatalf("stdout = %q", stdout)
 		}
-		if !strings.Contains(stdout, "homes-backup.toml") || strings.Contains(stdout, "Not configured") {
+		for _, token := range []string{"Label", "homes", "Target", "onsite-usb", "Config File", "homes-backup.toml", "Result", "Passed"} {
+			if !strings.Contains(stdout, token) {
+				t.Fatalf("stdout missing %q:\n%s", token, stdout)
+			}
+		}
+		if strings.Contains(stdout, "Not configured") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -405,7 +410,7 @@ func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/onsite-usb",
-				Output:  "Config validation failed for homes/onsite-usb\n  Target               : onsite-usb\n  Config File          : /tmp/homes-backup.toml\n  Config               : Valid\n  Source Path          : /volume1/homes/nested\n  Source Path Access   : Invalid (source_path does not exist: /volume1/homes/nested)\n  Btrfs Source         : Not checked\n",
+				Output:  "Config validation failed for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Invalid (source_path does not exist: /volume1/homes/nested)\n    Btrfs Source       : Not checked\n    Required Settings  : Valid\n    Destination Access : Writable\n    Repository Access  : Not checked\n  Result               : Failed\n",
 			}
 		}
 		stdout, stderr := captureOutput(t, func() {
@@ -413,10 +418,64 @@ func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T
 				t.Fatalf("runWithArgs(config validate failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stdout, "Config validation failed for homes/onsite-usb") || !strings.Contains(stdout, "Source Path Access") {
+		if !strings.Contains(stdout, "Config validation failed for homes/onsite-usb") || !strings.Contains(stdout, "Section: Validation") || !strings.Contains(stdout, "Source Path Access") {
 			t.Fatalf("stdout = %q", stdout)
 		}
+		for _, token := range []string{"Label", "homes", "Target", "onsite-usb", "Result", "Failed"} {
+			if !strings.Contains(stdout, token) {
+				t.Fatalf("stdout missing %q:\n%s", token, stdout)
+			}
+		}
 		if !strings.Contains(stderr, "Config validation failed for homes/onsite-usb") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigValidateUninitializedRepositoryPrintsHint(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", &workflow.ConfigCommandError{
+				Message: "Config validation failed for homes/offsite-storj; initialize the repository before running backups",
+				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Resolved\n    Secrets            : Valid\n    Repository Access  : Not initialized\n  Result               : Failed\n",
+			}
+		}
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--target", "offsite-storj", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config validate uninitialized repository) = %d", code)
+			}
+		})
+		if !strings.Contains(stdout, "Repository Access") || !strings.Contains(stdout, "Not initialized") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "initialize the repository before running backups") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigValidateInaccessibleRepositoryDoesNotPrintInitHint(t *testing.T) {
+	withTestGlobals(t, func() {
+		oldHandle := handleConfigCommand
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", &workflow.ConfigCommandError{
+				Message: "Config validation failed for homes/offsite-storj",
+				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Resolved\n    Secrets            : Valid\n    Repository Access  : Invalid (Repository is not ready)\n  Result               : Failed\n",
+			}
+		}
+		t.Cleanup(func() { handleConfigCommand = oldHandle })
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--target", "offsite-storj", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config validate) = %d", code)
+			}
+		})
+
+		if !strings.Contains(stdout, "Repository Access") || !strings.Contains(stdout, "Invalid (Repository is not ready)") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if strings.Contains(stderr, "initialize the repository before running backups") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
