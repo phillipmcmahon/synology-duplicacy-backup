@@ -38,6 +38,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
+		execpkg.MockResult{},
 	)
 	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
 		return []string{"203.0.113.10"}, nil
@@ -115,6 +116,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
+		execpkg.MockResult{},
 	)
 
 	sourcePath := t.TempDir()
@@ -150,6 +152,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
 		execpkg.MockResult{},
 	)
 
@@ -197,6 +200,7 @@ func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
+		execpkg.MockResult{},
 	)
 	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
 		return []string{"203.0.113.10"}, nil
@@ -232,6 +236,7 @@ func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
+		execpkg.MockResult{Err: os.ErrPermission},
 	)
 
 	sourcePath := t.TempDir()
@@ -477,6 +482,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
 		execpkg.MockResult{Stderr: "permission denied\n", Err: os.ErrPermission},
 	)
 	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
@@ -618,9 +624,13 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
 		execpkg.MockResult{},
 	)
 	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
@@ -632,11 +642,19 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	localDestination := t.TempDir()
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
+	localHomesRepo := filepath.Join(localDestination, "homes")
+	if err := os.MkdirAll(filepath.Join(localHomesRepo, "snapshots"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	localReadmediaRepo := filepath.Join(localDestination, "readmedia")
+	if err := os.MkdirAll(filepath.Join(localReadmediaRepo, "snapshots"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, localDestination, owner, group, 4, "-keep 0:365"))
 	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", "local", sourcePath, localDestination, "readmedia", "", "", 4, ""))
-	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
-	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
+	writeTargetTestConfig(t, configDir, "archives", "offsite-storj", remoteTargetConfig("archives", sourcePath, "s3://bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "archives", "offsite-storj")
 
 	t.Run("local-enabled", func(t *testing.T) {
 		req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
@@ -657,7 +675,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	})
 
 	t.Run("remote", func(t *testing.T) {
-		req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+		req := &Request{ConfigCommand: "validate", Source: "archives", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
 		out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)

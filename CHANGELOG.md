@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.1.0] - 2026-04-12
+
+### Added
+- **Stronger config validation preflight**: `config validate` now actively
+  validates `source_path` accessibility, Btrfs suitability, local destination
+  writability, remote destination resolution, target settings, health
+  thresholds, threads, prune policy syntax, and secrets loading for the
+  selected `label + target`.
+- **Repository-aware config validation**: `config validate` now performs a
+  read-only repository readiness probe and reports repository state directly to
+  operators before runtime work begins.
+
+### Changed
+- **Config validation output is now structured like the rest of the tool**:
+  `config validate` now uses `Resolved` and `Validation` sections plus a final
+  `Result` line, with semantic color for success, warning, and failure
+  outcomes in interactive terminals.
+- **Validation reporting now shows the whole preflight picture**: Parsed
+  configs no longer fail fast on the first semantic problem. Independent checks
+  continue and report `Valid`, `Invalid (...)`, `Not checked`, and other
+  intentional outcomes so operators can fix multiple issues in one pass.
+- **Release-facing docs now teach repository readiness explicitly**: README,
+  CLI reference, configuration guide, cheat sheet, and the internal
+  architecture walkthrough now explain that `config validate` is read-only and
+  document the `Repository Access` outcomes operators should expect.
+- **Examples now reinforce the explicit `label + target` model**: release
+  docs and cheat-sheet comments consistently name both the label and target
+  being acted on, without implying any default or hierarchy between targets.
+
+### Fixed
+- **Source path mistakes are surfaced before runtime**: `config validate` now
+  catches non-existent paths, unreadable paths, and nested non-subvolume paths
+  before backup runs fail during Btrfs snapshot preparation.
+- **Uninitialized repositories are distinguished from broken access**:
+  reachable-but-uninitialized repositories now report
+  `Repository Access : Not initialized` with a short remediation hint, while
+  true repository access failures report `Repository Access : Invalid (...)`
+  without the initialization guidance.
+- **Config validation regressions are better protected**: workflow and CLI
+  tests now lock the `Resolved` contract, constrain the allowed validation
+  outcome vocabulary, and cover initialized, uninitialized, inaccessible, and
+  dependency-blocked repository states.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.7%`
+  - `cmd/duplicacy-backup`: `85.6%`
+  - `internal/workflow`: `85.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `85.8%`
+
 ## [v3.0.0] - 2026-04-11
 
 ### Added

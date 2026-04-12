@@ -34,9 +34,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v2.1.7`
+Current public release baseline: `v3.0.0`
 
-Current release-prep target: `v3.0.0`
+Current release-prep target: `v3.1.0`
 
 Representative Linux Go 1.26 validation for this release:
 
@@ -44,22 +44,14 @@ Representative Linux Go 1.26 validation for this release:
 - `go vet ./...`
 - `go test -cover ./...`
 
-Current Linux Go 1.26 coverage snapshot:
+Current Linux Go 1.26 development snapshot for the repository-aware validation model:
 
-- overall coverage: `85.3%`
-- `internal/workflow`: `86.4%`
-- `cmd/duplicacy-backup`: `60.8%`
-- `internal/duplicacy`: `79.4%`
-- `internal/exec`: `97.4%`
-- `internal/secrets`: `80.0%`
-
-Current development snapshot for the target-first operating model:
-
-- overall coverage: `84.4%`
-- `internal/workflow`: `85.2%`
-- `cmd/duplicacy-backup`: `83.7%`
-- `internal/config`: `84.3%`
-- `internal/secrets`: `63.3%`
+- overall coverage: `85.7%`
+- `cmd/duplicacy-backup`: `85.6%`
+- `internal/workflow`: `85.5%`
+- `internal/duplicacy`: `81.2%`
+- `internal/config`: `85.8%`
+- `internal/secrets`: `81.0%`
 
 ## Packaging Rule
 
