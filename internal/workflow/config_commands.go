@@ -103,7 +103,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	if cfg.TargetType == targetLocal {
 		localAccounts := "Not enabled"
 		if cfg.AllowLocalAccounts && cfg.LocalOwner != "" && cfg.LocalGroup != "" {
-			localAccounts = fmt.Sprintf("Validated (%s:%s)", cfg.LocalOwner, cfg.LocalGroup)
+			localAccounts = fmt.Sprintf("Valid (%s:%s)", cfg.LocalOwner, cfg.LocalGroup)
 		}
 		collector.addStatus("Local Accounts", localAccounts, targetSemanticsErr)
 	} else {
@@ -267,8 +267,7 @@ func colourizeConfigValidationValue(value string, enableColour bool) string {
 		value == "Readable",
 		value == "Writable",
 		strings.HasPrefix(value, "Resolved ("),
-		strings.HasPrefix(value, "Parsed ("),
-		strings.HasPrefix(value, "Validated ("):
+		strings.HasPrefix(value, "Parsed ("):
 		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
 	default:
 		return value
