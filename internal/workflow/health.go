@@ -286,9 +286,11 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	h.addCheck(report, "Config file", "pass", plan.ConfigFile)
-	if plan.TargetType == targetRemote {
-		h.addCheck(report, "Secrets", "pass", plan.SecretsFile)
-	}
+	defer func() {
+		if plan.TargetType == targetRemote {
+			h.addCheck(report, "Secrets", "pass", plan.SecretsFile)
+		}
+	}()
 
 	stopInspecting := h.startStatusActivity("Checking stored revisions")
 	revisions, _, err := dup.ListVisibleRevisions()
@@ -800,6 +802,7 @@ func (h *HealthRunner) printHeader(report *HealthReport) {
 	h.log.Info("%s", statusLinef("Health check started - %s", report.startedAt.Format("2006-01-02 15:04:05")))
 	h.log.PrintLine("Check", strings.Title(report.CheckType))
 	h.log.PrintLine("Label", report.Label)
+	h.log.PrintLine("Target", report.Target)
 }
 
 func (h *HealthRunner) printReport(report *HealthReport) {

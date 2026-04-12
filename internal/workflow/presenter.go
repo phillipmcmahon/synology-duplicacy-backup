@@ -31,6 +31,8 @@ func (p *Presenter) PrintHeader(plan *Plan, startedAt time.Time, _ string) {
 	p.log.PrintSeparator()
 	p.log.Info("%s", statusLinef("Run started - %s", startedAt.Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Operation", plan.OperationMode)
+	p.log.PrintLine("Label", plan.BackupLabel)
+	p.log.PrintLine("Target", plan.TargetName())
 	if p.verbose && plan.DefaultNotice != "" {
 		p.log.PrintLine("Notice", plan.DefaultNotice)
 	}
@@ -41,6 +43,40 @@ func (p *Presenter) PrintSummary(plan *Plan) {
 	p.log.Info("%s", statusLinef("Run Summary:"))
 	for _, line := range plan.Summary {
 		p.log.PrintLine(line.Label, line.Value)
+	}
+}
+
+func (p *Presenter) PrintPreRunFailureContext(req *Request) {
+	if req == nil {
+		return
+	}
+	p.log.PrintSeparator()
+	p.log.Info("%s", statusLinef("Run could not start"))
+	if op := OperationMode(req); op != "" {
+		p.log.PrintLine("Operation", op)
+	}
+	if req.Source != "" {
+		p.log.PrintLine("Label", req.Source)
+	}
+	if req.Target() != "" {
+		p.log.PrintLine("Target", req.Target())
+	}
+}
+
+func (p *Presenter) PrintPreRunFailurePlan(plan *Plan) {
+	if plan == nil {
+		return
+	}
+	p.log.PrintSeparator()
+	p.log.Info("%s", statusLinef("Run could not start"))
+	if plan.OperationMode != "" {
+		p.log.PrintLine("Operation", plan.OperationMode)
+	}
+	if plan.BackupLabel != "" {
+		p.log.PrintLine("Label", plan.BackupLabel)
+	}
+	if plan.TargetName() != "" {
+		p.log.PrintLine("Target", plan.TargetName())
 	}
 }
 

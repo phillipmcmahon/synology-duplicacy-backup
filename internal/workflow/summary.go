@@ -51,8 +51,8 @@ func SummaryLines(plan *Plan) []SummaryLine {
 
 	lines := []SummaryLine{
 		{Label: "Operation Mode", Value: plan.OperationMode},
-		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Target", Value: plan.TargetName()},
+		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
 	}
 	if plan.DoBackup {

@@ -269,7 +269,7 @@ func TestRunFixPermsPhase(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Fix permissions", "Target", "Local Owner", "Local Group", "Dry run", "Fix permissions phase completed (dry-run)"} {
+		for _, token := range []string{"Phase: Fix permissions", "Destination", "Local Owner", "Local Group", "Dry run", "Fix permissions phase completed (dry-run)"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
@@ -290,7 +290,7 @@ func TestRunFixPermsPhase(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Fix permissions", "Target", "Duration", "Fix permissions phase completed successfully"} {
+		for _, token := range []string{"Phase: Fix permissions", "Destination", "Local Owner", "Local Group", "Duration", "Fix permissions phase completed successfully"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}

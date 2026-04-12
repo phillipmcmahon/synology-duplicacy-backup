@@ -202,6 +202,22 @@ func assertFailureFooter(t *testing.T, stderr string) {
 	}
 }
 
+func assertFailureScope(t *testing.T, stderr string, operation string, label string, target string) {
+	t.Helper()
+	if !strings.Contains(stderr, "Run could not start") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if operation != "" && (!strings.Contains(stderr, "Operation") || !strings.Contains(stderr, operation)) {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if label != "" && (!strings.Contains(stderr, "Label") || !strings.Contains(stderr, label)) {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if target != "" && (!strings.Contains(stderr, "Target") || !strings.Contains(stderr, target)) {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
 func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help"}); code != 0 {
@@ -620,8 +636,7 @@ func TestRunWithArgs_JSONSummaryVerboseDryRunKeepsStartBlockFirst(t *testing.T) 
 			strings.Contains(stderr, "Lock acquired:") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if strings.Contains(stderr, "  Label                :") ||
-			strings.Contains(stderr, "  Script               :") ||
+		if strings.Contains(stderr, "  Script               :") ||
 			strings.Contains(stderr, "  PID                  :") ||
 			strings.Contains(stderr, "  Lock Path            :") {
 			t.Fatalf("stderr = %q", stderr)
@@ -630,6 +645,9 @@ func TestRunWithArgs_JSONSummaryVerboseDryRunKeepsStartBlockFirst(t *testing.T) 
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stderr, "Run started -") || !strings.Contains(stderr, "Run Summary:") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "Label") || !strings.Contains(stderr, "homes") || !strings.Contains(stderr, "Target") || !strings.Contains(stderr, "onsite-usb") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stdout, "\"operation\": \"Backup\"") {
@@ -689,6 +707,7 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "Secrets file not found:") || !strings.Contains(stderr, "homes-secrets.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		assertFailureScope(t, stderr, "Backup", "homes", "offsite-storj")
 		assertFailureFooter(t, stderr)
 	})
 }
@@ -705,6 +724,7 @@ func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "contains invalid TOML") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		assertFailureScope(t, stderr, "Backup", "homes", "onsite-usb")
 		assertFailureFooter(t, stderr)
 	})
 }
@@ -740,10 +760,18 @@ func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
 		if !strings.Contains(stderr, "Phase: Storage cleanup") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if !strings.Contains(stderr, "Phase: Setup") || !strings.Contains(stderr, "Setup phase completed (dry-run)") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 		if !strings.Contains(stderr, "Status") || !strings.Contains(stderr, "Scanning storage for unreferenced chunks") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stderr, "Storage cleanup phase completed (dry-run)") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		setupIdx := strings.Index(stderr, "Phase: Setup")
+		cleanupIdx := strings.Index(stderr, "Phase: Storage cleanup")
+		if setupIdx < 0 || cleanupIdx < 0 || setupIdx >= cleanupIdx {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Phase: Prune") {

@@ -120,6 +120,16 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Destination"] || !labels["Local Owner"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
+	wantOrder := []string{"Operation Mode", "Target", "Config File", "Source", "Snapshot", "Destination", "Force Prune", "Local Owner", "Local Group"}
+	got := make([]string, 0, len(lines))
+	for _, line := range lines {
+		got = append(got, line.Label)
+	}
+	for i, label := range wantOrder {
+		if got[i] != label {
+			t.Fatalf("summary label order = %v, want prefix %v", got, wantOrder)
+		}
+	}
 }
 
 func TestOperationMode_CombinedOperations(t *testing.T) {

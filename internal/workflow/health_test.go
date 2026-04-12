@@ -245,6 +245,21 @@ func containsConfigKey(lines []string, key string) bool {
 	return false
 }
 
+func assertOrderedTokens(t *testing.T, text string, tokens ...string) {
+	t.Helper()
+	last := -1
+	for _, token := range tokens {
+		idx := strings.Index(text, token)
+		if idx < 0 {
+			t.Fatalf("output missing %q:\n%s", token, text)
+		}
+		if idx < last {
+			t.Fatalf("output order mismatch; %q appeared before expected sequence:\n%s", token, text)
+		}
+		last = idx
+	}
+}
+
 func TestHealthRunner_StatusHealthy(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
@@ -327,6 +342,73 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 	if code != 0 || report.Status != "healthy" {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
+}
+
+func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("remote health output requires root-owned secrets file")
+	}
+
+	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+	configDir := t.TempDir()
+	secretsDir := t.TempDir()
+	sourcePath := filepath.Join(configDir, "homes-source")
+	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://EU@gateway.storjshare.io/bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", "offsite-storj", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner := execpkg.NewMockRunner(execpkg.MockResult{
+			Stdout: "Snapshot homes revision 8 created at 2026-04-10 16:30\n",
+		})
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand:   "status",
+			RequestedTarget: "offsite-storj",
+			Source:          "homes",
+			ConfigDir:       configDir,
+			SecretsDir:      secretsDir,
+		})
+		if code != 0 {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+	})
+
+	assertOrderedTokens(t, stderr,
+		"Check",
+		"Status",
+		"Label",
+		"homes",
+		"Target",
+		"offsite-storj",
+	)
+	assertOrderedTokens(t, stderr,
+		"Config file",
+		"Revision count",
+		"Latest revision",
+		"Backup freshness",
+		"Secrets",
+	)
 }
 
 func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {

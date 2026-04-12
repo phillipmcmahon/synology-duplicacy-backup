@@ -107,6 +107,7 @@ func runWithArgs(args []string) int {
 	planner := workflow.NewPlanner(meta, rt, log, runner)
 	plan, err := planner.Build(result.Request)
 	if err != nil {
+		workflow.NewPresenter(meta, rt, log, false).PrintPreRunFailureContext(result.Request)
 		log.Error("%s", workflow.OperatorMessage(err))
 		printFailureCompletion(meta, rt, log, startedAt)
 		if result.Request.JSONSummary {

@@ -499,6 +499,7 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
 		ForcePrune:       true,
 		BackupLabel:      "homes",
+		Target:           "onsite-usb",
 		OperationMode:    "Prune",
 		ModeDisplay:      "Local",
 		LogRetentionDays: 30,
@@ -509,6 +510,14 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 	}
 
 	output := readSingleLogFile(t, logDir)
+	for _, token := range []string{"Run could not start", "Operation", "Prune", "Label", "homes", "Target", "onsite-usb"} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
+	}
+	if strings.Contains(output, "Run started -") {
+		t.Fatalf("unexpected visible run header for pre-run failure:\n%s", output)
+	}
 	if !strings.Contains(output, "Operation cancelled at the interactive safety prompt") {
 		t.Fatalf("output = %q", output)
 	}
@@ -566,10 +575,15 @@ func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
 	}
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run started -", "Phase: Prune", "Dry run", "write JSON preferences", "Prune phase completed (dry-run)"} {
+	for _, token := range []string{"Run started -", "Phase: Setup", "write JSON preferences", "Setup phase completed (dry-run)", "Phase: Prune", "Prune phase completed (dry-run)"} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
+	}
+	setupIdx := strings.Index(output, "Phase: Setup")
+	pruneIdx := strings.Index(output, "Phase: Prune")
+	if setupIdx < 0 || pruneIdx < 0 || setupIdx >= pruneIdx {
+		t.Fatalf("expected setup phase before prune phase:\n%s", output)
 	}
 }
 
@@ -595,6 +609,7 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 		DoBackup:         true,
 		DryRun:           true,
 		BackupLabel:      "homes",
+		Target:           "onsite-usb",
 		OperationMode:    "Backup",
 		ModeDisplay:      "Local",
 		LogRetentionDays: 30,
@@ -604,6 +619,14 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 	}
 
 	output := readSingleLogFile(t, logDir)
+	for _, token := range []string{"Run could not start", "Operation", "Backup", "Label", "homes", "Target", "onsite-usb"} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
+	}
+	if strings.Contains(output, "Run started -") {
+		t.Fatalf("unexpected visible run header for pre-run failure:\n%s", output)
+	}
 	if !strings.Contains(output, "Cannot create the lock directory parent") {
 		t.Fatalf("output = %q", output)
 	}

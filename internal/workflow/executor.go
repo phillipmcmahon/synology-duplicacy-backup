@@ -59,11 +59,13 @@ func (e *Executor) Run() int {
 
 	e.log.CleanupOldLogs(e.plan.LogRetentionDays, e.plan.DryRun)
 	if err := e.confirmSafetyRails(); err != nil {
+		e.view.PrintPreRunFailurePlan(e.plan)
 		e.fail(err)
 		return e.exitCode
 	}
 
 	if err := e.acquireTargetLock(); err != nil {
+		e.view.PrintPreRunFailurePlan(e.plan)
 		e.fail(err)
 		return e.exitCode
 	}
@@ -142,8 +144,14 @@ func (e *Executor) execute() error {
 				return err
 			}
 		} else {
-			if err := e.prepareDuplicacySetup(); err != nil {
-				return err
+			if e.plan.DryRun {
+				if err := e.runTrackedPhase("Setup", e.runSetupPhase); err != nil {
+					return err
+				}
+			} else {
+				if err := e.prepareDuplicacySetup(); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -162,6 +170,15 @@ func (e *Executor) execute() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (e *Executor) runSetupPhase() error {
+	e.view.PrintPhase("Setup")
+	if err := e.prepareDuplicacySetup(); err != nil {
+		return err
+	}
+	e.log.Info("%s", statusLinef("Setup phase completed (dry-run)"))
 	return nil
 }
 

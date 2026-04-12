@@ -81,61 +81,85 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
-	sourceAccessible, sourceStatus, err := validateConfigSourcePathAccess(plan.SnapshotSource)
-	collector.addStatus("Source Path Access", sourceStatus, err)
+	requiredErr := cfg.ValidateRequired(true, false)
+	threadsErr := cfg.ValidateThreads()
+	healthErr := cfg.ValidateThresholds()
+	pruneStatus := "Not configured"
+	var pruneErr error
+	if cfg.Prune != "" {
+		pruneStatus = "Valid"
+		pruneErr = cfg.ValidatePrunePolicy()
+	}
 
+	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.SnapshotSource)
+	btrfsStatus := "Not checked"
+	var btrfsErr error
 	if sourceAccessible {
-		collector.addStatus("Btrfs Source", "Valid", validateConfigSourceBtrfs(plan, planner.runner))
+		btrfsStatus = "Valid"
+		btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
+	}
+
+	destinationStatus, destinationErr := validateConfigDestination(cfg)
+
+	repoStatus := "Not checked"
+	var repoErr error
+	repoFailureMessage := ""
+	repoHint := ""
+	var sec *secrets.Secrets
+	var secretsErr error
+	targetSemanticsErr := cfg.ValidateTargetSemantics()
+	targetLabel := "Target Settings"
+	targetStatus := "Valid"
+	if cfg.TargetType == targetLocal {
+		targetLabel = "Local Accounts"
+		targetStatus = "Not enabled"
+		if cfg.AllowLocalAccounts && cfg.LocalOwner != "" && cfg.LocalGroup != "" {
+			targetStatus = "Valid"
+		}
+	}
+	if plan.TargetType == targetRemote {
+		sec, secretsErr = planner.loadSecrets(plan)
+	}
+
+	if sourceAccessible && destinationErr == nil && (plan.TargetType != targetRemote || secretsErr == nil) {
+		repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+		if repoStatus == "Not initialized" && repoErr == nil {
+			repoFailureMessage = "Repository is reachable but not initialized"
+		}
+	}
+
+	collector.addStatus("Required Settings", "Valid", requiredErr)
+	collector.addStatus("Threads", "Valid", threadsErr)
+	if pruneErr != nil {
+		collector.addStatus("Prune Policy", "Valid", pruneErr)
+	} else {
+		collector.addStatic("Prune Policy", pruneStatus)
+	}
+	collector.addStatus("Health Thresholds", "Valid", healthErr)
+	collector.addStatus("Source Path Access", sourceStatus, sourceErr)
+	if sourceAccessible {
+		collector.addStatus("Btrfs Source", btrfsStatus, btrfsErr)
 	} else {
 		collector.addUnchecked("Btrfs Source")
 	}
-
-	collector.addStatus("Required Settings", "Valid", cfg.ValidateRequired(true, false))
-	collector.addStatus("Health Thresholds", "Valid", cfg.ValidateThresholds())
-	collector.addStatus("Threads", "Valid", cfg.ValidateThreads())
-
-	if cfg.Prune != "" {
-		collector.addStatus("Prune Policy", "Valid", cfg.ValidatePrunePolicy())
-	} else {
-		collector.addStatic("Prune Policy", "Not configured")
-	}
-
-	targetSemanticsErr := cfg.ValidateTargetSemantics()
-	if cfg.TargetType == targetLocal {
-		localAccounts := "Not enabled"
-		if cfg.AllowLocalAccounts && cfg.LocalOwner != "" && cfg.LocalGroup != "" {
-			localAccounts = "Valid"
-		}
-		collector.addStatus("Local Accounts", localAccounts, targetSemanticsErr)
-	} else {
-		collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
-	}
-	destinationStatus, destinationErr := validateConfigDestination(cfg)
 	if destinationErr == nil {
 		collector.addStatic("Destination Access", destinationStatus)
 	} else {
 		collector.addStatus("Destination Access", destinationStatus, destinationErr)
 	}
-
-	var sec *secrets.Secrets
-	var secretsErr error
-	if plan.TargetType == targetRemote {
-		sec, secretsErr = planner.loadSecrets(plan)
-		collector.addStatus("Secrets", "Valid", secretsErr)
-	}
-
-	if sourceAccessible && destinationErr == nil && (plan.TargetType != targetRemote || secretsErr == nil) {
-		repoStatus, repoErr, repoHint := validateConfigRepository(plan, cfg, planner.runner, sec)
-		switch {
-		case repoErr != nil:
-			collector.addStatus("Repository Access", repoStatus, repoErr)
-		case repoStatus == "Not initialized":
-			collector.addFailure("Repository Access", repoStatus, "Repository is reachable but not initialized", repoHint)
-		default:
-			collector.addStatic("Repository Access", repoStatus)
-		}
-	} else {
+	switch {
+	case repoErr != nil:
+		collector.addStatus("Repository Access", repoStatus, repoErr)
+	case repoFailureMessage != "":
+		collector.addFailure("Repository Access", repoStatus, repoFailureMessage, repoHint)
+	case repoStatus != "Not checked":
+		collector.addStatic("Repository Access", repoStatus)
+	default:
 		collector.addUnchecked("Repository Access")
+	}
+	collector.addStatus(targetLabel, targetStatus, targetSemanticsErr)
+	if plan.TargetType == targetRemote {
+		collector.addStatus("Secrets", "Valid", secretsErr)
 	}
 
 	if collector.failed() {
@@ -167,11 +191,13 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 	plan.SnapshotSource = cfg.SourcePath
 	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
 	plan.Threads = cfg.Threads
+	plan.Filter = cfg.Filter
 	plan.PruneOptions = cfg.Prune
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
 
 	lines := []SummaryLine{
+		{Label: "Label", Value: req.Source},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source", Value: plan.SnapshotSource},
@@ -180,6 +206,9 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 
 	if cfg.Threads > 0 {
 		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", cfg.Threads)})
+	}
+	if cfg.Filter != "" {
+		lines = append(lines, SummaryLine{Label: "Filter", Value: cfg.Filter})
 	}
 	if cfg.Prune != "" {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
@@ -215,6 +244,7 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		plan.SnapshotSource = cfg.SourcePath
 	}
 	lines := []SummaryLine{
+		{Label: "Label", Value: req.Source},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Config Dir", Value: plan.ConfigDir},
 		{Label: "Config File", Value: plan.ConfigFile},
@@ -222,11 +252,9 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
 	if plan.TargetType == targetRemote {
-		lines = append(lines[:3],
-			append([]SummaryLine{
-				{Label: "Secrets Dir", Value: plan.SecretsDir},
-				{Label: "Secrets File", Value: plan.SecretsFile},
-			}, lines[3:]...)...,
+		lines = append(lines,
+			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
+			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
 		)
 	}
 

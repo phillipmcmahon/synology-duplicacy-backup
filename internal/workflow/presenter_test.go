@@ -25,14 +25,14 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 	rt.Now = func() time.Time { return time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC) }
 	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
 
-	presenter.PrintHeader(&Plan{OperationMode: "Backup", ModeDisplay: "Local"}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
+	presenter.PrintHeader(&Plan{OperationMode: "Backup", BackupLabel: "homes", Target: "onsite-usb", ModeDisplay: "Local"}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
 	presenter.PrintSummary(&Plan{Summary: []SummaryLine{{Label: "Config File", Value: "/tmp/homes-backup.toml"}}})
 	presenter.PrintBackupResult("Backup for /volume1/homes at revision 2361 completed\nFiles: 10 total, 42 bytes; 1 new, 10 bytes\nTotal running time: 00:00:03\n", "", false)
 	presenter.PrintDuration(time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC))
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run started - 2026-04-10 16:47:50", "Run Summary:", "Config File", "Revision", "2361", "Files", "Duration", "00:00:03"} {
+	for _, token := range []string{"Run started - 2026-04-10 16:47:50", "Operation", "Backup", "Label", "homes", "Target", "onsite-usb", "Run Summary:", "Config File", "Revision", "2361", "Files", "Duration", "00:00:03"} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
