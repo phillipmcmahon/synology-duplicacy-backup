@@ -9,41 +9,41 @@ as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
 ## Common Runs
 
 ```bash
-# Backup now
+# Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes
 
-# Backup, then safe prune
+# Backup then safe prune homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
-# Backup the offsite-storj target
+# Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
 
-# Preview only
+# Preview backing up homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
 
-# Preview with detailed logs
+# Preview backup and prune for homes on target onsite-usb with detailed logs
 sudo duplicacy-backup --target onsite-usb --verbose --dry-run --backup --prune homes
 
-# Storage cleanup only
+# Storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
-# Fix permissions only
+# Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --fix-perms homes
 ```
 
 ## Health Checks
 
 ```bash
-# Fast summary
+# Fast health summary for homes on target onsite-usb
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Environment + access
+# Doctor check for homes on target onsite-usb
 sudo duplicacy-backup health doctor --target onsite-usb homes
 
-# Integrity across revisions found for this backup
+# Verify homes on target onsite-usb
 sudo duplicacy-backup health verify --target onsite-usb homes
 
-# Health JSON
+# JSON verify report for homes on target onsite-usb
 sudo duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
@@ -55,19 +55,19 @@ Exit codes:
 ## Config Commands
 
 ```bash
-# Validate the onsite-usb target config
+# Validate config for homes on target onsite-usb
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain the onsite-usb target config
+# Explain config for homes on target onsite-usb
 sudo duplicacy-backup config explain --target onsite-usb homes
 
-# Explain the offsite-storj target config
+# Explain config for homes on target offsite-storj
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show paths for the onsite-usb target
+# Show paths for homes on target onsite-usb
 duplicacy-backup config paths --target onsite-usb homes
 
-# Show paths for the offsite-storj target
+# Show paths for homes on target offsite-storj
 duplicacy-backup config paths --target offsite-storj homes
 ```
 

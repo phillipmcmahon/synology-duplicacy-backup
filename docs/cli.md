@@ -69,58 +69,58 @@ Primary operations may be combined. When they are, execution order is fixed:
 ## Examples
 
 ```bash
-# Explicit backup
+# Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes
 
-# Backup, then safe prune
+# Backup then safe prune homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
-# Force prune
+# Forced prune for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
 
-# Storage cleanup only
+# Storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
-# Backup, then safe prune, then storage cleanup
+# Backup, safe prune, and storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune --cleanup-storage homes
 
-# Backup, then forced prune, then storage cleanup
+# Backup, forced prune, and storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
 
-# Fix permissions only
+# Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --fix-perms homes
 
-# Backup, then fix permissions
+# Backup then fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
 
-# Backup, then safe prune, then fix permissions
+# Backup, safe prune, and fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --prune --backup --fix-perms homes
 
-# Offsite backup preview
+# Preview backing up homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --dry-run --backup homes
 
-# Verbose troubleshooting run
+# Verbose backup and prune for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
 
-# Machine-readable completion summary
+# JSON summary for a dry-run backup of homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
-# Validate the onsite-usb target config and any applicable secrets
+# Validate config for homes on target onsite-usb
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain the offsite-storj target config
+# Explain config for homes on target offsite-storj
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show paths for the onsite-usb target
+# Show paths for homes on target onsite-usb
 duplicacy-backup config paths --target onsite-usb homes
 
-# Fast health summary
+# Fast health summary for homes on target onsite-usb
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Read-only health diagnostics in JSON
+# JSON doctor report for homes on target onsite-usb
 sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 
-# Offsite integrity verification
+# Verify homes on target offsite-storj
 sudo duplicacy-backup health verify --target offsite-storj homes
 ```
 

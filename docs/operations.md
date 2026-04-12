@@ -112,31 +112,31 @@ You can still override this with:
 /usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
 ```
 
-Example: backup followed by safe prune for target `offsite-storj`
+Example: backup followed by safe prune for label `homes` on target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --backup --prune homes
 ```
 
-Example: forced prune for target `offsite-storj`
+Example: forced prune for label `homes` on target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --prune --force-prune homes
 ```
 
-Example: storage cleanup for target `offsite-storj`
+Example: storage cleanup for label `homes` on target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup --target offsite-storj --cleanup-storage homes
 ```
 
-Example: scheduled health summary
+Example: scheduled health summary for label `homes` on target `onsite-usb`
 
 ```bash
 /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
 ```
 
-Example: scheduled JSON integrity verification for monitoring
+Example: scheduled JSON integrity verification for label `homes` on target `onsite-usb`
 
 ```bash
 /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes

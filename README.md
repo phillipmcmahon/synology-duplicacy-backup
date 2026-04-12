@@ -81,71 +81,71 @@ S3-compatible storage.
 ### 4. Run
 
 ```bash
-# Backup
+# Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes
 
-# Backup, then safe prune
+# Backup then safe prune homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
-# Forced prune
+# Forced prune homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
 
-# Storage cleanup only
+# Storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
-# Backup the offsite-storj target
+# Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
 
-# Preview only
+# Preview backing up homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
 
-# Detailed troubleshooting output
+# Verbose backup and prune for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
 
-# Machine-readable completion summary on stdout
+# JSON summary for a dry-run backup of homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
-# Fast health summary
+# Fast health summary for homes on target onsite-usb
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Deeper diagnostic report in JSON
+# JSON doctor report for homes on target onsite-usb
 sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 ```
 
 ## Common Commands
 
 ```bash
-# Explicit backup
+# Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes
 
-# Safe prune + storage cleanup
+# Safe prune and storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --prune --cleanup-storage homes
 
-# Fix permissions only
+# Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --fix-perms homes
 
-# Backup, then forced prune, then storage cleanup, then fix permissions
+# Backup, forced prune, storage cleanup, and fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage --fix-perms homes
 
-# Custom config directory for a runtime command
+# Backup homes to target onsite-usb using a custom config directory
 duplicacy-backup --target onsite-usb --config-dir /opt/etc --backup homes
 
-# Validate the onsite-usb target config and any applicable secrets
+# Validate config for homes on target onsite-usb
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain resolved values for the offsite-storj target
+# Explain resolved values for homes on target offsite-storj
 sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show resolved paths for the onsite-usb target
+# Show resolved paths for homes on target onsite-usb
 duplicacy-backup config paths --target onsite-usb homes
 
-# Fast read-only health summary
+# Fast health summary for homes on target onsite-usb
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Read-only diagnostic pass
+# Read-only doctor pass for homes on target onsite-usb
 sudo duplicacy-backup health doctor --target onsite-usb homes
 
-# Integrity check across revisions found for this backup
+# Integrity check for homes on target onsite-usb
 sudo duplicacy-backup health verify --target onsite-usb homes
 ```
 
