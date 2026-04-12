@@ -134,8 +134,8 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	if plan.FixPermsChownCommand == "" {
 		t.Fatal("expected fix-perms command to be precomputed")
 	}
-	if len(plan.Summary) != 5 {
-		t.Fatalf("summary lines = %d, want 5", len(plan.Summary))
+	if len(plan.Summary) != 8 {
+		t.Fatalf("summary lines = %d, want 8", len(plan.Summary))
 	}
 }
 
@@ -241,7 +241,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 
 func TestPlannerLoadConfig_FixPermsRequiresOwnerGroup(t *testing.T) {
 	configDir := t.TempDir()
-	configFile := writeTargetTestConfig(t, configDir, "homes", "onsite-usb", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[common]\nthreads = 4\n\n[targets.onsite-usb]\ntype = \"local\"\nallow_local_accounts = true\ndestination = \"/backups\"\nrepository = \"homes\"\n")
+	configFile := writeTargetTestConfig(t, configDir, "homes", "onsite-usb", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[common]\nthreads = 4\n\n[targets.onsite-usb]\ntype = \"filesystem\"\nlocation = \"local\"\nallow_local_accounts = true\ndestination = \"/backups\"\nrepository = \"homes\"\n")
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{

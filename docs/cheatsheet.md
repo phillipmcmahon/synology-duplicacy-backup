@@ -6,6 +6,14 @@ Every command must pass an explicit `--target <name>`.
 Every runtime command must also pass at least one explicit operation flag such
 as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
 
+Target model:
+
+- `type = "filesystem"` or `type = "object"`
+- `location = "local"` or `location = "remote"`
+- supported combinations are `filesystem/local`, `filesystem/remote`, and `object/remote`
+- only object targets use secrets
+- `--fix-perms` only works for filesystem targets
+
 ## Common Runs
 
 ```bash
@@ -18,6 +26,9 @@ sudo duplicacy-backup --target onsite-usb --backup --prune homes
 # Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
 
+# Backup homes to target offsite-usb mounted over VPN
+sudo duplicacy-backup --target offsite-usb --backup homes
+
 # Preview backing up homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
 
@@ -29,6 +40,9 @@ sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
 # Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --fix-perms homes
+
+# Fix permissions for homes on target offsite-usb
+sudo duplicacy-backup --target offsite-usb --fix-perms homes
 ```
 
 ## Health Checks
@@ -76,7 +90,7 @@ duplicacy-backup config paths --target offsite-storj homes
 ```text
 /usr/local/bin/duplicacy-backup
 /usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
-/root/.secrets/<label>-secrets.toml
+/root/.secrets/<label>-secrets.toml  # object targets only
 /var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
@@ -86,6 +100,7 @@ duplicacy-backup config paths --target offsite-storj homes
 - Use `--force-prune` only with `--prune`.
 - Use `--cleanup-storage` only when no other client is writing to the same storage.
 - Keep `source_path` set to the real Btrfs volume or subvolume for the label, and use Duplicacy filters to include or exclude nested directories beneath that root.
+- Use `type` for storage behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
@@ -93,7 +108,8 @@ duplicacy-backup config paths --target offsite-storj homes
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 - One config file covers a whole label; one secrets file covers a whole label.
-- `config paths` only shows secrets paths for targets that actually use them.
+- `config explain` and `config paths` show `Type` and `Location` for the selected target.
+- `config paths` only shows secrets paths for object targets.
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - If health config cannot be read, rely on Synology scheduled-task alerts as the fallback.
 

@@ -69,16 +69,17 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		{Label: "Config File", Value: plan.ConfigFile},
 	}
 
-	cfg, err := planner.loadConfigWithOptions(plan, false)
+	cfg, err := planner.loadConfigForValidation(plan)
 	if err != nil {
 		return "", err
 	}
 	resolved[2].Value = plan.ConfigFile
 	plan.Target = cfg.Target
-	plan.TargetType = cfg.TargetType
+	plan.StorageType = cfg.StorageType
+	plan.Location = cfg.Location
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
-	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
+	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
 	requiredErr := cfg.ValidateRequired(true, false)
@@ -108,20 +109,11 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	var sec *secrets.Secrets
 	var secretsErr error
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
-	targetLabel := "Target Settings"
-	targetStatus := "Valid"
-	if cfg.TargetType == targetLocal {
-		targetLabel = "Local Accounts"
-		targetStatus = "Not enabled"
-		if cfg.AllowLocalAccounts && cfg.LocalOwner != "" && cfg.LocalGroup != "" {
-			targetStatus = "Valid"
-		}
-	}
-	if plan.TargetType == targetRemote {
+	if cfg.UsesObjectStorage() {
 		sec, secretsErr = planner.loadSecrets(plan)
 	}
 
-	if sourceAccessible && destinationErr == nil && (plan.TargetType != targetRemote || secretsErr == nil) {
+	if sourceAccessible && destinationErr == nil && (!cfg.UsesObjectStorage() || secretsErr == nil) {
 		repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
 		if repoStatus == "Not initialized" && repoErr == nil {
 			repoFailureMessage = "Repository is reachable but not initialized"
@@ -157,8 +149,8 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	default:
 		collector.addUnchecked("Repository Access")
 	}
-	collector.addStatus(targetLabel, targetStatus, targetSemanticsErr)
-	if plan.TargetType == targetRemote {
+	collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
+	if cfg.UsesObjectStorage() {
 		collector.addStatus("Secrets", "Valid", secretsErr)
 	}
 
@@ -186,10 +178,11 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		return "", err
 	}
 	plan.Target = cfg.Target
-	plan.TargetType = cfg.TargetType
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+	plan.StorageType = cfg.StorageType
+	plan.Location = cfg.Location
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 	plan.SnapshotSource = cfg.SourcePath
-	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
+	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
 	plan.PruneOptions = cfg.Prune
@@ -199,6 +192,8 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Source},
 		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Type", Value: cfg.StorageType},
+		{Label: "Location", Value: cfg.Location},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source", Value: plan.SnapshotSource},
 		{Label: "Destination", Value: plan.BackupTarget},
@@ -214,7 +209,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
 	}
 
-	if plan.TargetType == targetRemote {
+	if cfg.UsesObjectStorage() {
 		sec, err := planner.loadSecrets(plan)
 		if err != nil {
 			return "", err
@@ -239,19 +234,22 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req)
 	if cfg, err := planner.loadConfig(plan); err == nil {
 		plan.Target = cfg.Target
-		plan.TargetType = cfg.TargetType
-		plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+		plan.StorageType = cfg.StorageType
+		plan.Location = cfg.Location
+		plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 		plan.SnapshotSource = cfg.SourcePath
 	}
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Source},
 		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Type", Value: plan.StorageType},
+		{Label: "Location", Value: plan.Location},
 		{Label: "Config Dir", Value: plan.ConfigDir},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source Path", Value: plan.SnapshotSource},
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
-	if plan.TargetType == targetRemote {
+	if plan.UsesObjectStorage() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
@@ -418,18 +416,18 @@ func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) error {
 }
 
 func validateConfigDestination(cfg *config.Config) (string, error) {
-	switch cfg.TargetType {
-	case targetLocal:
-		return validateLocalDestination(cfg.Destination)
-	case targetRemote:
-		return validateRemoteDestination(cfg.Destination, cfg.RequiresNetwork)
+	switch {
+	case cfg.UsesFilesystem():
+		return validateFilesystemDestination(cfg.Destination)
+	case cfg.UsesObjectStorage():
+		return validateObjectDestination(cfg.Destination)
 	default:
-		return "", configPathError(fmt.Sprintf("unsupported target type %q", cfg.TargetType))
+		return "", configPathError(fmt.Sprintf("unsupported storage type %q", cfg.StorageType))
 	}
 }
 
 func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Runner, sec *secrets.Secrets) (string, error, string) {
-	if cfg.TargetType == targetLocal {
+	if cfg.UsesFilesystem() {
 		if status, err, hint := validateLocalRepositoryReadiness(plan.BackupTarget); err != nil || status == "Not initialized" {
 			return status, err, hint
 		}
@@ -492,33 +490,33 @@ func prepareConfigValidationProbe(plan *Plan, runner execpkg.Runner, sec *secret
 	return dup, nil
 }
 
-func validateLocalDestination(destination string) (string, error) {
+func validateFilesystemDestination(destination string) (string, error) {
 	if destination == "" {
 		return "", configPathError("destination must not be empty")
 	}
 	if !filepath.IsAbs(destination) {
-		return "", configPathError(fmt.Sprintf("local destination must be an absolute path (was %q)", destination))
+		return "", configPathError(fmt.Sprintf("filesystem destination must be an absolute path (was %q)", destination))
 	}
 	info, err := os.Stat(destination)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", configPathError(fmt.Sprintf("local destination does not exist: %s", destination))
+			return "", configPathError(fmt.Sprintf("filesystem destination does not exist: %s", destination))
 		}
-		return "", configPathError(fmt.Sprintf("local destination is not accessible: %v", err))
+		return "", configPathError(fmt.Sprintf("filesystem destination is not accessible: %v", err))
 	}
 	if !info.IsDir() {
-		return "", configPathError(fmt.Sprintf("local destination must be a directory: %s", destination))
+		return "", configPathError(fmt.Sprintf("filesystem destination must be a directory: %s", destination))
 	}
 	probe, err := os.CreateTemp(destination, ".duplicacy-backup-config-validate-*")
 	if err != nil {
-		return "", configPathError(fmt.Sprintf("local destination is not writable: %s", destination))
+		return "", configPathError(fmt.Sprintf("filesystem destination is not writable: %s", destination))
 	}
 	_ = probe.Close()
 	_ = os.Remove(probe.Name())
 	return "Writable", nil
 }
 
-func validateRemoteDestination(destination string, requiresNetwork bool) (string, error) {
+func validateObjectDestination(destination string) (string, error) {
 	if destination == "" {
 		return "", configPathError("destination must not be empty")
 	}
@@ -531,23 +529,20 @@ func validateRemoteDestination(destination string, requiresNetwork bool) (string
 	}
 	host := parsed.Hostname()
 	if host == "" {
-		return "", configPathError(fmt.Sprintf("remote destination host could not be determined from %q", destination))
-	}
-	if !requiresNetwork {
-		return "Parsed", nil
+		return "", configPathError(fmt.Sprintf("object destination host could not be determined from %q", destination))
 	}
 	addrs, err := resolveConfigDestinationHost(host)
 	if err != nil {
-		return "", configPathError(fmt.Sprintf("remote destination host could not be resolved: %s", host))
+		return "", configPathError(fmt.Sprintf("object destination host could not be resolved: %s", host))
 	}
 	if len(addrs) == 0 {
-		return "", configPathError(fmt.Sprintf("remote destination host resolved without any addresses: %s", host))
+		return "", configPathError(fmt.Sprintf("object destination host resolved without any addresses: %s", host))
 	}
 	return "Resolved", nil
 }
 
-func configDestinationHost(destination, targetType string) string {
-	if targetType != targetRemote {
+func configDestinationHost(destination, storageType string) string {
+	if storageType != storageTypeObject {
 		return ""
 	}
 	parsed, err := url.Parse(destination)

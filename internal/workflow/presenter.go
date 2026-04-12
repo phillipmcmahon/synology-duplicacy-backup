@@ -33,6 +33,12 @@ func (p *Presenter) PrintHeader(plan *Plan, startedAt time.Time, _ string) {
 	p.log.PrintLine("Operation", plan.OperationMode)
 	p.log.PrintLine("Label", plan.BackupLabel)
 	p.log.PrintLine("Target", plan.TargetName())
+	if plan.StorageType != "" {
+		p.log.PrintLine("Type", plan.StorageType)
+	}
+	if plan.Location != "" {
+		p.log.PrintLine("Location", plan.Location)
+	}
 	if p.verbose && plan.DefaultNotice != "" {
 		p.log.PrintLine("Notice", plan.DefaultNotice)
 	}
@@ -77,6 +83,12 @@ func (p *Presenter) PrintPreRunFailurePlan(plan *Plan) {
 	}
 	if plan.TargetName() != "" {
 		p.log.PrintLine("Target", plan.TargetName())
+	}
+	if plan.StorageType != "" {
+		p.log.PrintLine("Type", plan.StorageType)
+	}
+	if plan.Location != "" {
+		p.log.PrintLine("Location", plan.Location)
 	}
 }
 

@@ -49,6 +49,35 @@ The preferred layout is:
 - optional `[targets.<name>.health]`
 - optional `[targets.<name>.health.notify]`
 
+## Target Model
+
+Targets now use two explicit axes:
+
+- `type` describes the storage mechanics
+- `location` describes where the storage lives operationally
+
+Supported combinations:
+
+- `type = "filesystem"` with `location = "local"`
+- `type = "filesystem"` with `location = "remote"`
+- `type = "object"` with `location = "remote"`
+
+This means a mounted filesystem path over VPN can be modelled honestly as
+remote without forcing object-storage behaviour.
+
+Operational rules:
+
+- filesystem targets use filesystem path semantics
+- object targets use URL-style storage semantics
+- only object targets load secrets
+- only filesystem targets allow `allow_local_accounts`, `local_owner`,
+  `local_group`, and `--fix-perms`
+
+Breaking change note:
+
+- old `type = "local"` and `type = "remote"` values are no longer supported
+- `requires_network` has been retired
+
 ## Config Keys
 
 | Key | Required | Description |
@@ -63,16 +92,16 @@ The preferred layout is:
 | `common.safe_prune_max_delete_percent` | No | Default `10` |
 | `common.safe_prune_max_delete_count` | No | Default `25` |
 | `common.safe_prune_min_total_for_percent` | No | Default `20` |
-| `targets.<name>.type` | Yes | Internal target capability: `local` or `remote` |
-| `targets.<name>.destination` | Yes unless inherited from `common` | Backup destination path or S3-compatible gateway URL |
+| `targets.<name>.type` | Yes | Storage kind: `filesystem` or `object` |
+| `targets.<name>.location` | Yes | Deployment location: `local` or `remote` |
+| `targets.<name>.destination` | Yes unless inherited from `common` | Filesystem path for `filesystem` targets, or S3-compatible gateway URL for `object` targets |
 | `targets.<name>.repository` | No | Repository name; defaults to `label` |
 | `targets.<name>.filter` | No | Target-specific filter override |
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
-| `targets.<name>.allow_local_accounts` | Needed for local owner/group operations | Explicitly allows local owner/group management |
-| `targets.<name>.local_owner` | Needed for local `--fix-perms` | Non-root owner to apply |
-| `targets.<name>.local_group` | Needed for local `--fix-perms` | Non-root group to apply |
-| `targets.<name>.requires_network` | No | Explicitly marks network-dependent targets |
+| `targets.<name>.allow_local_accounts` | Needed for filesystem owner/group operations | Explicitly allows local owner/group management |
+| `targets.<name>.local_owner` | Needed for filesystem `--fix-perms` | Non-root owner to apply |
+| `targets.<name>.local_group` | Needed for filesystem `--fix-perms` | Non-root group to apply |
 
 ## Health Policy
 
@@ -124,18 +153,28 @@ send_for = ["doctor", "verify"]
 interactive = false
 
 [targets.onsite-usb]
-type = "local"
+type = "filesystem"
+location = "local"
 destination = "/volume2/backups"
 repository = "homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
+[targets.offsite-usb]
+type = "filesystem"
+location = "remote"
+destination = "/volume1/duplicacy/duplicacy"
+repository = "homes"
+allow_local_accounts = true
+local_owner = "AJT"
+local_group = "users"
+
 [targets.offsite-storj]
-type = "remote"
+type = "object"
+location = "remote"
 destination = "s3://gateway.storjshare.io/my-backup-bucket"
 repository = "homes"
-requires_network = true
 
 [targets.offsite-storj.health]
 verify_warn_after_hours = 336
@@ -165,7 +204,7 @@ actually backed up.
 
 ## Secrets
 
-Targets that need credentials load them from:
+Object targets load credentials from:
 
 ```text
 /root/.secrets/<label>-secrets.toml
@@ -195,6 +234,9 @@ Requirements:
 
 The current schema uses `storj_s3_id` and `storj_s3_secret` because those
 values are passed through to Duplicacy for gateway-backed target storage.
+
+Filesystem targets, whether local or remote, do not load secrets and therefore
+do not need a matching secrets file.
 
 ## Safe Prune Thresholds
 
@@ -227,12 +269,28 @@ freshness signal.
 | `btrfs` binary check | backup |
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
-| target local-account consistency | `config validate`, local `--fix-perms` |
+| target local-account consistency | `config validate`, filesystem `--fix-perms` |
 | Btrfs `source_path` check | `config validate`, backup |
 | destination accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
-| `local_owner` / `local_group` validation | local `--fix-perms` |
-| target secrets loading | targets that require secrets |
+| `local_owner` / `local_group` validation | filesystem `--fix-perms` |
+| target secrets loading | `object` targets |
+
+## Output Model
+
+Human-facing screens now make the selected target shape explicit:
+
+- runtime headers show `Label`, `Target`, `Type`, and `Location`
+- health headers show `Check`, `Label`, `Target`, `Type`, and `Location`
+- `config explain` and `config paths` show `Type` and `Location`
+
+`config validate` intentionally keeps its `Resolved` section identity-only:
+
+- `Label`
+- `Target`
+- `Config File`
+
+The new target-model checks are surfaced under `Target Settings`.
 
 `config validate` keeps repository probing read-only. It does not initialise
 storage, create repositories, or modify config/state. Repository readiness is

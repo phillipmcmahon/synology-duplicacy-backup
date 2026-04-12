@@ -42,6 +42,9 @@ func SummaryLines(plan *Plan) []SummaryLine {
 	if plan.FixPermsOnly {
 		return []SummaryLine{
 			{Label: "Operation Mode", Value: plan.OperationMode},
+			{Label: "Target", Value: plan.TargetName()},
+			{Label: "Type", Value: plan.StorageType},
+			{Label: "Location", Value: plan.Location},
 			SummaryLine{Label: "Destination", Value: plan.BackupTarget},
 			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
 			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
@@ -52,6 +55,8 @@ func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{
 		{Label: "Operation Mode", Value: plan.OperationMode},
 		SummaryLine{Label: "Target", Value: plan.TargetName()},
+		SummaryLine{Label: "Type", Value: plan.StorageType},
+		SummaryLine{Label: "Location", Value: plan.Location},
 		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
 	}
@@ -120,7 +125,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		)
 	}
 
-	if plan.TargetType == targetRemote && plan.Secrets != nil {
+	if plan.UsesObjectStorage() && plan.Secrets != nil {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},

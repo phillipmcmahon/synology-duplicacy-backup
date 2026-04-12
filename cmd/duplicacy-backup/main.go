@@ -96,7 +96,7 @@ func runWithArgs(args []string) int {
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
 		if result.Request.JSONSummary {
 			now := rt.Now()
-			emitJSONFailureSummary(os.Stdout, result.Request, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
+			emitJSONFailureSummary(os.Stdout, result.Request, nil, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
 		}
 		return 1
 	}
@@ -107,11 +107,17 @@ func runWithArgs(args []string) int {
 	planner := workflow.NewPlanner(meta, rt, log, runner)
 	plan, err := planner.Build(result.Request)
 	if err != nil {
-		workflow.NewPresenter(meta, rt, log, false).PrintPreRunFailureContext(result.Request)
+		failurePlan := planner.FailureContext(result.Request)
+		presenter := workflow.NewPresenter(meta, rt, log, false)
+		if failurePlan != nil {
+			presenter.PrintPreRunFailurePlan(failurePlan)
+		} else {
+			presenter.PrintPreRunFailureContext(result.Request)
+		}
 		log.Error("%s", workflow.OperatorMessage(err))
 		printFailureCompletion(meta, rt, log, startedAt)
 		if result.Request.JSONSummary {
-			emitJSONFailureSummary(os.Stdout, result.Request, startedAt, rt.Now(), workflow.OperatorMessage(err))
+			emitJSONFailureSummary(os.Stdout, result.Request, failurePlan, startedAt, rt.Now(), workflow.OperatorMessage(err))
 		}
 		log.Close()
 		return 1
@@ -142,7 +148,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", logErr)
 		fmt.Fprintf(os.Stderr, "[ERRO] %v\n", err)
 		if wantsJSONSummary(args) {
-			emitJSONFailureSummary(os.Stdout, nil, startedAt, rt.Now(), err.Error())
+			emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, rt.Now(), err.Error())
 		}
 		return nil, 1
 	}
@@ -156,7 +162,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 			req := inferHealthFailureRequest(args)
 			_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(req, req.HealthCommand, workflow.OperatorMessage(err), completedAt))
 		} else {
-			emitJSONFailureSummary(os.Stdout, nil, startedAt, completedAt, workflow.OperatorMessage(err))
+			emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, workflow.OperatorMessage(err))
 		}
 	}
 	var requestErr *workflow.RequestError
@@ -214,11 +220,11 @@ func inferHealthFailureRequest(args []string) *workflow.Request {
 	return req
 }
 
-func emitJSONFailureSummary(w io.Writer, req *workflow.Request, startedAt, completedAt time.Time, message string) {
+func emitJSONFailureSummary(w io.Writer, req *workflow.Request, plan *workflow.Plan, startedAt, completedAt time.Time, message string) {
 	if w == nil {
 		return
 	}
-	if err := workflow.WriteRunReport(w, workflow.NewFailureRunReport(req, startedAt, completedAt, 1, message)); err != nil {
+	if err := workflow.WriteRunReport(w, workflow.NewFailureRunReport(req, plan, startedAt, completedAt, 1, message)); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
 	}
 }

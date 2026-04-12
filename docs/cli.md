@@ -12,6 +12,17 @@ Every runtime, `config`, and `health` command requires an explicit
 `--target <name>`.
 Every runtime command must also pass at least one explicit primary operation.
 
+Targets now describe both storage kind and deployment location:
+
+- `type = "filesystem"` or `type = "object"`
+- `location = "local"` or `location = "remote"`
+
+Supported combinations are:
+
+- filesystem/local
+- filesystem/remote
+- object/remote
+
 Primary operations may be combined. When they are, execution order is fixed:
 
 1. `--backup`
@@ -26,7 +37,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--backup` | Request the backup phase |
 | `--prune` | Request the threshold-guarded prune phase |
 | `--cleanup-storage` | Run exhaustive exclusive storage cleanup |
-| `--fix-perms` | Normalise local repository ownership and permissions; can run alone or after backup/prune |
+| `--fix-perms` | Normalise filesystem repository ownership and permissions; can run alone or after backup/prune |
 
 ## Modifiers
 
@@ -47,7 +58,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate the selected target from that label config and any target secrets |
+| `config validate --target <target> <label>` | Validate the selected target from that label config and any required object-target secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -93,6 +104,12 @@ sudo duplicacy-backup --target onsite-usb --fix-perms homes
 # Backup then fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
 
+# Backup homes to target offsite-usb mounted over VPN
+sudo duplicacy-backup --target offsite-usb --backup homes
+
+# Fix permissions for homes on target offsite-usb
+sudo duplicacy-backup --target offsite-usb --fix-perms homes
+
 # Backup, safe prune, and fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --prune --backup --fix-perms homes
 
@@ -129,10 +146,10 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - `--help` is intentionally concise; use `--help-full` for the detailed reference
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
 - config files are TOML files named `<label>-backup.toml`
-- target secrets are read from `/root/.secrets/<label>-secrets.toml`
+- object-target secrets are read from `/root/.secrets/<label>-secrets.toml`
 - one config file and, when needed, one secrets file cover a whole label
 - current secrets keys for Storj-backed S3-compatible targets are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token`
-- `--fix-perms` is local-account aware and cannot be combined with a target that does not allow local accounts
+- `--fix-perms` is filesystem-target aware and cannot be combined with an object target
 - combined phases all run against one selected target from a label config for a single invocation
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
 - `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
@@ -143,17 +160,20 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` works on one selected target from a label config at a time
-- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, that the label `source_path` is a valid Btrfs snapshot source, that any target secrets be valid, and that the selected repository be checked with a read-only readiness probe
+- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, that the label `source_path` is a valid Btrfs snapshot source, that any required object-target secrets be valid, and that the selected repository be checked with a read-only readiness probe
 - `config validate` never initialises storage or changes repository state
 - repository readiness is reported as exactly one of:
   - `Repository Access : Valid`
   - `Repository Access : Not initialized`
   - `Repository Access : Invalid (...)`
-- `config paths` includes secrets paths only for targets that actually use them
+- `config explain` and `config paths` surface `Type` and `Location` for the selected target
+- `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
+- `config paths` includes secrets paths only for object targets
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
+- runtime and health headers now identify `Label`, `Target`, `Type`, and `Location` before work begins
 - health commands are read-only and never prompt for confirmation
 - health commands use target-specific state under `/var/lib/duplicacy-backup/<label>.<target>.json` together with live Duplicacy storage inspection
 - when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal

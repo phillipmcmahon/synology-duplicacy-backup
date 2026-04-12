@@ -206,7 +206,8 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 	}
 
 	b.WriteString("\n[targets.onsite-usb]\n")
-	b.WriteString("type = \"local\"\n")
+	b.WriteString("type = \"filesystem\"\n")
+	b.WriteString("location = \"local\"\n")
 	for _, line := range storageLines {
 		b.WriteString(line + "\n")
 	}
@@ -319,7 +320,7 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 	t.Cleanup(log.Close)
 
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", "local", "/volume1/homes", "/backups", "homes", "", "", 0, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeFilesystem, locationLocal, "/volume1/homes", "/backups", "homes", "", "", 0, ""))
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),

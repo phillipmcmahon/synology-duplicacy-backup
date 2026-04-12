@@ -155,7 +155,7 @@ func localConfigBody(label, destination, owner, group string, threads int, prune
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-usb")
-	fmt.Fprintf(&b, "type = %q\n", "local")
+	fmt.Fprintf(&b, "type = %q\nlocation = %q\n", "filesystem", "local")
 	if owner != "" || group != "" {
 		b.WriteString("allow_local_accounts = true\n")
 	} else {
@@ -185,7 +185,7 @@ func remoteConfigBody(label, destination string, threads int, prune string) stri
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "offsite-storj")
-	fmt.Fprintf(&b, "type = %q\nrequires_network = true\ndestination = %q\nrepository = %q\n", "remote", destination, label)
+	fmt.Fprintf(&b, "type = %q\nlocation = %q\ndestination = %q\nrepository = %q\n", "object", "remote", destination, label)
 	return b.String()
 }
 
@@ -202,7 +202,7 @@ func assertFailureFooter(t *testing.T, stderr string) {
 	}
 }
 
-func assertFailureScope(t *testing.T, stderr string, operation string, label string, target string) {
+func assertFailureScope(t *testing.T, stderr string, operation string, label string, target string, storageType string, location string) {
 	t.Helper()
 	if !strings.Contains(stderr, "Run could not start") {
 		t.Fatalf("stderr = %q", stderr)
@@ -214,6 +214,12 @@ func assertFailureScope(t *testing.T, stderr string, operation string, label str
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if target != "" && (!strings.Contains(stderr, "Target") || !strings.Contains(stderr, target)) {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if storageType != "" && (!strings.Contains(stderr, "Type") || !strings.Contains(stderr, storageType)) {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if location != "" && (!strings.Contains(stderr, "Location") || !strings.Contains(stderr, location)) {
 		t.Fatalf("stderr = %q", stderr)
 	}
 }
@@ -707,7 +713,7 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "Secrets file not found:") || !strings.Contains(stderr, "homes-secrets.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Backup", "homes", "offsite-storj")
+		assertFailureScope(t, stderr, "Backup", "homes", "offsite-storj", "object", "remote")
 		assertFailureFooter(t, stderr)
 	})
 }
@@ -724,7 +730,24 @@ func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "contains invalid TOML") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Backup", "homes", "onsite-usb")
+		assertFailureScope(t, stderr, "Backup", "homes", "onsite-usb", "", "")
+		assertFailureFooter(t, stderr)
+	})
+}
+
+func TestRunWithArgs_ObjectFixPermsFailureIncludesStorageIdentity(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeTargetConfig(t, configDir, "homes", "offsite-storj", remoteConfigBody("homes", "s3://bucket", 4, ""))
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "offsite-storj", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(object fix-perms failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "object", "remote")
 		assertFailureFooter(t, stderr)
 	})
 }
@@ -875,18 +898,18 @@ func TestEmitJSONFailureSummary(t *testing.T) {
 	startedAt := time.Unix(100, 0).UTC()
 	completedAt := time.Unix(130, 0).UTC()
 
-	emitJSONFailureSummary(nil, nil, startedAt, completedAt, "ignored")
+	emitJSONFailureSummary(nil, nil, nil, startedAt, completedAt, "ignored")
 
 	var buf bytes.Buffer
-	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, startedAt, completedAt, "boom")
-	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) {
+	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{StorageType: "filesystem", Location: "local"}, startedAt, completedAt, "boom")
+	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"storage_type": "filesystem"`) || !strings.Contains(buf.String(), `"location": "local"`) {
 		t.Fatalf("summary = %q", buf.String())
 	}
 }
 
 func TestEmitJSONFailureSummary_WriteFailureReportsError(t *testing.T) {
 	_, stderr := captureOutput(t, func() {
-		emitJSONFailureSummary(errWriter{}, nil, time.Unix(100, 0).UTC(), time.Unix(130, 0).UTC(), "boom")
+		emitJSONFailureSummary(errWriter{}, nil, nil, time.Unix(100, 0).UTC(), time.Unix(130, 0).UTC(), "boom")
 	})
 	if !strings.Contains(stderr, "Failed to write JSON summary") {
 		t.Fatalf("stderr = %q", stderr)

@@ -10,6 +10,9 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 	plan := &Plan{
 		FixPermsOnly:  true,
 		DryRun:        true,
+		Target:        "onsite-usb",
+		StorageType:   storageTypeFilesystem,
+		Location:      locationLocal,
 		LocalOwner:    "backupuser",
 		LocalGroup:    "users",
 		BackupTarget:  "/backups/homes",
@@ -17,12 +20,15 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 	}
 
 	lines := SummaryLines(plan)
-	if len(lines) != 5 {
-		t.Fatalf("len(lines) = %d, want 5", len(lines))
+	if len(lines) != 8 {
+		t.Fatalf("len(lines) = %d, want 8", len(lines))
 	}
 
 	expected := []string{
 		"Operation Mode",
+		"Target",
+		"Type",
+		"Location",
 		"Destination",
 		"Local Owner",
 		"Local Group",
@@ -50,7 +56,8 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		},
 		BackupLabel:    "homes",
 		Target:         "offsite-storj",
-		TargetType:     "remote",
+		StorageType:    storageTypeObject,
+		Location:       locationRemote,
 		SnapshotSource: "/volume1/homes",
 		RepositoryPath: "/volume1/homes-snap",
 		WorkRoot:       "/tmp/work",
@@ -58,7 +65,7 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		ConfigFile:     "/config/homes-backup.toml",
 		SecretsDir:     "/root/.secrets",
 		SecretsFile:    "/root/.secrets/homes-secrets.toml",
-		ModeDisplay:    "Remote",
+		ModeDisplay:    "offsite-storj",
 		OperationMode:  "Backup",
 	}
 
@@ -94,12 +101,13 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 		ForcePrune:     true,
 		BackupLabel:    "homes",
 		Target:         "onsite-usb",
-		TargetType:     "local",
+		StorageType:    storageTypeFilesystem,
+		Location:       locationLocal,
 		SnapshotSource: "/volume1/homes",
 		RepositoryPath: "/volume1/homes-snap",
 		BackupTarget:   "/backups/homes",
 		ConfigFile:     "/config/homes-backup.toml",
-		ModeDisplay:    "Local",
+		ModeDisplay:    "onsite-usb",
 		OperationMode:  "Backup + Forced prune + Fix permissions",
 		WorkRoot:       "/tmp/work",
 		Threads:        16,
@@ -120,7 +128,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Destination"] || !labels["Local Owner"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
-	wantOrder := []string{"Operation Mode", "Target", "Config File", "Source", "Snapshot", "Destination", "Force Prune", "Local Owner", "Local Group"}
+	wantOrder := []string{"Operation Mode", "Target", "Type", "Location", "Config File", "Source", "Snapshot", "Destination", "Force Prune", "Local Owner", "Local Group"}
 	got := make([]string, 0, len(lines))
 	for _, line := range lines {
 		got = append(got, line.Label)

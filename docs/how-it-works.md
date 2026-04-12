@@ -280,6 +280,25 @@ That identity flows through:
 This lets one source label keep multiple independent destinations without
 forcing revision parity or schedule alignment between them.
 
+Each target also resolves into a separate two-axis model:
+
+```text
+type + location
+```
+
+- `type` is the storage kind: `filesystem` or `object`
+- `location` is the deployment location: `local` or `remote`
+
+Supported combinations are intentionally limited to:
+
+- filesystem/local
+- filesystem/remote
+- object/remote
+
+This is what makes mounted remote filesystems first-class. A path reached over
+VPN or SMB can now stay a filesystem target while still being modelled as
+remote operationally.
+
 ## Plan Phase
 
 The plan phase lives mainly in:
@@ -323,7 +342,7 @@ That is an important design rule.
 1. `validateEnvironment(req)`
 2. `derivePlan(req)`
 3. `loadConfig(plan)`
-4. `loadSecrets(plan)` when the selected target requires secrets
+4. `loadSecrets(plan)` when the selected target uses object storage
 5. `populateCommands(plan)`
 6. `SummaryLines(plan)`
 
@@ -370,6 +389,10 @@ It:
 - applies values into `config.Config`
 - validates required keys
 - validates thresholds
+- validates the target model:
+  - storage kind
+  - deployment location
+  - allowed combinations
 - validates owner/group if `--fix-perms` is active
 - builds prune args
 - validates backup thread rules
@@ -385,6 +408,8 @@ After this step, the plan is populated with things the executor can use directly
 - `LogRetentionDays`
 - safe-prune thresholds
 - operation mode string
+- storage type
+- location
 
 Operationally, `source_path` is expected to be the real Btrfs volume or
 subvolume root for the label. Fine-grained inclusion and exclusion under that
@@ -393,7 +418,7 @@ arbitrary nested child directory.
 
 ### `loadSecrets`
 
-This only runs for targets that require credentials.
+This only runs for object targets.
 
 It:
 
@@ -403,6 +428,10 @@ It:
 - validates required secret values
 
 The resulting `Secrets` object is attached to the plan.
+
+Filesystem targets do not call `loadSecrets`, even when their `location` is
+`remote`. That is a deliberate consequence of the new model: storage kind
+drives credential requirements, not deployment location.
 
 ### `populateCommands`
 

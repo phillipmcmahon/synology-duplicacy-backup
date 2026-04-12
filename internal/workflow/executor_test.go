@@ -500,6 +500,8 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 		ForcePrune:       true,
 		BackupLabel:      "homes",
 		Target:           "onsite-usb",
+		StorageType:      storageTypeFilesystem,
+		Location:         locationLocal,
 		OperationMode:    "Prune",
 		ModeDisplay:      "Local",
 		LogRetentionDays: 30,
@@ -510,7 +512,7 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 	}
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Prune", "Label", "homes", "Target", "onsite-usb"} {
+	for _, token := range []string{"Run could not start", "Operation", "Prune", "Label", "homes", "Target", "onsite-usb", "Type", storageTypeFilesystem, "Location", locationLocal} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
@@ -610,6 +612,8 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 		DryRun:           true,
 		BackupLabel:      "homes",
 		Target:           "onsite-usb",
+		StorageType:      storageTypeFilesystem,
+		Location:         locationLocal,
 		OperationMode:    "Backup",
 		ModeDisplay:      "Local",
 		LogRetentionDays: 30,
@@ -619,7 +623,7 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 	}
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Backup", "Label", "homes", "Target", "onsite-usb"} {
+	for _, token := range []string{"Run could not start", "Operation", "Backup", "Label", "homes", "Target", "onsite-usb", "Type", storageTypeFilesystem, "Location", locationLocal} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}

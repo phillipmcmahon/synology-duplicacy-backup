@@ -69,12 +69,19 @@ func loadValues(t *testing.T, body, target string) map[string]string {
 
 func TestParseFile_ValidConfig(t *testing.T) {
 	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
 [common]
-destination = "/volume1/backups"
 filter = "-e \\.DS_Store"
 
-[local]
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volume1/backups"
+repository = "homes"
 threads = 4
+allow_local_accounts = true
 local_owner = "admin"
 local_group = "users"
 `)
@@ -83,7 +90,7 @@ local_group = "users"
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	values, err := raw.ResolveValues("local", p)
+	values, err := raw.ResolveValues("onsite-usb", p)
 	if err != nil {
 		t.Fatalf("ResolveValues() error = %v", err)
 	}
@@ -104,11 +111,16 @@ local_group = "users"
 
 func TestParseFile_ResolveHealthDefaultsAndOverrides(t *testing.T) {
 	p := writeTempConfig(t, `
-[common]
-destination = "/volume1/backups"
+label = "homes"
+source_path = "/volume1/homes"
 
-[local]
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volume1/backups"
+repository = "homes"
 threads = 4
+allow_local_accounts = true
 local_owner = "admin"
 local_group = "users"
 
@@ -127,7 +139,7 @@ interactive = true
 	if err != nil {
 		t.Fatalf("ParseFile() error = %v", err)
 	}
-	health := raw.ResolveHealth("local")
+	health := raw.ResolveHealth("onsite-usb")
 	if health.FreshnessWarnHours != 12 || health.FreshnessFailHours != 24 {
 		t.Fatalf("health = %+v", health)
 	}
@@ -141,13 +153,19 @@ interactive = true
 
 func TestParseFile_TargetTableOverridesCommon(t *testing.T) {
 	values := loadValues(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
 [common]
-destination = "/volume1/backups"
 threads = 2
 
-[local]
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volume1/backups"
+repository = "homes"
 threads = 8
-`, "local")
+`, "onsite-usb")
 
 	if values["THREADS"] != "8" {
 		t.Errorf("expected THREADS=8, got %q", values["THREADS"])
@@ -163,7 +181,8 @@ source_path = "/volume1/homes"
 threads = 4
 
 [targets.onsite-usb]
-type = "local"
+type = "filesystem"
+location = "local"
 destination = "/volumeUSB1/usbshare/duplicacy"
 repository = "homes"
 allow_local_accounts = true
@@ -172,8 +191,11 @@ allow_local_accounts = true
 	if values["TARGET"] != "onsite-usb" {
 		t.Fatalf("TARGET = %q", values["TARGET"])
 	}
-	if values["TARGET_TYPE"] != "local" {
-		t.Fatalf("TARGET_TYPE = %q", values["TARGET_TYPE"])
+	if values["STORAGE_TYPE"] != "filesystem" {
+		t.Fatalf("STORAGE_TYPE = %q", values["STORAGE_TYPE"])
+	}
+	if values["LOCATION"] != "local" {
+		t.Fatalf("LOCATION = %q", values["LOCATION"])
 	}
 }
 
@@ -185,7 +207,8 @@ source_path = "/volume1/homes"
 
 [target]
 name = "onsite-usb"
-type = "local"
+type = "filesystem"
+location = "local"
 allow_local_accounts = true
 local_owner = "`+owner+`"
 local_group = "`+group+`"
@@ -228,7 +251,8 @@ interactive = true
 	expect := map[string]string{
 		"LABEL":                            "homes",
 		"TARGET":                           "onsite-usb",
-		"TARGET_TYPE":                      "local",
+		"STORAGE_TYPE":                     "filesystem",
+		"LOCATION":                         "local",
 		"SOURCE_PATH":                      "/volume1/homes",
 		"DESTINATION":                      "/volumeUSB1/usbshare/duplicacy",
 		"REPOSITORY":                       "homes",
@@ -271,8 +295,8 @@ source_path = "/volume1/homes"
 
 [target]
 name = "offsite-storj"
-type = "remote"
-requires_network = true
+type = "object"
+location = "remote"
 
 [storage]
 destination = "s3://bucket/homes"
@@ -295,8 +319,11 @@ keep = ["0:30", "7:14"]
 	if values["PRUNE"] != "-keep 1:365 -keep 30:90" {
 		t.Fatalf("PRUNE = %q", values["PRUNE"])
 	}
-	if values["REQUIRES_NETWORK"] != "true" {
-		t.Fatalf("REQUIRES_NETWORK = %q", values["REQUIRES_NETWORK"])
+	if values["STORAGE_TYPE"] != "object" {
+		t.Fatalf("STORAGE_TYPE = %q", values["STORAGE_TYPE"])
+	}
+	if values["LOCATION"] != "remote" {
+		t.Fatalf("LOCATION = %q", values["LOCATION"])
 	}
 }
 
@@ -307,7 +334,8 @@ source_path = "/volume1/homes"
 
 [target]
 name = "onsite-usb"
-type = "local"
+type = "filesystem"
+location = "local"
 
 [storage]
 destination = "/volumeUSB1/usbshare/duplicacy"
@@ -339,7 +367,8 @@ notify_on = ["degraded"]
 send_for = ["doctor"]
 
 [targets.offsite-storj]
-type = "remote"
+type = "object"
+location = "remote"
 destination = "s3://bucket/homes"
 repository = "homes"
 
@@ -378,7 +407,8 @@ label = "homes"
 source_path = "/volume1/homes"
 
 [targets.onsite-usb]
-type = "local"
+type = "filesystem"
+location = "local"
 destination = "/volumeUSB1/usbshare/duplicacy"
 repository = "homes"
 	allow_local_accounts = true
@@ -394,7 +424,7 @@ repository = "homes"
 }
 
 func TestParseFile_IgnoresUnrelatedTable(t *testing.T) {
-	values := loadValues(t, `
+	p := writeTempConfig(t, `
 [common]
 destination = "/volume1/backups"
 
@@ -403,10 +433,14 @@ threads = 2
 
 [local]
 threads = 8
-`, "local")
-
-	if values["THREADS"] != "8" {
-		t.Errorf("expected THREADS=8, got %q", values["THREADS"])
+`)
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	_, err = raw.ResolveValues("local", p)
+	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
+		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
 
@@ -420,11 +454,8 @@ destination = "/volume1/backups"
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 	_, err = raw.ResolveValues("local", p)
-	if err == nil {
-		t.Fatal("expected error for missing [common]")
-	}
-	if !strings.Contains(err.Error(), "[common]") {
-		t.Errorf("error should mention [common], got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
+		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
 
@@ -438,11 +469,8 @@ destination = "/volume1/backups"
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 	_, err = raw.ResolveValues("local", p)
-	if err == nil {
-		t.Fatal("expected error for missing [local]")
-	}
-	if !strings.Contains(err.Error(), "[local]") {
-		t.Errorf("error should mention [local], got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
+		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
 
@@ -557,6 +585,9 @@ threads = 4
 
 func TestParseFile_ZeroValuesOverrideDefaults(t *testing.T) {
 	values := loadValues(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
 [common]
 destination = "/volume1/backups"
 log_retention_days = 0
@@ -564,9 +595,13 @@ safe_prune_max_delete_count = 0
 safe_prune_max_delete_percent = 0
 safe_prune_min_total_for_percent = 0
 
-[local]
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volume1/backups"
+repository = "homes"
 threads = 0
-`, "local")
+`, "onsite-usb")
 
 	if values["THREADS"] != "0" {
 		t.Errorf("THREADS = %q, want 0", values["THREADS"])
@@ -578,6 +613,9 @@ threads = 0
 
 func TestParseFile_MultilineFilterPreserved(t *testing.T) {
 	values := loadValues(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
 [common]
 destination = "/volume1/backups"
 filter = '''
@@ -585,9 +623,13 @@ filter = '''
 -exclude .DS_Store
 '''
 
-[local]
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volume1/backups"
+repository = "homes"
 threads = 4
-`, "local")
+`, "onsite-usb")
 
 	want := "-exclude tmp\n-exclude .DS_Store\n"
 	if values["FILTER"] != want {
@@ -722,7 +764,7 @@ func TestValidateThresholds(t *testing.T) {
 
 func TestValidateOwnerGroup(t *testing.T) {
 	owner, group := currentUserGroup(t)
-	if err := (&Config{LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
+	if err := (&Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -731,14 +773,15 @@ func TestValidateOwnerGroup(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{"missing owner", Config{LocalGroup: group}, "local_owner is mandatory"},
-		{"missing group", Config{LocalOwner: owner}, "local_group is mandatory"},
-		{"invalid owner", Config{LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
-		{"invalid group", Config{LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
-		{"root owner", Config{LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
-		{"root group", Config{LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
-		{"missing user", Config{LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
-		{"missing group", Config{LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
+		{"object target disallowed", Config{Target: "offsite-storj", StorageType: "object", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
+		{"missing owner", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalGroup: group}, "local_owner is mandatory"},
+		{"missing group", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner}, "local_group is mandatory"},
+		{"invalid owner", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
+		{"invalid group", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
+		{"root owner", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
+		{"root group", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
+		{"missing user", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
+		{"missing group", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
 	}
 
 	for _, tc := range cases {
@@ -819,14 +862,18 @@ func TestValidateTargetSemantics(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{name: "local path okay", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups"}},
-		{name: "remote url okay", cfg: Config{Target: "offsite-storj", TargetType: "remote", Destination: "s3://gateway.example.invalid/bucket"}},
-		{name: "local accounts optional", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true}},
-		{name: "local path cannot be url", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "s3://bucket"}, want: "filesystem path"},
-		{name: "remote destination must be url", cfg: Config{Target: "offsite-storj", TargetType: "remote", Destination: "/volume2/backups"}, want: "URL-like storage target"},
-		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
-		{name: "owner and group together", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
-		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
+		{name: "filesystem local path okay", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups"}},
+		{name: "filesystem remote path okay", cfg: Config{Target: "offsite-usb", StorageType: "filesystem", Location: "remote", Destination: "/volume2/backups"}},
+		{name: "object remote url okay", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://gateway.example.invalid/bucket"}},
+		{name: "location required", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Destination: "/volume2/backups"}, want: "target.location must be set"},
+		{name: "object local invalid", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "local", Destination: "s3://bucket"}, want: "must not be \"local\""},
+		{name: "filesystem path cannot be url", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "s3://bucket"}, want: "filesystem path"},
+		{name: "object destination must be url", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "/volume2/backups"}, want: "URL-like storage target"},
+		{name: "filesystem local accounts optional", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true}},
+		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
+		{name: "owner and group together", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
+		{name: "object disallows local accounts", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://bucket", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
+		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
 	}
 
 	for _, tc := range cases {

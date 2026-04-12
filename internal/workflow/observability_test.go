@@ -11,9 +11,9 @@ func TestObservabilityHelpers(t *testing.T) {
 	start := time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC)
 	end := time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC)
 
-	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", DryRun: true}
+	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", StorageType: storageTypeFilesystem, Location: locationLocal, DryRun: true}
 	report := NewRunReport(plan, start)
-	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || !report.DryRun {
+	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || report.StorageType != storageTypeFilesystem || report.Location != locationLocal || !report.DryRun {
 		t.Fatalf("report = %+v", report)
 	}
 	report.ResetStart(start)
@@ -29,15 +29,16 @@ func TestObservabilityHelpers(t *testing.T) {
 	if err := WriteRunReport(&buf, report); err != nil {
 		t.Fatalf("WriteRunReport() error = %v", err)
 	}
-	for _, token := range []string{`"label": "homes"`, `"name": "Backup"`, `"duration_seconds": 4`} {
+	for _, token := range []string{`"label": "homes"`, `"storage_type": "filesystem"`, `"location": "local"`, `"name": "Backup"`, `"duration_seconds": 4`} {
 		if !strings.Contains(buf.String(), token) {
 			t.Fatalf("json output missing %q:\n%s", token, buf.String())
 		}
 	}
 
 	req := &Request{Source: "homes", FixPerms: true, RequestedTarget: "onsite-usb"}
-	failure := NewFailureRunReport(req, start, end, 1, "boom")
-	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 {
+	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Fix permissions", StorageType: storageTypeFilesystem, Location: locationLocal}
+	failure := NewFailureRunReport(req, failurePlan, start, end, 1, "boom")
+	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.StorageType != storageTypeFilesystem || failure.Location != locationLocal {
 		t.Fatalf("failure = %+v", failure)
 	}
 
@@ -50,9 +51,12 @@ func TestObservabilityHelpers(t *testing.T) {
 }
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
-	plan := &Plan{TargetType: "remote", ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
-	if !plan.IsRemote() {
-		t.Fatal("IsRemote() = false, want true")
+	plan := &Plan{StorageType: storageTypeObject, Location: locationRemote, ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
+	if !plan.UsesObjectStorage() {
+		t.Fatal("UsesObjectStorage() = false, want true")
+	}
+	if !plan.IsRemoteLocation() {
+		t.Fatal("IsRemoteLocation() = false, want true")
 	}
 	if plan.ModeLabel() != "offsite-storj" {
 		t.Fatalf("ModeLabel() = %q", plan.ModeLabel())

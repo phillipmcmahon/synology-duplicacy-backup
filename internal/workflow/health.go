@@ -44,6 +44,8 @@ type HealthReport struct {
 	Label                string                 `json:"label"`
 	Target               string                 `json:"target"`
 	Mode                 string                 `json:"mode"`
+	StorageType          string                 `json:"storage_type,omitempty"`
+	Location             string                 `json:"location,omitempty"`
 	CheckedAt            string                 `json:"checked_at"`
 	LastSuccessAt        string                 `json:"last_success_at,omitempty"`
 	LastDoctorRunAt      string                 `json:"last_doctor_run_at,omitempty"`
@@ -146,16 +148,18 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	restoreDebugCommands := h.suppressCommandDebug()
 	defer restoreDebugCommands()
 
-	h.printHeader(report)
-
 	cfg, plan, sec, err := h.prepare(req)
 	if err != nil {
+		h.printHeader(report)
 		h.addCheck(report, "Environment", "fail", OperatorMessage(err))
 		h.finalizeReport(report)
 		h.maybeSendEarlyWebhook(req, report)
 		h.printReport(report)
 		return report, healthExitCode(report.Status)
 	}
+	report.StorageType = plan.StorageType
+	report.Location = plan.Location
+	h.printHeader(report)
 
 	state, stateErr := loadRunState(h.meta, req.Source, req.Target())
 	if stateErr != nil {
@@ -238,13 +242,14 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	}
 
 	plan.Target = cfg.Target
-	plan.TargetType = cfg.TargetType
+	plan.StorageType = cfg.StorageType
+	plan.Location = cfg.Location
 	plan.ConfigFile = cfgPlan.ConfigFile
 	plan.SecretsFile = cfgPlan.SecretsFile
-	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
+	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 	plan.OperationMode = "Health " + strings.Title(req.HealthCommand)
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
@@ -255,7 +260,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
-	if cfg.TargetType == targetRemote {
+	if cfg.UsesObjectStorage() {
 		sec, err = planner.loadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err
@@ -287,7 +292,7 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	h.addCheck(report, "Config file", "pass", plan.ConfigFile)
 	defer func() {
-		if plan.TargetType == targetRemote {
+		if plan.UsesObjectStorage() {
 			h.addCheck(report, "Secrets", "pass", plan.SecretsFile)
 		}
 	}()
@@ -803,6 +808,12 @@ func (h *HealthRunner) printHeader(report *HealthReport) {
 	h.log.PrintLine("Check", strings.Title(report.CheckType))
 	h.log.PrintLine("Label", report.Label)
 	h.log.PrintLine("Target", report.Target)
+	if report.StorageType != "" {
+		h.log.PrintLine("Type", report.StorageType)
+	}
+	if report.Location != "" {
+		h.log.PrintLine("Location", report.Location)
+	}
 }
 
 func (h *HealthRunner) printReport(report *HealthReport) {

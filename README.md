@@ -8,6 +8,31 @@ It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs 
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
+## Target Model
+
+Each named target now describes two separate things:
+
+- `type`: the storage mechanics
+- `location`: where that storage lives operationally
+
+Supported combinations are:
+
+- `type = "filesystem"` with `location = "local"`
+- `type = "filesystem"` with `location = "remote"`
+- `type = "object"` with `location = "remote"`
+
+This lets the tool represent cases such as a mounted SMB path over VPN as a
+real remote destination without pretending it is object storage or forcing it
+into the old `local` shortcut.
+
+In practice:
+
+- filesystem targets use path semantics and do not load secrets
+- object targets use URL-style storage semantics and do load secrets
+- `--fix-perms` is only supported for filesystem targets
+- runtime, health, `config explain`, and `config paths` now surface `Type` and
+  `Location` in operator-facing output
+
 ## Highlights
 
 - Read-only btrfs snapshots for consistent backups
@@ -65,7 +90,7 @@ mkdir -p /usr/local/lib/duplicacy-backup/.config
 cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
 
-For labels with targets that need credentials, create a matching label secrets file
+For labels with object-storage targets, create a matching label secrets file
 under `/root/.secrets` and add target-specific entries inside it:
 
 ```bash
@@ -77,6 +102,35 @@ chmod 600 /root/.secrets/homes-secrets.toml
 The current secrets TOML schema uses `storj_s3_id` and `storj_s3_secret`
 because those values are passed through to Duplicacy for gateway-backed
 S3-compatible storage.
+
+The matching backup TOML now models targets explicitly with `type` and
+`location`. For example:
+
+```toml
+[targets.onsite-usb]
+type = "filesystem"
+location = "local"
+destination = "/volumeUSB1/usbshare/duplicacy"
+repository = "homes"
+allow_local_accounts = true
+local_owner = "myuser"
+local_group = "users"
+
+[targets.offsite-usb]
+type = "filesystem"
+location = "remote"
+destination = "/volume1/duplicacy/duplicacy"
+repository = "homes"
+allow_local_accounts = true
+local_owner = "AJT"
+local_group = "users"
+
+[targets.offsite-storj]
+type = "object"
+location = "remote"
+destination = "s3://gateway.storjshare.io/my-backup-bucket"
+repository = "homes"
+```
 
 ### 4. Run
 
@@ -153,9 +207,9 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, validates any configured target secrets, and performs a read-only repository readiness probe
-- `config explain` shows the resolved values for the selected target
-- `config paths` shows the resolved stable config, source, log, and any applicable secrets paths
+- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, validates any required object-target secrets, and performs a read-only repository readiness probe
+- `config explain` shows the resolved values for the selected target, including `Type` and `Location`
+- `config paths` shows the resolved stable config, source, log, and any applicable secrets paths, including `Type` and `Location`
 
 `config validate` never initialises storage or changes repository state. Its
 repository readiness probe reports one of three operator-facing outcomes:
@@ -167,6 +221,13 @@ Every runtime, `config`, and `health` command requires an explicit `--target <na
 Every runtime command must also include at least one explicit operation flag
 such as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
 
+Runtime and health headers now identify the selected work as:
+
+- `Label`
+- `Target`
+- `Type`
+- `Location`
+
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.
 
@@ -177,6 +238,10 @@ The `health` command family adds read-only confidence checks:
 - `health status` gives a fast current-state summary
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
 - `health verify` goes further by validating the revisions found for the current backup with `duplicacy check -persist`
+
+Secrets are only loaded for object targets. Filesystem targets, whether local
+or remote, operate directly on the configured destination path and therefore do
+not require a secrets file.
 
 `source_path` must point at the Btrfs root location you intend to snapshot for
 that label. In practice, that means a Btrfs volume or subvolume such as

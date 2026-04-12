@@ -140,7 +140,7 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"health_webhook_bearer_token",
 		"Use [targets.<name>] tables with:",
 		"--cleanup-storage        Request storage maintenance:",
-		"--fix-perms              Normalise local repository ownership and permissions",
+		"--fix-perms              Normalise filesystem repository ownership and permissions",
 	}
 	for _, token := range expected {
 		if !strings.Contains(usage, token) {

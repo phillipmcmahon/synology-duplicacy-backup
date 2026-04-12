@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Targets now use an explicit storage-kind and deployment-location model**:
+  target config now uses `type = "filesystem" | "object"` plus
+  `location = "local" | "remote"`, replacing the old overloaded
+  `type = "local" | "remote"` scheme.
+- **Mounted remote filesystems are now first-class**: destinations such as
+  SMB-over-VPN paths can now be modelled as `filesystem/remote` targets
+  without loading object-storage secrets or pretending to be local storage.
+- **Operator output now surfaces the new target model consistently**: runtime,
+  health, `config explain`, and `config paths` now render `Type` and
+  `Location`, while `config validate` continues to keep `Resolved` identity-only
+  and reports the target-model check under `Target Settings`.
+
+### Fixed
+- **Pre-run failure context is now fully aligned with the new target model**:
+  when config can be resolved before a run aborts, pre-run failures now show
+  `Type` and `Location` alongside `Operation`, `Label`, and `Target`.
+
 ## [v3.1.1] - 2026-04-12
 
 ### Changed

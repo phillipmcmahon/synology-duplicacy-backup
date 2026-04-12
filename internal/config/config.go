@@ -35,7 +35,8 @@ var pruneKeepValuePattern = regexp.MustCompile(`^\d+:\d+$`)
 type Config struct {
 	Label                       string
 	Target                      string
-	TargetType                  string
+	StorageType                 string
+	Location                    string
 	SourcePath                  string
 	Destination                 string
 	Repository                  string
@@ -43,7 +44,6 @@ type Config struct {
 	LocalOwner                  string
 	LocalGroup                  string
 	AllowLocalAccounts          bool
-	RequiresNetwork             bool
 	LogRetentionDays            int
 	Prune                       string
 	Threads                     int
@@ -96,14 +96,15 @@ type tableLocal struct {
 type tableTargetMeta struct {
 	Name               *string `toml:"name"`
 	Type               *string `toml:"type"`
+	Location           *string `toml:"location"`
 	AllowLocalAccounts *bool   `toml:"allow_local_accounts"`
-	RequiresNetwork    *bool   `toml:"requires_network"`
 	LocalOwner         *string `toml:"local_owner"`
 	LocalGroup         *string `toml:"local_group"`
 }
 
 type tableTarget struct {
 	Type                        *string      `toml:"type"`
+	Location                    *string      `toml:"location"`
 	Destination                 *string      `toml:"destination"`
 	Repository                  *string      `toml:"repository"`
 	Filter                      *string      `toml:"filter"`
@@ -114,7 +115,6 @@ type tableTarget struct {
 	SafePruneMaxDeleteCount     *int         `toml:"safe_prune_max_delete_count"`
 	SafePruneMinTotalForPercent *int         `toml:"safe_prune_min_total_for_percent"`
 	AllowLocalAccounts          *bool        `toml:"allow_local_accounts"`
-	RequiresNetwork             *bool        `toml:"requires_network"`
 	LocalOwner                  *string      `toml:"local_owner"`
 	LocalGroup                  *string      `toml:"local_group"`
 	Health                      *tableHealth `toml:"health"`
@@ -171,9 +171,8 @@ type tableHealthNotify struct {
 }
 
 // NewDefaults returns a Config with all default values.
-// Note: LocalOwner and LocalGroup are mandatory for local operations and have
-// no defaults — they must be explicitly set in the configuration file when
-// running in local mode. They are not required for remote operations.
+// Note: LocalOwner and LocalGroup are mandatory only for filesystem targets
+// that opt into local account ownership / permission management.
 func NewDefaults() *Config {
 	return &Config{
 		LogRetentionDays:            DefaultLogRetentionDays,
@@ -265,7 +264,10 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 
 	values["TARGET"] = selected
 	if target.Type != nil {
-		values["TARGET_TYPE"] = strings.TrimSpace(*target.Type)
+		values["STORAGE_TYPE"] = strings.TrimSpace(*target.Type)
+	}
+	if target.Location != nil {
+		values["LOCATION"] = strings.TrimSpace(*target.Location)
 	}
 	values["DESTINATION"] = strings.TrimSpace(*target.Destination)
 	if target.Repository != nil && strings.TrimSpace(*target.Repository) != "" {
@@ -295,9 +297,6 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	if target.AllowLocalAccounts != nil {
 		values["ALLOW_LOCAL_ACCOUNTS"] = fmt.Sprintf("%t", *target.AllowLocalAccounts)
 	}
-	if target.RequiresNetwork != nil {
-		values["REQUIRES_NETWORK"] = fmt.Sprintf("%t", *target.RequiresNetwork)
-	}
 	if target.LocalOwner != nil {
 		values["LOCAL_OWNER"] = *target.LocalOwner
 	}
@@ -319,37 +318,11 @@ func (f *File) selectTarget(targetName, path string) (string, tableTarget, error
 }
 
 func (f *File) resolveLegacyValues(targetName, path string) (map[string]string, error) {
-	if f.Common == nil {
-		return nil, apperrors.NewConfigError("section-common", fmt.Errorf("config file %s is missing required [common] table", path), "path", path)
-	}
-
-	values := make(map[string]string)
-	mergeCommon(values, f.Common)
-
-	switch targetName {
-	case "local":
-		if f.Local == nil {
-			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [local] table for current mode", path), "path", path, "section", targetName)
-		}
-		mergeLocal(values, f.Local)
-		values["TARGET"] = "local"
-		values["TARGET_TYPE"] = "local"
-		values["ALLOW_LOCAL_ACCOUNTS"] = "true"
-		values["REQUIRES_NETWORK"] = "false"
-	case "remote":
-		if f.Remote == nil {
-			return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [remote] table for current mode", path), "path", path, "section", targetName)
-		}
-		mergeCommon(values, f.Remote)
-		values["TARGET"] = "remote"
-		values["TARGET_TYPE"] = "remote"
-		values["ALLOW_LOCAL_ACCOUNTS"] = "false"
-		values["REQUIRES_NETWORK"] = "true"
-	default:
-		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("unsupported target section %q", targetName), "path", path, "section", targetName)
-	}
-
-	return values, nil
+	return nil, apperrors.NewConfigError(
+		"legacy-layout",
+		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using type = \"filesystem\"|\"object\" and location = \"local\"|\"remote\"", path),
+		"path", path,
+	)
 }
 
 func (f *File) resolveTargetValues(targetName, path string) (map[string]string, error) {
@@ -379,13 +352,13 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 		values["LABEL"] = strings.TrimSpace(*f.Label)
 	}
 	if f.TargetMeta.Type != nil {
-		values["TARGET_TYPE"] = strings.TrimSpace(*f.TargetMeta.Type)
+		values["STORAGE_TYPE"] = strings.TrimSpace(*f.TargetMeta.Type)
+	}
+	if f.TargetMeta.Location != nil {
+		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
 	}
 	if f.TargetMeta.AllowLocalAccounts != nil {
 		values["ALLOW_LOCAL_ACCOUNTS"] = fmt.Sprintf("%t", *f.TargetMeta.AllowLocalAccounts)
-	}
-	if f.TargetMeta.RequiresNetwork != nil {
-		values["REQUIRES_NETWORK"] = fmt.Sprintf("%t", *f.TargetMeta.RequiresNetwork)
 	}
 	if f.TargetMeta.LocalOwner != nil {
 		values["LOCAL_OWNER"] = *f.TargetMeta.LocalOwner
@@ -604,8 +577,11 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["TARGET"]; ok {
 		c.Target = v
 	}
-	if v, ok := values["TARGET_TYPE"]; ok {
-		c.TargetType = v
+	if v, ok := values["STORAGE_TYPE"]; ok {
+		c.StorageType = v
+	}
+	if v, ok := values["LOCATION"]; ok {
+		c.Location = v
 	}
 	if v, ok := values["SOURCE_PATH"]; ok {
 		c.SourcePath = v
@@ -630,9 +606,6 @@ func (c *Config) Apply(values map[string]string) error {
 	}
 	if v, ok := values["ALLOW_LOCAL_ACCOUNTS"]; ok {
 		c.AllowLocalAccounts = strings.EqualFold(v, "true")
-	}
-	if v, ok := values["REQUIRES_NETWORK"]; ok {
-		c.RequiresNetwork = strings.EqualFold(v, "true")
 	}
 	if v, ok := values["LOG_RETENTION_DAYS"]; ok {
 		n, err := strictAtoi(v)
@@ -733,8 +706,14 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
-	if c.TargetType != "" && c.TargetType != "local" && c.TargetType != "remote" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"local\" or \"remote\" (was %q)", c.TargetType))
+	if c.StorageType == "local" || c.StorageType == "remote" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"object\"; old values \"local\" and \"remote\" are no longer supported (was %q)", c.StorageType))
+	}
+	if c.StorageType != "" && c.StorageType != "filesystem" && c.StorageType != "object" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"object\" (was %q)", c.StorageType))
+	}
+	if c.Location != "" && c.Location != "local" && c.Location != "remote" {
+		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be either \"local\" or \"remote\" (was %q)", c.Location))
 	}
 	if err := c.Health.Validate(); err != nil {
 		return err
@@ -748,7 +727,10 @@ func (c *Config) ValidateThresholds() error {
 // entry in the label config. This method should NOT be called for targets that
 // do not allow local account ownership.
 func (c *Config) ValidateOwnerGroup() error {
-	if (c.Target != "" || c.TargetType != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
+	if !c.UsesFilesystem() {
+		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it uses %s storage", c.Target, c.StorageType))
+	}
+	if (c.Target != "" || c.StorageType != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not allow local account ownership or permission management", c.Target))
 	}
 	if c.LocalOwner == "" {
@@ -776,6 +758,18 @@ func (c *Config) ValidateOwnerGroup() error {
 		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group %q does not exist on this system: %w", c.LocalGroup, err), "value", c.LocalGroup)
 	}
 	return nil
+}
+
+func (c *Config) UsesFilesystem() bool {
+	return c != nil && c.StorageType == "filesystem"
+}
+
+func (c *Config) UsesObjectStorage() bool {
+	return c != nil && c.StorageType == "object"
+}
+
+func (c *Config) IsRemoteLocation() bool {
+	return c != nil && c.Location == "remote"
 }
 
 // ValidateThreads checks the threads value is a power of 2 and within limits.
@@ -823,15 +817,33 @@ func (c *Config) ValidatePrunePolicy() error {
 // ValidateTargetSemantics checks target-level configuration combinations that
 // are internally inconsistent even before any operation-specific planning.
 func (c *Config) ValidateTargetSemantics() error {
-	switch c.TargetType {
-	case "local":
+	switch {
+	case c.StorageType == "":
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be set to \"filesystem\" or \"object\""))
+	case c.Location == "":
+		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
+	case c.UsesObjectStorage() && c.Location == "local":
+		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must not be \"local\" when target.type is \"object\""))
+	case !c.UsesFilesystem() && !c.UsesObjectStorage():
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"object\" (was %q)", c.StorageType))
+	}
+
+	switch {
+	case c.UsesFilesystem():
 		if strings.Contains(c.Destination, "://") {
-			return apperrors.NewConfigError("destination", fmt.Errorf("local target destination must be a filesystem path, not %q", c.Destination))
+			return apperrors.NewConfigError("destination", fmt.Errorf("filesystem target destination must be a filesystem path, not %q", c.Destination))
 		}
-	case "remote":
+	case c.UsesObjectStorage():
 		if !strings.Contains(c.Destination, "://") {
-			return apperrors.NewConfigError("destination", fmt.Errorf("remote target destination must be a URL-like storage target, not %q", c.Destination))
+			return apperrors.NewConfigError("destination", fmt.Errorf("object target destination must be a URL-like storage target, not %q", c.Destination))
 		}
+	}
+
+	if !c.UsesFilesystem() {
+		if c.AllowLocalAccounts || c.LocalOwner != "" || c.LocalGroup != "" {
+			return apperrors.NewConfigError("local-accounts", fmt.Errorf("allow_local_accounts, local_owner, and local_group are only supported for filesystem targets"))
+		}
+		return nil
 	}
 
 	if !c.AllowLocalAccounts {

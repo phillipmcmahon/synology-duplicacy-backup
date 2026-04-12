@@ -99,12 +99,12 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", "local", "/volume1/homes", "/backups", "homes", owner, group, 4, "-keep 0:365", `
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", storageTypeFilesystem, locationLocal, "/volume1/homes", "/backups", "homes", owner, group, 4, "-keep 0:365", `
 [targets.offsite-storj]
-type = "remote"
+type = "object"
+location = "remote"
 destination = "s3://bucket"
 repository = "homes"
-requires_network = true
 `))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir}
@@ -135,7 +135,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config validation succeeded for homes/onsite-usb", "Section: Resolved", "Section: Validation", "Label", "homes", "Target", "onsite-usb", "Source Path Access", "Readable", "Btrfs Source", "Valid", "Required Settings", "Health Thresholds", "Destination Access", "Writable", "Threads", "Valid", "Prune Policy", "Local Accounts", "Repository Access", "Result", "Passed"} {
+	for _, token := range []string{"Config validation succeeded for homes/onsite-usb", "Section: Resolved", "Section: Validation", "Label", "homes", "Target", "onsite-usb", "Source Path Access", "Readable", "Btrfs Source", "Valid", "Required Settings", "Health Thresholds", "Destination Access", "Writable", "Threads", "Valid", "Prune Policy", "Target Settings", "Repository Access", "Result", "Passed"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
@@ -146,7 +146,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -164,7 +164,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", "local", sourcePath, destinationRoot, "homes", "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeFilesystem, locationLocal, sourcePath, destinationRoot, "homes", "", "", 4, ""))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -174,7 +174,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 	if !strings.Contains(out, "Config validation succeeded for homes/onsite-usb") {
 		t.Fatalf("output = %q", out)
 	}
-	if !strings.Contains(out, "Local Accounts") || !strings.Contains(out, "Not enabled") {
+	if !strings.Contains(out, "Target Settings") || !strings.Contains(out, "Valid") {
 		t.Fatalf("output = %q", out)
 	}
 	assertResolvedLabels(t, out, "Label", "Target", "Config File")
@@ -183,7 +183,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	if strings.Contains(out, "Local Owner") || strings.Contains(out, "Local Group") {
 		t.Fatalf("output = %q", out)
@@ -244,7 +244,7 @@ func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T
 	destination := t.TempDir()
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", "local", sourcePath, destination, "homes", owner, group, 4, "-keep 0:365", `
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", storageTypeFilesystem, locationLocal, sourcePath, destination, "homes", owner, group, 4, "-keep 0:365", `
 [health]
 doctor_warn_after_hours = 48000000
 `))
@@ -266,7 +266,7 @@ doctor_warn_after_hours = 48000000
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -302,7 +302,7 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -323,7 +323,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 	report := ConfigCommandOutput(err)
-	for _, token := range []string{"Config validation failed for homes/onsite-usb", "Btrfs Source", "Valid", "Destination Access", "Invalid (local destination does not exist", "Result", "Failed"} {
+	for _, token := range []string{"Config validation failed for homes/onsite-usb", "Btrfs Source", "Valid", "Destination Access", "Invalid (filesystem destination does not exist", "Result", "Failed"} {
 		if !strings.Contains(report, token) {
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
@@ -334,7 +334,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -363,7 +363,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteDestinationHostCannotResolve
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 	report := ConfigCommandOutput(err)
-	for _, token := range []string{"Config validation failed for homes/offsite-storj", "Destination Access", "Invalid (remote destination host could not be resolved", "Repository Access", "Not checked", "Secrets", "Valid", "Result", "Failed"} {
+	for _, token := range []string{"Config validation failed for homes/offsite-storj", "Destination Access", "Invalid (object destination host could not be resolved", "Repository Access", "Not checked", "Secrets", "Valid", "Result", "Failed"} {
 		if !strings.Contains(report, token) {
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
@@ -401,7 +401,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -471,7 +471,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Local Accounts")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -533,7 +533,7 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 			t.Fatalf("explain output missing %q:\n%s", token, explainOut)
 		}
 	}
-	assertFlatLabels(t, explainOut, "Label", "Target", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
+	assertFlatLabels(t, explainOut, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
 
 	pathsReq := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	pathsOut, err := HandleConfigCommand(pathsReq, meta, rt)
@@ -551,7 +551,7 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	if strings.Contains(pathsOut, "Work Dir") || strings.Contains(pathsOut, "Snapshot") {
 		t.Fatalf("paths output should only contain stable paths:\n%s", pathsOut)
 	}
-	assertFlatLabels(t, pathsOut, "Label", "Target", "Config Dir", "Config File", "Source Path", "Log Dir")
+	assertFlatLabels(t, pathsOut, "Label", "Target", "Type", "Location", "Config Dir", "Config File", "Source Path", "Log Dir")
 }
 
 func TestHandleConfigCommand_ExplainRemoteMasksSecrets(t *testing.T) {
@@ -574,7 +574,7 @@ func TestHandleConfigCommand_ExplainRemoteMasksSecrets(t *testing.T) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File", "Remote Access Key", "Remote Secret Key")
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File", "Remote Access Key", "Remote Secret Key")
 }
 
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {
@@ -589,7 +589,8 @@ filter = "-e *.tmp"
 prune = "-keep 0:365"
 
 [targets.onsite-usb]
-type = "local"
+type = "filesystem"
+location = "local"
 destination = "/backups"
 repository = "homes"
 allow_local_accounts = true
@@ -605,7 +606,7 @@ local_group = %q
 	if !strings.Contains(out, "Filter") || !strings.Contains(out, "-e *.tmp") {
 		t.Fatalf("output missing filter:\n%s", out)
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Config File", "Source", "Destination", "Threads", "Filter", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Filter", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
 }
 
 func TestHandleConfigCommand_PathsRemoteIncludesSecrets(t *testing.T) {
@@ -622,7 +623,7 @@ func TestHandleConfigCommand_PathsRemoteIncludesSecrets(t *testing.T) {
 			t.Fatalf("remote paths output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
 }
 
 func TestHandleConfigCommand_Unsupported(t *testing.T) {
@@ -688,7 +689,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	}
 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, localDestination, owner, group, 4, "-keep 0:365"))
-	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", "local", sourcePath, localDestination, "readmedia", "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", storageTypeFilesystem, locationLocal, sourcePath, localDestination, "readmedia", "", "", 4, ""))
 	writeTargetTestConfig(t, configDir, "archives", "offsite-storj", remoteTargetConfig("archives", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "archives", "offsite-storj")
 
@@ -728,7 +729,7 @@ func TestConfigValidateValidationSectionRejectsStatusPayloadHybrids(t *testing.T
 		"  Section: Validation",
 		"    Threads            : Valid (16)",
 		"    Destination Access : Resolved (gateway.example.test)",
-		"    Local Accounts     : Valid (backup:users)",
+		"    Target Settings    : Valid (backup:users)",
 		"  Result               : Passed",
 		"",
 	}, "\n")

@@ -135,6 +135,7 @@ Planner tests cover:
 
 - path derivation
 - config loading
+- target-model resolution (`type` + `location`)
 - operation-mode derivation
 - backup-target derivation
 - summary precomputation
@@ -149,6 +150,21 @@ Executor tests cover:
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
 - cleanup and prune-policy behaviour through focused workflow helpers
+
+Acceptance coverage for the current target model should always include:
+
+- `filesystem/local`
+- `filesystem/remote`
+- `object/remote`
+
+That includes both behaviour and output:
+
+- filesystem/remote targets do not load secrets
+- object/remote targets do load secrets
+- `--fix-perms` is accepted for filesystem targets and rejected for object targets
+- runtime and health headers include `Type` and `Location`
+- `config validate` keeps `Resolved` identity-only and checks the new model
+  under `Target Settings`
 
 Workflow tests also cover:
 

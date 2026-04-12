@@ -37,8 +37,9 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 		return nil, err
 	}
 	plan.Target = cfg.Target
-	plan.TargetType = cfg.TargetType
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+	plan.StorageType = cfg.StorageType
+	plan.Location = cfg.Location
+	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 	plan.SnapshotSource = cfg.SourcePath
 	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
 	plan.RepositoryPath = cfg.SourcePath
@@ -48,7 +49,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
-	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
+	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
@@ -64,7 +65,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
 	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
-	if plan.TargetType == targetRemote {
+	if cfg.UsesObjectStorage() {
 		sec, err := p.loadSecrets(plan)
 		if err != nil {
 			return nil, err
@@ -76,6 +77,21 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.Summary = SummaryLines(plan)
 
 	return plan, nil
+}
+
+func (p *Planner) FailureContext(req *Request) *Plan {
+	if req == nil {
+		return nil
+	}
+
+	plan := p.derivePlan(req)
+	if _, err := p.loadConfigForValidation(plan); err == nil {
+		return plan
+	}
+	if plan.StorageType != "" || plan.Location != "" {
+		return plan
+	}
+	return nil
 }
 
 func (p *Planner) validateEnvironment(req *Request) error {
@@ -125,6 +141,7 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		NeedsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
 		NeedsSnapshot:       req.DoBackup,
 		DefaultNotice:       req.DefaultNotice,
+		OperationMode:       OperationMode(req),
 		ModeDisplay:         modeDisplay(target, ""),
 		Target:              target,
 		BackupLabel:         backupLabel,
@@ -142,10 +159,14 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 }
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
-	return p.loadConfigWithOptions(plan, true)
+	return p.loadConfigWithOptions(plan, true, true)
 }
 
-func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool) (*config.Config, error) {
+func (p *Planner) loadConfigForValidation(plan *Plan) (*config.Config, error) {
+	return p.loadConfigWithOptions(plan, false, false)
+}
+
+func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, validateSemantics bool) (*config.Config, error) {
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Configuration file not found: %s", plan.ConfigFile)
 	}
@@ -179,9 +200,10 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool) (*c
 		cfg.Repository = plan.BackupLabel
 	}
 	plan.Target = cfg.Target
-	plan.TargetType = cfg.TargetType
+	plan.StorageType = cfg.StorageType
+	plan.Location = cfg.Location
 	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
-	plan.ModeDisplay = modeDisplay(cfg.Target, cfg.TargetType)
+	plan.ModeDisplay = modeDisplay(cfg.Target, cfg.StorageType)
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
@@ -189,6 +211,14 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool) (*c
 	if validateThresholds {
 		if err := cfg.ValidateThresholds(); err != nil {
 			return nil, err
+		}
+	}
+	if validateSemantics {
+		if err := cfg.ValidateTargetSemantics(); err != nil {
+			return nil, err
+		}
+		if plan.FixPerms && !cfg.UsesFilesystem() {
+			return nil, apperrors.NewConfigError("fix-perms", fmt.Errorf("fix-perms is only supported for filesystem targets"))
 		}
 	}
 	if plan.FixPerms {
@@ -260,7 +290,7 @@ func splitNonEmptyLines(value string) []string {
 	return result
 }
 
-func modeDisplay(targetName, targetType string) string {
+func modeDisplay(targetName, _ string) string {
 	if targetName != "" {
 		return targetName
 	}

@@ -25,7 +25,8 @@ type Plan struct {
 	DefaultNotice string
 	ModeDisplay   string
 	Target        string
-	TargetType    string
+	StorageType   string
+	Location      string
 
 	BackupLabel    string
 	RunTimestamp   string
@@ -76,8 +77,16 @@ type Plan struct {
 	WorkDirRemoveCommand     string
 }
 
-func (p *Plan) IsRemote() bool {
-	return p.TargetType == targetRemote
+func (p *Plan) UsesFilesystem() bool {
+	return p != nil && p.StorageType == storageTypeFilesystem
+}
+
+func (p *Plan) UsesObjectStorage() bool {
+	return p != nil && p.StorageType == storageTypeObject
+}
+
+func (p *Plan) IsRemoteLocation() bool {
+	return p != nil && p.Location == locationRemote
 }
 
 func (p *Plan) ModeLabel() string {

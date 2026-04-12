@@ -26,18 +26,28 @@ send_for = ["doctor", "verify"]
 interactive = false
 
 [targets.onsite-usb]
-type = "local"
+type = "filesystem"
+location = "local"
 destination = "/volume2/backups"
 repository = "homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
+[targets.offsite-usb]
+type = "filesystem"
+location = "remote"
+destination = "/volume1/duplicacy/duplicacy"
+repository = "homes"
+allow_local_accounts = true
+local_owner = "AJT"
+local_group = "users"
+
 [targets.offsite-storj]
-type = "remote"
+type = "object"
+location = "remote"
 destination = "s3://gateway.storjshare.io/my-backup-bucket"
 repository = "homes"
-requires_network = true
 
 [targets.offsite-storj.health]
 verify_warn_after_hours = 336

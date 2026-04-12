@@ -39,7 +39,7 @@ By default this will:
 - create or update `current`
 - create or update `/usr/local/bin/duplicacy-backup`
 - create `/usr/local/lib/duplicacy-backup/.config` if needed
-- leave `/root/.secrets` untouched
+- leave `/root/.secrets` untouched for any object-target credentials
 
 ### Installer options
 
@@ -72,6 +72,9 @@ Config and secrets stay in their existing directories, so upgrades do not
 require copying TOML files again unless you are intentionally changing them.
 The intended day-2 layout is one config file per label and, when needed, one
 secrets file per label.
+
+Under the current target model, only `type = "object"` targets need a secrets
+file. Filesystem targets, whether local or remote, do not.
 
 To install a new binary without switching immediately:
 
@@ -168,6 +171,9 @@ Unhealthy verify runs also emit machine-focused classification fields:
 
 `--target <name>` selects one named target from the label config. Every
 runtime, `config`, and `health` command requires an explicit target.
+Targets now define both `type` and `location`, so mounted remote filesystems
+can be modelled as `type = "filesystem"` with `location = "remote"` without
+loading secrets.
 The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional
 `health_webhook_bearer_token` support for authenticated health notifications.

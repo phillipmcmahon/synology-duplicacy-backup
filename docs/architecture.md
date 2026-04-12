@@ -53,6 +53,9 @@ It is responsible for:
 - path derivation
 - config loading and validation
 - secrets loading and validation
+- target-model resolution:
+  - `type = filesystem | object`
+  - `location = local | remote`
 - backup-target derivation
 - backup-mode btrfs validation
 - execution-ready derived values such as:
@@ -67,6 +70,11 @@ It is responsible for:
 The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
 locks, create work directories, create snapshots, or change permissions.
+
+That is also where the storage semantics are decided. The planner uses
+`type`, not `location`, to decide whether a target uses filesystem paths or
+object-storage URLs, whether secrets should be loaded, and whether
+`--fix-perms` is allowed.
 
 ## Execute
 

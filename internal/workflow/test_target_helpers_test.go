@@ -33,18 +33,18 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 }
 
 func localTargetConfig(label, sourcePath, destination, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-usb", "local", sourcePath, destination, label, owner, group, threads, prune, extraSections...)
+	return buildLabelConfig(label, "onsite-usb", storageTypeFilesystem, locationLocal, sourcePath, destination, label, owner, group, threads, prune, extraSections...)
 }
 
 func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "offsite-storj", "remote", sourcePath, destination, label, "", "", threads, prune, extraSections...)
+	return buildLabelConfig(label, "offsite-storj", storageTypeObject, locationRemote, sourcePath, destination, label, "", "", threads, prune, extraSections...)
 }
 
-func buildTargetConfig(label, target, targetType, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, target, targetType, sourcePath, destination, repository, owner, group, threads, prune, extraSections...)
+func buildTargetConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group, threads, prune, extraSections...)
 }
 
-func buildLabelConfig(label, target, targetType, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
+func buildLabelConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
 	fmt.Fprintf(&b, "source_path = %q\n", sourcePath)
@@ -60,12 +60,13 @@ func buildLabelConfig(label, target, targetType, sourcePath, destination, reposi
 	}
 
 	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
-	fmt.Fprintf(&b, "type = %q\n", targetType)
+	fmt.Fprintf(&b, "type = %q\n", storageType)
+	fmt.Fprintf(&b, "location = %q\n", location)
 	fmt.Fprintf(&b, "destination = %q\n", destination)
 	if repository != "" {
 		fmt.Fprintf(&b, "repository = %q\n", repository)
 	}
-	if targetType == targetLocal {
+	if storageType == storageTypeFilesystem {
 		if owner != "" || group != "" {
 			b.WriteString("allow_local_accounts = true\n")
 		} else {
@@ -77,8 +78,6 @@ func buildLabelConfig(label, target, targetType, sourcePath, destination, reposi
 		if group != "" {
 			fmt.Fprintf(&b, "local_group = %q\n", group)
 		}
-	} else {
-		b.WriteString("requires_network = true\n")
 	}
 
 	for _, extra := range extraSections {

@@ -20,8 +20,10 @@ var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 var targetPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 const (
-	targetLocal  = "local"
-	targetRemote = "remote"
+	storageTypeFilesystem = "filesystem"
+	storageTypeObject     = "object"
+	locationLocal         = "local"
+	locationRemote        = "remote"
 )
 
 // Runtime provides the environment-facing functions used by request parsing,
@@ -126,13 +128,18 @@ func ValidateTargetName(target string) error {
 	return nil
 }
 
-func JoinDestination(destination, label string) string {
-	if idx := strings.Index(destination, "://"); idx >= 0 {
-		scheme := destination[:idx+3]
-		rest := strings.TrimRight(destination[idx+3:], "/")
-		return scheme + rest + "/" + label
+func JoinDestination(storageType, destination, label string) string {
+	switch storageType {
+	case storageTypeObject:
+		if idx := strings.Index(destination, "://"); idx >= 0 {
+			scheme := destination[:idx+3]
+			rest := strings.TrimRight(destination[idx+3:], "/")
+			return scheme + rest + "/" + label
+		}
+		return destination
+	default:
+		return filepath.Join(destination, label)
 	}
-	return filepath.Join(destination, label)
 }
 
 func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
@@ -230,7 +237,7 @@ OPERATIONS:
     --cleanup-storage        Request storage maintenance:
                              duplicacy prune -exhaustive -exclusive
                              Use only when no other client is writing to the same storage
-    --fix-perms              Normalise local repository ownership and permissions
+    --fix-perms              Normalise filesystem repository ownership and permissions
     At least one operation flag is required for runtime commands
 
 MODIFIERS:
@@ -273,10 +280,14 @@ CONFIG STRUCTURE:
       [targets.<name>]
       optional [targets.<name>.health]
       optional [targets.<name>.health.notify]
+    each [targets.<name>] entry must include:
+      type = "filesystem" | "object"
+      location = "local" | "remote"
 
 TARGET SECRETS:
-    Targets that need credentials load them from:
+    Object-storage targets load credentials from:
       %s/<label>-secrets.toml
+    Filesystem targets do not use a secrets file, even when location = "remote"
     Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
     Use [targets.<name>] tables with:
       storj_s3_id
