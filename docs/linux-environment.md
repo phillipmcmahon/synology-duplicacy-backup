@@ -94,7 +94,7 @@ docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
 
 Use the repo scripts. They already enforce the Linux-only packaging flow.
 
-### One artifact
+### One artefact
 
 ```bash
 sh ./scripts/package-linux-docker.sh \
@@ -136,7 +136,7 @@ make package-synology
 ## Do Not Do These
 
 - Do not build the release tarball on macOS.
-- Do not generate checksums on macOS for release artifacts.
+- Do not generate checksums on macOS for release artefacts.
 - Do not trust a host-side smoke test for a Linux binary.
 - Do not mix ad-hoc packaging commands with the standard scripts unless you are
   actively fixing the packaging scripts themselves.

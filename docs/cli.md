@@ -144,7 +144,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` works on one selected target from a label config at a time
 - `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, that the label `source_path` is a valid Btrfs snapshot source, that any target secrets be valid, and that the selected repository be checked with a read-only readiness probe
-- `config validate` never initializes storage or changes repository state
+- `config validate` never initialises storage or changes repository state
 - repository readiness is reported as exactly one of:
   - `Repository Access : Valid`
   - `Repository Access : Not initialized`

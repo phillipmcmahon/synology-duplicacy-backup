@@ -6,9 +6,9 @@ It is meant to answer questions like:
 
 - What actually happens when the binary starts?
 - Which package owns which decisions?
-- Where does config become runtime behavior?
+- Where does config become runtime behaviour?
 - Where do operator-facing messages come from?
-- If I need to change backup, prune, storage cleanup, or fix-perms behavior, where do I look?
+- If I need to change backup, prune, storage cleanup, or fix-perms behaviour, where do I look?
 
 If you want the short version, start with [architecture.md](architecture.md).
 This document is the longer walkthrough.
@@ -98,11 +98,11 @@ It owns:
 
 - application version/build metadata
 - runtime/bootstrap wiring
-- logger initialization
+- logger initialisation
 - transition from CLI arguments into workflow
 
 It should not own business logic for backup, prune, storage cleanup, or
-fix-perms behavior.
+fix-perms behaviour.
 
 ### Workflow package
 
@@ -216,7 +216,7 @@ The request phase is intentionally cheap and non-invasive.
 
 It does not:
 
-- initialize work directories
+- initialise work directories
 - read config files
 - check for root
 - check for `duplicacy`
@@ -353,7 +353,7 @@ This is where abstract user intent becomes machine-specific paths.
 
 ### `loadConfig`
 
-This is where config becomes behavior.
+This is where config becomes behaviour.
 
 It:
 
@@ -531,7 +531,7 @@ That keeps message tone and punctuation consistent.
 
 `config validate` also follows this rule. It performs a read-only readiness
 probe for the selected repository and reports operator-facing outcomes such as
-`Valid`, `Not initialized`, and `Invalid (...)` without initializing storage
+`Valid`, `Not initialized`, and `Invalid (...)` without initialising storage
 or mutating repository state.
 
 ### Main error families
@@ -681,7 +681,7 @@ The main test layers are now:
 These verify:
 
 - flag parsing
-- default mode behavior
+- default mode behaviour
 - label validation
 - help/version handling
 - invalid combinations
@@ -702,8 +702,8 @@ These verify:
 
 - lifecycle ordering
 - prune enforcement
-- cleanup behavior
-- dry-run behavior
+- cleanup behaviour
+- dry-run behaviour
 - phase dispatch
 
 ### Entrypoint tests
@@ -716,9 +716,9 @@ See:
 
 ## Where To Change Things
 
-If you want to change a specific behavior, start here:
+If you want to change a specific behaviour, start here:
 
-### CLI behavior
+### CLI behaviour
 
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
 - [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
@@ -742,7 +742,7 @@ If you want to change a specific behavior, start here:
 - [`internal/workflow/executor.go`](../internal/workflow/executor.go)
 - [`internal/workflow/prune.go`](../internal/workflow/prune.go)
 
-### Cleanup behavior
+### Cleanup behaviour
 
 - [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
 
@@ -750,7 +750,7 @@ If you want to change a specific behavior, start here:
 
 - [`internal/duplicacy`](../internal/duplicacy)
 
-### Config and secrets behavior
+### Config and secrets behaviour
 
 - [`internal/config`](../internal/config)
 - [`internal/secrets`](../internal/secrets)

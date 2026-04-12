@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Config validation output is now structured like the rest of the tool**:
   `config validate` now uses `Resolved` and `Validation` sections plus a final
-  `Result` line, with semantic color for success, warning, and failure
+  `Result` line, with semantic colour for success, warning, and failure
   outcomes in interactive terminals.
 - **Validation reporting now shows the whole preflight picture**: Parsed
   configs no longer fail fast on the first semantic problem. Independent checks
@@ -40,14 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Source path mistakes are surfaced before runtime**: `config validate` now
   catches non-existent paths, unreadable paths, and nested non-subvolume paths
   before backup runs fail during Btrfs snapshot preparation.
-- **Uninitialized repositories are distinguished from broken access**:
-  reachable-but-uninitialized repositories now report
+- **Uninitialised repositories are distinguished from broken access**:
+  reachable-but-uninitialised repositories now report
   `Repository Access : Not initialized` with a short remediation hint, while
   true repository access failures report `Repository Access : Invalid (...)`
-  without the initialization guidance.
+  without the initialisation guidance.
 - **Config validation regressions are better protected**: workflow and CLI
   tests now lock the `Resolved` contract, constrain the allowed validation
-  outcome vocabulary, and cover initialized, uninitialized, inaccessible, and
+  outcome vocabulary, and cover initialised, uninitialised, inaccessible, and
   dependency-blocked repository states.
 
 ### Validation
@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI model is now fully explicit**: Every runtime, `config`, and `health`
   command now requires `--target <name>`, and runtime commands must also pass
   at least one explicit primary operation such as `--backup`, `--prune`,
-  `--cleanup-storage`, or `--fix-perms`. The old implicit backup behavior and
+  `--cleanup-storage`, or `--fix-perms`. The old implicit backup behaviour and
   target guessing have been removed.
 - **Configuration is now per label rather than per label-target file**: The
   preferred operational layout is now one config file per label with shared
@@ -113,9 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when different targets for the same label run close together.
 - **Locking now matches real operational boundaries**: The source snapshot
   phase remains label-scoped, while repository work and state updates are
-  target-scoped, allowing safer same-label multi-target behavior.
+  target-scoped, allowing safer same-label multi-target behaviour.
 - **Interactive and JSON output now tell the same story**: Final wording,
-  duration rendering, and target labeling are aligned across terminal output,
+  duration rendering, and target labelling are aligned across terminal output,
   JSON summaries, and health reports.
 
 ### Notes
@@ -205,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treated as a secondary alert path when config loads successfully, while
   Synology scheduled-task failure monitoring is the primary fallback for
   broken-environment and startup failures.
-- **GitHub Actions packaging flow stabilized**: The release workflow now uses
+- **GitHub Actions packaging flow stabilised**: The release workflow now uses
   the shared Linux packaging script with safer argument handling for optional
   `GOARM` values, matching the local packaging process more closely.
 
@@ -214,11 +214,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests no longer depend on non-root temp secrets files or implicit
   `/root/.secrets` lookups, so the GitHub Actions test job now exercises the
   real webhook logic without failing on runner-specific file ownership and
-  permission behavior.
-- **Webhook listener tests stabilized**: Health webhook tests now use a more
+  permission behaviour.
+- **Webhook listener tests stabilised**: Health webhook tests now use a more
   controlled local-listener helper and skip cleanly in restricted environments,
   avoiding CI failures caused by listener setup rather than application logic.
-- **Release CI now reflects real application health behavior more reliably**:
+- **Release CI now reflects real application health behaviour more reliably**:
   the webhook/listener test fixes remove false-negative release failures caused
   by runner constraints rather than actual application regressions.
 
@@ -257,7 +257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run window and use truncation rather than rounding.
 - **Release validation hardened**: Linux Go 1.26 is now the representative
   validation environment for testing and packaging, and release automation
-  includes packaged-artifact smoke checks.
+  includes packaged-artefact smoke checks.
 - **Workflow coverage raised for release prep**: `internal/workflow` now
   validates at 90.1%% statement coverage in the Linux Go 1.26 release
   environment, with expanded tests across request parsing, planning,
@@ -319,7 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of being silently ignored.
 - **Help and docs updated**: Help text, README, CLI reference, operations, and
   internal architecture/testing docs now reflect the combined-operation model
-  and current output behavior.
+  and current output behaviour.
 
 ### Notes
 - **Version constant** updated to `2.1.0` in source (overridden by `-ldflags`
@@ -371,7 +371,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `install.sh`, `README.md`, and `LICENSE`.
 - **Checksum generation cleaned up**: Per-file `.sha256` files and
   `SHA256SUMS.txt` are now generated only for the actual tarball release
-  artifacts, avoiding hashes for checksum files or intermediate raw binaries.
+  artefacts, avoiding hashes for checksum files or intermediate raw binaries.
 - **Version constant** updated to `1.10.2` in source (overridden by `-ldflags`
   at build time for release binaries).
 
@@ -381,7 +381,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Detailed internal architecture guide**: Added `docs/how-it-works.md`, a
   long-form internal walkthrough covering the `Request -> Plan -> Execute`
   runtime model, package responsibilities, backup/prune/fix-perms flows,
-  cleanup lifecycle, and where to change specific behaviors.
+  cleanup lifecycle, and where to change specific behaviours.
 
 ### Changed
 - **Quieter prune output**: Safe prune operations no longer print the full raw

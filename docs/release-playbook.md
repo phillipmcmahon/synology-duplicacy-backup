@@ -1,7 +1,7 @@
 # Release Playbook
 
 Use this checklist for every public release. Do not skip steps, do not
-improvise the release notes from memory, and do not generate release artifacts
+improvise the release notes from memory, and do not generate release artefacts
 on the macOS host.
 
 ## Rules
@@ -9,7 +9,7 @@ on the macOS host.
 - Release from a clean `main` tree only.
 - Validate from the actual release tree, not from an older commit.
 - Run release validation in Linux Go 1.26 only.
-- Generate release artifacts in Linux only.
+- Generate release artefacts in Linux only.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
 - If one or more release attempts were superseded, fold their user-facing
@@ -22,7 +22,7 @@ on the macOS host.
 - Decide exactly which user-visible changes are shipping.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
   real release entry if needed.
-- Update repo docs that describe the shipped behavior:
+- Update repo docs that describe the shipped behaviour:
   - `README.md`
   - `docs/cli.md`
   - `docs/operations.md`
@@ -123,7 +123,7 @@ After the release workflow finishes:
 
 - confirm the GitHub release exists
 - confirm the release notes body is correct
-- confirm the artifacts were built from the tagged release commit
+- confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story
 

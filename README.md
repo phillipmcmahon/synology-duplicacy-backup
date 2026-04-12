@@ -157,7 +157,7 @@ Config commands are read-only helpers:
 - `config explain` shows the resolved values for the selected target
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths
 
-`config validate` never initializes storage or changes repository state. Its
+`config validate` never initialises storage or changes repository state. Its
 repository readiness probe reports one of three operator-facing outcomes:
 - `Repository Access : Valid`
 - `Repository Access : Not initialized`

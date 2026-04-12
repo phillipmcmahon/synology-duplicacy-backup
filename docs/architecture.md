@@ -82,7 +82,7 @@ It is responsible for:
 - backup, prune, storage cleanup, and fix-perms execution
 - final cleanup and result output
 
-This keeps operator-facing runtime behavior in one place and makes phase order
+This keeps operator-facing runtime behaviour in one place and makes phase order
 easy to follow.
 
 `Executor` now delegates presentation work to a small presenter, cleanup to

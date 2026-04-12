@@ -234,7 +234,7 @@ freshness signal.
 | `local_owner` / `local_group` validation | local `--fix-perms` |
 | target secrets loading | targets that require secrets |
 
-`config validate` keeps repository probing read-only. It does not initialize
+`config validate` keeps repository probing read-only. It does not initialise
 storage, create repositories, or modify config/state. Repository readiness is
 reported as:
 

@@ -25,7 +25,7 @@ docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
 
 The macOS host environment is not treated as release-representative. Use the
 Linux Go 1.26 container for release validation, packaged-binary smoke checks,
-and any test runs that depend on Linux locking or filesystem behavior.
+and any test runs that depend on Linux locking or filesystem behaviour.
 
 The standard Linux setup is documented in
 [`docs/linux-environment.md`](docs/linux-environment.md).
@@ -55,7 +55,7 @@ Current Linux Go 1.26 development snapshot for the repository-aware validation m
 
 ## Packaging Rule
 
-Release and test-package artifacts must be generated inside the Linux
+Release and test-package artefacts must be generated inside the Linux
 container, not on the macOS host.
 
 That includes:
@@ -63,7 +63,7 @@ That includes:
 - binary build
 - tarball creation
 - checksum generation
-- packaged-artifact smoke checks
+- packaged-artefact smoke checks
 - binary architecture verification
 
 The macOS host may orchestrate the container run and inspect the resulting
@@ -85,10 +85,10 @@ fail on non-Linux hosts. On macOS, the supported entrypoint is
 |---|---|
 | `cmd/duplicacy-backup` | Real entrypoint coverage through `runWithArgs` |
 | `internal/workflow` | Request parsing, planning, summary composition, executor flow |
-| `internal/btrfs` | Snapshot and volume helper behavior |
+| `internal/btrfs` | Snapshot and volume helper behaviour |
 | `internal/config` | TOML parsing, defaults, validation |
 | `internal/duplicacy` | Duplicacy CLI wrapper and prune preview |
-| `internal/exec` | Command runner and mock runner behavior |
+| `internal/exec` | Command runner and mock runner behaviour |
 | `internal/logger` | Log formatting, colour handling, rotation |
 | `internal/permissions` | Permission normalization |
 | `internal/secrets` | File validation, parsing, masking |
@@ -116,7 +116,7 @@ These tests use the same seams as production:
 - `newLock`
 - temporary `logDir`
 
-The goal is to validate real top-level behavior without duplicating all
+The goal is to validate real top-level behaviour without duplicating all
 workflow internals in the `cmd` package.
 
 ### `internal/workflow`
@@ -148,7 +148,7 @@ Executor tests cover:
 - operation-mode rendering for combined flows
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
-- cleanup and prune-policy behavior through focused workflow helpers
+- cleanup and prune-policy behaviour through focused workflow helpers
 
 Workflow tests also cover:
 
@@ -172,13 +172,13 @@ assert on invocations.
 ### `captureOutput`
 
 The `cmd` package keeps a small `captureOutput` helper so the `runWithArgs`
-tests can assert on real stdout/stderr behavior without depending on logger
+tests can assert on real stdout/stderr behaviour without depending on logger
 internals.
 
 ### Real Logger, Temporary Log Directory
 
 Tests use a real logger pointed at a temporary directory rather than mocking the
-logger itself. That keeps formatting behavior realistic while avoiding writes to
+logger itself. That keeps formatting behaviour realistic while avoiding writes to
 system log paths.
 
 ## Design Intent
@@ -194,11 +194,11 @@ That makes failures easier to locate and lets new features land in the layer
 they actually belong to.
 
 The test split is also meant to keep `cmd/duplicacy-backup` small. As more
-workflow behavior moves under `internal/workflow`, most new coordinator tests
+workflow behaviour moves under `internal/workflow`, most new coordinator tests
 should be added there unless they are specifically about the real entrypoint.
 
 As the plan gets richer, new tests should prefer asserting plan fields and
-workflow translations directly instead of reconstructing execution behavior from
+workflow translations directly instead of reconstructing execution behaviour from
 raw request/config state in the `cmd` package.
 
 ## Operator Message Style
