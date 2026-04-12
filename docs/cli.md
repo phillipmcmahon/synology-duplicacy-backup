@@ -143,7 +143,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` works on one selected target from a label config at a time
-- `config validate --target <name>` requires that selected target config and any target secrets be valid
+- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, that the label `source_path` is a valid Btrfs snapshot source, and that any target secrets be valid
 - `config paths` includes secrets paths only for targets that actually use them
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
@@ -164,3 +164,4 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
 - if config cannot be read at all, built-in health webhooks are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
+- keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root

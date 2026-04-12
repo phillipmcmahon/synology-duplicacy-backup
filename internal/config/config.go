@@ -24,10 +24,12 @@ const (
 	DefaultLogRetentionDays            = 30
 	DefaultSecretsDir                  = "/root/.secrets"
 	MaxThreads                         = 16
+	MaxHealthThresholdHours            = 24 * 366
 )
 
 var ownerPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var upperCaseConfigKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
+var pruneKeepValuePattern = regexp.MustCompile(`^\d+:\d+$`)
 
 // Config holds all parsed and validated configuration values.
 type Config struct {
@@ -716,6 +718,18 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.VerifyWarnAfter < 0 {
 		return apperrors.NewConfigError("health-verify-warn-after-hours", fmt.Errorf("health.verify_warn_after_hours must be non-negative (was %d)", c.Health.VerifyWarnAfter))
 	}
+	if c.Health.FreshnessWarnHours > MaxHealthThresholdHours {
+		return apperrors.NewConfigError("health-freshness-warn-hours", fmt.Errorf("health.freshness_warn_hours must be less than or equal to %d hours (was %d)", MaxHealthThresholdHours, c.Health.FreshnessWarnHours))
+	}
+	if c.Health.FreshnessFailHours > MaxHealthThresholdHours {
+		return apperrors.NewConfigError("health-freshness-fail-hours", fmt.Errorf("health.freshness_fail_hours must be less than or equal to %d hours (was %d)", MaxHealthThresholdHours, c.Health.FreshnessFailHours))
+	}
+	if c.Health.DoctorWarnAfter > MaxHealthThresholdHours {
+		return apperrors.NewConfigError("health-doctor-warn-after-hours", fmt.Errorf("health.doctor_warn_after_hours must be less than or equal to %d hours (was %d)", MaxHealthThresholdHours, c.Health.DoctorWarnAfter))
+	}
+	if c.Health.VerifyWarnAfter > MaxHealthThresholdHours {
+		return apperrors.NewConfigError("health-verify-warn-after-hours", fmt.Errorf("health.verify_warn_after_hours must be less than or equal to %d hours (was %d)", MaxHealthThresholdHours, c.Health.VerifyWarnAfter))
+	}
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
@@ -771,6 +785,71 @@ func (c *Config) ValidateThreads() error {
 		return apperrors.NewConfigError("threads", fmt.Errorf("threads must be a power of 2 and <= %d (was %d)", MaxThreads, t))
 	}
 	return nil
+}
+
+// ValidatePrunePolicy checks the configured prune policy has a supported,
+// syntactically valid shape before it is passed to Duplicacy.
+func (c *Config) ValidatePrunePolicy() error {
+	if strings.TrimSpace(c.Prune) == "" {
+		return nil
+	}
+
+	tokens := strings.Fields(c.Prune)
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		switch token {
+		case "-keep":
+			if i+1 >= len(tokens) {
+				return apperrors.NewConfigError("prune", fmt.Errorf("prune policy is missing a retention value after -keep"))
+			}
+			value := tokens[i+1]
+			if !pruneKeepValuePattern.MatchString(value) {
+				return apperrors.NewConfigError("prune", fmt.Errorf("prune policy keep value %q must use <age>:<count> format", value))
+			}
+			i++
+		case "-all", "-exclusive", "-exhaustive":
+			continue
+		default:
+			if strings.HasPrefix(token, "-") {
+				return apperrors.NewConfigError("prune", fmt.Errorf("prune policy contains unsupported option %q", token))
+			}
+			return apperrors.NewConfigError("prune", fmt.Errorf("prune policy contains unexpected bare value %q", token))
+		}
+	}
+
+	return nil
+}
+
+// ValidateTargetSemantics checks target-level configuration combinations that
+// are internally inconsistent even before any operation-specific planning.
+func (c *Config) ValidateTargetSemantics() error {
+	switch c.TargetType {
+	case "local":
+		if strings.Contains(c.Destination, "://") {
+			return apperrors.NewConfigError("destination", fmt.Errorf("local target destination must be a filesystem path, not %q", c.Destination))
+		}
+	case "remote":
+		if !strings.Contains(c.Destination, "://") {
+			return apperrors.NewConfigError("destination", fmt.Errorf("remote target destination must be a URL-like storage target, not %q", c.Destination))
+		}
+	}
+
+	if !c.AllowLocalAccounts {
+		if c.LocalOwner != "" || c.LocalGroup != "" {
+			return apperrors.NewConfigError("local-accounts", fmt.Errorf("local_owner and local_group require allow_local_accounts = true for target %q", c.Target))
+		}
+		return nil
+	}
+
+	if (c.LocalOwner == "") != (c.LocalGroup == "") {
+		return apperrors.NewConfigError("local-accounts", fmt.Errorf("local_owner and local_group must be set together for target %q", c.Target))
+	}
+
+	if c.LocalOwner == "" && c.LocalGroup == "" {
+		return nil
+	}
+
+	return c.ValidateOwnerGroup()
 }
 
 // BuildPruneArgs splits the prune string into individual arguments.

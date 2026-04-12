@@ -69,6 +69,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldLookPath := lookPath
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
+	oldHandleConfigCommand := handleConfigCommand
 
 	logDir = t.TempDir()
 	geteuid = func() int { return 0 }
@@ -76,6 +77,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	lockParent := t.TempDir()
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
+	handleConfigCommand = workflow.HandleConfigCommand
 
 	t.Cleanup(func() {
 		logDir = oldLogDir
@@ -83,6 +85,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 		lookPath = oldLookPath
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
+		handleConfigCommand = oldHandleConfigCommand
 	})
 
 	fn()
@@ -376,11 +379,11 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
-		owner, group := currentUserGroup(t)
-		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "Config validation succeeded for homes/onsite-usb\n  Target               : onsite-usb\n  Config File          : /tmp/homes-backup.toml\n  Config               : Valid\n  Source Path          : /volume1/homes\n  Btrfs Source         : Valid\n", nil
+		}
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"config", "validate", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"config", "validate", "--target", "onsite-usb", "--config-dir", t.TempDir(), "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(config validate) = %d", code)
 			}
 		})
@@ -392,6 +395,29 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 		}
 		if !strings.Contains(stdout, "homes-backup.toml") || strings.Contains(stdout, "Not configured") {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", &workflow.ConfigCommandError{
+				Message: "Config validation failed for homes/onsite-usb",
+				Output:  "Config validation failed for homes/onsite-usb\n  Target               : onsite-usb\n  Config File          : /tmp/homes-backup.toml\n  Config               : Valid\n  Source Path          : /volume1/homes/nested\n  Source Path Access   : Invalid (source_path does not exist: /volume1/homes/nested)\n  Btrfs Source         : Not checked\n",
+			}
+		}
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--target", "onsite-usb", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config validate failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stdout, "Config validation failed for homes/onsite-usb") || !strings.Contains(stdout, "Source Path Access") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "Config validation failed for homes/onsite-usb") {
+			t.Fatalf("stderr = %q", stderr)
 		}
 	})
 }

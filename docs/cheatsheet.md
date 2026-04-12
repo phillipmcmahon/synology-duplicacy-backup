@@ -85,6 +85,7 @@ duplicacy-backup config paths --target offsite-storj homes
 - Start with `--dry-run` for anything destructive or unfamiliar.
 - Use `--force-prune` only with `--prune`.
 - Use `--cleanup-storage` only when no other client is writing to the same storage.
+- Keep `source_path` set to the real Btrfs volume or subvolume for the label, and use Duplicacy filters to include or exclude nested directories beneath that root.
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 - One config file covers a whole label; one secrets file covers a whole label.

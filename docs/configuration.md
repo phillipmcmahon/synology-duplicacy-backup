@@ -54,7 +54,7 @@ The preferred layout is:
 | Key | Required | Description |
 |---|---|---|
 | `label` | Yes | Source label used on the CLI |
-| `source_path` | Yes | Real source directory for this label |
+| `source_path` | Yes | Btrfs source root for this label; must be a snapshot-safe volume or subvolume |
 | `common.destination` | No | Default destination for targets that do not set their own |
 | `common.filter` | No | Default Duplicacy filter pattern |
 | `common.threads` | Yes for backup unless set on the target | Duplicacy threads; power of 2, max 16 |
@@ -141,6 +141,28 @@ requires_network = true
 verify_warn_after_hours = 336
 ```
 
+## Source Path Rule
+
+`source_path` is the snapshot root for the label. It must be a Btrfs volume or
+subvolume that can be used directly as the source of a read-only snapshot.
+
+Good examples:
+
+- `/volume1/source-homes`
+- `/volume1/source-media-audio`
+
+Bad example:
+
+- `/volume1/source-homes/private-user-data`
+
+That nested path may exist on Btrfs storage, but if it is not itself a Btrfs
+volume or subvolume it cannot be used as the backup snapshot source.
+
+When you need to include or exclude directories beneath the snapshot root, keep
+`source_path` pointed at the real Btrfs root location and use Duplicacy
+filters under `common.filter` or `targets.<name>.filter` to shape what is
+actually backed up.
+
 ## Secrets
 
 Targets that need credentials load them from:
@@ -203,6 +225,11 @@ freshness signal.
 |---|---|
 | `duplicacy` binary check | backup or prune |
 | `btrfs` binary check | backup |
+| threads validation | `config validate`, backup |
+| prune policy syntax validation | `config validate`, prune |
+| target local-account consistency | `config validate`, local `--fix-perms` |
+| Btrfs `source_path` check | `config validate`, backup |
+| destination accessibility check | `config validate` |
 | `local_owner` / `local_group` validation | local `--fix-perms` |
 | target secrets loading | targets that require secrets |
 

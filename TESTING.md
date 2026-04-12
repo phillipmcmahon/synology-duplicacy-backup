@@ -83,6 +83,10 @@ Use the standard packaging scripts for this flow:
 - `scripts/package-linux-artifact.sh`
 - `make package-synology`
 
+`scripts/package-linux-artifact.sh` now enforces this rule directly and will
+fail on non-Linux hosts. On macOS, the supported entrypoint is
+`scripts/package-linux-docker.sh`.
+
 ## Test Layout
 
 | Package | Focus |

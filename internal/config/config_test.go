@@ -705,6 +705,10 @@ func TestValidateThresholds(t *testing.T) {
 		{SafePruneMaxDeleteCount: -1},
 		{SafePruneMinTotalForPercent: -1},
 		{LogRetentionDays: -1},
+		{Health: HealthConfig{FreshnessWarnHours: MaxHealthThresholdHours + 1}},
+		{Health: HealthConfig{FreshnessFailHours: MaxHealthThresholdHours + 1}},
+		{Health: HealthConfig{DoctorWarnAfter: MaxHealthThresholdHours + 1}},
+		{Health: HealthConfig{VerifyWarnAfter: MaxHealthThresholdHours + 1}},
 	}
 	for _, cfg := range cases {
 		if err := cfg.ValidateThresholds(); err == nil {
@@ -773,6 +777,71 @@ func TestBuildPruneArgs(t *testing.T) {
 	cfg.BuildPruneArgs()
 	if cfg.PruneArgs != nil {
 		t.Fatalf("PruneArgs = %#v, want nil", cfg.PruneArgs)
+	}
+}
+
+func TestValidatePrunePolicy(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{name: "empty", cfg: Config{Prune: ""}},
+		{name: "keep only", cfg: Config{Prune: "-keep 0:30 -keep 7:14"}},
+		{name: "supported flags", cfg: Config{Prune: "-keep 0:30 -exclusive -exhaustive"}},
+		{name: "missing keep value", cfg: Config{Prune: "-keep"}, want: "missing a retention value"},
+		{name: "bad keep format", cfg: Config{Prune: "-keep thirty"}, want: "must use <age>:<count> format"},
+		{name: "unsupported option", cfg: Config{Prune: "-delete 4"}, want: "unsupported option"},
+		{name: "bare value", cfg: Config{Prune: "0:30"}, want: "unexpected bare value"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.ValidatePrunePolicy()
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("ValidatePrunePolicy() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("ValidatePrunePolicy() err = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateTargetSemantics(t *testing.T) {
+	owner, group := currentUserGroup(t)
+
+	cases := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{name: "local path okay", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups"}},
+		{name: "remote url okay", cfg: Config{Target: "offsite-storj", TargetType: "remote", Destination: "s3://gateway.example.invalid/bucket"}},
+		{name: "local accounts optional", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true}},
+		{name: "local path cannot be url", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "s3://bucket"}, want: "filesystem path"},
+		{name: "remote destination must be url", cfg: Config{Target: "offsite-storj", TargetType: "remote", Destination: "/volume2/backups"}, want: "URL-like storage target"},
+		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
+		{name: "owner and group together", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
+		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", TargetType: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.ValidateTargetSemantics()
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("ValidateTargetSemantics() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("ValidateTargetSemantics() err = %v", err)
+			}
+		})
 	}
 }
 

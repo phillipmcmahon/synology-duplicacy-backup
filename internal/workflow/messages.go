@@ -215,6 +215,11 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 		"safe-prune-max-delete-percent",
 		"safe-prune-max-delete-count",
 		"safe-prune-min-total-for-percent",
+		"health-freshness-warn-hours",
+		"health-freshness-fail-hours",
+		"health-doctor-warn-after-hours",
+		"health-verify-warn-after-hours",
+		"health-freshness-range",
 		"local-owner",
 		"local-group",
 		"parse":

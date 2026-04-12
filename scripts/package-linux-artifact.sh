@@ -38,6 +38,11 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
+require_linux_host() {
+    host_os="$(uname -s)"
+    [ "$host_os" = "Linux" ] || fail "package-linux-artifact.sh must run inside Linux; use scripts/package-linux-docker.sh from macOS"
+}
+
 resolve_go_command() {
     if command -v go >/dev/null 2>&1; then
         command -v go
@@ -155,6 +160,7 @@ done
 REPO_ROOT="${REPO_ROOT:-$(repo_root_default)}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/build/linux-go1.26-packages}"
 
+require_linux_host
 require_command tar
 require_command sha256sum
 require_command file

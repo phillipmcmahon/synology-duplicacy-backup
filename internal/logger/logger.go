@@ -152,6 +152,30 @@ func (l *Logger) reset() string {
 	return colourReset
 }
 
+// ColourizeForLevel applies the standard logger colour for a level to an
+// arbitrary value without requiring a Logger instance.
+func ColourizeForLevel(level Level, value string, enableColour bool) string {
+	if !enableColour {
+		return value
+	}
+	var colour string
+	switch level {
+	case DEBUG:
+		colour = colourDebug
+	case INFO:
+		colour = colourInfo
+	case SUCCESS:
+		colour = colourSuccess
+	case WARNING:
+		colour = colourWarn
+	case ERROR:
+		colour = colourError
+	default:
+		return value
+	}
+	return fmt.Sprintf("%s%s%s", colour, value, colourReset)
+}
+
 // Log writes a log message at the given level.
 func (l *Logger) Log(level Level, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)

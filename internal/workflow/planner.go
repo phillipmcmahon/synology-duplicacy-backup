@@ -142,6 +142,10 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 }
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
+	return p.loadConfigWithOptions(plan, true)
+}
+
+func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool) (*config.Config, error) {
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Configuration file not found: %s", plan.ConfigFile)
 	}
@@ -182,8 +186,10 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
 	}
-	if err := cfg.ValidateThresholds(); err != nil {
-		return nil, err
+	if validateThresholds {
+		if err := cfg.ValidateThresholds(); err != nil {
+			return nil, err
+		}
 	}
 	if plan.FixPerms {
 		if err := cfg.ValidateOwnerGroup(); err != nil {

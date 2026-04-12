@@ -320,6 +320,16 @@ func TestReset_ColourDisabled(t *testing.T) {
 	}
 }
 
+func TestColourizeForLevel(t *testing.T) {
+	if got := ColourizeForLevel(SUCCESS, "Valid", false); got != "Valid" {
+		t.Fatalf("ColourizeForLevel() without colour = %q", got)
+	}
+	got := ColourizeForLevel(ERROR, "Invalid", true)
+	if !strings.Contains(got, "Invalid") || !strings.Contains(got, colourError) || !strings.Contains(got, colourReset) {
+		t.Fatalf("ColourizeForLevel() with colour = %q", got)
+	}
+}
+
 // ─── Log and convenience method tests ───────────────────────────────────────
 
 func newTestLogger(t *testing.T, enableColour bool) *Logger {

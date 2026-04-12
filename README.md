@@ -153,7 +153,7 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the selected target from a label config and any configured target secrets
+- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, and validates any configured target secrets
 - `config explain` shows the resolved values for the selected target
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths
 
@@ -171,6 +171,13 @@ The `health` command family adds read-only confidence checks:
 - `health status` gives a fast current-state summary
 - `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
 - `health verify` goes further by validating the revisions found for the current backup with `duplicacy check -persist`
+
+`source_path` must point at the Btrfs root location you intend to snapshot for
+that label. In practice, that means a Btrfs volume or subvolume such as
+`/volume1/source-homes`, not an arbitrary nested directory such as
+`/volume1/source-homes/private-user-data`. Inclusion and exclusion beneath that snapshot
+root should be handled with Duplicacy filters rather than by narrowing
+`source_path` to a non-subvolume child path.
 
 Health commands combine target-specific state stored under `/var/lib/duplicacy-backup/<label>.<target>.json`
 with live Duplicacy storage inspection. When Duplicacy exposes revision creation

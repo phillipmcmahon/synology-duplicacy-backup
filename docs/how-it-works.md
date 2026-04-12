@@ -42,7 +42,7 @@ inside one large coordinator.
 
 At runtime, the application enters through:
 
-- [`cmd/duplicacy-backup/main.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/cmd/duplicacy-backup/main.go)
+- [`cmd/duplicacy-backup/main.go`](../cmd/duplicacy-backup/main.go)
 
 The high-level path is:
 
@@ -90,7 +90,7 @@ flowchart TD
 
 ### Entry point
 
-- [`cmd/duplicacy-backup/main.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/cmd/duplicacy-backup/main.go)
+- [`cmd/duplicacy-backup/main.go`](../cmd/duplicacy-backup/main.go)
 
 This file should stay thin.
 
@@ -106,7 +106,7 @@ fix-perms behavior.
 
 ### Workflow package
 
-- [`internal/workflow`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow)
+- [`internal/workflow`](../internal/workflow)
 
 This is the orchestration layer.
 
@@ -125,31 +125,31 @@ This package is now the heart of the application.
 
 These packages do focused work and should stay relatively narrow:
 
-- [`internal/config`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/config)
+- [`internal/config`](../internal/config)
   Parses and validates config files.
-- [`internal/secrets`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/secrets)
+- [`internal/secrets`](../internal/secrets)
   Loads and validates label secrets files.
-- [`internal/btrfs`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/btrfs)
+- [`internal/btrfs`](../internal/btrfs)
   Validates btrfs locations and manages snapshots.
-- [`internal/duplicacy`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/duplicacy)
+- [`internal/duplicacy`](../internal/duplicacy)
   Prepares and runs Duplicacy commands.
-- [`internal/permissions`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/permissions)
+- [`internal/permissions`](../internal/permissions)
   Applies ownership and permission normalization for targets that allow local accounts.
-- [`internal/lock`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/lock)
+- [`internal/lock`](../internal/lock)
   Directory-based PID locking.
-- [`internal/logger`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/logger)
+- [`internal/logger`](../internal/logger)
   Structured log formatting and log cleanup.
-- [`internal/exec`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/exec)
+- [`internal/exec`](../internal/exec)
   Shared command execution abstraction and test mocks.
-- [`internal/errors`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/errors)
+- [`internal/errors`](../internal/errors)
   Typed internal error contracts.
 
 ## Request Phase
 
 The request phase lives in:
 
-- [`internal/workflow/request.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/request.go)
-- [`internal/workflow/runtime.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/runtime.go)
+- [`internal/workflow/request.go`](../internal/workflow/request.go)
+- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 
 The job of the request phase is to answer:
 
@@ -228,7 +228,7 @@ That keeps the CLI boundary predictable and easy to test.
 
 The runtime abstraction lives in:
 
-- [`internal/workflow/runtime.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/runtime.go)
+- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 
 It provides injectable functions for:
 
@@ -284,9 +284,9 @@ forcing revision parity or schedule alignment between them.
 
 The plan phase lives mainly in:
 
-- [`internal/workflow/planner.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/planner.go)
-- [`internal/workflow/plan.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/plan.go)
-- [`internal/workflow/summary.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/summary.go)
+- [`internal/workflow/planner.go`](../internal/workflow/planner.go)
+- [`internal/workflow/plan.go`](../internal/workflow/plan.go)
+- [`internal/workflow/summary.go`](../internal/workflow/summary.go)
 
 The job of the planner is to answer:
 
@@ -386,6 +386,11 @@ After this step, the plan is populated with things the executor can use directly
 - safe-prune thresholds
 - operation mode string
 
+Operationally, `source_path` is expected to be the real Btrfs volume or
+subvolume root for the label. Fine-grained inclusion and exclusion under that
+root is handled by Duplicacy filters, not by pointing `source_path` at an
+arbitrary nested child directory.
+
 ### `loadSecrets`
 
 This only runs for targets that require credentials.
@@ -445,10 +450,10 @@ The more complete the plan is, the less the executor has to know about request p
 
 The execution phase lives mainly in:
 
-- [`internal/workflow/executor.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/executor.go)
-- [`internal/workflow/cleanup.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/cleanup.go)
-- [`internal/workflow/prune.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/prune.go)
-- [`internal/workflow/permissions_exec.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/permissions_exec.go)
+- [`internal/workflow/executor.go`](../internal/workflow/executor.go)
+- [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
+- [`internal/workflow/prune.go`](../internal/workflow/prune.go)
+- [`internal/workflow/permissions_exec.go`](../internal/workflow/permissions_exec.go)
 
 The job of the executor is to answer:
 
@@ -495,7 +500,7 @@ If any step fails:
 
 Presentation is handled by:
 
-- [`internal/workflow/presenter.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/presenter.go)
+- [`internal/workflow/presenter.go`](../internal/workflow/presenter.go)
 
 This file exists so `Executor` does not have to mix sequencing with formatting.
 
@@ -513,7 +518,7 @@ This is intentionally small, but it helps keep runtime flow readable.
 
 Operator-facing message translation is handled by:
 
-- [`internal/workflow/messages.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/messages.go)
+- [`internal/workflow/messages.go`](../internal/workflow/messages.go)
 
 This is an important boundary.
 
@@ -569,8 +574,8 @@ When backup mode is active, the runtime path is roughly:
 
 The actual snapshot and Duplicacy work is delegated to:
 
-- [`internal/btrfs`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/btrfs)
-- [`internal/duplicacy`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/duplicacy)
+- [`internal/btrfs`](../internal/btrfs)
+- [`internal/duplicacy`](../internal/duplicacy)
 
 ## Prune Flow
 
@@ -606,7 +611,7 @@ When `--fix-perms` is active, the runtime path depends on mode:
 
 The actual permission application is delegated to:
 
-- [`internal/permissions`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/permissions)
+- [`internal/permissions`](../internal/permissions)
 
 The workflow layer decides:
 
@@ -618,7 +623,7 @@ The workflow layer decides:
 
 Cleanup is handled in:
 
-- [`internal/workflow/cleanup.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/cleanup.go)
+- [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
 
 It is deliberately idempotent.
 
@@ -642,7 +647,7 @@ The executor tracks whether cleanup already ran so it can safely be called more 
 
 Logging is handled by:
 
-- [`internal/logger`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/logger)
+- [`internal/logger`](../internal/logger)
 
 Workflow output uses the logger for:
 
@@ -702,7 +707,7 @@ These verify the real `runWithArgs` path end to end for representative cases.
 
 See:
 
-- [`TESTING.md`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/TESTING.md)
+- [`TESTING.md`](../TESTING.md)
 
 ## Where To Change Things
 
@@ -710,53 +715,53 @@ If you want to change a specific behavior, start here:
 
 ### CLI behavior
 
-- [`internal/workflow/request.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/request.go)
-- [`internal/workflow/runtime.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/runtime.go)
+- [`internal/workflow/request.go`](../internal/workflow/request.go)
+- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 
 ### Path derivation and execution contract
 
-- [`internal/workflow/planner.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/planner.go)
-- [`internal/workflow/plan.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/plan.go)
+- [`internal/workflow/planner.go`](../internal/workflow/planner.go)
+- [`internal/workflow/plan.go`](../internal/workflow/plan.go)
 
 ### Summary rendering
 
-- [`internal/workflow/summary.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/summary.go)
-- [`internal/workflow/presenter.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/presenter.go)
+- [`internal/workflow/summary.go`](../internal/workflow/summary.go)
+- [`internal/workflow/presenter.go`](../internal/workflow/presenter.go)
 
 ### Operator-facing error text
 
-- [`internal/workflow/messages.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/messages.go)
+- [`internal/workflow/messages.go`](../internal/workflow/messages.go)
 
 ### Backup and prune sequencing
 
-- [`internal/workflow/executor.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/executor.go)
-- [`internal/workflow/prune.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/prune.go)
+- [`internal/workflow/executor.go`](../internal/workflow/executor.go)
+- [`internal/workflow/prune.go`](../internal/workflow/prune.go)
 
 ### Cleanup behavior
 
-- [`internal/workflow/cleanup.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/cleanup.go)
+- [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
 
 ### Duplicacy CLI setup and commands
 
-- [`internal/duplicacy`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/duplicacy)
+- [`internal/duplicacy`](../internal/duplicacy)
 
 ### Config and secrets behavior
 
-- [`internal/config`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/config)
-- [`internal/secrets`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/secrets)
+- [`internal/config`](../internal/config)
+- [`internal/secrets`](../internal/secrets)
 
 ## Practical Reading Order
 
 If you have been away from the codebase and need to re-orient quickly, this is the reading order I would recommend:
 
-1. [`cmd/duplicacy-backup/main.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/cmd/duplicacy-backup/main.go)
-2. [`internal/workflow/request.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/request.go)
-3. [`internal/workflow/planner.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/planner.go)
-4. [`internal/workflow/plan.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/plan.go)
-5. [`internal/workflow/executor.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/executor.go)
-6. [`internal/workflow/prune.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/prune.go)
-7. [`internal/workflow/cleanup.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/cleanup.go)
-8. [`internal/workflow/messages.go`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/workflow/messages.go)
+1. [`cmd/duplicacy-backup/main.go`](../cmd/duplicacy-backup/main.go)
+2. [`internal/workflow/request.go`](../internal/workflow/request.go)
+3. [`internal/workflow/planner.go`](../internal/workflow/planner.go)
+4. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
+5. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
+6. [`internal/workflow/prune.go`](../internal/workflow/prune.go)
+7. [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
+8. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
 
 That path usually gives the clearest mental model with the least jumping around.
 

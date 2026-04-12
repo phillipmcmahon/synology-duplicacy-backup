@@ -24,6 +24,7 @@ var geteuid = os.Geteuid
 var lookPath = osexec.LookPath
 var newLock = lock.New
 var newSourceLock = lock.NewSource
+var handleConfigCommand = workflow.HandleConfigCommand
 
 const scriptName = "duplicacy-backup"
 
@@ -54,8 +55,11 @@ func runWithArgs(args []string) int {
 		return 0
 	}
 	if result.Request.ConfigCommand != "" {
-		output, err := workflow.HandleConfigCommand(result.Request, meta, rt)
+		output, err := handleConfigCommand(result.Request, meta, rt)
 		if err != nil {
+			if report := workflow.ConfigCommandOutput(err); report != "" {
+				fmt.Print(report)
+			}
 			fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
 			return 1
 		}
