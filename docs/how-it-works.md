@@ -529,6 +529,11 @@ The design rule is:
 
 That keeps message tone and punctuation consistent.
 
+`config validate` also follows this rule. It performs a read-only readiness
+probe for the selected repository and reports operator-facing outcomes such as
+`Valid`, `Not initialized`, and `Invalid (...)` without initializing storage
+or mutating repository state.
+
 ### Main error families
 
 The translator understands:

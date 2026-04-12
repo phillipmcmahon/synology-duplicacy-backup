@@ -234,6 +234,14 @@ freshness signal.
 | `local_owner` / `local_group` validation | local `--fix-perms` |
 | target secrets loading | targets that require secrets |
 
+`config validate` keeps repository probing read-only. It does not initialize
+storage, create repositories, or modify config/state. Repository readiness is
+reported as:
+
+- `Repository Access : Valid`
+- `Repository Access : Not initialized`
+- `Repository Access : Invalid (...)`
+
 ## Current File Naming
 
 The preferred operational layout is one config file per label plus

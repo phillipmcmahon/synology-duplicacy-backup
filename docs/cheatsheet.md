@@ -86,6 +86,10 @@ duplicacy-backup config paths --target offsite-storj homes
 - Use `--force-prune` only with `--prune`.
 - Use `--cleanup-storage` only when no other client is writing to the same storage.
 - Keep `source_path` set to the real Btrfs volume or subvolume for the label, and use Duplicacy filters to include or exclude nested directories beneath that root.
+- `config validate` is read-only. It does not initialize repositories or change storage state.
+- `Repository Access : Valid` means the selected repository is ready to use.
+- `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialized yet.
+- `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialized.
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 - One config file covers a whole label; one secrets file covers a whole label.
