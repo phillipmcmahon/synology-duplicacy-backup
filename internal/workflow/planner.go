@@ -38,7 +38,6 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	}
 	plan.Target = cfg.Target
 	plan.TargetType = cfg.TargetType
-	plan.RemoteMode = cfg.TargetType == targetRemote
 	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
 	plan.SnapshotSource = cfg.SourcePath
 	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
@@ -120,7 +119,6 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		FixPerms:            req.FixPerms,
 		FixPermsOnly:        req.FixPermsOnly,
 		ForcePrune:          req.ForcePrune,
-		RemoteMode:          req.RemoteMode,
 		DryRun:              req.DryRun,
 		Verbose:             req.Verbose,
 		JSONSummary:         req.JSONSummary,
@@ -137,9 +135,9 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		WorkRoot:            workRoot,
 		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
 		ConfigDir:           configDir,
-		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-%s-backup.toml", backupLabel, target)),
+		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", backupLabel)),
 		SecretsDir:          secretsDir,
-		SecretsFile:         secrets.GetTargetSecretsFilePath(secretsDir, config.DefaultSecretsPrefix, backupLabel, target),
+		SecretsFile:         secrets.GetSecretsFilePath(secretsDir, backupLabel),
 	}
 }
 
@@ -157,10 +155,10 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.Health = raw.ResolveHealth()
 	if err := cfg.Apply(values); err != nil {
 		return nil, err
 	}
+	cfg.Health = raw.ResolveHealth(cfg.Target)
 	if cfg.Label == "" {
 		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s is missing required label value", plan.ConfigFile), "path", plan.ConfigFile)
 	}
@@ -170,19 +168,16 @@ func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	if cfg.Target == "" {
 		cfg.Target = plan.TargetName()
 	}
-	if cfg.TargetType == "" {
-		if cfg.Target == targetLocal {
-			cfg.TargetType = targetLocal
-		} else {
-			cfg.TargetType = targetRemote
-		}
-	}
 	if cfg.SourcePath == "" {
 		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
 	}
 	if cfg.Repository == "" {
 		cfg.Repository = plan.BackupLabel
 	}
+	plan.Target = cfg.Target
+	plan.TargetType = cfg.TargetType
+	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
+	plan.ModeDisplay = modeDisplay(cfg.Target, cfg.TargetType)
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
@@ -260,23 +255,10 @@ func splitNonEmptyLines(value string) []string {
 }
 
 func modeDisplay(targetName, targetType string) string {
-	switch targetType {
-	case targetLocal:
-		return "Local"
-	case targetRemote:
-		return "Remote"
+	if targetName != "" {
+		return targetName
 	}
-	switch targetName {
-	case targetLocal:
-		return "Local"
-	case targetRemote:
-		return "Remote"
-	default:
-		if targetName == "" {
-			return "Unknown"
-		}
-		return strings.ToUpper(targetName[:1]) + targetName[1:]
-	}
+	return "not supplied"
 }
 
 func rootVolumeForSource(sourcePath string) string {
@@ -296,7 +278,7 @@ func rootVolumeForSource(sourcePath string) string {
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
-	sec, err := secrets.LoadSecretsFile(plan.SecretsFile)
+	sec, err := secrets.LoadSecretsFile(plan.SecretsFile, plan.Target)
 	if err != nil {
 		return nil, err
 	}

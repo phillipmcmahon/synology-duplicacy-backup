@@ -127,7 +127,7 @@ interactive = true
 	if err != nil {
 		t.Fatalf("ParseFile() error = %v", err)
 	}
-	health := raw.ResolveHealth()
+	health := raw.ResolveHealth("local")
 	if health.FreshnessWarnHours != 12 || health.FreshnessFailHours != 24 {
 		t.Fatalf("health = %+v", health)
 	}
@@ -151,6 +151,245 @@ threads = 8
 
 	if values["THREADS"] != "8" {
 		t.Errorf("expected THREADS=8, got %q", values["THREADS"])
+	}
+}
+
+func TestParseFile_ResolveValues_ExplicitTargetSelection(t *testing.T) {
+	values := loadValues(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[common]
+threads = 4
+
+[targets.onsite-usb]
+type = "local"
+destination = "/volumeUSB1/usbshare/duplicacy"
+repository = "homes"
+allow_local_accounts = true
+`, "onsite-usb")
+
+	if values["TARGET"] != "onsite-usb" {
+		t.Fatalf("TARGET = %q", values["TARGET"])
+	}
+	if values["TARGET_TYPE"] != "local" {
+		t.Fatalf("TARGET_TYPE = %q", values["TARGET_TYPE"])
+	}
+}
+
+func TestParseFile_ResolveValues_ProductNeutralTargetLayout(t *testing.T) {
+	owner, group := currentUserGroup(t)
+	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[target]
+name = "onsite-usb"
+type = "local"
+allow_local_accounts = true
+local_owner = "`+owner+`"
+local_group = "`+group+`"
+
+[storage]
+destination = "/volumeUSB1/usbshare/duplicacy"
+repository = "homes"
+
+[capture]
+filter = "e:^tmp$"
+threads = 8
+
+[retention]
+keep = ["0:30", "", "7:14"]
+log_retention_days = 14
+safe_prune_max_delete_percent = 12
+safe_prune_max_delete_count = 34
+safe_prune_min_total_for_percent = 56
+
+[health]
+freshness_warn_hours = 12
+
+[notify]
+webhook_url = "https://example.invalid/hook"
+notify_on = ["unhealthy"]
+send_for = ["verify"]
+interactive = true
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	values, err := raw.ResolveValues("onsite-usb", p)
+	if err != nil {
+		t.Fatalf("ResolveValues() error = %v", err)
+	}
+
+	expect := map[string]string{
+		"LABEL":                            "homes",
+		"TARGET":                           "onsite-usb",
+		"TARGET_TYPE":                      "local",
+		"SOURCE_PATH":                      "/volume1/homes",
+		"DESTINATION":                      "/volumeUSB1/usbshare/duplicacy",
+		"REPOSITORY":                       "homes",
+		"FILTER":                           "e:^tmp$",
+		"THREADS":                          "8",
+		"PRUNE":                            "-keep 0:30 -keep 7:14",
+		"LOG_RETENTION_DAYS":               "14",
+		"SAFE_PRUNE_MAX_DELETE_PERCENT":    "12",
+		"SAFE_PRUNE_MAX_DELETE_COUNT":      "34",
+		"SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT": "56",
+		"ALLOW_LOCAL_ACCOUNTS":             "true",
+		"LOCAL_OWNER":                      owner,
+		"LOCAL_GROUP":                      group,
+	}
+	for key, want := range expect {
+		if got := values[key]; got != want {
+			t.Fatalf("values[%q] = %q, want %q", key, got, want)
+		}
+	}
+
+	health := raw.ResolveHealth("onsite-usb")
+	if health.FreshnessWarnHours != 12 {
+		t.Fatalf("FreshnessWarnHours = %d, want 12", health.FreshnessWarnHours)
+	}
+	if health.Notify.WebhookURL != "https://example.invalid/hook" || !health.Notify.Interactive {
+		t.Fatalf("health notify = %+v", health.Notify)
+	}
+	if got := strings.Join(health.Notify.NotifyOn, ","); got != "unhealthy" {
+		t.Fatalf("NotifyOn = %q", got)
+	}
+	if got := strings.Join(health.Notify.SendFor, ","); got != "verify" {
+		t.Fatalf("SendFor = %q", got)
+	}
+}
+
+func TestParseFile_ResolveValues_ProductNeutralTargetLayoutPrefersExplicitPrune(t *testing.T) {
+	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[target]
+name = "offsite-storj"
+type = "remote"
+requires_network = true
+
+[storage]
+destination = "s3://bucket/homes"
+repository = "homes"
+
+[retention]
+prune = "-keep 1:365 -keep 30:90"
+keep = ["0:30", "7:14"]
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	values, err := raw.ResolveValues("offsite-storj", p)
+	if err != nil {
+		t.Fatalf("ResolveValues() error = %v", err)
+	}
+	if values["PRUNE"] != "-keep 1:365 -keep 30:90" {
+		t.Fatalf("PRUNE = %q", values["PRUNE"])
+	}
+	if values["REQUIRES_NETWORK"] != "true" {
+		t.Fatalf("REQUIRES_NETWORK = %q", values["REQUIRES_NETWORK"])
+	}
+}
+
+func TestParseFile_ResolveValues_ProductNeutralTargetMismatchFails(t *testing.T) {
+	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[target]
+name = "onsite-usb"
+type = "local"
+
+[storage]
+destination = "/volumeUSB1/usbshare/duplicacy"
+repository = "homes"
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	_, err = raw.ResolveValues("offsite-storj", p)
+	if err == nil || !strings.Contains(err.Error(), `defines target "onsite-usb", expected "offsite-storj"`) {
+		t.Fatalf("ResolveValues() err = %v", err)
+	}
+}
+
+func TestParseFile_ResolveHealth_TargetSpecificOverride(t *testing.T) {
+	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[health]
+freshness_warn_hours = 20
+freshness_fail_hours = 40
+
+[notify]
+notify_on = ["degraded"]
+send_for = ["doctor"]
+
+[targets.offsite-storj]
+type = "remote"
+destination = "s3://bucket/homes"
+repository = "homes"
+
+[targets.offsite-storj.health]
+freshness_warn_hours = 10
+verify_warn_after_hours = 72
+
+[targets.offsite-storj.health.notify]
+send_for = ["verify"]
+interactive = true
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	health := raw.ResolveHealth("offsite-storj")
+	if health.FreshnessWarnHours != 10 || health.FreshnessFailHours != 40 || health.VerifyWarnAfter != 72 {
+		t.Fatalf("health = %+v", health)
+	}
+	if got := strings.Join(health.Notify.NotifyOn, ","); got != "degraded" {
+		t.Fatalf("NotifyOn = %q", got)
+	}
+	if got := strings.Join(health.Notify.SendFor, ","); got != "verify" {
+		t.Fatalf("SendFor = %q", got)
+	}
+	if !health.Notify.Interactive {
+		t.Fatalf("health notify = %+v", health.Notify)
+	}
+}
+
+func TestParseFile_ResolveValues_MissingExplicitTargetFails(t *testing.T) {
+	p := writeTempConfig(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[targets.onsite-usb]
+type = "local"
+destination = "/volumeUSB1/usbshare/duplicacy"
+repository = "homes"
+	allow_local_accounts = true
+`)
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	_, err = raw.ResolveValues("", p)
+	if err == nil || !strings.Contains(err.Error(), "requires an explicit target selection") {
+		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
 
@@ -534,5 +773,24 @@ func TestBuildPruneArgs(t *testing.T) {
 	cfg.BuildPruneArgs()
 	if cfg.PruneArgs != nil {
 		t.Fatalf("PruneArgs = %#v, want nil", cfg.PruneArgs)
+	}
+}
+
+func TestHealthConfigValidate(t *testing.T) {
+	valid := NewDefaults().Health
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("Validate() valid defaults error = %v", err)
+	}
+
+	invalidNotifyOn := valid
+	invalidNotifyOn.Notify.NotifyOn = []string{"warn"}
+	if err := invalidNotifyOn.Validate(); err == nil || !strings.Contains(err.Error(), "notify_on") {
+		t.Fatalf("Validate() notify_on err = %v", err)
+	}
+
+	invalidSendFor := valid
+	invalidSendFor.Notify.SendFor = []string{"backup"}
+	if err := invalidSendFor.Validate(); err == nil || !strings.Contains(err.Error(), "send_for") {
+		t.Fatalf("Validate() send_for err = %v", err)
 	}
 }

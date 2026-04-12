@@ -53,7 +53,6 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		{Label: "Operation Mode", Value: plan.OperationMode},
 		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Target", Value: plan.TargetName()},
-		SummaryLine{Label: "Mode", Value: plan.ModeDisplay},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
 	}
 	if plan.DoBackup {
@@ -121,7 +120,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		)
 	}
 
-	if (plan.TargetType == targetRemote || plan.TargetName() == targetRemote || plan.RemoteMode) && plan.Secrets != nil {
+	if plan.TargetType == targetRemote && plan.Secrets != nil {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},

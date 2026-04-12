@@ -92,13 +92,13 @@ func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execp
 }
 
 func NewFailureHealthReport(req *Request, checkType, message string, checkedAt time.Time) *HealthReport {
-	mode := "Local"
+	mode := ""
 	label := ""
-	target := targetLocal
+	target := ""
 	if req != nil {
 		label = req.Source
 		target = req.Target()
-		mode = modeDisplay(req.Target(), "")
+		mode = req.Target()
 		if checkType == "" {
 			checkType = req.HealthCommand
 		}
@@ -138,7 +138,7 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		CheckType: req.HealthCommand,
 		Label:     req.Source,
 		Target:    req.Target(),
-		Mode:      modeDisplay(req.Target(), ""),
+		Mode:      req.Target(),
 		CheckedAt: formatReportTime(checkedAt),
 		startedAt: checkedAt,
 	}
@@ -160,12 +160,12 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	state, stateErr := loadRunState(h.meta, req.Source, req.Target())
 	if stateErr != nil {
 		if os.IsNotExist(stateErr) {
-			h.addCheck(report, "Local state", "warn", fmt.Sprintf("No prior local state found at %s", stateFilePath(h.meta, req.Source, req.Target())))
+			h.addCheck(report, "Backup state", "warn", fmt.Sprintf("No prior backup state found at %s", stateFilePath(h.meta, req.Source, req.Target())))
 		} else {
-			h.addCheck(report, "Local state", "warn", fmt.Sprintf("Could not read local state: %v", stateErr))
+			h.addCheck(report, "Backup state", "warn", fmt.Sprintf("Could not read backup state: %v", stateErr))
 		}
 	} else {
-		h.addCheck(report, "Local state", "pass", "Read successfully")
+		h.addCheck(report, "Backup state", "pass", "Available")
 		report.LastSuccessAt = chooseLocalSuccessTime(state)
 	}
 
@@ -239,7 +239,6 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 
 	plan.Target = cfg.Target
 	plan.TargetType = cfg.TargetType
-	plan.RemoteMode = cfg.TargetType == targetRemote
 	plan.ConfigFile = cfgPlan.ConfigFile
 	plan.SecretsFile = cfgPlan.SecretsFile
 	plan.BackupTarget = JoinDestination(cfg.Destination, cfg.Repository)
@@ -286,12 +285,12 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 }
 
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
-	h.addCheck(report, "Config", "pass", fmt.Sprintf("Loaded %s", plan.ConfigFile))
+	h.addCheck(report, "Config file", "pass", plan.ConfigFile)
 	if plan.TargetType == targetRemote {
-		h.addCheck(report, "Remote secrets", "pass", fmt.Sprintf("Loaded %s", plan.SecretsFile))
+		h.addCheck(report, "Secrets", "pass", plan.SecretsFile)
 	}
 
-	stopInspecting := h.startStatusActivity("Inspecting visible storage revisions")
+	stopInspecting := h.startStatusActivity("Checking stored revisions")
 	revisions, _, err := dup.ListVisibleRevisions()
 	stopInspecting()
 	if err != nil {
@@ -318,30 +317,30 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	}
 
 	if !latest.CreatedAt.IsZero() {
-		h.evaluateFreshness(report, cfg.Health, latest.CreatedAt, "Storage freshness")
+		h.evaluateFreshness(report, cfg.Health, latest.CreatedAt, "Backup freshness")
 		return revisions
 	}
 
 	if state == nil {
-		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup state exists")
+		h.addCheck(report, "Backup freshness", "warn", "Latest revision time is unavailable and no backup state exists")
 		return revisions
 	}
 	if state.LastSuccessfulBackupAt == "" {
-		h.addCheck(report, "Storage freshness", "warn", "No revision time was available and no local backup timestamp is recorded")
+		h.addCheck(report, "Backup freshness", "warn", "Latest revision time is unavailable and no backup timestamp is recorded")
 		return revisions
 	}
 
 	if state.LastSuccessfulBackupRevision == latest.Revision {
 		report.LatestRevisionAt = state.LastSuccessfulBackupAt
 		if parsed, parseErr := time.Parse(time.RFC3339, state.LastSuccessfulBackupAt); parseErr == nil {
-			h.evaluateFreshness(report, cfg.Health, parsed, "Storage freshness")
+			h.evaluateFreshness(report, cfg.Health, parsed, "Backup freshness")
 		} else {
-			h.addCheck(report, "Storage freshness", "warn", "Stored local backup timestamp is invalid")
+			h.addCheck(report, "Backup freshness", "warn", "Recorded backup timestamp is invalid")
 		}
 		return revisions
 	}
 
-	h.addCheck(report, "Storage freshness", "warn", fmt.Sprintf("Storage revision %d does not match local revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
+	h.addCheck(report, "Backup freshness", "warn", fmt.Sprintf("Latest revision %d does not match recorded backup revision %d", latest.Revision, state.LastSuccessfulBackupRevision))
 	return revisions
 }
 
@@ -404,7 +403,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 
-	status := fmt.Sprintf("Checking revisions for this backup (%d total)", len(revisions))
+	status := fmt.Sprintf("Checking revision integrity for this backup (%d total)", len(revisions))
 	stopVerifying := h.startStatusActivity(status)
 	results, _, err := dup.CheckVisibleRevisions()
 	stopVerifying()
@@ -747,7 +746,7 @@ func (h *HealthRunner) sendWebhook(cfg config.HealthNotifyConfig, secretsFile st
 		return fmt.Errorf("failed to build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if token, err := loadOptionalHealthWebhookToken(secretsFile); err != nil {
+	if token, err := loadOptionalHealthWebhookToken(secretsFile, report.Target); err != nil {
 		return err
 	} else if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -801,7 +800,6 @@ func (h *HealthRunner) printHeader(report *HealthReport) {
 	h.log.Info("%s", statusLinef("Health check started - %s", report.startedAt.Format("2006-01-02 15:04:05")))
 	h.log.PrintLine("Check", strings.Title(report.CheckType))
 	h.log.PrintLine("Label", report.Label)
-	h.log.PrintLine("Mode", report.Mode)
 }
 
 func (h *HealthRunner) printReport(report *HealthReport) {
@@ -868,7 +866,7 @@ func healthCheckSection(name string) string {
 		return "Alerts"
 	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"
-	case "Revision count", "Latest revision":
+	case "Revision count", "Latest revision", "Backup freshness":
 		return "Status"
 	case "Revisions checked", "Revisions passed", "Revisions failed", "Integrity check", "Last verify run":
 		return "Verify"
@@ -1002,6 +1000,9 @@ func formatClockDuration(duration time.Duration) string {
 		duration = 0
 	}
 	seconds := int(duration.Truncate(time.Second) / time.Second)
+	if duration > 0 && seconds == 0 {
+		seconds = 1
+	}
 	hours := seconds / 3600
 	minutes := (seconds % 3600) / 60
 	secs := seconds % 60

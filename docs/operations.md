@@ -70,6 +70,8 @@ Upgrading is the same as a fresh install:
 
 Config and secrets stay in their existing directories, so upgrades do not
 require copying TOML files again unless you are intentionally changing them.
+The intended day-2 layout is one config file per label and, when needed, one
+secrets file per label.
 
 To install a new binary without switching immediately:
 
@@ -90,7 +92,7 @@ sudo ln -sfn <older-binary-name> current
 With the recommended layout, the effective default config file path becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<label>-<target>-backup.toml
+/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
 ```
 
 You can still override this with:
@@ -107,37 +109,37 @@ You can still override this with:
 5. Use a command such as:
 
 ```bash
-/usr/local/bin/duplicacy-backup homes
+/usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
 ```
 
-Example: remote backup followed by remote safe prune
+Example: offsite target backup followed by safe prune
 
 ```bash
-/usr/local/bin/duplicacy-backup --target remote --backup --prune homes
+/usr/local/bin/duplicacy-backup --target offsite-storj --backup --prune homes
 ```
 
-Example: remote forced prune
+Example: offsite target forced prune
 
 ```bash
-/usr/local/bin/duplicacy-backup --target remote --prune --force-prune homes
+/usr/local/bin/duplicacy-backup --target offsite-storj --prune --force-prune homes
 ```
 
-Example: remote storage cleanup
+Example: offsite target storage cleanup
 
 ```bash
-/usr/local/bin/duplicacy-backup --target remote --cleanup-storage homes
+/usr/local/bin/duplicacy-backup --target offsite-storj --cleanup-storage homes
 ```
 
 Example: scheduled health summary
 
 ```bash
-/usr/local/bin/duplicacy-backup health status homes
+/usr/local/bin/duplicacy-backup health status --target onsite-usb homes
 ```
 
 Example: scheduled JSON integrity verification for monitoring
 
 ```bash
-/usr/local/bin/duplicacy-backup health verify --json-summary homes
+/usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
 The health JSON report is intended for automation rather than terminal
@@ -164,9 +166,9 @@ Unhealthy verify runs also emit machine-focused classification fields:
 - `failure_codes`
 - `recommended_action_codes`
 
-`--target <name>` selects one label-target pair. `--remote` remains an alias
-for `--target remote`.
-The current remote secrets schema uses `storj_s3_id` and `storj_s3_secret` for
+`--target <name>` selects one named target from the label config. Every
+runtime, `config`, and `health` command requires an explicit target.
+The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional
 `health_webhook_bearer_token` support for authenticated health notifications.
 

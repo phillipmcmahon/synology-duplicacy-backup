@@ -66,9 +66,9 @@ func currentUserGroup(t *testing.T) (string, string) {
 
 func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
-	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, ""))
+	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, ""))
 
-	req := &Request{Source: "homes", DoBackup: true}
+	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-usb"}
 	rt := testRuntime()
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
@@ -112,9 +112,9 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	dir := t.TempDir()
 	owner, group := currentUserGroup(t)
-	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 0, ""))
+	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 0, ""))
 
-	req := &Request{FixPerms: true, FixPermsOnly: true, Source: "homes"}
+	req := &Request{FixPerms: true, FixPermsOnly: true, Source: "homes", RequestedTarget: "onsite-usb"}
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	req.ConfigDir = dir
 
@@ -125,7 +125,7 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	if plan.OperationMode != "Fix permissions" {
 		t.Fatalf("OperationMode = %q", plan.OperationMode)
 	}
-	if plan.ModeDisplay != "Local" {
+	if plan.ModeDisplay != "onsite-usb" {
 		t.Fatalf("ModeDisplay = %q", plan.ModeDisplay)
 	}
 	if plan.OwnerGroup != owner+":"+group {
@@ -146,10 +146,10 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, ""))
-	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "remote")
+	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, ""))
+	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "remote", RemoteMode: true, ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "offsite-storj", ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -220,8 +220,8 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	}
 
 	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes-remote.toml")
-	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
+	body := "[targets.offsite-storj]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -230,7 +230,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	sec, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile})
+	sec, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile, Target: "offsite-storj"})
 	if err != nil {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
@@ -241,15 +241,15 @@ func TestPlannerLoadSecrets(t *testing.T) {
 
 func TestPlannerLoadConfig_FixPermsRequiresOwnerGroup(t *testing.T) {
 	configDir := t.TempDir()
-	configFile := writeTargetTestConfig(t, configDir, "homes", "local", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[target]\nname = \"local\"\ntype = \"local\"\nallow_local_accounts = true\n\n[storage]\ndestination = \"/backups\"\nrepository = \"homes\"\n\n[capture]\nthreads = 4\n")
+	configFile := writeTargetTestConfig(t, configDir, "homes", "onsite-usb", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[common]\nthreads = 4\n\n[targets.onsite-usb]\ntype = \"local\"\nallow_local_accounts = true\ndestination = \"/backups\"\nrepository = \"homes\"\n")
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
 		ConfigFile:  configFile,
 		DoBackup:    true,
 		FixPerms:    true,
-		RemoteMode:  false,
 		BackupLabel: "homes",
+		Target:      "onsite-usb",
 	})
 	if err == nil || !strings.Contains(err.Error(), "local_owner") {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -264,34 +264,34 @@ func TestPlannerLoadConfig_MissingFile(t *testing.T) {
 	}
 }
 
-func TestPlannerLoadConfig_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
+func TestPlannerLoadConfig_MissingCanonicalFileReportsCanonicalPath(t *testing.T) {
 	configDir := t.TempDir()
-	legacyFile := filepath.Join(configDir, "homes-backup.toml")
-	if err := os.WriteFile(legacyFile, []byte(localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365")), 0644); err != nil {
+	unrelatedFile := filepath.Join(configDir, "plexaudio-backup.toml")
+	if err := os.WriteFile(unrelatedFile, []byte(localTargetConfig("plexaudio", "/volume1/plexaudio", "/backups", "", "", 4, "-keep 0:365")), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
 		ConfigDir:   configDir,
-		ConfigFile:  filepath.Join(configDir, "homes-remote-backup.toml"),
+		ConfigFile:  filepath.Join(configDir, "homes-backup.toml"),
 		BackupLabel: "homes",
-		Target:      "remote",
+		Target:      "offsite-storj",
 	})
-	if err == nil || !strings.Contains(err.Error(), "homes-remote-backup.toml") {
+	if err == nil || !strings.Contains(err.Error(), "homes-backup.toml") {
 		t.Fatalf("loadConfig() error = %v", err)
 	}
 }
 
 func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 	configDir := t.TempDir()
-	configFile := writeTargetTestConfig(t, configDir, "homes", "remote", remoteTargetConfig("plexaudio", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
+	configFile := writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("plexaudio", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
 		ConfigFile:  configFile,
 		BackupLabel: "homes",
-		Target:      "remote",
+		Target:      "offsite-storj",
 	})
 	if err == nil || !strings.Contains(err.Error(), "expected \"homes\"") {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -304,8 +304,8 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	}
 
 	secretsDir := t.TempDir()
-	secretsFile := filepath.Join(secretsDir, "duplicacy-homes-remote.toml")
-	body := "storj_s3_id = \"short\"\nstorj_s3_secret = \"also-short\"\n"
+	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
+	body := "[targets.offsite-storj]\nstorj_s3_id = \"short\"\nstorj_s3_secret = \"also-short\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -314,7 +314,7 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile})
+	_, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile, Target: "offsite-storj"})
 	if err == nil || !strings.Contains(err.Error(), "storj_s3_id must be at least 28 characters") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
@@ -336,8 +336,8 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadSecrets(&Plan{SecretsDir: secretsDir, SecretsFile: filepath.Join(secretsDir, "duplicacy-homes-remote.toml"), BackupLabel: "homes", Target: "remote"})
-	if err == nil || !strings.Contains(err.Error(), "duplicacy-homes-remote.toml") {
+	_, err := planner.loadSecrets(&Plan{SecretsDir: secretsDir, SecretsFile: filepath.Join(secretsDir, "homes-secrets.toml"), BackupLabel: "homes", Target: "offsite-storj"})
+	if err == nil || !strings.Contains(err.Error(), "homes-secrets.toml") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
 }
@@ -360,10 +360,10 @@ func TestPlannerValidateBackupFilesystem(t *testing.T) {
 func TestPlannerLoadConfigAndFilesystemHelpers(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	dir := t.TempDir()
-	writeTargetTestConfig(t, dir, "homes", "local", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	plan := planner.derivePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir})
+	plan := planner.derivePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir, RequestedTarget: "onsite-usb"})
 
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -383,7 +383,7 @@ func TestPlannerLoadConfigAndFilesystemHelpers(t *testing.T) {
 	if err := planner.validateBackupFilesystem(plan); err != nil {
 		t.Fatalf("validateBackupFilesystem() error = %v", err)
 	}
-	if err := planner.validateBackupFilesystem(planner.derivePlan(&Request{Source: "homes"})); err != nil {
+	if err := planner.validateBackupFilesystem(planner.derivePlan(&Request{Source: "homes", RequestedTarget: "onsite-usb"})); err != nil {
 		t.Fatalf("validateBackupFilesystem(no backup) error = %v", err)
 	}
 	if got := splitNonEmptyLines("a\n\nb\n"); len(got) != 2 || got[0] != "a" || got[1] != "b" {

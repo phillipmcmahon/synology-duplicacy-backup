@@ -31,7 +31,6 @@ func (p *Presenter) PrintHeader(plan *Plan, startedAt time.Time, _ string) {
 	p.log.PrintSeparator()
 	p.log.Info("%s", statusLinef("Run started - %s", startedAt.Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Operation", plan.OperationMode)
-	p.log.PrintLine("Mode", plan.ModeDisplay)
 	if p.verbose && plan.DefaultNotice != "" {
 		p.log.PrintLine("Notice", plan.DefaultNotice)
 	}
@@ -68,6 +67,9 @@ func (p *Presenter) PrintDuration(start time.Time) {
 		duration = 0
 	}
 	seconds := int(duration.Truncate(time.Second) / time.Second)
+	if duration > 0 && seconds == 0 {
+		seconds = 1
+	}
 	hours := seconds / 3600
 	minutes := (seconds % 3600) / 60
 	secs := seconds % 60

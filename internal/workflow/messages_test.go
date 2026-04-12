@@ -55,13 +55,13 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "config owner validation",
-			err:  apperrors.NewConfigError("local-owner", errors.New("target.local_owner is mandatory: set it under [target] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
-			want: "target.local_owner is mandatory: set it under [target] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")",
+			err:  apperrors.NewConfigError("local-owner", errors.New("local_owner is mandatory: set it under [targets.local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
+			want: "local_owner is mandatory: set it under [targets.local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")",
 		},
 		{
-			name: "config missing remote table includes remote hint",
-			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [remote] table for current mode"), "section", "remote"),
-			want: "config file /tmp/homes-backup.toml is missing required [remote] table for current mode; create a dedicated <label>-remote-backup.toml file or choose a different --target",
+			name: "config missing remote target includes target hint",
+			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [targets.remote] table"), "section", "remote"),
+			want: "config file /tmp/homes-backup.toml is missing required [targets.remote] table; add [targets.remote] to <label>-backup.toml or choose a different --target",
 		},
 		{
 			name: "secrets validate",
@@ -75,8 +75,8 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "secrets stat includes creation hint",
-			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/duplicacy-homes-remote.toml"),
-			want: "Remote secrets file not found: /root/.secrets/duplicacy-homes-remote.toml; create duplicacy-<label>-<target>.toml under /root/.secrets or override the directory with --secrets-dir",
+			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml"),
+			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table or override the directory with --secrets-dir",
 		},
 		{
 			name: "permissions chown includes target hint",
@@ -176,9 +176,9 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 			want: "Config file not found: /tmp/homes-backup.toml; create the TOML file or override the location with --config-dir",
 		},
 		{
-			name: "config missing local section",
-			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [local] table for current mode"), "section", "local"),
-			want: "config file /tmp/homes-backup.toml is missing required [local] table for current mode; create a dedicated <label>-local-backup.toml file",
+			name: "config missing local target",
+			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [targets.local] table"), "section", "local"),
+			want: "config file /tmp/homes-backup.toml is missing required [targets.local] table; add [targets.local] to <label>-backup.toml or choose a different --target",
 		},
 		{
 			name: "secrets ownership",

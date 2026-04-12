@@ -15,7 +15,6 @@ type Plan struct {
 	FixPerms       bool
 	FixPermsOnly   bool
 	ForcePrune     bool
-	RemoteMode     bool
 	DryRun         bool
 	Verbose        bool
 	JSONSummary    bool
@@ -78,7 +77,7 @@ type Plan struct {
 }
 
 func (p *Plan) IsRemote() bool {
-	return p.TargetType == targetRemote || p.TargetName() == targetRemote || p.RemoteMode
+	return p.TargetType == targetRemote
 }
 
 func (p *Plan) ModeLabel() string {
@@ -93,11 +92,8 @@ func (p *Plan) WorkDir() string {
 }
 
 func (p *Plan) TargetName() string {
-	if p != nil && p.Target != "" {
-		return p.Target
+	if p == nil {
+		return ""
 	}
-	if p != nil && p.RemoteMode {
-		return targetRemote
-	}
-	return targetLocal
+	return p.Target
 }

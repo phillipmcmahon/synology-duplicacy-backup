@@ -135,13 +135,6 @@ func JoinDestination(destination, label string) string {
 	return filepath.Join(destination, label)
 }
 
-func targetName(remote bool) string {
-	if remote {
-		return targetRemote
-	}
-	return targetLocal
-}
-
 func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
 	if flagValue != "" {
 		return flagValue
@@ -176,9 +169,6 @@ func UsageText(meta Metadata, rt Runtime) string {
        %s config <validate|explain|paths> [OPTIONS] <source>
        %s health <status|doctor|verify> [OPTIONS] <source>
 
-Default behaviour:
-    No primary operation specified = backup only
-
 Operations:
     --backup
     --prune
@@ -191,7 +181,6 @@ Execution order:
 Common modifiers:
     --force-prune
     --target <name>
-    --remote
     --dry-run
     --verbose
     --json-summary
@@ -202,17 +191,15 @@ Common modifiers:
     --help-full
 
 Examples:
-    %s homes
-    %s --backup --prune homes
-    %s --json-summary --dry-run homes
-    %s --target remote homes
-    %s --remote homes
-    %s config validate homes
-    %s health status homes
+    %s --target onsite-usb --backup homes
+    %s --target onsite-usb --backup --prune homes
+    %s --target onsite-usb --json-summary --dry-run --backup homes
+    %s --target offsite-storj --backup homes
+    %s config validate --target onsite-usb homes
+    %s health status --target onsite-usb homes
 
 Use --help-full for the detailed reference.
 `,
-		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -231,9 +218,6 @@ func FullUsageText(meta Metadata, rt Runtime) string {
        %s config <validate|explain|paths> [OPTIONS] <source>
        %s health <status|doctor|verify> [OPTIONS] <source>
 
-DEFAULT BEHAVIOUR:
-    No primary operation specified = backup only
-
 OPERATIONS:
     Operations may be combined. Execution order is fixed:
       1. backup
@@ -247,11 +231,11 @@ OPERATIONS:
                              duplicacy prune -exhaustive -exclusive
                              Use only when no other client is writing to the same storage
     --fix-perms              Normalise local repository ownership and permissions
+    At least one operation flag is required for runtime commands
 
 MODIFIERS:
     --force-prune            Override safe prune thresholds during prune
-    --target <name>          Perform operation against the named target config (default: local)
-    --remote                 Alias for --target remote
+    --target <name>          Perform operation against the named target config (required)
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable run summary to stdout
@@ -276,30 +260,32 @@ SAFE PRUNE THRESHOLDS:
     Min revisions for %% check: %d (default %d)
 
 CONFIG FILE LOCATION:
-    <binary-dir>/.config/<label>-<target>-backup.toml
-    Effective default: %s/<label>-<target>-backup.toml
+    <binary-dir>/.config/<label>-backup.toml
+    Effective default: %s/<label>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
 
 CONFIG STRUCTURE:
-    label-target config files define:
+    label config files define:
       source_path
-      [target]
-      [storage]
-      [capture]
-      [retention]
+      [common]
       [health]
-      [notify]
+      [health.notify]
+      [targets.<name>]
+      optional [targets.<name>.health]
+      optional [targets.<name>.health.notify]
 
 TARGET SECRETS:
-    Remote targets load credentials from:
-      %s/%s-<label>-<target>.toml
+    Targets that need credentials load them from:
+      %s/<label>-secrets.toml
     Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-    Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token
+    Use [targets.<name>] tables with:
+      storj_s3_id
+      storj_s3_secret
+      optional health_webhook_bearer_token
 
 HEALTH STATE:
     Target-specific run and health state are stored under:
-      %s/<label>.local.json
-      %s/<label>.remote.json
+      %s/<label>.<target>.json
     Health commands combine this state with live storage inspection.
 
 HEALTH CONFIG:
@@ -309,7 +295,7 @@ HEALTH CONFIG:
       doctor_warn_after_hours
       verify_warn_after_hours
 
-    Optional [notify] table keys:
+    Optional [health.notify] table keys:
       webhook_url
       notify_on = ["degraded", "unhealthy"]
       send_for = ["doctor", "verify"]
@@ -332,28 +318,27 @@ JSON SUMMARY:
     Human-readable logs continue to be written to stderr.
 
 EXAMPLES:
-    %s homes
-    %s --backup homes
-    %s --backup --prune homes
-    %s --json-summary --dry-run homes
-    %s health status homes
-    %s health doctor --json-summary homes
-    %s health verify --target remote homes
-    %s --prune homes
-    %s --cleanup-storage homes
-    %s --prune --cleanup-storage homes
-    %s --prune --force-prune --cleanup-storage homes
-    %s --backup --prune --force-prune --cleanup-storage homes
-    %s --fix-perms homes
-    %s --backup --fix-perms homes
-    %s --target remote homes
-    %s --remote homes
-    %s --verbose --backup --prune homes
-    %s --config-dir /opt/etc homes
-    %s --secrets-dir /opt/secrets --target remote homes
-    %s config validate homes
-    %s config explain --target remote homes
-    %s config paths homes
+    %s --target onsite-usb --backup homes
+    %s --target onsite-usb --backup homes
+    %s --target onsite-usb --backup --prune homes
+    %s --target onsite-usb --json-summary --dry-run --backup homes
+    %s health status --target onsite-usb homes
+    %s health doctor --json-summary --target onsite-usb homes
+    %s health verify --target offsite-storj homes
+    %s --target onsite-usb --prune homes
+    %s --target onsite-usb --cleanup-storage homes
+    %s --target onsite-usb --prune --cleanup-storage homes
+    %s --target onsite-usb --prune --force-prune --cleanup-storage homes
+    %s --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
+    %s --target onsite-usb --fix-perms homes
+    %s --target onsite-usb --backup --fix-perms homes
+    %s --target offsite-storj --backup homes
+    %s --target onsite-usb --verbose --backup --prune homes
+    %s --target onsite-usb --config-dir /opt/etc --backup homes
+    %s --secrets-dir /opt/secrets --target offsite-storj --backup homes
+    %s config validate --target onsite-usb homes
+    %s config explain --target offsite-storj homes
+    %s config paths --target onsite-usb homes
 `,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -363,14 +348,13 @@ EXAMPLES:
 		config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
 		config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
 		cfgDir,
-		config.DefaultSecretsDir, config.DefaultSecretsPrefix,
+		config.DefaultSecretsDir,
 		meta.StateDir,
-		meta.StateDir,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName,
+		meta.ScriptName,
 	)
 }
 
@@ -384,16 +368,15 @@ Config commands:
 
 Options:
     --target <name>
-    --remote
     --config-dir <path>
     --secrets-dir <path>
     --help
     --help-full
 
 Examples:
-    %s config validate homes
-    %s config explain --target remote homes
-    %s config paths homes
+    %s config validate --target onsite-usb homes
+    %s config explain --target offsite-storj homes
+    %s config paths --target onsite-usb homes
 
 Use --help-full for the detailed config reference.
 `,
@@ -411,30 +394,29 @@ func FullConfigUsageText(meta Metadata, rt Runtime) string {
 CONFIG COMMANDS:
     validate                Validate the resolved config and configured secrets
     explain                 Show the resolved config values for the selected target
-    paths                   Show the resolved stable config, secrets, source, and log paths
+    paths                   Show the resolved stable config, source, log, and any applicable secrets paths
 
 OPTIONS:
-    --target <name>         Select the named target (default: local)
-    --remote                Alias for --target remote
+    --target <name>         Select the named target (required)
     --config-dir <path>     Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>    Override secrets directory (default: %s)
     --help                  Show the concise help message
     --help-full             Show the detailed config help message
 
 BEHAVIOUR:
-    validate, explain, and paths operate on one label-target pair at a time.
-    Without --target, config commands use target local.
+    validate, explain, and paths operate on one selected target from a label config at a time.
+    Every config command requires an explicit --target selection.
 
 DEFAULT LOCATIONS:
     Config dir             : %s
     Secrets dir            : %s
 
 EXAMPLES:
-    %s config validate homes
-    %s config validate --target remote homes
-    %s config explain homes
-    %s config explain --target remote homes
-    %s config paths homes
+    %s config validate --target onsite-usb homes
+    %s config validate --target offsite-storj homes
+    %s config explain --target onsite-usb homes
+    %s config explain --target offsite-storj homes
+    %s config paths --target onsite-usb homes
 `,
 		meta.ScriptName,
 		config.DefaultSecretsDir,

@@ -25,16 +25,12 @@ type RunState struct {
 	LastVerifyAt                 string `json:"last_verify_at,omitempty"`
 }
 
-func stateFilePath(meta Metadata, label string, target ...string) string {
-	resolvedTarget := targetLocal
-	if len(target) > 0 && target[0] != "" {
-		resolvedTarget = target[0]
-	}
-	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, resolvedTarget))
+func stateFilePath(meta Metadata, label string, target string) string {
+	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, target))
 }
 
-func loadRunState(meta Metadata, label string, target ...string) (*RunState, error) {
-	path := stateFilePath(meta, label, target...)
+func loadRunState(meta Metadata, label, target string) (*RunState, error) {
+	path := stateFilePath(meta, label, target)
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -47,15 +43,12 @@ func loadRunState(meta Metadata, label string, target ...string) (*RunState, err
 		state.Label = label
 	}
 	if state.Target == "" {
-		state.Target = targetLocal
-		if len(target) > 0 && target[0] != "" {
-			state.Target = target[0]
-		}
+		state.Target = target
 	}
 	return &state, nil
 }
 
-func saveRunState(meta Metadata, label string, state *RunState, target ...string) error {
+func saveRunState(meta Metadata, label, target string, state *RunState) error {
 	if state == nil {
 		return nil
 	}
@@ -66,16 +59,13 @@ func saveRunState(meta Metadata, label string, state *RunState, target ...string
 		return fmt.Errorf("failed to set state directory permissions on %s: %w", meta.StateDir, err)
 	}
 	state.Label = label
-	state.Target = targetLocal
-	if len(target) > 0 && target[0] != "" {
-		state.Target = target[0]
-	}
+	state.Target = target
 	body, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to encode state file: %w", err)
 	}
 	body = append(body, '\n')
-	path := stateFilePath(meta, label, target...)
+	path := stateFilePath(meta, label, target)
 	if err := os.WriteFile(path, body, 0600); err != nil {
 		return fmt.Errorf("failed to write state file %s: %w", path, err)
 	}
@@ -109,7 +99,7 @@ func updateRunState(meta Metadata, plan *Plan, report *RunReport, backupRevision
 		state.LastFailureSummary = report.FailureMessage
 	}
 
-	return saveRunState(meta, plan.BackupLabel, state, plan.TargetName())
+	return saveRunState(meta, plan.BackupLabel, plan.TargetName(), state)
 }
 
 func updateHealthCheckState(meta Metadata, label, target string, checkType string, checkedAt time.Time) error {
@@ -132,5 +122,5 @@ func updateHealthCheckState(meta Metadata, label, target string, checkType strin
 	case "verify":
 		state.LastVerifyAt = formatted
 	}
-	return saveRunState(meta, label, state, target)
+	return saveRunState(meta, label, target, state)
 }

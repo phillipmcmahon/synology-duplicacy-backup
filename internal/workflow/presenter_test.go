@@ -26,7 +26,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
 
 	presenter.PrintHeader(&Plan{OperationMode: "Backup", ModeDisplay: "Local"}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
-	presenter.PrintSummary(&Plan{Summary: []SummaryLine{{Label: "Config File", Value: "/tmp/homes-local-backup.toml"}}})
+	presenter.PrintSummary(&Plan{Summary: []SummaryLine{{Label: "Config File", Value: "/tmp/homes-backup.toml"}}})
 	presenter.PrintBackupResult("Backup for /volume1/homes at revision 2361 completed\nFiles: 10 total, 42 bytes; 1 new, 10 bytes\nTotal running time: 00:00:03\n", "", false)
 	presenter.PrintDuration(time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC))
 	log.Close()
@@ -36,6 +36,9 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
+	}
+	if strings.Contains(output, "Mode") {
+		t.Fatalf("output should not include Mode:\n%s", output)
 	}
 }
 

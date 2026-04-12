@@ -29,7 +29,11 @@ func validSecret() string {
 }
 
 func validSecretContent() string {
-	return "storj_s3_id = \"" + validID() + "\"\nstorj_s3_secret = \"" + validSecret() + "\"\n"
+	return validSecretContentForTarget("offsite-storj")
+}
+
+func validSecretContentForTarget(target string) string {
+	return "[targets." + target + "]\nstorj_s3_id = \"" + validID() + "\"\nstorj_s3_secret = \"" + validSecret() + "\"\n"
 }
 
 func isRoot() bool {
@@ -43,25 +47,17 @@ func (errReader) Read(_ []byte) (int, error) {
 }
 
 func TestGetSecretsFilePath(t *testing.T) {
-	path := GetSecretsFilePath("/root/.secrets", "duplicacy", "homes")
-	if path != "/root/.secrets/duplicacy-homes.toml" {
+	path := GetSecretsFilePath("/root/.secrets", "homes")
+	if path != "/root/.secrets/homes-secrets.toml" {
 		t.Fatalf("GetSecretsFilePath() = %q", path)
 	}
-	if GetSecretsFilePath("", "duplicacy", "homes") != "duplicacy-homes.toml" {
+	if GetSecretsFilePath("", "homes") != "homes-secrets.toml" {
 		t.Fatal("empty dir should still use .toml file name")
-	}
-
-	targetPath := GetTargetSecretsFilePath("/root/.secrets", "duplicacy", "homes", "remote")
-	if targetPath != "/root/.secrets/duplicacy-homes-remote.toml" {
-		t.Fatalf("GetTargetSecretsFilePath() = %q", targetPath)
-	}
-	if GetTargetSecretsFilePath("", "duplicacy", "homes", "remote") != "duplicacy-homes-remote.toml" {
-		t.Fatal("empty dir should still use target .toml file name")
 	}
 }
 
 func TestLoadSecretsFile_MissingFile(t *testing.T) {
-	_, err := LoadSecretsFile("/nonexistent/secrets.toml")
+	_, err := LoadSecretsFile("/nonexistent/secrets.toml", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -77,7 +73,7 @@ func TestLoadSecretsFile_MissingFile(t *testing.T) {
 func TestLoadSecretsFile_Permissions(t *testing.T) {
 	for _, perm := range []os.FileMode{0644, 0666, 0604, 0640} {
 		p := writeTempSecrets(t, validSecretContent(), perm)
-		if _, err := LoadSecretsFile(p); err == nil {
+		if _, err := LoadSecretsFile(p, "offsite-storj"); err == nil {
 			t.Fatalf("expected permissions error for %04o", perm)
 		}
 	}
@@ -85,7 +81,7 @@ func TestLoadSecretsFile_Permissions(t *testing.T) {
 
 func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
 	p := writeTempSecrets(t, validSecretContent(), 0600)
-	_, err := LoadSecretsFile(p)
+	_, err := LoadSecretsFile(p, "offsite-storj")
 	if isRoot() && err != nil {
 		t.Fatalf("unexpected error as root: %v", err)
 	}
@@ -95,7 +91,7 @@ func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
 }
 
 func TestParseSecrets_ValidContent(t *testing.T) {
-	sec, err := ParseSecrets(strings.NewReader(validSecretContent()), "test")
+	sec, err := ParseSecrets(strings.NewReader(validSecretContent()), "test", "offsite-storj")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,12 +106,12 @@ func TestParseSecrets_MissingRequiredKeys(t *testing.T) {
 		body string
 		want string
 	}{
-		{"missing id", "storj_s3_secret = \"" + validSecret() + "\"\n", "storj_s3_id"},
-		{"missing secret", "storj_s3_id = \"" + validID() + "\"\n", "storj_s3_secret"},
+		{"missing id", "[targets.offsite-storj]\nstorj_s3_secret = \"" + validSecret() + "\"\n", "storj_s3_id"},
+		{"missing secret", "[targets.offsite-storj]\nstorj_s3_id = \"" + validID() + "\"\n", "storj_s3_secret"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseSecrets(strings.NewReader(tc.body), "test")
+			_, err := ParseSecrets(strings.NewReader(tc.body), "test", "offsite-storj")
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -127,7 +123,7 @@ func TestParseSecrets_MissingRequiredKeys(t *testing.T) {
 }
 
 func TestParseSecrets_UnknownKeyRejected(t *testing.T) {
-	_, err := ParseSecrets(strings.NewReader(validSecretContent()+"extra = \"nope\"\n"), "test")
+	_, err := ParseSecrets(strings.NewReader(validSecretContent()+"extra = \"nope\"\n"), "test", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected unknown-key error")
 	}
@@ -137,7 +133,7 @@ func TestParseSecrets_UnknownKeyRejected(t *testing.T) {
 }
 
 func TestParseSecrets_MalformedTOMLRejected(t *testing.T) {
-	_, err := ParseSecrets(strings.NewReader("storj_s3_id = \"abc\"\nstorj_s3_secret = [\n"), "test")
+	_, err := ParseSecrets(strings.NewReader("[targets.offsite-storj]\nstorj_s3_id = \"abc\"\nstorj_s3_secret = [\n"), "test", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected invalid TOML error")
 	}
@@ -147,7 +143,7 @@ func TestParseSecrets_MalformedTOMLRejected(t *testing.T) {
 }
 
 func TestParseSecrets_SourceInErrorMessage(t *testing.T) {
-	_, err := ParseSecrets(strings.NewReader(""), "my-secrets.toml")
+	_, err := ParseSecrets(strings.NewReader(""), "my-secrets.toml", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -157,7 +153,7 @@ func TestParseSecrets_SourceInErrorMessage(t *testing.T) {
 }
 
 func TestParseSecrets_ReaderError(t *testing.T) {
-	_, err := ParseSecrets(errReader{}, "test.toml")
+	_, err := ParseSecrets(errReader{}, "test.toml", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected reader error")
 	}
@@ -195,17 +191,27 @@ func TestValidate(t *testing.T) {
 }
 
 func TestLoadOptionalHealthWebhookToken(t *testing.T) {
-	if token, err := LoadOptionalHealthWebhookToken(filepath.Join(t.TempDir(), "missing.toml")); err != nil || token != "" {
+	if token, err := LoadOptionalHealthWebhookToken(filepath.Join(t.TempDir(), "missing.toml"), "offsite-storj"); err != nil || token != "" {
 		t.Fatalf("missing token = %q, err = %v", token, err)
 	}
 
 	p := writeTempSecrets(t, validSecretContent()+"health_webhook_bearer_token = \"secret-token\"\n", 0600)
-	token, err := LoadOptionalHealthWebhookToken(p)
+	token, err := LoadOptionalHealthWebhookToken(p, "offsite-storj")
 	if isRoot() && err != nil {
 		t.Fatalf("LoadOptionalHealthWebhookToken() error = %v", err)
 	}
 	if isRoot() && token != "secret-token" {
 		t.Fatalf("token = %q", token)
+	}
+}
+
+func TestParseSecrets_MissingTargetTable(t *testing.T) {
+	_, err := ParseSecrets(strings.NewReader(validSecretContentForTarget("archive-cold")), "test", "offsite-storj")
+	if err == nil {
+		t.Fatal("expected missing target-table error")
+	}
+	if !strings.Contains(err.Error(), "[targets.offsite-storj]") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

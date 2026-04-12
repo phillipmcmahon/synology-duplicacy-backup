@@ -128,13 +128,13 @@ These packages do focused work and should stay relatively narrow:
 - [`internal/config`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/config)
   Parses and validates config files.
 - [`internal/secrets`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/secrets)
-  Loads and validates remote secrets files.
+  Loads and validates label secrets files.
 - [`internal/btrfs`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/btrfs)
   Validates btrfs locations and manages snapshots.
 - [`internal/duplicacy`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/duplicacy)
   Prepares and runs Duplicacy commands.
 - [`internal/permissions`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/permissions)
-  Applies local ownership and permission normalization.
+  Applies ownership and permission normalization for targets that allow local accounts.
 - [`internal/lock`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/lock)
   Directory-based PID locking.
 - [`internal/logger`](/Users/phillipmcmahon/codex/synology-duplicacy-backup/internal/logger)
@@ -168,7 +168,7 @@ The `Request` type contains user intent only:
 - requested operations such as backup, prune, and storage cleanup
 - `--fix-perms`
 - `--force-prune` as a prune-threshold override
-- `--target <name>` with `--remote` as an alias for `remote`
+- `--target <name>` as the explicit destination selector
 - `--dry-run`
 - config/secrets directory overrides
 - source label
@@ -206,7 +206,7 @@ Those are still request-level concepts because they describe intent, not machine
 
 1. `--help` and `--version` early handling
 2. raw flag parsing
-3. default-mode derivation
+3. explicit operation validation
 4. request validation
 5. source-label validation
 
@@ -266,13 +266,13 @@ label + target
 
 Examples:
 
-- `homes/local`
-- `homes/remote`
+- `homes/onsite-usb`
+- `homes/offsite-storj`
 
 That identity flows through:
 
-- config selection: `<label>-<target>-backup.toml`
-- secrets selection: `duplicacy-<label>-<target>.toml`
+- config selection: `<label>-backup.toml`
+- secrets selection: `<label>-secrets.toml` plus `[targets.<name>]`
 - state files: `<label>.<target>.json`
 - machine JSON summaries: `label` plus `target`
 - repository-phase locking: one lock per label-target pair
@@ -323,7 +323,7 @@ That is an important design rule.
 1. `validateEnvironment(req)`
 2. `derivePlan(req)`
 3. `loadConfig(plan)`
-4. `loadSecrets(plan)` when remote mode is active
+4. `loadSecrets(plan)` when the selected target requires secrets
 5. `populateCommands(plan)`
 6. `SummaryLines(plan)`
 
@@ -358,15 +358,15 @@ This is where config becomes behavior.
 It:
 
 - checks the config file exists
-- parses the target file structure
+- parses the label config structure
   - top-level `label`
   - top-level `source_path`
-  - `[target]`
-  - `[storage]`
-  - `[capture]`
-  - `[retention]`
+  - optional `[common]`
   - optional `[health]`
-  - optional `[notify]`
+  - optional `[health.notify]`
+  - one or more `[targets.<name>]`
+  - optional `[targets.<name>.health]`
+  - optional `[targets.<name>.health.notify]`
 - applies values into `config.Config`
 - validates required keys
 - validates thresholds
@@ -388,7 +388,7 @@ After this step, the plan is populated with things the executor can use directly
 
 ### `loadSecrets`
 
-This only runs for targets that require remote credentials.
+This only runs for targets that require credentials.
 
 It:
 

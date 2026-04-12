@@ -18,11 +18,11 @@ func TestRunStateRoundTrip(t *testing.T) {
 		LastSuccessfulBackupRevision: 42,
 		LastSuccessfulBackupAt:       "2026-04-10T17:00:00Z",
 	}
-	if err := saveRunState(meta, "homes", state, "local"); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
-	loaded, err := loadRunState(meta, "homes", "local")
+	loaded, err := loadRunState(meta, "homes", "onsite-usb")
 	if err != nil {
 		t.Fatalf("loadRunState() error = %v", err)
 	}
@@ -38,7 +38,7 @@ func TestRunStateRoundTrip(t *testing.T) {
 		t.Fatalf("state dir perms = %04o, want 0700", got)
 	}
 
-	fileInfo, err := os.Stat(stateFilePath(meta, "homes", "local"))
+	fileInfo, err := os.Stat(stateFilePath(meta, "homes", "onsite-usb"))
 	if err != nil {
 		t.Fatalf("Stat(state file) error = %v", err)
 	}
@@ -56,7 +56,7 @@ func TestLoadRunState_DoesNotFallbackToLegacyLabelState(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	_, err := loadRunState(meta, "homes", "remote")
+	_, err := loadRunState(meta, "homes", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected missing target state error")
 	}

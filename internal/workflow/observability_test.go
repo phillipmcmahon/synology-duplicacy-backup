@@ -11,9 +11,9 @@ func TestObservabilityHelpers(t *testing.T) {
 	start := time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC)
 	end := time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC)
 
-	plan := &Plan{BackupLabel: "homes", OperationMode: "Backup", ModeDisplay: "Local", DryRun: true}
+	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", DryRun: true}
 	report := NewRunReport(plan, start)
-	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "Local" || !report.DryRun {
+	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || !report.DryRun {
 		t.Fatalf("report = %+v", report)
 	}
 	report.ResetStart(start)
@@ -35,7 +35,7 @@ func TestObservabilityHelpers(t *testing.T) {
 		}
 	}
 
-	req := &Request{Source: "homes", FixPerms: true}
+	req := &Request{Source: "homes", FixPerms: true, RequestedTarget: "onsite-usb"}
 	failure := NewFailureRunReport(req, start, end, 1, "boom")
 	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 {
 		t.Fatalf("failure = %+v", failure)
@@ -50,11 +50,11 @@ func TestObservabilityHelpers(t *testing.T) {
 }
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
-	plan := &Plan{RemoteMode: true, ModeDisplay: "Remote", WorkRoot: "/tmp/work"}
+	plan := &Plan{TargetType: "remote", ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
 	if !plan.IsRemote() {
 		t.Fatal("IsRemote() = false, want true")
 	}
-	if plan.ModeLabel() != "Remote" {
+	if plan.ModeLabel() != "offsite-storj" {
 		t.Fatalf("ModeLabel() = %q", plan.ModeLabel())
 	}
 	if plan.WorkDir() != "/tmp/work/duplicacy" {

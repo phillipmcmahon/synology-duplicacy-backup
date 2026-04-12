@@ -1,5 +1,5 @@
-// Package secrets handles loading and validating per-repository secret files
-// for remote backup operations (e.g., Storj S3 credentials).
+// Package secrets handles loading and validating per-label secret files
+// for target-specific remote backup operations (e.g., Storj S3 credentials).
 package secrets
 
 import (
@@ -28,23 +28,21 @@ type Secrets struct {
 	StorjS3Secret string
 }
 
-type fileSecrets struct {
+type fileTargetSecrets struct {
 	StorjS3ID                *string `toml:"storj_s3_id"`
 	StorjS3Secret            *string `toml:"storj_s3_secret"`
 	HealthWebhookBearerToken *string `toml:"health_webhook_bearer_token"`
 }
 
+type fileSecrets struct {
+	Targets map[string]fileTargetSecrets `toml:"targets"`
+}
+
 var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
 
 // GetSecretsFilePath returns the expected secrets file path for a label.
-func GetSecretsFilePath(secretsDir, prefix, label string) string {
-	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s.toml", prefix, label))
-}
-
-// GetTargetSecretsFilePath returns the expected secrets file path for a label
-// and target pair.
-func GetTargetSecretsFilePath(secretsDir, prefix, label, target string) string {
-	return filepath.Join(secretsDir, fmt.Sprintf("%s-%s-%s.toml", prefix, label, target))
+func GetSecretsFilePath(secretsDir, label string) string {
+	return filepath.Join(secretsDir, fmt.Sprintf("%s-secrets.toml", label))
 }
 
 // ValidateFileAccess checks that the secrets file at path exists, has 0600
@@ -71,8 +69,8 @@ func ValidateFileAccess(path string) error {
 	return nil
 }
 
-// ParseSecrets decodes a TOML secrets file from r.
-func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
+// ParseSecrets decodes a TOML secrets file from r for a specific target.
+func ParseSecrets(r io.Reader, source, target string) (*Secrets, error) {
 	body, err := io.ReadAll(r)
 	if err != nil {
 		return nil, apperrors.NewSecretsError("read", fmt.Errorf("error reading secrets file: %w", err), "source", source)
@@ -94,21 +92,25 @@ func ParseSecrets(r io.Reader, source string) (*Secrets, error) {
 		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, source), "source", source)
 	}
 
-	if raw.StorjS3ID == nil {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_id' is missing after loading %s", source), "source", source)
+	section, ok := raw.Targets[target]
+	if !ok {
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("secrets file %s is missing required [targets.%s] table", source, target), "source", source, "target", target)
 	}
-	if raw.StorjS3Secret == nil {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_secret' is missing after loading %s", source), "source", source)
+	if section.StorjS3ID == nil {
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_id' is missing under [targets.%s] in %s", target, source), "source", source, "target", target)
+	}
+	if section.StorjS3Secret == nil {
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_secret' is missing under [targets.%s] in %s", target, source), "source", source, "target", target)
 	}
 
 	return &Secrets{
-		StorjS3ID:     *raw.StorjS3ID,
-		StorjS3Secret: *raw.StorjS3Secret,
+		StorjS3ID:     *section.StorjS3ID,
+		StorjS3Secret: *section.StorjS3Secret,
 	}, nil
 }
 
-// LoadSecretsFile loads and validates a secrets TOML file.
-func LoadSecretsFile(path string) (*Secrets, error) {
+// LoadSecretsFile loads and validates a secrets TOML file for a specific target.
+func LoadSecretsFile(path, target string) (*Secrets, error) {
 	if err := ValidateFileAccess(path); err != nil {
 		return nil, err
 	}
@@ -119,10 +121,10 @@ func LoadSecretsFile(path string) (*Secrets, error) {
 	}
 	defer f.Close()
 
-	return ParseSecrets(f, path)
+	return ParseSecrets(f, path, target)
 }
 
-func LoadOptionalHealthWebhookToken(path string) (string, error) {
+func LoadOptionalHealthWebhookToken(path, target string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
@@ -155,10 +157,12 @@ func LoadOptionalHealthWebhookToken(path string) (string, error) {
 		key := undecoded[0].String()
 		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, path), "source", path)
 	}
-	if raw.HealthWebhookBearerToken == nil {
+
+	section, ok := raw.Targets[target]
+	if !ok || section.HealthWebhookBearerToken == nil {
 		return "", nil
 	}
-	return *raw.HealthWebhookBearerToken, nil
+	return *section.HealthWebhookBearerToken, nil
 }
 
 // Validate checks minimum length requirements for secrets.

@@ -27,7 +27,7 @@ Config files stay under:
 
   <install-root>/.config/
 
-Remote secrets are not modified by the installer and should stay under:
+Secrets files are not modified by the installer and should stay under:
 
   /root/.secrets/
 
@@ -213,6 +213,6 @@ if [ "$KEEP" -gt 0 ]; then
     echo "Retention policy: keeping newest $KEEP installed binaries"
 fi
 echo "Default config directory: $CONFIG_DIR"
-echo "Remote secrets directory: /root/.secrets (not modified by installer)"
+echo "Secrets directory: /root/.secrets (not modified by installer)"
 echo "Scheduled tasks should call: $STABLE_LINK"
 echo "Rollback hint: ln -sfn <older-binary-name> $CURRENT_LINK"

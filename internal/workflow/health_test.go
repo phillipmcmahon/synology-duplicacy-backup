@@ -75,7 +75,7 @@ func newIPv4TestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	return server
 }
 
-func withWebhookTokenLoader(t *testing.T, loader func(string) (string, error)) {
+func withWebhookTokenLoader(t *testing.T, loader func(string, string) (string, error)) {
 	t.Helper()
 	old := loadOptionalHealthWebhookToken
 	loadOptionalHealthWebhookToken = loader
@@ -128,13 +128,13 @@ func newHealthRuntime(now time.Time, tempDir string) Runtime {
 
 func writeHealthConfig(t *testing.T, dir, label string, body string) {
 	t.Helper()
-	path := filepath.Join(dir, label+"-local-backup.toml")
+	path := filepath.Join(dir, label+"-backup.toml")
 	sourcePath := filepath.Join(dir, label+"-source")
 	if err := os.MkdirAll(sourcePath, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configBody := body
-	if !strings.Contains(configBody, "[target]") {
+	if !strings.Contains(configBody, "[targets.") {
 		configBody = convertLegacyHealthConfigBody(label, sourcePath, body)
 	}
 	if err := os.WriteFile(path, []byte(configBody), 0644); err != nil {
@@ -194,10 +194,22 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %s\n", strconv.Quote(label))
-	fmt.Fprintf(&b, "source_path = %s\n\n", strconv.Quote(sourcePath))
-	b.WriteString("[target]\n")
-	b.WriteString("name = \"local\"\n")
+	fmt.Fprintf(&b, "source_path = %s\n", strconv.Quote(sourcePath))
+	if len(captureLines) > 0 || len(retentionLines) > 0 {
+		b.WriteString("\n[common]\n")
+		for _, line := range captureLines {
+			b.WriteString(line + "\n")
+		}
+		for _, line := range retentionLines {
+			b.WriteString(line + "\n")
+		}
+	}
+
+	b.WriteString("\n[targets.onsite-usb]\n")
 	b.WriteString("type = \"local\"\n")
+	for _, line := range storageLines {
+		b.WriteString(line + "\n")
+	}
 	if ownerLine != "" || groupLine != "" {
 		b.WriteString("allow_local_accounts = true\n")
 		if ownerLine != "" {
@@ -208,25 +220,6 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 		}
 	} else {
 		b.WriteString("allow_local_accounts = false\n")
-	}
-
-	if len(storageLines) > 0 {
-		b.WriteString("\n[storage]\n")
-		for _, line := range storageLines {
-			b.WriteString(line + "\n")
-		}
-	}
-	if len(captureLines) > 0 {
-		b.WriteString("\n[capture]\n")
-		for _, line := range captureLines {
-			b.WriteString(line + "\n")
-		}
-	}
-	if len(retentionLines) > 0 {
-		b.WriteString("\n[retention]\n")
-		for _, line := range retentionLines {
-			b.WriteString(line + "\n")
-		}
 	}
 	if lines := sections["health"]; len(lines) > 0 {
 		b.WriteString("\n[health]\n")
@@ -272,7 +265,7 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 		LastSuccessfulBackupRevision: 8,
 		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -280,9 +273,10 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 		Stdout: "Snapshot homes revision 8 created at 2026-04-10 16:30\n",
 	})
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "status",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "status",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 0 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -310,14 +304,14 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 	t.Cleanup(log.Close)
 
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "local", buildTargetConfig("homes", "local", "local", "/volume1/homes", "/backups", "homes", "", "", 0, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", "local", "/volume1/homes", "/backups", "homes", "", "", 0, ""))
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
 		LastSuccessfulBackupRevision: 8,
 		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state, "local"); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -325,9 +319,10 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 		Stdout: "Snapshot homes revision 8 created at 2026-04-10 16:30\n",
 	})
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "status",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "status",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 0 || report.Status != "healthy" {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -364,9 +359,10 @@ func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 		execpkg.MockResult{Stdout: "2026-04-10 12:10:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 	)
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "verify",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -393,11 +389,11 @@ func TestHealthWebhookDelivery(t *testing.T) {
 	}
 	t.Cleanup(log.Close)
 
-	withWebhookTokenLoader(t, func(string) (string, error) {
+	withWebhookTokenLoader(t, func(string, string) (string, error) {
 		return "hook-token", nil
 	})
 
-	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes"}, "verify", "boom", rt.Now())
+	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes", RequestedTarget: "offsite-storj"}, "verify", "boom", rt.Now())
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
 	if err := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).sendWebhook(cfg, "", report); err != nil {
 		t.Fatalf("sendWebhook() error = %v", err)
@@ -442,10 +438,11 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 		execpkg.MockResult{Err: errors.New("repository invalid")},
 	)
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "doctor",
-		Source:        "homes",
-		ConfigDir:     configDir,
-		SecretsDir:    t.TempDir(),
+		HealthCommand:   "doctor",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -490,10 +487,11 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n[health.notify]\nwebhook_url = \""+server.URL+"\"\nnotify_on = [\"degraded\", \"unhealthy\"]\nsend_for = [\"doctor\", \"verify\"]\ninteractive = false\n")
 
 	report, code := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).Run(&Request{
-		HealthCommand: "doctor",
-		Source:        "homes",
-		ConfigDir:     configDir,
-		SecretsDir:    t.TempDir(),
+		HealthCommand:   "doctor",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -507,7 +505,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 }
 
 func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
-	report := NewFailureHealthReport(&Request{HealthCommand: "doctor", Source: "homes"}, "doctor", "boom", time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC))
+	report := NewFailureHealthReport(&Request{HealthCommand: "doctor", Source: "homes", RequestedTarget: "onsite-usb"}, "doctor", "boom", time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC))
 
 	var buf bytes.Buffer
 	if err := WriteHealthReport(&buf, report); err != nil {
@@ -531,7 +529,7 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 		Status:               "healthy",
 		CheckType:            "verify",
 		Label:                "homes",
-		Mode:                 "Local",
+		Mode:                 "onsite-usb",
 		CheckedAt:            "2026-04-10T22:25:20Z",
 		RevisionCount:        79,
 		LatestRevision:       2338,
@@ -614,7 +612,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -629,9 +627,10 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	)
 
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "verify",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 0 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -666,7 +665,7 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -687,9 +686,10 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 		)
 
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -731,9 +731,10 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 		execpkg.MockResult{},
 	)
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "verify",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -791,7 +792,7 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -806,9 +807,10 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	)
 
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "verify",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 2 || report.Status != "unhealthy" {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -856,7 +858,7 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -880,9 +882,10 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 
 		var code int
 		report, code = NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -985,7 +988,7 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -1007,9 +1010,10 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 		)
 
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -1059,9 +1063,10 @@ func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *test
 	)
 
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-		HealthCommand: "verify",
-		Source:        "homes",
-		ConfigDir:     configDir,
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
 	})
 	if code != 2 || report.Status != "unhealthy" {
 		t.Fatalf("code = %d, report = %+v", code, report)
@@ -1109,9 +1114,10 @@ func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testi
 
 		runner := execpkg.NewMockRunner(execpkg.MockResult{Err: errors.New("list failed")})
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -1182,9 +1188,10 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 		)
 
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -1252,7 +1259,7 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 		LastDoctorAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -1274,9 +1281,10 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 		)
 
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 2 || report.Status != "unhealthy" {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -1315,7 +1323,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		LastDoctorAt:                 formatReportTime(now.Add(-30 * time.Minute)),
 		LastVerifyAt:                 formatReportTime(now.Add(-30 * time.Minute)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -1336,9 +1344,10 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
 		})
 		if code != 0 {
 			t.Fatalf("code = %d, report = %+v", code, report)
@@ -1358,9 +1367,9 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Status") ||
-		!strings.Contains(stderr, "Inspecting visible storage revisions") ||
+		!strings.Contains(stderr, "Checking stored revisions") ||
 		!strings.Contains(stderr, "Validating repository access") ||
-		!strings.Contains(stderr, "Checking revisions for this backup (2 total)") {
+		!strings.Contains(stderr, "Checking revision integrity for this backup (2 total)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Section: Status") ||
@@ -1415,16 +1424,16 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 	names := []string{
 		"Environment",
-		"Local state",
+		"Backup state",
 		"Lock",
 		"Duplicacy setup",
 		"Health state",
 		"Webhook",
-		"Config",
-		"Remote secrets",
+		"Config file",
+		"Secrets",
 		"Revision count",
 		"Latest revision",
-		"Storage freshness",
+		"Backup freshness",
 		"Source path",
 		"Btrfs",
 		"Btrfs root",
@@ -1511,7 +1520,7 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 		LastDoctorAt:                 formatReportTime(now.Add(-30 * time.Second)),
 		LastVerifyAt:                 formatReportTime(now.Add(-30 * time.Second)),
 	}
-	if err := saveRunState(meta, "homes", state); err != nil {
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
@@ -1533,10 +1542,11 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)
 		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
-			HealthCommand: "verify",
-			Source:        "homes",
-			ConfigDir:     configDir,
-			Verbose:       true,
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
+			Verbose:         true,
 		})
 		if code != 0 {
 			t.Fatalf("code = %d, report = %+v", code, report)

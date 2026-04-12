@@ -11,12 +11,12 @@ The project builds as a single static binary for Synology-targeted Linux archite
 ## Highlights
 
 - Read-only btrfs snapshots for consistent backups
-- Local and remote S3-compatible backup modes
+- Named targets for onsite and offsite backups
 - Threshold-guarded prune with optional forced override
-- Optional local permission normalisation
+- Optional ownership and permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
-- TOML-based per-label-target configuration
+- TOML-based per-label configuration with named targets
 - Read-only health, doctor, and verify checks for automation
 
 ## Quick Start
@@ -55,107 +55,111 @@ layout and upgrade workflow.
 With the recommended installer layout, the default config location is:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<label>-<target>-backup.toml
+/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
 ```
 
 Example:
 
 ```bash
 mkdir -p /usr/local/lib/duplicacy-backup/.config
-cp examples/homes-local-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-local-backup.toml
-cp examples/homes-remote-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-remote-backup.toml
+cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
 
-For remote targets, create a matching secrets file under `/root/.secrets`:
+For labels with targets that need credentials, create a matching label secrets file
+under `/root/.secrets` and add target-specific entries inside it:
 
 ```bash
-cp examples/duplicacy-homes-remote.toml /root/.secrets/duplicacy-homes-remote.toml
-chown root:root /root/.secrets/duplicacy-homes-remote.toml
-chmod 600 /root/.secrets/duplicacy-homes-remote.toml
+cp examples/homes-secrets.toml /root/.secrets/homes-secrets.toml
+chown root:root /root/.secrets/homes-secrets.toml
+chmod 600 /root/.secrets/homes-secrets.toml
 ```
 
-The current remote TOML schema uses `storj_s3_id` and `storj_s3_secret`
+The current secrets TOML schema uses `storj_s3_id` and `storj_s3_secret`
 because those values are passed through to Duplicacy for gateway-backed
 S3-compatible storage.
 
 ### 4. Run
 
 ```bash
-# Backup (default mode)
-sudo duplicacy-backup homes
+# Backup
+sudo duplicacy-backup --target onsite-usb --backup homes
 
 # Backup, then safe prune
-sudo duplicacy-backup --backup --prune homes
+sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
 # Forced prune
-sudo duplicacy-backup --prune --force-prune homes
+sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
 
 # Storage cleanup only
-sudo duplicacy-backup --cleanup-storage homes
+sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
 # Named target backup
-sudo duplicacy-backup --target remote homes
+sudo duplicacy-backup --target offsite-storj --backup homes
 
 # Preview only
-sudo duplicacy-backup --dry-run homes
+sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
 
 # Detailed troubleshooting output
-sudo duplicacy-backup --verbose --backup --prune homes
+sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
 
 # Machine-readable completion summary on stdout
-sudo duplicacy-backup --json-summary --dry-run homes
+sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
 # Fast health summary
-sudo duplicacy-backup health status homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Deeper diagnostic report in JSON
-sudo duplicacy-backup health doctor --json-summary homes
+sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 ```
 
 ## Common Commands
 
 ```bash
 # Explicit backup
-sudo duplicacy-backup --backup homes
+sudo duplicacy-backup --target onsite-usb --backup homes
 
 # Safe prune + storage cleanup
-sudo duplicacy-backup --prune --cleanup-storage homes
+sudo duplicacy-backup --target onsite-usb --prune --cleanup-storage homes
 
 # Fix permissions only
-sudo duplicacy-backup --fix-perms homes
+sudo duplicacy-backup --target onsite-usb --fix-perms homes
 
 # Backup, then forced prune, then storage cleanup, then fix permissions
-sudo duplicacy-backup --backup --prune --force-prune --cleanup-storage --fix-perms homes
+sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage --fix-perms homes
 
-# Custom config directory
-duplicacy-backup --config-dir /opt/etc homes
+# Custom config directory for a runtime command
+duplicacy-backup --target onsite-usb --config-dir /opt/etc --backup homes
 
 # Validate resolved installed config and secrets
-sudo duplicacy-backup config validate homes
+sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain resolved installed remote target config values
-sudo duplicacy-backup config explain --target remote homes
+# Explain resolved installed offsite target config values
+sudo duplicacy-backup config explain --target offsite-storj homes
 
-# Show resolved stable config, secrets, source, and log paths
-duplicacy-backup config paths homes
+# Show resolved stable config, source, log, and any applicable secrets paths
+duplicacy-backup config paths --target onsite-usb homes
 
 # Fast read-only health summary
-sudo duplicacy-backup health status homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Read-only diagnostic pass
-sudo duplicacy-backup health doctor homes
+sudo duplicacy-backup health doctor --target onsite-usb homes
 
 # Integrity check across revisions found for this backup
-sudo duplicacy-backup health verify homes
+sudo duplicacy-backup health verify --target onsite-usb homes
 ```
 
 When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks one label-target pair and any configured target secrets
-- `config explain` shows the resolved values for the selected target, defaulting to `local`
-- `config paths` shows the resolved stable config, secrets, source, and log paths
+- `config validate` checks the selected target from a label config and any configured target secrets
+- `config explain` shows the resolved values for the selected target
+- `config paths` shows the resolved stable config, source, log, and any applicable secrets paths
+
+Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
+Every runtime command must also include at least one explicit operation flag
+such as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
 
 Default output is phase-oriented and intentionally concise. Use `--verbose`
 to include detailed operational logging and command details.
@@ -179,16 +183,18 @@ recommended-action codes for automation. Health JSON is machine-focused: it
 emits summary fields, timestamps, and machine codes rather than the rendered
 check lines shown in the interactive UI.
 
-Health policy is configured per backup TOML in an optional `[health]` table:
+Health policy is configured per backup TOML in an optional top-level `[health]`
+table, with optional per-target overrides under `[targets.<name>.health]`:
 - `freshness_warn_hours`
 - `freshness_fail_hours`
 - `doctor_warn_after_hours`
 - `verify_warn_after_hours`
 
-Optional webhook notifications can be configured in `[notify]`, with an
-optional `health_webhook_bearer_token` stored in the secrets TOML. Webhooks are
-intended for non-interactive health runs; interactive TTY runs do not notify by
-default.
+Optional webhook notifications can be configured in `[health.notify]`, with
+optional per-target overrides in `[targets.<name>.health.notify]`. An optional
+`health_webhook_bearer_token` can be stored in the target secrets TOML.
+Webhooks are intended for non-interactive health runs; interactive TTY runs do
+not notify by default.
 
 If the environment is broken early enough that the backup TOML cannot be read,
 built-in webhook delivery is not expected to work because the webhook policy

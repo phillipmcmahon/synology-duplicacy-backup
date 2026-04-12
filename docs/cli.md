@@ -8,7 +8,9 @@ duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-If no primary operation is specified, the binary defaults to backup mode.
+Every runtime, `config`, and `health` command requires an explicit
+`--target <name>`.
+Every runtime command must also pass at least one explicit primary operation.
 
 Primary operations may be combined. When they are, execution order is fixed:
 
@@ -31,8 +33,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Flag | Description |
 |---|---|
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
-| `--target <name>` | Use the named target config; defaults to `local` |
-| `--remote` | Alias for `--target remote` |
+| `--target <name>` | Use the named target config; required for every command |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -46,19 +47,17 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 | Command | Description |
 |---|---|
-| `config validate <label>` | Validate the resolved config for `local` by default |
-| `config validate --target <target> <label>` | Validate the resolved config and any target secrets for that label-target pair |
-| `config explain <label>` | Show resolved config values for `local` by default |
-| `config explain --target <target> <label>` | Show resolved config values for that label-target pair |
-| `config paths <label>` | Show resolved stable config, secrets, source, and log paths |
+| `config validate --target <target> <label>` | Validate the selected target from that label config and any target secrets |
+| `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
+| `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
 ## Health Commands
 
 | Command | Description |
 |---|---|
-| `health status <label>` | Fast read-only health summary for operators and schedulers |
-| `health doctor <label>` | Read-only environment and storage diagnostic pass |
-| `health verify <label>` | Read-only integrity check across revisions found for the current label |
+| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers |
+| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass |
+| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label |
 
 ## Environment Variables
 
@@ -70,73 +69,71 @@ Primary operations may be combined. When they are, execution order is fixed:
 ## Examples
 
 ```bash
-# Default backup
-sudo duplicacy-backup homes
-
 # Explicit backup
-sudo duplicacy-backup --backup homes
+sudo duplicacy-backup --target onsite-usb --backup homes
 
 # Backup, then safe prune
-sudo duplicacy-backup --backup --prune homes
+sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
 # Force prune
-sudo duplicacy-backup --prune --force-prune homes
+sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
 
 # Storage cleanup only
-sudo duplicacy-backup --cleanup-storage homes
+sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 
 # Backup, then safe prune, then storage cleanup
-sudo duplicacy-backup --backup --prune --cleanup-storage homes
+sudo duplicacy-backup --target onsite-usb --backup --prune --cleanup-storage homes
 
 # Backup, then forced prune, then storage cleanup
-sudo duplicacy-backup --backup --prune --force-prune --cleanup-storage homes
+sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
 
 # Fix permissions only
-sudo duplicacy-backup --fix-perms homes
+sudo duplicacy-backup --target onsite-usb --fix-perms homes
 
 # Backup, then fix permissions
-sudo duplicacy-backup --backup --fix-perms homes
+sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
 
 # Backup, then safe prune, then fix permissions
-sudo duplicacy-backup --prune --backup --fix-perms homes
+sudo duplicacy-backup --target onsite-usb --prune --backup --fix-perms homes
 
-# Remote backup preview
-sudo duplicacy-backup --target remote --dry-run homes
+# Offsite backup preview
+sudo duplicacy-backup --target offsite-storj --dry-run --backup homes
 
 # Verbose troubleshooting run
-sudo duplicacy-backup --verbose --backup --prune homes
+sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
 
 # Machine-readable completion summary
-sudo duplicacy-backup --json-summary --dry-run homes
+sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
-# Validate local config and, when present, remote config/secrets
-sudo duplicacy-backup config validate homes
+# Validate one selected target and any applicable secrets
+sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain remote config
-sudo duplicacy-backup config explain --target remote homes
+# Explain offsite target config
+sudo duplicacy-backup config explain --target offsite-storj homes
 
 # Show resolved paths
-duplicacy-backup config paths homes
+duplicacy-backup config paths --target onsite-usb homes
 
 # Fast health summary
-sudo duplicacy-backup health status homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Read-only health diagnostics in JSON
-sudo duplicacy-backup health doctor --json-summary homes
+sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 
-# Remote integrity verification
-sudo duplicacy-backup health verify --target remote homes
+# Offsite integrity verification
+sudo duplicacy-backup health verify --target offsite-storj homes
 ```
 
 ## Notes
 
 - `--help` is intentionally concise; use `--help-full` for the detailed reference
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
-- config files are TOML files named `<label>-<target>-backup.toml`
-- target secrets files are TOML files named `duplicacy-<label>-<target>.toml`
-- current remote secrets keys are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` for gateway-backed S3-compatible storage
+- config files are TOML files named `<label>-backup.toml`
+- target secrets are read from `/root/.secrets/<label>-secrets.toml`
+- one config file and, when needed, one secrets file cover a whole label
+- current secrets keys for Storj-backed S3-compatible targets are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token`
 - `--fix-perms` is local-account aware and cannot be combined with a target that does not allow local accounts
-- combined phases all run against one label-target pair for a single invocation
+- combined phases all run against one selected target from a label config for a single invocation
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
 - `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
 - `--cleanup-storage` runs `duplicacy prune -exhaustive -exclusive`, so it should be used only when no other client is actively writing to the same storage
@@ -145,8 +142,10 @@ sudo duplicacy-backup health verify --target remote homes
 - interactive terminal runs ask for confirmation before forced prune and cleanup-storage
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
-- `config validate` works on one label-target pair at a time
-- `config validate --target remote` requires the remote target config and target secrets to be valid
+- `config validate` works on one selected target from a label config at a time
+- `config validate --target <name>` requires that selected target config and any target secrets be valid
+- `config paths` includes secrets paths only for targets that actually use them
+- there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
@@ -159,8 +158,8 @@ sudo duplicacy-backup health verify --target remote homes
 - healthy `health verify` JSON includes summary fields such as `revision_count`, `latest_revision`, `latest_revision_at`, `checked_revision_count`, `passed_revision_count`, `failed_revision_count`, `failed_revisions`, `last_doctor_run_at`, and `last_verify_run_at`
 - unhealthy `health verify` JSON also emits `failure_code`, `failure_codes`, and `recommended_action_codes` so automation can classify the failure without parsing human text
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
-- optional per-backup health policy lives in `[health]`
-- optional webhook notification settings live in `[notify]`
+- optional shared health policy lives in `[health]`, with per-target overrides under `[targets.<name>.health]`
+- optional shared webhook notification settings live in `[health.notify]`, with per-target overrides under `[targets.<name>.health.notify]`
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception

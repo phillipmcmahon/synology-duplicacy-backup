@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	version   = "2.1.7"
+	version   = "3.0.0"
 	buildTime = "unknown"
 )
 
@@ -186,8 +186,6 @@ func inferHealthFailureRequest(args []string) *workflow.Request {
 	var positional []string
 	for i := 2; i < len(args); i++ {
 		switch args[i] {
-		case "--remote":
-			req.RemoteMode = true
 		case "--target":
 			if i+1 < len(args) {
 				i++

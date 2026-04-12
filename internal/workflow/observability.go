@@ -43,9 +43,12 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 	report.Label = plan.BackupLabel
 	report.Target = plan.TargetName()
 	report.Operation = plan.OperationMode
-	report.Mode = plan.ModeDisplay
+	report.Mode = plan.TargetName()
+	if report.Mode == "" {
+		report.Mode = plan.ModeDisplay
+	}
 	report.DryRun = plan.DryRun
-	report.Remote = plan.RemoteMode
+	report.Remote = plan.IsRemote()
 	return report
 }
 
@@ -63,7 +66,6 @@ func NewFailureRunReport(req *Request, startedAt time.Time, completedAt time.Tim
 		Result:         "failed",
 		ExitCode:       exitCode,
 		DryRun:         req != nil && req.DryRun,
-		Remote:         req != nil && req.RemoteMode,
 		StartedAt:      formatReportTime(startedAt),
 		CompletedAt:    formatReportTime(completedAt),
 		DurationSecond: int(durationSeconds(completedAt.Sub(startedAt))),
@@ -73,7 +75,10 @@ func NewFailureRunReport(req *Request, startedAt time.Time, completedAt time.Tim
 		report.Label = req.Source
 		report.Target = req.Target()
 		report.Operation = OperationMode(req)
-		report.Mode = modeDisplay(req.Target(), "")
+		report.Mode = req.Target()
+		if report.Mode == "" {
+			report.Mode = modeDisplay(req.Target(), "")
+		}
 	}
 	return report
 }

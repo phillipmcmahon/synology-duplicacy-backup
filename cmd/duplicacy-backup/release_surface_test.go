@@ -62,7 +62,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"config validate",
 			"health status",
 			"/var/lib/duplicacy-backup/<label>.<target>.json",
-			"[notify]",
+			"[health.notify]",
 			"/usr/local/lib/duplicacy-backup/.config",
 			"/root/.secrets",
 			"S3-compatible",
@@ -86,17 +86,17 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"/usr/local/lib/duplicacy-backup/.config",
 			"/root/.secrets",
 			"--no-activate",
-			"health status homes",
-			"health verify --json-summary homes",
+			"health status --target onsite-usb homes",
+			"health verify --json-summary --target onsite-usb homes",
 			"S3-compatible",
 		},
 		filepath.Join(root, "docs", "configuration.md"): {
-			"/root/.secrets/duplicacy-<label>-<target>.toml",
+			"/root/.secrets/<label>-secrets.toml",
 			"S3-compatible",
 			"storj_s3_id",
 			"storj_s3_secret",
 			"[health]",
-			"[notify]",
+			"[health.notify]",
 			"health_webhook_bearer_token",
 			"/var/lib/duplicacy-backup/<label>.<target>.json",
 		},
@@ -124,7 +124,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 	}
 }
 
-func TestUsageText_RemoteHelpMatchesCurrentModel(t *testing.T) {
+func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logDir)
 	rt := workflow.DefaultRuntime()
 	usage := workflow.FullUsageText(meta, rt)
@@ -132,14 +132,13 @@ func TestUsageText_RemoteHelpMatchesCurrentModel(t *testing.T) {
 	expected := []string{
 		"config <validate|explain|paths>",
 		"health <status|doctor|verify>",
-		"--target <name>          Perform operation against the named target config (default: local)",
-		"--remote                 Alias for --target remote",
+		"--target <name>          Perform operation against the named target config (required)",
 		"--json-summary           Write a machine-readable run summary to stdout",
 		"health status            Fast read-only health summary for operators and schedulers",
 		"health verify            Read-only integrity check across revisions found for the current label",
 		"Target-specific run and health state are stored under:",
 		"health_webhook_bearer_token",
-		"Current TOML keys: storj_s3_id, storj_s3_secret, and optional health_webhook_bearer_token",
+		"Use [targets.<name>] tables with:",
 		"--cleanup-storage        Request storage maintenance:",
 		"--fix-perms              Normalise local repository ownership and permissions",
 	}

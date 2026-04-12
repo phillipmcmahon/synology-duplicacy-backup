@@ -21,11 +21,10 @@ func HandleConfigCommand(req *Request, meta Metadata, rt Runtime) (string, error
 }
 
 func handleConfigValidate(req *Request, planner *Planner) (string, error) {
-	target := req.Target()
-	planReq := configValidationRequest(req, target)
+	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	lines := []SummaryLine{
-		{Label: "Target", Value: target},
+		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Config File", Value: plan.ConfigFile},
 	}
 
@@ -42,7 +41,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		lines = append(lines, SummaryLine{Label: "Secrets", Value: "Valid"})
 	}
 
-	return formatConfigOutput(fmt.Sprintf("Config validation succeeded for %s/%s", req.Source, target), lines), nil
+	return formatConfigOutput(fmt.Sprintf("Config validation succeeded for %s/%s", req.Source, plan.TargetName()), lines), nil
 }
 
 func handleConfigExplain(req *Request, planner *Planner) (string, error) {
@@ -64,7 +63,6 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 
 	lines := []SummaryLine{
 		{Label: "Target", Value: plan.TargetName()},
-		{Label: "Mode", Value: plan.ModeDisplay},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source", Value: plan.SnapshotSource},
 		{Label: "Destination", Value: plan.BackupTarget},
@@ -100,18 +98,26 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 
 func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req)
-	if _, err := planner.loadConfig(plan); err == nil {
-		// Use the resolved config path when the file exists.
+	if cfg, err := planner.loadConfig(plan); err == nil {
+		plan.Target = cfg.Target
+		plan.TargetType = cfg.TargetType
+		plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.TargetType)
+		plan.SnapshotSource = cfg.SourcePath
 	}
 	lines := []SummaryLine{
 		{Label: "Target", Value: plan.TargetName()},
-		{Label: "Mode", Value: plan.ModeDisplay},
 		{Label: "Config Dir", Value: plan.ConfigDir},
 		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Secrets Dir", Value: plan.SecretsDir},
-		{Label: "Secrets File", Value: plan.SecretsFile},
 		{Label: "Source Path", Value: plan.SnapshotSource},
 		{Label: "Log Dir", Value: meta.LogDir},
+	}
+	if plan.TargetType == targetRemote {
+		lines = append(lines[:3],
+			append([]SummaryLine{
+				{Label: "Secrets Dir", Value: plan.SecretsDir},
+				{Label: "Secrets File", Value: plan.SecretsFile},
+			}, lines[3:]...)...,
+		)
 	}
 
 	return formatConfigOutput(fmt.Sprintf("Resolved paths for %s", req.Source), lines)
@@ -123,7 +129,6 @@ func configValidationRequest(req *Request, target string) *Request {
 		ConfigDir:       req.ConfigDir,
 		SecretsDir:      req.SecretsDir,
 		RequestedTarget: target,
-		RemoteMode:      target == targetRemote,
 		DoBackup:        false,
 		DoPrune:         false,
 		DoCleanupStore:  false,

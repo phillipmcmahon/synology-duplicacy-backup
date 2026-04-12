@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.0.0] - 2026-04-11
+
+### Added
+- **Named target operating model**: One backup label can now define multiple
+  named targets inside a single `<label>-backup.toml` file, with one matching
+  `<label>-secrets.toml` file for any target credentials. This makes
+  configurations such as `homes/onsite-usb` and `homes/offsite-storj`
+  first-class without forcing separate label files.
+- **Target-specific runtime identity**: Health and run state now live under
+  `/var/lib/duplicacy-backup/<label>.<target>.json`, and machine-readable JSON
+  now carries explicit `label` and `target` identity for both run and health
+  summaries.
+- **Short operator cheat sheet for the new model**: The desk cheat sheet and
+  install examples now document the explicit named-target workflow end to end,
+  including config, secrets, health, and scheduler usage.
+
+### Changed
+- **CLI model is now fully explicit**: Every runtime, `config`, and `health`
+  command now requires `--target <name>`, and runtime commands must also pass
+  at least one explicit primary operation such as `--backup`, `--prune`,
+  `--cleanup-storage`, or `--fix-perms`. The old implicit backup behavior and
+  target guessing have been removed.
+- **Configuration is now per label rather than per label-target file**: The
+  preferred operational layout is now one config file per label with shared
+  `[common]` and `[health]` settings plus one or more `[targets.<name>]`
+  tables. Secrets follow the same label-level structure with target-scoped
+  entries under `[targets.<name>]`.
+- **Operator language polished around the new target model**: Human-facing
+  output now consistently uses natural target-oriented wording such as
+  `Backup state`, `Config file`, `Secrets`, and `Backup freshness`, and it no
+  longer leaks old-model `local` / `remote` terminology in normal screens.
+- **Machine JSON now preserves exact user target labels**: `mode` and `target`
+  now use the exact lower-case target label supplied in config, rather than
+  title-casing or falling back to legacy local/remote names.
+- **Release-facing docs aligned to the new architecture**: README, CLI,
+  configuration, operations, testing guidance, installer help text, and the
+  internal walkthrough now describe the same explicit named-target operating
+  model.
+- **Coverage raised for release readiness**: The target-first refactor now has
+  release-ready coverage in the packages most exposed to operator experience,
+  with `cmd/duplicacy-backup` at `83.7%` and `internal/config` at `84.3%`.
+
+### Fixed
+- **Independent target histories now stay independent**: Local and offsite
+  targets under the same label no longer share runtime state, health recency,
+  or revision expectations, so natural drift between destinations is handled
+  correctly.
+- **Snapshot naming collisions removed for same-label targets**: Snapshot names
+  now include the target plus a unique suffix, avoiding same-second collisions
+  when different targets for the same label run close together.
+- **Locking now matches real operational boundaries**: The source snapshot
+  phase remains label-scoped, while repository work and state updates are
+  target-scoped, allowing safer same-label multi-target behavior.
+- **Interactive and JSON output now tell the same story**: Final wording,
+  duration rendering, and target labeling are aligned across terminal output,
+  JSON summaries, and health reports.
+
+### Notes
+- **Release recommendation**: This is a substantial operator-facing
+  architecture shift and should be released as the first version of the named
+  target model, with release notes calling out the explicit `--target`
+  requirement and the new one-config-per-label layout.
+- **Version constant** updated to `3.0.0` in source (overridden by `-ldflags`
+  at build time for release binaries).
+
 ## [v2.1.7] - 2026-04-11
 
 ### Added

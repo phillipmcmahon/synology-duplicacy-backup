@@ -1,0 +1,43 @@
+# Example config for a single label with multiple named targets.
+# Place in <executable-dir>/.config/homes-backup.toml
+
+label = "homes"
+source_path = "/volume1/homes"
+
+[common]
+filter = "e:^(.*/)?(@eaDir|#recycle|tmp|exclude)/$|^(.*/)?(\\.DS_Store|\\._.*|Thumbs\\.db)$"
+threads = 4
+prune = "-keep 1:728 -keep 91:364 -keep 28:182 -keep 7:28"
+log_retention_days = 30
+safe_prune_max_delete_percent = 10
+safe_prune_max_delete_count = 25
+safe_prune_min_total_for_percent = 20
+
+[health]
+freshness_warn_hours = 30
+freshness_fail_hours = 48
+doctor_warn_after_hours = 48
+verify_warn_after_hours = 168
+
+[health.notify]
+webhook_url = "https://example.invalid/hooks/duplicacy-backup"
+notify_on = ["degraded", "unhealthy"]
+send_for = ["doctor", "verify"]
+interactive = false
+
+[targets.onsite-usb]
+type = "local"
+destination = "/volume2/backups"
+repository = "homes"
+allow_local_accounts = true
+local_owner = "myuser"
+local_group = "users"
+
+[targets.offsite-storj]
+type = "remote"
+destination = "s3://gateway.storjshare.io/my-backup-bucket"
+repository = "homes"
+requires_network = true
+
+[targets.offsite-storj.health]
+verify_warn_after_hours = 336

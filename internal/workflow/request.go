@@ -29,7 +29,6 @@ type Request struct {
 	HealthCommand   string
 	FixPerms        bool
 	ForcePrune      bool
-	RemoteMode      bool
 	RequestedTarget string
 	DryRun          bool
 	Verbose         bool
@@ -45,13 +44,10 @@ type Request struct {
 }
 
 func (r *Request) Target() string {
-	if r != nil && r.RequestedTarget != "" {
+	if r != nil {
 		return r.RequestedTarget
 	}
-	if r != nil && r.RemoteMode {
-		return targetRemote
-	}
-	return targetLocal
+	return ""
 }
 
 type ParseResult struct {
@@ -125,6 +121,12 @@ func parseHealthRequest(args []string, meta Metadata, rt Runtime) (*ParseResult,
 		return nil, err
 	}
 	req.HealthCommand = action
+	if req.RequestedTarget == "" {
+		return nil, NewRequestError("--target is required")
+	}
+	if err := ValidateTargetName(req.RequestedTarget); err != nil {
+		return nil, err
+	}
 
 	if err := ValidateLabel(req.Source); err != nil {
 		return nil, fmt.Errorf("Invalid source label: %w", err)
@@ -158,6 +160,12 @@ func parseConfigRequest(args []string, meta Metadata, rt Runtime) (*ParseResult,
 		return nil, err
 	}
 	req.ConfigCommand = action
+	if req.RequestedTarget == "" {
+		return nil, NewRequestError("--target is required")
+	}
+	if err := ValidateTargetName(req.RequestedTarget); err != nil {
+		return nil, err
+	}
 
 	if err := ValidateLabel(req.Source); err != nil {
 		return nil, fmt.Errorf("Invalid source label: %w", err)
@@ -182,8 +190,6 @@ func parseFlags(args []string) (*Request, error) {
 			req.FixPerms = true
 		case "--force-prune":
 			req.ForcePrune = true
-		case "--remote":
-			req.RemoteMode = true
 		case "--target":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--target requires a value")
@@ -216,14 +222,6 @@ func parseFlags(args []string) (*Request, error) {
 		}
 	}
 
-	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && !req.FixPerms {
-		req.DoBackup = true
-		req.DefaultNotice = "No primary operation specified: defaulting to backup only"
-	}
-	if !req.DoBackup && !req.DoPrune && !req.DoCleanupStore && req.FixPerms {
-		req.DefaultNotice = "Primary operation specified: fix-perms only"
-	}
-
 	if len(positional) < 1 {
 		return nil, NewUsageRequestError("source directory required")
 	}
@@ -240,8 +238,6 @@ func parseConfigFlags(args []string) (*Request, error) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--remote":
-			req.RemoteMode = true
 		case "--target":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--target requires a value")
@@ -284,8 +280,6 @@ func parseHealthFlags(args []string) (*Request, error) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--remote":
-			req.RemoteMode = true
 		case "--target":
 			if i+1 >= len(args) {
 				return nil, NewUsageRequestError("--target requires a value")
@@ -327,14 +321,6 @@ func parseHealthFlags(args []string) (*Request, error) {
 }
 
 func (r *Request) deriveModes() {
-	if r.RequestedTarget == "" {
-		if r.RemoteMode {
-			r.RequestedTarget = targetRemote
-		} else {
-			r.RequestedTarget = targetLocal
-		}
-	}
-	r.RemoteMode = r.RequestedTarget == targetRemote
 	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune && !r.DoCleanupStore
 }
 
@@ -342,13 +328,13 @@ func (r *Request) validateCombos() error {
 	if r.ForcePrune && !r.DoPrune {
 		return NewRequestError("--force-prune requires --prune")
 	}
-	if r.RemoteMode && r.RequestedTarget != "" && r.RequestedTarget != targetRemote {
-		return NewRequestError("--remote cannot be combined with --target %q", r.RequestedTarget)
+	if !r.DoBackup && !r.DoPrune && !r.DoCleanupStore && !r.FixPerms {
+		return NewUsageRequestError("at least one operation is required: specify --backup, --prune, --cleanup-storage, or --fix-perms")
 	}
-	if r.FixPerms && r.Target() == targetRemote {
-		return NewRequestError("--fix-perms is not valid for target %q", r.Target())
+	if r.RequestedTarget == "" {
+		return NewRequestError("--target is required")
 	}
-	if err := ValidateTargetName(r.Target()); err != nil {
+	if err := ValidateTargetName(r.RequestedTarget); err != nil {
 		return err
 	}
 	return nil

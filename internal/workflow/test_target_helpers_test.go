@@ -10,7 +10,7 @@ import (
 
 func writeTargetTestConfig(t *testing.T, dir, label, target, body string) string {
 	t.Helper()
-	path := filepath.Join(dir, fmt.Sprintf("%s-%s-backup.toml", label, target))
+	path := filepath.Join(dir, fmt.Sprintf("%s-backup.toml", label))
 	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -19,8 +19,8 @@ func writeTargetTestConfig(t *testing.T, dir, label, target, body string) string
 
 func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 	t.Helper()
-	path := filepath.Join(dir, fmt.Sprintf("duplicacy-%s-%s.toml", label, target))
-	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	path := filepath.Join(dir, fmt.Sprintf("%s-secrets.toml", label))
+	body := fmt.Sprintf("[targets.%s]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -33,18 +33,38 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 }
 
 func localTargetConfig(label, sourcePath, destination, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildTargetConfig(label, "local", "local", sourcePath, destination, label, owner, group, threads, prune, extraSections...)
+	return buildLabelConfig(label, "onsite-usb", "local", sourcePath, destination, label, owner, group, threads, prune, extraSections...)
 }
 
 func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildTargetConfig(label, "remote", "remote", sourcePath, destination, label, "", "", threads, prune, extraSections...)
+	return buildLabelConfig(label, "offsite-storj", "remote", sourcePath, destination, label, "", "", threads, prune, extraSections...)
 }
 
 func buildTargetConfig(label, target, targetType, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, target, targetType, sourcePath, destination, repository, owner, group, threads, prune, extraSections...)
+}
+
+func buildLabelConfig(label, target, targetType, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
-	fmt.Fprintf(&b, "source_path = %q\n\n", sourcePath)
-	fmt.Fprintf(&b, "[target]\nname = %q\ntype = %q\n", target, targetType)
+	fmt.Fprintf(&b, "source_path = %q\n", sourcePath)
+
+	if threads > 0 || prune != "" {
+		b.WriteString("\n[common]\n")
+		if threads > 0 {
+			fmt.Fprintf(&b, "threads = %d\n", threads)
+		}
+		if prune != "" {
+			fmt.Fprintf(&b, "prune = %q\n", prune)
+		}
+	}
+
+	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
+	fmt.Fprintf(&b, "type = %q\n", targetType)
+	fmt.Fprintf(&b, "destination = %q\n", destination)
+	if repository != "" {
+		fmt.Fprintf(&b, "repository = %q\n", repository)
+	}
 	if targetType == targetLocal {
 		if owner != "" || group != "" {
 			b.WriteString("allow_local_accounts = true\n")
@@ -59,19 +79,6 @@ func buildTargetConfig(label, target, targetType, sourcePath, destination, repos
 		}
 	} else {
 		b.WriteString("requires_network = true\n")
-	}
-
-	fmt.Fprintf(&b, "\n[storage]\ndestination = %q\n", destination)
-	if repository != "" {
-		fmt.Fprintf(&b, "repository = %q\n", repository)
-	}
-
-	if threads > 0 {
-		fmt.Fprintf(&b, "\n[capture]\nthreads = %d\n", threads)
-	}
-
-	if prune != "" {
-		fmt.Fprintf(&b, "\n[retention]\nprune = %q\n", prune)
 	}
 
 	for _, extra := range extraSections {

@@ -36,6 +36,8 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 Current public release baseline: `v2.1.7`
 
+Current release-prep target: `v3.0.0`
+
 Representative Linux Go 1.26 validation for this release:
 
 - `go test ./...`
@@ -50,6 +52,14 @@ Current Linux Go 1.26 coverage snapshot:
 - `internal/duplicacy`: `79.4%`
 - `internal/exec`: `97.4%`
 - `internal/secrets`: `80.0%`
+
+Current development snapshot for the target-first operating model:
+
+- overall coverage: `84.4%`
+- `internal/workflow`: `85.2%`
+- `cmd/duplicacy-backup`: `83.7%`
+- `internal/config`: `84.3%`
+- `internal/secrets`: `63.3%`
 
 ## Packaging Rule
 
@@ -120,7 +130,7 @@ This package now carries most coordinator-oriented tests.
 Request tests cover:
 
 - help/version handled responses
-- default backup-mode derivation
+- explicit operation requirement
 - fix-perms-only mode derivation
 - invalid flag combinations
 - invalid labels
@@ -147,7 +157,7 @@ Executor tests cover:
 Workflow tests also cover:
 
 - operator-message translation
-- summary layout for fixed-perms-only and remote flows
+- summary layout for fixed-perms-only and offsite-target flows
 - logger activity rendering for interactive TTY runs
 
 ### `internal/btrfs`

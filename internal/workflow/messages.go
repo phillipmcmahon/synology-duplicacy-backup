@@ -199,14 +199,13 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 		}
 	case "section-target":
 		if err.Cause != nil {
-			switch err.Context["section"] {
-			case "remote":
-				return withHint(err.Cause.Error(), "create a dedicated <label>-remote-backup.toml file or choose a different --target")
-			case "local":
-				return withHint(err.Cause.Error(), "create a dedicated <label>-local-backup.toml file")
-			default:
-				return err.Cause.Error()
+			if section := err.Context["section"]; section != "" {
+				return withHint(
+					err.Cause.Error(),
+					fmt.Sprintf("add [targets.%s] to <label>-backup.toml or choose a different --target", section),
+				)
 			}
+			return err.Cause.Error()
 		}
 	case "read",
 		"section-common",
@@ -231,8 +230,8 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 	case "stat":
 		if path := err.Context["path"]; path != "" {
 			return withHint(
-				fmt.Sprintf("Remote secrets file not found: %s", path),
-				"create duplicacy-<label>-<target>.toml under /root/.secrets or override the directory with --secrets-dir",
+				fmt.Sprintf("Secrets file not found: %s", path),
+				"create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table or override the directory with --secrets-dir",
 			)
 		}
 	case "permissions":
