@@ -5,7 +5,6 @@ Use this document whenever you need a consistent Linux environment for:
 - release validation
 - coverage runs
 - test-package generation
-- final release-package generation
 
 This repo does **not** treat the macOS host as release-representative.
 
@@ -32,10 +31,12 @@ prep outputs into `build/release-prep/`.
 ## Rules
 
 - Run validation in Linux, not on the macOS host.
-- Generate tarballs and checksums in Linux, not on the macOS host.
+- Generate local test tarballs and checksums in Linux, not on the macOS host.
 - Treat the macOS host as an orchestrator only.
 - Use the same container image for testing and packaging unless there is a
   deliberate reason not to.
+- Public release artefacts are built by GitHub Actions after the release tag is
+  pushed.
 
 ## Prerequisites on macOS
 
@@ -92,7 +93,8 @@ docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
 
 ## Standard Packaging Commands
 
-Use the repo scripts. They already enforce the Linux-only packaging flow.
+Use the repo scripts for local test-package builds. They already enforce the
+Linux-only packaging flow.
 
 ### One artefact
 
@@ -135,8 +137,8 @@ make package-synology
 
 ## Do Not Do These
 
-- Do not build the release tarball on macOS.
-- Do not generate checksums on macOS for release artefacts.
+- Do not build a local Linux tarball on macOS.
+- Do not generate checksums on macOS for local Linux test artefacts.
 - Do not trust a host-side smoke test for a Linux binary.
 - Do not mix ad-hoc packaging commands with the standard scripts unless you are
   actively fixing the packaging scripts themselves.

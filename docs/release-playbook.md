@@ -9,11 +9,13 @@ on the macOS host.
 - Release from a clean `main` tree only.
 - Validate from the actual release tree, not from an older commit.
 - Run release validation in Linux Go 1.26 only.
-- Generate release artefacts in Linux only.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
 - If one or more release attempts were superseded, fold their user-facing
   changes into the successful release notes so nothing important disappears.
+- Let the tag-triggered GitHub Actions workflow build and publish the release
+  artefacts.
+- Do not build local release tarballs as part of the normal release flow.
 
 ## Checklist
 
@@ -76,6 +78,9 @@ Capture:
 
 If these numbers changed materially, update `TESTING.md`.
 
+Local packaging is optional here and should be treated as a test-package flow
+only, not as the source of truth for public release artefacts.
+
 ### 4. Write release notes
 
 The public GitHub release body must use this format:
@@ -109,8 +114,8 @@ Rules for release notes:
 - Tag the release from that exact commit.
 - Push the tag.
 - Let the tag-triggered GitHub Actions workflow publish the release artefacts.
-- Do not manually upload release tarballs to GitHub after tagging unless you
-  are explicitly repairing a broken release.
+- Do not manually upload local release tarballs to GitHub after tagging unless
+  you are explicitly repairing a broken release.
 
 Example:
 

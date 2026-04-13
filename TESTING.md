@@ -55,7 +55,10 @@ Current Linux Go 1.26 development snapshot for the `v4.0.0` target-model refacto
 
 ## Packaging Rule
 
-Release and test-package artefacts must be generated inside the Linux
+Release artefacts are built by GitHub Actions from the pushed release tag.
+Local packaging is optional and is only for test-package generation.
+
+When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host.
 
 That includes:
@@ -67,15 +70,15 @@ That includes:
 - binary architecture verification
 
 The macOS host may orchestrate the container run and inspect the resulting
-files, but it should not create the final release or test archives.
+files, but it should not create the final Linux test archives itself.
 
-Use the standard packaging scripts for this flow:
+Use the standard packaging scripts for local test-package flows:
 
 - `scripts/package-linux-docker.sh`
 - `scripts/package-linux-artifact.sh`
 - `make package-synology`
 
-`scripts/package-linux-artifact.sh` now enforces this rule directly and will
+`scripts/package-linux-artifact.sh` now enforces the Linux-only packaging rule directly and will
 fail on non-Linux hosts. On macOS, the supported entrypoint is
 `scripts/package-linux-docker.sh`.
 
