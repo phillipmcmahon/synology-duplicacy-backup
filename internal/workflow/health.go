@@ -1,12 +1,9 @@
 package workflow
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -211,11 +208,13 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 
 	h.finalizeReport(report)
 	if h.shouldSendWebhook(req, cfg.Health, report.Status) {
-		if err := h.sendWebhook(cfg.Health.Notify, plan.SecretsFile, report); err != nil {
-			h.addCheck(report, "Webhook", "warn", err.Error())
-		} else {
-			report.WebhookSent = true
-			h.addCheck(report, "Webhook", "pass", "Delivered")
+		if payload := buildHealthWebhookPayload(h.rt, report); payload != nil {
+			if err := sendWebhookPayload(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
+				h.addCheck(report, "Webhook", "warn", err.Error())
+			} else {
+				report.WebhookSent = true
+				h.addCheck(report, "Webhook", "pass", "Delivered")
+			}
 		}
 	}
 	h.finalizeReport(report)
@@ -698,16 +697,13 @@ func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, 
 	if req == nil {
 		return false
 	}
-	if cfg.Notify.WebhookURL == "" {
-		return false
-	}
-	if h.log.Interactive() && h.rt.StdinIsTTY() && !cfg.Notify.Interactive {
+	if !shouldSendConfiguredWebhook(h.rt, h.log.Interactive(), cfg.Notify, req.HealthCommand) {
 		return false
 	}
 	if !containsString(cfg.Notify.NotifyOn, status) {
 		return false
 	}
-	return containsString(cfg.Notify.SendFor, req.HealthCommand)
+	return true
 }
 
 func (h *HealthRunner) maybeSendEarlyWebhook(req *Request, report *HealthReport) {
@@ -718,7 +714,11 @@ func (h *HealthRunner) maybeSendEarlyWebhook(req *Request, report *HealthReport)
 	if !ok || !h.shouldSendWebhook(req, cfg, report.Status) {
 		return
 	}
-	if err := h.sendWebhook(cfg.Notify, secretsFile, report); err != nil {
+	payload := buildHealthWebhookPayload(h.rt, report)
+	if payload == nil {
+		return
+	}
+	if err := sendWebhookPayload(cfg.Notify, secretsFile, report.Target, payload); err != nil {
 		h.addCheck(report, "Webhook", "warn", err.Error())
 		return
 	}
@@ -741,34 +741,6 @@ func (h *HealthRunner) loadHealthNotifyConfig(req *Request) (config.HealthConfig
 		return config.HealthConfig{}, "", false
 	}
 	return cfg.Health, plan.SecretsFile, true
-}
-
-func (h *HealthRunner) sendWebhook(cfg config.HealthNotifyConfig, secretsFile string, report *HealthReport) error {
-	body, err := json.Marshal(report)
-	if err != nil {
-		return fmt.Errorf("failed to encode webhook payload: %w", err)
-	}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.WebhookURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to build webhook request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if token, err := loadOptionalHealthWebhookToken(secretsFile, report.Target); err != nil {
-		return err
-	} else if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("webhook delivery failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("webhook delivery returned %s", resp.Status)
-	}
-	return nil
 }
 
 func (h *HealthRunner) addCheck(report *HealthReport, name, result, message string) {

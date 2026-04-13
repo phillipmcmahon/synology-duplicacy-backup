@@ -904,8 +904,14 @@ func TestHealthConfigValidate(t *testing.T) {
 		t.Fatalf("Validate() notify_on err = %v", err)
 	}
 
+	extendedSendFor := valid
+	extendedSendFor.Notify.SendFor = []string{"doctor", "verify", "backup", "prune", "cleanup-storage"}
+	if err := extendedSendFor.Validate(); err != nil {
+		t.Fatalf("Validate() extended send_for error = %v", err)
+	}
+
 	invalidSendFor := valid
-	invalidSendFor.Notify.SendFor = []string{"backup"}
+	invalidSendFor.Notify.SendFor = []string{"backup", "nope"}
 	if err := invalidSendFor.Validate(); err == nil || !strings.Contains(err.Error(), "send_for") {
 		t.Fatalf("Validate() send_for err = %v", err)
 	}

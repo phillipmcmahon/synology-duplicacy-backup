@@ -185,7 +185,9 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
 - optional shared health policy lives in `[health]`, with per-target overrides under `[targets.<name>.health]`
 - optional shared webhook notification settings live in `[health.notify]`, with per-target overrides under `[targets.<name>.health.notify]`
+- `send_for` may include `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`; runtime operations are opt-in
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
+- webhook payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
 - if config cannot be read at all, built-in health webhooks are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures

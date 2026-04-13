@@ -877,7 +877,7 @@ func (h HealthConfig) Validate() error {
 	if err := validateHealthNotifyValues("health.notify.notify_on", h.Notify.NotifyOn, "degraded", "unhealthy"); err != nil {
 		return err
 	}
-	if err := validateHealthNotifyValues("health.notify.send_for", h.Notify.SendFor, "status", "doctor", "verify"); err != nil {
+	if err := validateHealthNotifyValues("health.notify.send_for", h.Notify.SendFor, "status", "doctor", "verify", "backup", "prune", "cleanup-storage"); err != nil {
 		return err
 	}
 	return nil

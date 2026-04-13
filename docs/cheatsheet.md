@@ -122,6 +122,7 @@ Installer behaviour:
 - `config explain` and `config paths` show `Type` and `Location` for the selected target.
 - `config paths` only shows secrets paths for object targets.
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
+- `[health.notify]` can now opt runtime failure webhooks in with `send_for = ["backup", "prune", "cleanup-storage"]`; the payload stays generic JSON for bridges such as `ntfy`.
 - If health config cannot be read, rely on Synology scheduled-task alerts as the fallback.
 
 ## Help

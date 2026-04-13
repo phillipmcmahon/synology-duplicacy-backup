@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -704,6 +706,61 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 		if !strings.Contains(stdout, "\"result\": \"failed\"") ||
 			!strings.Contains(stdout, "\"failure_message\": \"Configuration file not found:") {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_PreRunBackupFailureSendsWebhookWhenConfigured(t *testing.T) {
+	withTestGlobals(t, func() {
+		var body string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			data, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("ReadAll() error = %v", err)
+			}
+			body = string(data)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", strings.Join([]string{
+			`label = "homes"`,
+			`source_path = "/volume1/homes"`,
+			``,
+			`[targets.onsite-usb]`,
+			`type = "filesystem"`,
+			`location = "local"`,
+			`destination = "/backups"`,
+			`repository = "homes"`,
+			``,
+			`[health.notify]`,
+			fmt.Sprintf(`webhook_url = %q`, server.URL),
+			`notify_on = ["degraded", "unhealthy"]`,
+			`send_for = ["backup"]`,
+		}, "\n"))
+
+		lookPath = func(name string) (string, error) {
+			if name == "duplicacy" {
+				return "", fmt.Errorf("not found")
+			}
+			return "/usr/bin/true", nil
+		}
+
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(pre-run webhook failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Required command 'duplicacy' not found") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(body, `"event":"backup_could_not_start"`) ||
+			!strings.Contains(body, `"label":"homes"`) ||
+			!strings.Contains(body, `"target":"onsite-usb"`) ||
+			!strings.Contains(body, `"storage_type":"filesystem"`) ||
+			!strings.Contains(body, `"location":"local"`) {
+			t.Fatalf("body = %q", body)
 		}
 	})
 }

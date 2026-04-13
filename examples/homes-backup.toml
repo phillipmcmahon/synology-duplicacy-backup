@@ -22,7 +22,7 @@ verify_warn_after_hours = 168
 [health.notify]
 webhook_url = "https://example.invalid/hooks/duplicacy-backup"
 notify_on = ["degraded", "unhealthy"]
-send_for = ["doctor", "verify"]
+send_for = ["doctor", "verify", "backup", "prune", "cleanup-storage"]
 interactive = false
 
 [targets.onsite-usb]

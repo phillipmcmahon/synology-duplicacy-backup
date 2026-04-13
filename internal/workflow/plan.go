@@ -3,6 +3,7 @@ package workflow
 import (
 	"path/filepath"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -27,6 +28,7 @@ type Plan struct {
 	Target        string
 	StorageType   string
 	Location      string
+	Notify        config.HealthNotifyConfig
 
 	BackupLabel    string
 	RunTimestamp   string

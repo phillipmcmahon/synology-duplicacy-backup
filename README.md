@@ -288,8 +288,12 @@ table, with optional per-target overrides under `[targets.<name>.health]`:
 Optional webhook notifications can be configured in `[health.notify]`, with
 optional per-target overrides in `[targets.<name>.health.notify]`. An optional
 `health_webhook_bearer_token` can be stored in the target secrets TOML.
-Webhooks are intended for non-interactive health runs; interactive TTY runs do
-not notify by default.
+Webhooks are intended for non-interactive health runs and selected runtime
+failures; interactive TTY runs do not notify by default. Runtime events are
+opt-in through `send_for = ["backup", "prune", "cleanup-storage"]`, while the
+default remains health-only. The webhook payload is generic JSON so it can be
+bridged cleanly to destinations such as `ntfy` without baking a vendor-specific
+format into the core application.
 
 If the environment is broken early enough that the backup TOML cannot be read,
 built-in webhook delivery is not expected to work because the webhook policy

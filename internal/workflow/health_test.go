@@ -475,8 +475,12 @@ func TestHealthWebhookDelivery(t *testing.T) {
 
 	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes", RequestedTarget: "offsite-storj"}, "verify", "boom", rt.Now())
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
-	if err := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).sendWebhook(cfg, "", report); err != nil {
-		t.Fatalf("sendWebhook() error = %v", err)
+	payload := buildHealthWebhookPayload(rt, report)
+	if payload == nil {
+		t.Fatal("buildHealthWebhookPayload() = nil")
+	}
+	if err := sendWebhookPayload(cfg, "", report.Target, payload); err != nil {
+		t.Fatalf("sendWebhookPayload() error = %v", err)
 	}
 	if gotAuth != "Bearer hook-token" {
 		t.Fatalf("Authorization = %q", gotAuth)

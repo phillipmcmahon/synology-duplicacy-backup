@@ -30,6 +30,9 @@ type Executor struct {
 	cleanedUp          bool
 	targetLockAcquired bool
 	lastBackupRevision int
+	lastErr            error
+	lastPrunePreview   *duplicacy.PrunePreview
+	visibleRunStarted  bool
 }
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
@@ -86,6 +89,7 @@ func (e *Executor) Run() int {
 
 func (e *Executor) startVisibleRun() {
 	e.startedAt = e.rt.Now()
+	e.visibleRunStarted = true
 	if e.report != nil {
 		e.report.ResetStart(e.startedAt)
 	}
@@ -291,6 +295,7 @@ func (e *Executor) runBackupPhase() error {
 func (e *Executor) fail(err error) {
 	e.log.Error("%s", OperatorMessage(err))
 	e.exitCode = 1
+	e.lastErr = err
 	if e.report != nil {
 		e.report.FailureMessage = OperatorMessage(err)
 	}

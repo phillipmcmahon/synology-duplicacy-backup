@@ -31,6 +31,7 @@ func (e *Executor) runPrunePhase() error {
 	if err != nil {
 		return err
 	}
+	e.lastPrunePreview = preview
 
 	e.logPrunePreviewOutput(preview)
 	if err := e.enforcePrunePreview(preview); err != nil {

@@ -115,6 +115,11 @@ func runWithArgs(args []string) int {
 			presenter.PrintPreRunFailureContext(result.Request)
 		}
 		log.Error("%s", workflow.OperatorMessage(err))
+		if failurePlan != nil {
+			if notifyErr := workflow.MaybeSendPreRunFailureWebhook(rt, log.Interactive(), failurePlan, result.Request, startedAt, rt.Now(), err); notifyErr != nil {
+				log.Warn("%s", workflow.OperatorMessage(notifyErr))
+			}
+		}
 		printFailureCompletion(meta, rt, log, startedAt)
 		if result.Request.JSONSummary {
 			emitJSONFailureSummary(os.Stdout, result.Request, failurePlan, startedAt, rt.Now(), workflow.OperatorMessage(err))

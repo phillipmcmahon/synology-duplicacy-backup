@@ -125,15 +125,41 @@ The optional `[health]` table controls read-only health checks:
 | `verify_warn_after_hours` | No | Warn when `health verify` has not been run recently |
 
 The optional `[health.notify]` table controls webhook notifications for
-non-interactive health runs. Targets may override any of these values under
-`[targets.<name>.health]` and `[targets.<name>.health.notify]`:
+non-interactive health runs and selected runtime failures. Targets may override
+any of these values under `[targets.<name>.health]` and
+`[targets.<name>.health.notify]`:
 
 | Key | Required | Description |
 |---|---|---|
 | `webhook_url` | No | Webhook destination URL |
 | `notify_on` | No | Statuses that should notify; defaults to `["degraded", "unhealthy"]` |
-| `send_for` | No | Health commands that may notify; defaults to `["doctor", "verify"]` |
+| `send_for` | No | Commands or operations that may notify. Allowed values are `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`. Defaults to `["doctor", "verify"]` |
 | `interactive` | No | Allow notifications from interactive TTY runs; defaults to `false` |
+
+Runtime operations stay opt-in. Adding `backup`, `prune`, or
+`cleanup-storage` to `send_for` enables webhook delivery for those failure
+events while keeping the default health-only behaviour for existing configs.
+
+Webhook payloads are generic JSON, not vendor-specific payloads. Every payload
+includes shared fields such as:
+- `version`
+- `event_id`
+- `timestamp`
+- `host`
+- `severity`
+- `category`
+- `event`
+- `summary`
+- `label`
+- `target`
+- `storage_type`
+- `location`
+- `status`
+
+Health payloads also include `check` where relevant, runtime payloads include
+`operation`, and event-specific structured context is carried under `details`.
+This keeps the built-in webhook output suitable for simple bridges such as
+`ntfy`, Discord, Node-RED, or `n8n` without hard-coding any one vendor format.
 
 ## Example Config
 
@@ -159,7 +185,7 @@ verify_warn_after_hours = 168
 [health.notify]
 webhook_url = "https://example.invalid/hooks/duplicacy-backup"
 notify_on = ["degraded", "unhealthy"]
-send_for = ["doctor", "verify"]
+send_for = ["doctor", "verify", "backup", "prune", "cleanup-storage"]
 interactive = false
 
 [targets.onsite-usb]

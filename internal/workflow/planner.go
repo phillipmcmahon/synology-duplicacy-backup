@@ -39,6 +39,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.Target = cfg.Target
 	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
+	plan.Notify = cfg.Health.Notify
 	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 	plan.SnapshotSource = cfg.SourcePath
 	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
@@ -202,6 +203,7 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 	plan.Target = cfg.Target
 	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
+	plan.Notify = cfg.Health.Notify
 	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
 	plan.ModeDisplay = modeDisplay(cfg.Target, cfg.StorageType)
 

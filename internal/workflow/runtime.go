@@ -309,7 +309,7 @@ HEALTH CONFIG:
     Optional [health.notify] table keys:
       webhook_url
       notify_on = ["degraded", "unhealthy"]
-      send_for = ["doctor", "verify"]
+      send_for = ["doctor", "verify"]  # add backup, prune, cleanup-storage to opt runtime alerts in
       interactive = false
 
     Optional secrets key:
