@@ -713,13 +713,13 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 
 func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testing.T) {
 	withTestGlobals(t, func() {
-		var body string
+		bodyCh := make(chan string, 1)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			data, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Fatalf("ReadAll() error = %v", err)
 			}
-			body = string(data)
+			bodyCh <- string(data)
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
@@ -755,6 +755,12 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 		})
 		if !strings.Contains(stderr, "Required command 'duplicacy' not found") {
 			t.Fatalf("stderr = %q", stderr)
+		}
+		var body string
+		select {
+		case body = <-bodyCh:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for notification body")
 		}
 		if !strings.Contains(body, `"event":"backup_could_not_start"`) ||
 			!strings.Contains(body, `"label":"homes"`) ||
