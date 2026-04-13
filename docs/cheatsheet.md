@@ -124,6 +124,7 @@ Installer behaviour:
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - `[health.notify]` can opt runtime failure notifications in with `send_for = ["backup", "prune", "cleanup-storage"]`.
 - Native `ntfy` delivery is configured under `[health.notify.ntfy]`; generic webhook output remains available for future providers and bridges.
+- Authenticated webhook and `ntfy` tokens are target-scoped in the secrets file; repeat them under each notifying target that needs auth.
 - If health config cannot be read, rely on Synology scheduled-task alerts as the fallback.
 
 ## Help

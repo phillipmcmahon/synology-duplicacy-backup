@@ -288,7 +288,10 @@ table, with optional per-target overrides under `[targets.<name>.health]`:
 Optional notifications can be configured in `[health.notify]`, with
 optional per-target overrides in `[targets.<name>.health.notify]`. An optional
 `health_webhook_bearer_token` or `health_ntfy_token` can be stored in the
-target secrets TOML.
+target secrets TOML under the matching `[targets.<name>]` table. Notification
+auth tokens are target-scoped, so if multiple targets notify to the same
+authenticated destination, repeat the token in each target section that needs
+it.
 Notifications are intended for non-interactive health runs and selected runtime
 failures; interactive TTY runs do not notify by default. Runtime events are
 opt-in through `send_for = ["backup", "prune", "cleanup-storage"]`, while the

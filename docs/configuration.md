@@ -159,6 +159,12 @@ Optional `[health.notify.ntfy]` keys:
 | `url` | No | Base `ntfy` URL; defaults to `https://ntfy.sh` |
 | `topic` | Yes | `ntfy` topic name |
 
+Notification authentication is target-scoped. If a webhook or `ntfy`
+destination requires authentication, store `health_webhook_bearer_token` and/or
+`health_ntfy_token` under the matching `[targets.<name>]` section in the
+secrets file. If several targets notify to the same authenticated destination,
+repeat the token in each target section that needs to send notifications.
+
 Notification payloads are generic JSON, not vendor-specific payloads. Every payload
 includes shared fields such as:
 - `version`
@@ -299,6 +305,9 @@ storj_s3_id = "your-access-key-id"
 storj_s3_secret = "your-secret-access-key"
 health_webhook_bearer_token = "optional-webhook-bearer-token"
 health_ntfy_token = "optional-ntfy-bearer-token"
+
+[targets.onsite-usb]
+health_ntfy_token = "optional-ntfy-bearer-token"
 ```
 
 Requirements:
@@ -309,6 +318,7 @@ Requirements:
 - storage credentials are only needed for object targets
 - notification auth tokens may be present for any target
 - a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
+- notification auth tokens are target-scoped; repeat them under each notifying target that needs authenticated delivery
 - `storj_s3_id` must be at least 28 characters
 - `storj_s3_secret` must be at least 53 characters
 

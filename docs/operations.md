@@ -193,7 +193,9 @@ loading secrets.
 The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional
 `health_webhook_bearer_token` and `health_ntfy_token` support for authenticated
-notifications.
+notifications. Those notification auth tokens are target-scoped in the secrets
+file, so repeat them under each notifying target that needs authenticated
+delivery.
 For low-cost operator alerting, a good baseline is Synology scheduled-task
 email for raw job failures plus native `ntfy` delivery for richer degraded,
 unhealthy, and selected runtime-failure events. Generic webhook delivery stays

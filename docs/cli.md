@@ -148,7 +148,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - config files are TOML files named `<label>-backup.toml`
 - object-target secrets are read from `/root/.secrets/<label>-secrets.toml`
 - one config file and, when needed, one secrets file cover a whole label
-- current secrets keys for Storj-backed S3-compatible targets are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` / `health_ntfy_token`
+- object-target secrets for Storj-backed S3-compatible storage use `storj_s3_id` and `storj_s3_secret`; any target may also use optional `health_webhook_bearer_token` / `health_ntfy_token`
 - `--fix-perms` is filesystem-target aware and cannot be combined with an object target
 - combined phases all run against one selected target from a label config for a single invocation
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
@@ -188,6 +188,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - native `ntfy` delivery can be configured under `[health.notify.ntfy]` or `[targets.<name>.health.notify.ntfy]`
 - `send_for` may include `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`; runtime operations are opt-in
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML; native `ntfy` can use `health_ntfy_token`
+- notification auth tokens are target-scoped in the secrets file, so authenticated delivery must be configured under each notifying `[targets.<name>]` section
 - notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
 - native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
