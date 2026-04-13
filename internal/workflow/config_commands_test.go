@@ -92,7 +92,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 		"Target":      "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -130,6 +130,9 @@ func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootSkipsPrivilegedC
 		}
 	}
 	values := extractValidationValues(t, out)
+	if values["Privileges"] != "Limited" {
+		t.Fatalf("Privileges = %q:\n%s", values["Privileges"], out)
+	}
 	if values["Btrfs Source"] != "Not checked" {
 		t.Fatalf("Btrfs Source = %q:\n%s", values["Btrfs Source"], out)
 	}
@@ -192,7 +195,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -229,7 +232,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	if strings.Contains(out, "Local Owner") || strings.Contains(out, "Local Group") {
 		t.Fatalf("output = %q", out)
@@ -275,7 +278,7 @@ func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 		"Target":      "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -312,7 +315,7 @@ doctor_warn_after_hours = 48000000
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -348,7 +351,7 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -380,7 +383,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 		"Target":      "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -420,7 +423,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteDestinationHostCannotResolve
 		"Target":      "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
@@ -447,7 +450,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -483,7 +486,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -517,7 +520,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -556,7 +559,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Privileges", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Destination Access", "Repository Access", "Target Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -945,7 +948,7 @@ var invalidValidationOutcomePattern = regexp.MustCompile(`^Invalid \(.+\)$`)
 
 func allowedValidationOutcome(value string) bool {
 	switch value {
-	case "Valid", "Readable", "Writable", "Resolved", "Parsed", "Not checked", "Not configured", "Not enabled":
+	case "Valid", "Readable", "Writable", "Resolved", "Parsed", "Full", "Limited", "Not checked", "Not configured", "Not enabled":
 		return true
 	case "Not initialized":
 		return true

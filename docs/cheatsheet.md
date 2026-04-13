@@ -90,7 +90,7 @@ duplicacy-backup config paths --target offsite-storj homes
 ```text
 /usr/local/bin/duplicacy-backup
 /usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
-/root/.secrets/<label>-secrets.toml  # object targets only
+/root/.secrets/<label>-secrets.toml  # object credentials and/or notification auth tokens
 /var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
@@ -113,6 +113,7 @@ Installer behaviour:
 - Keep `source_path` set to the real Btrfs volume or subvolume for the label, and use Duplicacy filters to include or exclude nested directories beneath that root.
 - Use `type` for storage behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
+- non-root `config validate` can still be useful, but root-only checks may show `Not checked`.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.

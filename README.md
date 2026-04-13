@@ -104,8 +104,9 @@ when run as `root`. Use `./install.sh --config-group <name>` if you want a
 different trusted operator group for config access. The installer never
 creates or rewrites individual secrets files.
 
-For labels with object-storage targets, create a matching label secrets file
-under `/root/.secrets` and add target-specific entries inside it:
+For labels with object-storage targets, or for any target that needs
+authenticated notification delivery, create a matching label secrets file under
+`/root/.secrets` and add target-specific entries inside it:
 
 ```bash
 mkdir -p /root/.secrets
@@ -224,7 +225,7 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, proves that `source_path` is a valid Btrfs snapshot source, validates any required object-target secrets, and performs a read-only repository readiness probe
+- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, and performs read-only Btrfs, secrets, and repository readiness checks when the current user has enough access
 - `config explain` shows the resolved values for the selected target, including `Type` and `Location`
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths, including `Type` and `Location`
 
@@ -233,6 +234,10 @@ repository readiness probe reports one of three operator-facing outcomes:
 - `Repository Access : Valid`
 - `Repository Access : Not initialized`
 - `Repository Access : Invalid (...)`
+
+When `config validate` is run without the privileges needed for root-only
+checks, those lines are reported as `Not checked` instead of failing the whole
+validation.
 
 Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
 Every runtime command must also include at least one explicit operation flag

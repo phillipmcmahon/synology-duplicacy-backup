@@ -286,7 +286,8 @@ actually backed up.
 
 ## Secrets
 
-Object targets load credentials from:
+Object targets load credentials from, and authenticated notification delivery
+can optionally read target-scoped tokens from:
 
 ```text
 /root/.secrets/<label>-secrets.toml
@@ -328,8 +329,9 @@ values are passed through to Duplicacy for gateway-backed target storage.
 When run as `root`, the bundled installer ensures `/root/.secrets` exists with
 mode `700`, but it does not create or rewrite any individual secrets files.
 
-Filesystem targets, whether local or remote, do not load secrets and therefore
-do not need a matching secrets file.
+Filesystem targets, whether local or remote, do not load storage credentials.
+They only need a matching secrets file if a notifying target uses
+`health_webhook_bearer_token` and/or `health_ntfy_token`.
 
 ## Safe Prune Thresholds
 
@@ -376,6 +378,7 @@ Human-facing screens now make the selected target shape explicit:
 - runtime headers show `Label`, `Target`, `Type`, and `Location`
 - health headers show `Check`, `Label`, `Target`, `Type`, and `Location`
 - `config explain` and `config paths` show `Type` and `Location`
+- `config validate` includes `Privileges`, reported as `Full` or `Limited`
 
 `config validate` intentionally keeps its `Resolved` section identity-only:
 
@@ -392,6 +395,10 @@ reported as:
 - `Repository Access : Valid`
 - `Repository Access : Not initialized`
 - `Repository Access : Invalid (...)`
+
+When `config validate` is run without the privileges needed for root-only
+checks, lines such as `Btrfs Source`, `Secrets`, or `Repository Access` may be
+reported as `Not checked` instead of failing the whole validation.
 
 ## Current File Naming
 

@@ -94,6 +94,10 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 
 	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.SnapshotSource)
 	privilegedValidation := planner.rt.Geteuid() == 0
+	privilegeStatus := "Limited"
+	if privilegedValidation {
+		privilegeStatus = "Full"
+	}
 	btrfsStatus := "Not checked"
 	var btrfsErr error
 	if sourceAccessible && privilegedValidation {
@@ -129,6 +133,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 
 	collector.addStatus("Required Settings", "Valid", requiredErr)
+	collector.addStatic("Privileges", privilegeStatus)
 	collector.addStatus("Threads", "Valid", threadsErr)
 	if pruneErr != nil {
 		collector.addStatus("Prune Policy", "Valid", pruneErr)
@@ -322,11 +327,14 @@ func colourizeConfigValidationValue(value string, enableColour bool) string {
 		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
 	case value == "Not checked" || value == "Not initialized":
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
+	case value == "Limited":
+		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
 	case value == "Valid",
 		value == "Readable",
 		value == "Writable",
 		value == "Resolved",
-		value == "Parsed":
+		value == "Parsed",
+		value == "Full":
 		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
 	default:
 		return value

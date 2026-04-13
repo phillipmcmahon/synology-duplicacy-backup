@@ -284,16 +284,22 @@ CONFIG STRUCTURE:
       type = "filesystem" | "object"
       location = "local" | "remote"
 
-TARGET SECRETS:
-    Object-storage targets load credentials from:
-      %s/<label>-secrets.toml
-    Filesystem targets do not use a secrets file, even when location = "remote"
-    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-    Use [targets.<name>] tables with:
-      storj_s3_id
-      storj_s3_secret
-      optional health_webhook_bearer_token
-      optional health_ntfy_token
+	TARGET SECRETS:
+	    Object-storage targets load credentials from:
+	      %s/<label>-secrets.toml
+	    Filesystem targets do not use storage credentials, even when location = "remote"
+	    Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
+	    Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
+	    Use [targets.<name>] tables with:
+	      storj_s3_id
+	      storj_s3_secret
+	      optional health_webhook_bearer_token
+	      optional health_ntfy_token
+
+	CONFIG VALIDATE PERMISSIONS:
+	    config validate reports:
+	      Privileges : Full     when root-only checks can run
+	      Privileges : Limited  when root-only checks may be shown as Not checked
 
 HEALTH STATE:
     Target-specific run and health state are stored under:

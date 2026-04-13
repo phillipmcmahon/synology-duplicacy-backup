@@ -83,7 +83,8 @@ The intended day-2 layout is one config file per label and, when needed, one
 secrets file per label.
 
 Under the current target model, only `type = "object"` targets need a secrets
-file. Filesystem targets, whether local or remote, do not.
+file for storage credentials. Filesystem targets, whether local or remote, only
+need one if a notifying target uses authenticated webhook or `ntfy` delivery.
 
 To install a new binary without switching immediately:
 

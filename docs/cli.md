@@ -146,7 +146,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - `--help` is intentionally concise; use `--help-full` for the detailed reference
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
 - config files are TOML files named `<label>-backup.toml`
-- object-target secrets are read from `/root/.secrets/<label>-secrets.toml`
+- object-target storage credentials are read from `/root/.secrets/<label>-secrets.toml`
 - one config file and, when needed, one secrets file cover a whole label
 - object-target secrets for Storj-backed S3-compatible storage use `storj_s3_id` and `storj_s3_secret`; any target may also use optional `health_webhook_bearer_token` / `health_ntfy_token`
 - `--fix-perms` is filesystem-target aware and cannot be combined with an object target
@@ -160,14 +160,16 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` works on one selected target from a label config at a time
-- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, that the label `source_path` is a valid Btrfs snapshot source, that any required object-target secrets be valid, and that the selected repository be checked with a read-only readiness probe
+- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, and that any Btrfs, secrets, and repository checks that the current user can perform succeed
 - `config validate` never initialises storage or changes repository state
+- non-root `config validate` remains useful, but root-only checks may be reported as `Not checked`
 - repository readiness is reported as exactly one of:
   - `Repository Access : Valid`
   - `Repository Access : Not initialized`
   - `Repository Access : Invalid (...)`
 - `config explain` and `config paths` surface `Type` and `Location` for the selected target
 - `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
+- `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
 - `config paths` includes secrets paths only for object targets
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
