@@ -126,7 +126,7 @@ Installer behaviour:
 - `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
 - `config explain` and `config paths` show `Type` and `Location` for the selected target.
-- `config paths` only shows secrets paths for object targets.
+- `config paths` only includes secrets paths when the selected target is an object target.
 
 ### Health And Output
 
