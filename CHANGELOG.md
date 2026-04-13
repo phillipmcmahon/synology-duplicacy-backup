@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.0] - 2026-04-13
+
+### Added
+- **Near-time notification delivery is now a first-class operator feature**:
+  `duplicacy-backup` now emits a shared notification event model for selected
+  runtime failures and health outcomes, supports native `ntfy` delivery for the
+  recommended low-cost Synology path, and keeps generic webhook delivery
+  available for future providers and external automation.
+- **Workflow and scheduling guidance is now a first-class part of the product**:
+  the new workflow guide documents the supported Synology Task Scheduler model,
+  including task naming, workload separation, timing rules, a worked
+  multi-label example, and a quick-reference task table for day-to-day setup.
+
+### Changed
+- **`config validate` now makes its privilege level explicit**: validation
+  output now shows `Privileges : Full` or `Privileges : Limited`, so operators
+  can immediately see whether root-only checks may have been skipped.
+- **Operator docs now distinguish manual command combinations from recommended
+  recurring schedules**: the README, CLI reference, operations guide, and desk
+  cheat sheet now point recurring Synology scheduler usage at the dedicated
+  workflow guidance instead of letting combined manual examples read like
+  schedule templates.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `84.4%`
+  - `cmd/duplicacy-backup`: `85.7%`
+  - `internal/workflow`: `84.0%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `76.2%`
+
 ## [v4.0.1] - 2026-04-13
 
 ### Changed
