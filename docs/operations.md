@@ -122,6 +122,10 @@ You can still override this with:
 
 ## Synology Task Scheduler
 
+For the recommended workflow model, naming convention, and a worked scheduling
+example across multiple labels and targets, see
+[`workflow-scheduling.md`](workflow-scheduling.md).
+
 1. Open **Control Panel > Task Scheduler**
 2. Create a **Triggered Task > User-defined script**
 3. Set the schedule
@@ -132,22 +136,29 @@ You can still override this with:
 /usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
 ```
 
-Example: backup followed by safe prune for label `homes` on target `offsite-storj`
+Recommended scheduled pattern:
+
+- keep backup, prune, health, and fix-perms as separate tasks
+- use repeat scheduling for frequent onsite backups where it helps
+- avoid routine `--cleanup-storage`
+- do not schedule `--force-prune` as a normal recurring task
+
+Example: scheduled backup for label `homes` on target `offsite-storj`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target offsite-storj --backup --prune homes
+/usr/local/bin/duplicacy-backup --target offsite-storj --backup homes
 ```
 
-Example: forced prune for label `homes` on target `offsite-storj`
+Example: scheduled prune for label `homes` on target `offsite-storj`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target offsite-storj --prune --force-prune homes
+/usr/local/bin/duplicacy-backup --target offsite-storj --prune homes
 ```
 
-Example: storage cleanup for label `homes` on target `offsite-storj`
+Example: scheduled fix-perms for label `homes` on target `onsite-usb`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target offsite-storj --cleanup-storage homes
+/usr/local/bin/duplicacy-backup --target onsite-usb --fix-perms homes
 ```
 
 Example: scheduled health summary for label `homes` on target `onsite-usb`
@@ -217,6 +228,13 @@ Health commands are read-only and do not prompt for confirmation. They are
 designed to be run separately from backup jobs so schedulers and external
 monitoring can check freshness and environment health without mutating backup
 state.
+
+As an operator rule of thumb, prefer separate scheduled tasks for backup,
+prune, health, and fix-perms rather than chaining everything together into a
+single recurring job.
+
+Treat `--cleanup-storage` and `--force-prune` as explicit operator actions
+rather than routine scheduled work.
 
 ## Release Verification
 

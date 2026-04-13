@@ -108,6 +108,8 @@ Installer behaviour:
 ## Rules Of Thumb
 
 - Start with `--dry-run` for anything destructive or unfamiliar.
+- Schedule backup, prune, health, and fix-perms as separate tasks unless you have a specific reason to combine them.
+- Use Synology repeat scheduling for frequent onsite backups rather than creating many near-identical jobs.
 - Use `--force-prune` only with `--prune`.
 - Use `--cleanup-storage` only when no other client is writing to the same storage.
 - Keep `source_path` set to the real Btrfs volume or subvolume for the label, and use Duplicacy filters to include or exclude nested directories beneath that root.
@@ -127,6 +129,7 @@ Installer behaviour:
 - Native `ntfy` delivery is configured under `[health.notify.ntfy]`; generic webhook output remains available for future providers and bridges.
 - Authenticated webhook and `ntfy` tokens are target-scoped in the secrets file; repeat them under each notifying target that needs auth.
 - If health config cannot be read, rely on Synology scheduled-task alerts as the fallback.
+- See `docs/workflow-scheduling.md` for the recommended Task Scheduler naming pattern and workload cadence.
 
 ## Help
 

@@ -336,6 +336,7 @@ inspection commands should normally be run with `sudo`. The main exception is
 - [Desk cheat sheet](docs/cheatsheet.md)
 - [CLI reference](docs/cli.md)
 - [Configuration and secrets](docs/configuration.md)
+- [Workflow and scheduling](docs/workflow-scheduling.md)
 - [Linux validation and packaging environment](docs/linux-environment.md)
 - [Release playbook](docs/release-playbook.md)
 - [Architecture](docs/architecture.md)
