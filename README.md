@@ -300,6 +300,11 @@ For a low-cost `email + ntfy` setup, keep Synology scheduled-task email enabled
 for raw job failures and use native `[health.notify.ntfy]` delivery for health
 and selected runtime alerts.
 
+In v1, notification noise control is intentionally simple: success events do
+not notify, runtime alerts are opt-in, interactive runs stay quiet by default,
+and repeated scheduled failures notify on each matching run. If you need
+deduplication or escalation, handle that in the receiving system.
+
 If the environment is broken early enough that the backup TOML cannot be read,
 built-in notification delivery is not expected to work because the notification policy
 itself lives in that config. For those hard-failure cases, rely on Synology

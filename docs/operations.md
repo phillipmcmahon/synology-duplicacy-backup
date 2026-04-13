@@ -199,6 +199,17 @@ email for raw job failures plus native `ntfy` delivery for richer degraded,
 unhealthy, and selected runtime-failure events. Generic webhook delivery stays
 available for future providers and external automation.
 
+Notification noise control in v1 is intentionally simple:
+
+- default health notifications are only for `degraded` and `unhealthy`
+- runtime notifications are opt-in through `send_for`
+- interactive runs do not notify unless explicitly enabled
+- success events do not notify
+- repeated matching failures notify on each matching scheduled run
+
+If you need deduplication, reminder cadence, or escalation, handle that in the
+receiving system rather than in `duplicacy-backup` itself for now.
+
 Health commands are read-only and do not prompt for confirmation. They are
 designed to be run separately from backup jobs so schedulers and external
 monitoring can check freshness and environment health without mutating backup

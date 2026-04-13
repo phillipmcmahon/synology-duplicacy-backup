@@ -142,6 +142,16 @@ Runtime operations stay opt-in. Adding `backup`, `prune`, or
 `cleanup-storage` to `send_for` enables notification delivery for those failure
 events while keeping the default health-only behaviour for existing configs.
 
+Initial destination patterns:
+
+- Synology scheduled-task email only
+  Good baseline for raw scheduled job failure with no extra services.
+- Synology scheduled-task email plus native `ntfy`
+  Recommended low-cost setup for near-time operator alerts.
+- Generic webhook destination
+  Suitable for future providers such as Slack, Discord, Node-RED, `n8n`, or a
+  custom receiver.
+
 Optional `[health.notify.ntfy]` keys:
 
 | Key | Required | Description |
@@ -170,6 +180,22 @@ Health payloads also include `check` where relevant, runtime payloads include
 This keeps the built-in generic output suitable for future providers such as
 Discord, Slack, Node-RED, or `n8n` without hard-coding every one of them up
 front, while native `ntfy` support covers the low-cost Synology path directly.
+
+### Notification Signal Expectations
+
+The v1 notification model keeps signal tight by default:
+
+- `notify_on` defaults to `["degraded", "unhealthy"]`
+- `send_for` defaults to `["doctor", "verify"]`
+- runtime failures are opt-in
+- interactive TTY runs do not notify unless `interactive = true`
+- success events do not notify
+
+There is no built-in deduplication, reminder cadence, or escalation policy in
+v1. If a scheduled run fails repeatedly and still matches your notification
+policy, it will notify on each matching run. Keep scheduler frequency sensible
+and use the receiving system's own suppression or grouping features if you need
+further noise control.
 
 ## Example Config
 
@@ -280,7 +306,9 @@ Requirements:
 - owned by `root:root`
 - secrets directory permissions `0700`
 - permissions `0600`
-- only `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` / `health_ntfy_token` are allowed
+- storage credentials are only needed for object targets
+- notification auth tokens may be present for any target
+- a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
 - `storj_s3_id` must be at least 28 characters
 - `storj_s3_secret` must be at least 53 characters
 
