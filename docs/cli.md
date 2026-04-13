@@ -79,6 +79,11 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 ## Examples
 
+These examples show valid CLI combinations for manual and ad hoc use. For
+recommended recurring Synology scheduling patterns, see
+[`workflow-scheduling.md`](workflow-scheduling.md) and keep backup, prune,
+health, and fix-perms as separate scheduled tasks by default.
+
 ```bash
 # Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes

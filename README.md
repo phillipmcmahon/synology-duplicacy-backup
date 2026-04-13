@@ -152,6 +152,10 @@ repository = "homes"
 
 ### 4. Run
 
+These examples show valid manual and ad hoc invocations. For recurring Synology
+Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
+and fix-perms; see [Workflow and scheduling](docs/workflow-scheduling.md).
+
 ```bash
 # Backup homes to target onsite-usb
 sudo duplicacy-backup --target onsite-usb --backup homes
@@ -185,6 +189,11 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 ```
 
 ## Common Commands
+
+These are useful operator commands, including combined manual maintenance
+invocations. For recommended recurring scheduler patterns, use the dedicated
+guide instead of treating this list as a schedule template:
+[Workflow and scheduling](docs/workflow-scheduling.md).
 
 ```bash
 # Backup homes to target onsite-usb
