@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v4.1.0] - 2026-04-13
+## [v4.1.1] - 2026-04-13
 
 ### Added
 - **Near-time notification delivery is now a first-class operator feature**:
@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cheat sheet now point recurring Synology scheduler usage at the dedicated
   workflow guidance instead of letting combined manual examples read like
   schedule templates.
+
+### Fixed
+- **Release validation is now stable for the notification test path**: the
+  pre-run notification CLI test now synchronizes its HTTP capture correctly,
+  so Linux CI can validate the shipped notification surface reliably.
 
 ### Validation
 - **Linux Go 1.26**: `go test ./...`
