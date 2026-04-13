@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.0.1] - 2026-04-13
+
+### Changed
+- **The Synology installer now establishes the intended permission layout**:
+  when run as `root`, `install.sh` now normalises the stable config directory
+  to trusted-operator access, ensures `/root/.secrets` exists with root-only
+  directory permissions, and exposes a new `--config-group` option for sites
+  that use a different operator group.
+- **Install and operator docs now describe the permission model explicitly**:
+  the README, operations guide, configuration guide, and desk cheat sheet now
+  explain the expected config and secrets ownership/mode policy and clarify
+  that the installer never rewrites individual secrets files.
+
+### Fixed
+- **Non-root `config validate` is now more truthful on protected systems**:
+  permission-denied config reads now report an access problem instead of
+  claiming the file is missing, and root-only checks such as Btrfs validation,
+  object-target secrets validation, and repository probes now report
+  `Not checked` instead of surfacing misleading failures.
+- **Installer regression coverage now matches real release environments**:
+  install-script tests now accept both non-root and root execution paths, so
+  Linux Go 1.26 release validation exercises the installer output correctly.
+
+### Validation
+- **Local**: `go test ./...`
+- **Local**: `go vet ./...`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.1%`
+  - `cmd/duplicacy-backup`: `86.2%`
+  - `internal/workflow`: `84.8%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.3%`
+  - `internal/secrets`: `81.0%`
+
 ## [v4.0.0] - 2026-04-13
 
 ### Changed

@@ -101,8 +101,14 @@ func TestInstallScript_NormalisesConfigPermissions(t *testing.T) {
 	if !strings.Contains(installOutput, "Secrets directory: /root/.secrets") {
 		t.Fatalf("install output missing secrets directory guidance:\n%s", installOutput)
 	}
-	if !strings.Contains(installOutput, "run installer as root to create or normalise it") {
-		t.Fatalf("install output missing non-root secrets guidance:\n%s", installOutput)
+	if os.Geteuid() == 0 {
+		if !strings.Contains(installOutput, "ensured as root:root (700); secrets files are not modified") {
+			t.Fatalf("install output missing root secrets guidance:\n%s", installOutput)
+		}
+	} else {
+		if !strings.Contains(installOutput, "run installer as root to create or normalise it") {
+			t.Fatalf("install output missing non-root secrets guidance:\n%s", installOutput)
+		}
 	}
 }
 
