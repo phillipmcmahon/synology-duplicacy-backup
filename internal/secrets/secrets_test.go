@@ -205,6 +205,21 @@ func TestLoadOptionalHealthWebhookToken(t *testing.T) {
 	}
 }
 
+func TestLoadOptionalHealthNtfyToken(t *testing.T) {
+	if token, err := LoadOptionalHealthNtfyToken(filepath.Join(t.TempDir(), "missing.toml"), "offsite-storj"); err != nil || token != "" {
+		t.Fatalf("missing token = %q, err = %v", token, err)
+	}
+
+	p := writeTempSecrets(t, validSecretContent()+"health_ntfy_token = \"ntfy-token\"\n", 0600)
+	token, err := LoadOptionalHealthNtfyToken(p, "offsite-storj")
+	if isRoot() && err != nil {
+		t.Fatalf("LoadOptionalHealthNtfyToken() error = %v", err)
+	}
+	if isRoot() && token != "ntfy-token" {
+		t.Fatalf("token = %q", token)
+	}
+}
+
 func TestParseSecrets_MissingTargetTable(t *testing.T) {
 	_, err := ParseSecrets(strings.NewReader(validSecretContentForTarget("archive-cold")), "test", "offsite-storj")
 	if err == nil {

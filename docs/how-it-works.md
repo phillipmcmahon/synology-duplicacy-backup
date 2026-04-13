@@ -384,6 +384,7 @@ It:
   - optional `[health]`
   - optional `[health.notify]`
     - generic webhook JSON for health outcomes and opt-in runtime failures
+    - optional native `[health.notify.ntfy]` destination
   - one or more `[targets.<name>]`
   - optional `[targets.<name>.health]`
   - optional `[targets.<name>.health.notify]`

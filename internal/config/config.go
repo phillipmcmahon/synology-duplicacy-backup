@@ -64,9 +64,15 @@ type HealthConfig struct {
 
 type HealthNotifyConfig struct {
 	WebhookURL  string
+	Ntfy        HealthNotifyNtfyConfig
 	NotifyOn    []string
 	SendFor     []string
 	Interactive bool
+}
+
+type HealthNotifyNtfyConfig struct {
+	URL   string
+	Topic string
 }
 
 type tableCommon struct {
@@ -164,10 +170,16 @@ type tableHealth struct {
 }
 
 type tableHealthNotify struct {
-	WebhookURL  *string  `toml:"webhook_url"`
-	NotifyOn    []string `toml:"notify_on"`
-	SendFor     []string `toml:"send_for"`
-	Interactive *bool    `toml:"interactive"`
+	WebhookURL  *string                `toml:"webhook_url"`
+	Ntfy        *tableHealthNotifyNtfy `toml:"ntfy"`
+	NotifyOn    []string               `toml:"notify_on"`
+	SendFor     []string               `toml:"send_for"`
+	Interactive *bool                  `toml:"interactive"`
+}
+
+type tableHealthNotifyNtfy struct {
+	URL   *string `toml:"url"`
+	Topic *string `toml:"topic"`
 }
 
 // NewDefaults returns a Config with all default values.
@@ -185,6 +197,9 @@ func NewDefaults() *Config {
 			DoctorWarnAfter:    48,
 			VerifyWarnAfter:    168,
 			Notify: HealthNotifyConfig{
+				Ntfy: HealthNotifyNtfyConfig{
+					URL: "https://ntfy.sh",
+				},
 				NotifyOn:    []string{"degraded", "unhealthy"},
 				SendFor:     []string{"doctor", "verify"},
 				Interactive: false,
@@ -424,6 +439,14 @@ func applyNotify(dst *HealthNotifyConfig, src *tableHealthNotify) {
 	}
 	if src.WebhookURL != nil {
 		dst.WebhookURL = *src.WebhookURL
+	}
+	if src.Ntfy != nil {
+		if src.Ntfy.URL != nil {
+			dst.Ntfy.URL = *src.Ntfy.URL
+		}
+		if src.Ntfy.Topic != nil {
+			dst.Ntfy.Topic = *src.Ntfy.Topic
+		}
 	}
 	if src.NotifyOn != nil {
 		dst.NotifyOn = append([]string(nil), src.NotifyOn...)
@@ -879,6 +902,12 @@ func (h HealthConfig) Validate() error {
 	}
 	if err := validateHealthNotifyValues("health.notify.send_for", h.Notify.SendFor, "status", "doctor", "verify", "backup", "prune", "cleanup-storage"); err != nil {
 		return err
+	}
+	if strings.TrimSpace(h.Notify.Ntfy.URL) != "" && strings.TrimSpace(h.Notify.Ntfy.Topic) == "" && h.Notify.Ntfy.URL != "https://ntfy.sh" {
+		return fmt.Errorf("health.notify.ntfy.topic must not be empty when health.notify.ntfy.url is set")
+	}
+	if strings.TrimSpace(h.Notify.Ntfy.Topic) != "" && strings.TrimSpace(h.Notify.Ntfy.URL) == "" {
+		return fmt.Errorf("health.notify.ntfy.url must not be empty when health.notify.ntfy.topic is set")
 	}
 	return nil
 }

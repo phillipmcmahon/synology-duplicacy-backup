@@ -148,7 +148,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - config files are TOML files named `<label>-backup.toml`
 - object-target secrets are read from `/root/.secrets/<label>-secrets.toml`
 - one config file and, when needed, one secrets file cover a whole label
-- current secrets keys for Storj-backed S3-compatible targets are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token`
+- current secrets keys for Storj-backed S3-compatible targets are `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` / `health_ntfy_token`
 - `--fix-perms` is filesystem-target aware and cannot be combined with an object target
 - combined phases all run against one selected target from a label config for a single invocation
 - `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
@@ -184,11 +184,13 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - unhealthy `health verify` JSON also emits `failure_code`, `failure_codes`, and `recommended_action_codes` so automation can classify the failure without parsing human text
 - `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
 - optional shared health policy lives in `[health]`, with per-target overrides under `[targets.<name>.health]`
-- optional shared webhook notification settings live in `[health.notify]`, with per-target overrides under `[targets.<name>.health.notify]`
+- optional shared notification settings live in `[health.notify]`, with per-target overrides under `[targets.<name>.health.notify]`
+- native `ntfy` delivery can be configured under `[health.notify.ntfy]` or `[targets.<name>.health.notify.ntfy]`
 - `send_for` may include `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`; runtime operations are opt-in
-- optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML
-- webhook payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
+- optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML; native `ntfy` can use `health_ntfy_token`
+- notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
+- native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
-- if config cannot be read at all, built-in health webhooks are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
+- if config cannot be read at all, built-in notifications are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
 - keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root

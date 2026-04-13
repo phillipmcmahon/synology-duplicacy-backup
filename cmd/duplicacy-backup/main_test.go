@@ -309,6 +309,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "storj_s3_id") ||
 		!strings.Contains(stdout, "storj_s3_secret") ||
 		!strings.Contains(stdout, "health_webhook_bearer_token") ||
+		!strings.Contains(stdout, "health_ntfy_token") ||
 		!strings.Contains(stdout, "health status            Fast read-only health summary for operators and schedulers") ||
 		!strings.Contains(stdout, "health verify            Read-only integrity check across revisions found for the current label") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
@@ -710,7 +711,7 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 	})
 }
 
-func TestRunWithArgs_PreRunBackupFailureSendsWebhookWhenConfigured(t *testing.T) {
+func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testing.T) {
 	withTestGlobals(t, func() {
 		var body string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -749,7 +750,7 @@ func TestRunWithArgs_PreRunBackupFailureSendsWebhookWhenConfigured(t *testing.T)
 
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--config-dir", configDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(pre-run webhook failure) = %d", code)
+				t.Fatalf("runWithArgs(pre-run notification failure) = %d", code)
 			}
 		})
 		if !strings.Contains(stderr, "Required command 'duplicacy' not found") {

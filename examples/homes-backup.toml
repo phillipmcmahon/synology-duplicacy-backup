@@ -25,6 +25,10 @@ notify_on = ["degraded", "unhealthy"]
 send_for = ["doctor", "verify", "backup", "prune", "cleanup-storage"]
 interactive = false
 
+[health.notify.ntfy]
+url = "https://ntfy.sh"
+topic = "duplicacy-backup-alerts"
+
 [targets.onsite-usb]
 type = "filesystem"
 location = "local"

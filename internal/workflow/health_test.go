@@ -475,9 +475,9 @@ func TestHealthWebhookDelivery(t *testing.T) {
 
 	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes", RequestedTarget: "offsite-storj"}, "verify", "boom", rt.Now())
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
-	payload := buildHealthWebhookPayload(rt, report)
+	payload := buildHealthNotificationPayload(rt, report)
 	if payload == nil {
-		t.Fatal("buildHealthWebhookPayload() = nil")
+		t.Fatal("buildHealthNotificationPayload() = nil")
 	}
 	if err := sendWebhookPayload(cfg, "", report.Target, payload); err != nil {
 		t.Fatalf("sendWebhookPayload() error = %v", err)
@@ -531,7 +531,7 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
-	if !report.WebhookSent {
+	if !report.NotificationSent {
 		t.Fatalf("report = %+v", report)
 	}
 	if hits != 1 {
@@ -580,7 +580,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("code = %d, report = %+v", code, report)
 	}
-	if !report.WebhookSent {
+	if !report.NotificationSent {
 		t.Fatalf("report = %+v", report)
 	}
 	if hits != 1 {
@@ -1512,7 +1512,7 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 		"Lock",
 		"Duplicacy setup",
 		"Health state",
-		"Webhook",
+		"Notification",
 		"Config file",
 		"Secrets",
 		"Revision count",
@@ -1539,9 +1539,9 @@ func TestHealthCheckLabelsFitColumnWidth(t *testing.T) {
 	}
 }
 
-func TestHealthCheckSection_WebhookUsesAlerts(t *testing.T) {
-	if got := healthCheckSection("Webhook"); got != "Alerts" {
-		t.Fatalf("healthCheckSection(Webhook) = %q, want Alerts", got)
+func TestHealthCheckSection_NotificationUsesAlerts(t *testing.T) {
+	if got := healthCheckSection("Notification"); got != "Alerts" {
+		t.Fatalf("healthCheckSection(Notification) = %q, want Alerts", got)
 	}
 }
 

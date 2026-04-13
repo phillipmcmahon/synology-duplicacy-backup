@@ -124,23 +124,32 @@ The optional `[health]` table controls read-only health checks:
 | `doctor_warn_after_hours` | No | Warn when `health doctor` has not been run recently |
 | `verify_warn_after_hours` | No | Warn when `health verify` has not been run recently |
 
-The optional `[health.notify]` table controls webhook notifications for
-non-interactive health runs and selected runtime failures. Targets may override
+The optional `[health.notify]` table controls notifications for
+non-interactive health runs and selected runtime failures. It can deliver to a
+generic webhook destination, native `ntfy`, or both. Targets may override
 any of these values under `[targets.<name>.health]` and
 `[targets.<name>.health.notify]`:
 
 | Key | Required | Description |
 |---|---|---|
 | `webhook_url` | No | Webhook destination URL |
+| `[ntfy]` | No | Native `ntfy` delivery block |
 | `notify_on` | No | Statuses that should notify; defaults to `["degraded", "unhealthy"]` |
 | `send_for` | No | Commands or operations that may notify. Allowed values are `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`. Defaults to `["doctor", "verify"]` |
 | `interactive` | No | Allow notifications from interactive TTY runs; defaults to `false` |
 
 Runtime operations stay opt-in. Adding `backup`, `prune`, or
-`cleanup-storage` to `send_for` enables webhook delivery for those failure
+`cleanup-storage` to `send_for` enables notification delivery for those failure
 events while keeping the default health-only behaviour for existing configs.
 
-Webhook payloads are generic JSON, not vendor-specific payloads. Every payload
+Optional `[health.notify.ntfy]` keys:
+
+| Key | Required | Description |
+|---|---|---|
+| `url` | No | Base `ntfy` URL; defaults to `https://ntfy.sh` |
+| `topic` | Yes | `ntfy` topic name |
+
+Notification payloads are generic JSON, not vendor-specific payloads. Every payload
 includes shared fields such as:
 - `version`
 - `event_id`
@@ -158,8 +167,9 @@ includes shared fields such as:
 
 Health payloads also include `check` where relevant, runtime payloads include
 `operation`, and event-specific structured context is carried under `details`.
-This keeps the built-in webhook output suitable for simple bridges such as
-`ntfy`, Discord, Node-RED, or `n8n` without hard-coding any one vendor format.
+This keeps the built-in generic output suitable for future providers such as
+Discord, Slack, Node-RED, or `n8n` without hard-coding every one of them up
+front, while native `ntfy` support covers the low-cost Synology path directly.
 
 ## Example Config
 
@@ -187,6 +197,10 @@ webhook_url = "https://example.invalid/hooks/duplicacy-backup"
 notify_on = ["degraded", "unhealthy"]
 send_for = ["doctor", "verify", "backup", "prune", "cleanup-storage"]
 interactive = false
+
+[health.notify.ntfy]
+url = "https://ntfy.sh"
+topic = "duplicacy-backup-alerts"
 
 [targets.onsite-usb]
 type = "filesystem"
@@ -258,6 +272,7 @@ Example:
 storj_s3_id = "your-access-key-id"
 storj_s3_secret = "your-secret-access-key"
 health_webhook_bearer_token = "optional-webhook-bearer-token"
+health_ntfy_token = "optional-ntfy-bearer-token"
 ```
 
 Requirements:
@@ -265,7 +280,7 @@ Requirements:
 - owned by `root:root`
 - secrets directory permissions `0700`
 - permissions `0600`
-- only `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` are allowed
+- only `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` / `health_ntfy_token` are allowed
 - `storj_s3_id` must be at least 28 characters
 - `storj_s3_secret` must be at least 53 characters
 

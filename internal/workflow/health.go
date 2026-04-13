@@ -60,7 +60,7 @@ type HealthReport struct {
 	RevisionResults      []HealthRevisionResult `json:"revision_results,omitempty"`
 	Issues               []HealthIssue          `json:"issues,omitempty"`
 	Checks               []HealthCheck          `json:"checks,omitempty"`
-	WebhookSent          bool                   `json:"webhook_sent"`
+	NotificationSent     bool                   `json:"notification_sent"`
 	startedAt            time.Time              `json:"-"`
 	completedAt          time.Time              `json:"-"`
 }
@@ -71,8 +71,6 @@ type HealthRunner struct {
 	log    *logger.Logger
 	runner execpkg.Runner
 }
-
-var loadOptionalHealthWebhookToken = secrets.LoadOptionalHealthWebhookToken
 
 const (
 	verifyFailureNoRevisionsFound  = "no_revisions_found"
@@ -150,7 +148,7 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		h.printHeader(report)
 		h.addCheck(report, "Environment", "fail", OperatorMessage(err))
 		h.finalizeReport(report)
-		h.maybeSendEarlyWebhook(req, report)
+		h.maybeSendEarlyNotification(req, report)
 		h.printReport(report)
 		return report, healthExitCode(report.Status)
 	}
@@ -188,7 +186,7 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	if dupErr != nil {
 		h.addCheck(report, "Duplicacy setup", "fail", OperatorMessage(dupErr))
 		h.finalizeReport(report)
-		h.maybeSendEarlyWebhook(req, report)
+		h.maybeSendEarlyNotification(req, report)
 		h.printReport(report)
 		return report, healthExitCode(report.Status)
 	}
@@ -207,13 +205,13 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	}
 
 	h.finalizeReport(report)
-	if h.shouldSendWebhook(req, cfg.Health, report.Status) {
-		if payload := buildHealthWebhookPayload(h.rt, report); payload != nil {
-			if err := sendWebhookPayload(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
-				h.addCheck(report, "Webhook", "warn", err.Error())
+	if h.shouldSendNotification(req, cfg.Health, report.Status) {
+		if payload := buildHealthNotificationPayload(h.rt, report); payload != nil {
+			if err := sendConfiguredNotifications(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
+				h.addCheck(report, "Notification", "warn", err.Error())
 			} else {
-				report.WebhookSent = true
-				h.addCheck(report, "Webhook", "pass", "Delivered")
+				report.NotificationSent = true
+				h.addCheck(report, "Notification", "pass", "Delivered")
 			}
 		}
 	}
@@ -598,13 +596,13 @@ func (h *HealthRunner) loadHealthRecencyTime(report *HealthReport, kind string) 
 
 func healthJSONReport(report *HealthReport) map[string]any {
 	payload := map[string]any{
-		"status":       report.Status,
-		"check_type":   report.CheckType,
-		"label":        report.Label,
-		"target":       report.Target,
-		"mode":         report.Mode,
-		"checked_at":   report.CheckedAt,
-		"webhook_sent": report.WebhookSent,
+		"status":            report.Status,
+		"check_type":        report.CheckType,
+		"label":             report.Label,
+		"target":            report.Target,
+		"mode":              report.Mode,
+		"checked_at":        report.CheckedAt,
+		"notification_sent": report.NotificationSent,
 	}
 	if report.LastSuccessAt != "" {
 		payload["last_success_at"] = report.LastSuccessAt
@@ -693,11 +691,11 @@ func verifyRecommendedActions(code string) []string {
 	}
 }
 
-func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, status string) bool {
+func (h *HealthRunner) shouldSendNotification(req *Request, cfg config.HealthConfig, status string) bool {
 	if req == nil {
 		return false
 	}
-	if !shouldSendConfiguredWebhook(h.rt, h.log.Interactive(), cfg.Notify, req.HealthCommand) {
+	if !shouldSendConfiguredNotification(h.rt, h.log.Interactive(), cfg.Notify, req.HealthCommand) {
 		return false
 	}
 	if !containsString(cfg.Notify.NotifyOn, status) {
@@ -706,24 +704,24 @@ func (h *HealthRunner) shouldSendWebhook(req *Request, cfg config.HealthConfig, 
 	return true
 }
 
-func (h *HealthRunner) maybeSendEarlyWebhook(req *Request, report *HealthReport) {
+func (h *HealthRunner) maybeSendEarlyNotification(req *Request, report *HealthReport) {
 	if req == nil || report == nil {
 		return
 	}
 	cfg, secretsFile, ok := h.loadHealthNotifyConfig(req)
-	if !ok || !h.shouldSendWebhook(req, cfg, report.Status) {
+	if !ok || !h.shouldSendNotification(req, cfg, report.Status) {
 		return
 	}
-	payload := buildHealthWebhookPayload(h.rt, report)
+	payload := buildHealthNotificationPayload(h.rt, report)
 	if payload == nil {
 		return
 	}
-	if err := sendWebhookPayload(cfg.Notify, secretsFile, report.Target, payload); err != nil {
-		h.addCheck(report, "Webhook", "warn", err.Error())
+	if err := sendConfiguredNotifications(cfg.Notify, secretsFile, report.Target, payload); err != nil {
+		h.addCheck(report, "Notification", "warn", err.Error())
 		return
 	}
-	report.WebhookSent = true
-	h.addCheck(report, "Webhook", "pass", "Delivered")
+	report.NotificationSent = true
+	h.addCheck(report, "Notification", "pass", "Delivered")
 }
 
 func (h *HealthRunner) loadHealthNotifyConfig(req *Request) (config.HealthConfig, string, bool) {
@@ -848,7 +846,7 @@ func (h *HealthRunner) suppressCommandDebug() func() {
 
 func healthCheckSection(name string) string {
 	switch name {
-	case "Webhook":
+	case "Notification":
 		return "Alerts"
 	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
 		return "Doctor"

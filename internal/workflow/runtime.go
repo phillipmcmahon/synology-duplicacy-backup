@@ -293,6 +293,7 @@ TARGET SECRETS:
       storj_s3_id
       storj_s3_secret
       optional health_webhook_bearer_token
+      optional health_ntfy_token
 
 HEALTH STATE:
     Target-specific run and health state are stored under:
@@ -308,12 +309,16 @@ HEALTH CONFIG:
 
     Optional [health.notify] table keys:
       webhook_url
+      optional [health.notify.ntfy]:
+        url = "https://ntfy.sh"
+        topic = "duplicacy-alerts"
       notify_on = ["degraded", "unhealthy"]
       send_for = ["doctor", "verify"]  # add backup, prune, cleanup-storage to opt runtime alerts in
       interactive = false
 
     Optional secrets key:
       health_webhook_bearer_token
+      health_ntfy_token
 
 ARGUMENTS:
     source                   Backup label

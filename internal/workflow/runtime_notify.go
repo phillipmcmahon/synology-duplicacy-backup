@@ -2,7 +2,7 @@ package workflow
 
 import "time"
 
-func (e *Executor) maybeSendFailureWebhook() {
+func (e *Executor) maybeSendFailureNotification() {
 	if e == nil || e.plan == nil || e.report == nil || e.lastErr == nil {
 		return
 	}
@@ -10,21 +10,21 @@ func (e *Executor) maybeSendFailureWebhook() {
 		return
 	}
 
-	sendFor := runtimeWebhookSendFor(e.report, e.visibleRunStarted)
-	if !shouldSendConfiguredWebhook(e.rt, e.log.Interactive(), e.plan.Notify, sendFor) {
+	sendFor := runtimeNotificationSendFor(e.report, e.visibleRunStarted)
+	if !shouldSendConfiguredNotification(e.rt, e.log.Interactive(), e.plan.Notify, sendFor) {
 		return
 	}
 
-	payload := buildRuntimeWebhookPayload(e.rt, e.plan, e.report, e.lastErr, e.visibleRunStarted, e.lastPrunePreview)
+	payload := buildRuntimeNotificationPayload(e.rt, e.plan, e.report, e.lastErr, e.visibleRunStarted, e.lastPrunePreview)
 	if payload == nil {
 		return
 	}
-	if err := sendWebhookPayload(e.plan.Notify, e.plan.SecretsFile, e.report.Target, payload); err != nil {
-		e.log.Warn("%s", statusLinef("Failed to deliver webhook notification: %v", err))
+	if err := sendConfiguredNotifications(e.plan.Notify, e.plan.SecretsFile, e.report.Target, payload); err != nil {
+		e.log.Warn("%s", statusLinef("Failed to deliver notification: %v", err))
 	}
 }
 
-func runtimeWebhookSendFor(report *RunReport, visibleRunStarted bool) string {
+func runtimeNotificationSendFor(report *RunReport, visibleRunStarted bool) string {
 	if report == nil {
 		return ""
 	}
@@ -43,7 +43,7 @@ func runtimeWebhookSendFor(report *RunReport, visibleRunStarted bool) string {
 	}
 }
 
-func MaybeSendPreRunFailureWebhook(rt Runtime, interactive bool, plan *Plan, req *Request, startedAt, completedAt time.Time, err error) error {
+func MaybeSendPreRunFailureNotification(rt Runtime, interactive bool, plan *Plan, req *Request, startedAt, completedAt time.Time, err error) error {
 	if plan == nil || req == nil || err == nil || !req.DoBackup {
 		return nil
 	}
@@ -52,11 +52,11 @@ func MaybeSendPreRunFailureWebhook(rt Runtime, interactive bool, plan *Plan, req
 	}
 
 	report := NewFailureRunReport(req, plan, startedAt, completedAt, 1, OperatorMessage(err))
-	sendFor := runtimeWebhookSendFor(report, false)
-	if !shouldSendConfiguredWebhook(rt, interactive, plan.Notify, sendFor) {
+	sendFor := runtimeNotificationSendFor(report, false)
+	if !shouldSendConfiguredNotification(rt, interactive, plan.Notify, sendFor) {
 		return nil
 	}
 
-	payload := buildRuntimeWebhookPayload(rt, plan, report, err, false, nil)
-	return sendWebhookPayload(plan.Notify, plan.SecretsFile, report.Target, payload)
+	payload := buildRuntimeNotificationPayload(rt, plan, report, err, false, nil)
+	return sendConfiguredNotifications(plan.Notify, plan.SecretsFile, report.Target, payload)
 }

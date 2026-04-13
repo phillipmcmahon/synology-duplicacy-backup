@@ -23,7 +23,7 @@ func (e *Executor) cleanup() {
 		e.report.CompleteRun(e.exitCode, e.report.FailureMessage, e.rt.Now())
 	}
 	if e.exitCode != 0 {
-		e.maybeSendFailureWebhook()
+		e.maybeSendFailureNotification()
 	}
 	if !e.plan.DryRun {
 		if err := updateRunState(e.meta, e.plan, e.report, e.lastBackupRevision); err != nil {

@@ -158,6 +158,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"[health]",
 			"[health.notify]",
 			"health_webhook_bearer_token",
+			"health_ntfy_token",
 			"/var/lib/duplicacy-backup/<label>.<target>.json",
 		},
 		filepath.Join(root, "TESTING.md"): {
@@ -198,6 +199,7 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"health verify            Read-only integrity check across revisions found for the current label",
 		"Target-specific run and health state are stored under:",
 		"health_webhook_bearer_token",
+		"health_ntfy_token",
 		"Use [targets.<name>] tables with:",
 		"--cleanup-storage        Request storage maintenance:",
 		"--fix-perms              Normalise filesystem repository ownership and permissions",

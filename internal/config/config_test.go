@@ -133,6 +133,9 @@ webhook_url = "https://example.invalid/hook"
 notify_on = ["unhealthy"]
 send_for = ["status", "verify"]
 interactive = true
+
+[health.notify.ntfy]
+topic = "alerts"
 `)
 
 	raw, err := ParseFile(p)
@@ -145,6 +148,9 @@ interactive = true
 	}
 	if health.Notify.WebhookURL != "https://example.invalid/hook" || !health.Notify.Interactive {
 		t.Fatalf("health notify = %+v", health.Notify)
+	}
+	if health.Notify.Ntfy.URL != "https://ntfy.sh" || health.Notify.Ntfy.Topic != "alerts" {
+		t.Fatalf("health notify ntfy = %+v", health.Notify.Ntfy)
 	}
 	if got := strings.Join(health.Notify.SendFor, ","); got != "status,verify" {
 		t.Fatalf("SendFor = %q", got)
@@ -280,6 +286,9 @@ interactive = true
 	if health.Notify.WebhookURL != "https://example.invalid/hook" || !health.Notify.Interactive {
 		t.Fatalf("health notify = %+v", health.Notify)
 	}
+	if health.Notify.Ntfy.URL != "https://ntfy.sh" || health.Notify.Ntfy.Topic != "" {
+		t.Fatalf("health notify ntfy = %+v", health.Notify.Ntfy)
+	}
 	if got := strings.Join(health.Notify.NotifyOn, ","); got != "unhealthy" {
 		t.Fatalf("NotifyOn = %q", got)
 	}
@@ -398,6 +407,9 @@ interactive = true
 	}
 	if !health.Notify.Interactive {
 		t.Fatalf("health notify = %+v", health.Notify)
+	}
+	if health.Notify.Ntfy.URL != "https://ntfy.sh" || health.Notify.Ntfy.Topic != "" {
+		t.Fatalf("health notify ntfy = %+v", health.Notify.Ntfy)
 	}
 }
 
@@ -910,9 +922,29 @@ func TestHealthConfigValidate(t *testing.T) {
 		t.Fatalf("Validate() extended send_for error = %v", err)
 	}
 
+	validNtfy := valid
+	validNtfy.Notify.Ntfy.Topic = "alerts"
+	if err := validNtfy.Validate(); err != nil {
+		t.Fatalf("Validate() ntfy config error = %v", err)
+	}
+
 	invalidSendFor := valid
 	invalidSendFor.Notify.SendFor = []string{"backup", "nope"}
 	if err := invalidSendFor.Validate(); err == nil || !strings.Contains(err.Error(), "send_for") {
 		t.Fatalf("Validate() send_for err = %v", err)
+	}
+
+	invalidNtfy := valid
+	invalidNtfy.Notify.Ntfy.URL = ""
+	invalidNtfy.Notify.Ntfy.Topic = "alerts"
+	if err := invalidNtfy.Validate(); err == nil || !strings.Contains(err.Error(), "health.notify.ntfy.url") {
+		t.Fatalf("Validate() ntfy url err = %v", err)
+	}
+
+	invalidNtfyTopic := valid
+	invalidNtfyTopic.Notify.Ntfy.URL = "https://ntfy.example.com"
+	invalidNtfyTopic.Notify.Ntfy.Topic = ""
+	if err := invalidNtfyTopic.Validate(); err == nil || !strings.Contains(err.Error(), "health.notify.ntfy.topic") {
+		t.Fatalf("Validate() ntfy topic err = %v", err)
 	}
 }

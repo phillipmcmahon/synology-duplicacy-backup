@@ -192,10 +192,12 @@ can be modelled as `type = "filesystem"` with `location = "remote"` without
 loading secrets.
 The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage, with optional
-`health_webhook_bearer_token` support for authenticated webhook notifications.
+`health_webhook_bearer_token` and `health_ntfy_token` support for authenticated
+notifications.
 For low-cost operator alerting, a good baseline is Synology scheduled-task
-email for raw job failures plus webhook delivery to a lightweight bridge such
-as `ntfy` for richer degraded, unhealthy, and selected runtime-failure events.
+email for raw job failures plus native `ntfy` delivery for richer degraded,
+unhealthy, and selected runtime-failure events. Generic webhook delivery stays
+available for future providers and external automation.
 
 Health commands are read-only and do not prompt for confirmation. They are
 designed to be run separately from backup jobs so schedulers and external

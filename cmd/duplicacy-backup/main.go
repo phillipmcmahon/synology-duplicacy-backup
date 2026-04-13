@@ -116,7 +116,7 @@ func runWithArgs(args []string) int {
 		}
 		log.Error("%s", workflow.OperatorMessage(err))
 		if failurePlan != nil {
-			if notifyErr := workflow.MaybeSendPreRunFailureWebhook(rt, log.Interactive(), failurePlan, result.Request, startedAt, rt.Now(), err); notifyErr != nil {
+			if notifyErr := workflow.MaybeSendPreRunFailureNotification(rt, log.Interactive(), failurePlan, result.Request, startedAt, rt.Now(), err); notifyErr != nil {
 				log.Warn("%s", workflow.OperatorMessage(notifyErr))
 			}
 		}
