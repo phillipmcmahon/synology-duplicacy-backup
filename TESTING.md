@@ -56,7 +56,11 @@ Current Linux Go 1.26 development snapshot for the `v4.0.1` maintenance release:
 ## Packaging Rule
 
 Release artefacts are built by GitHub Actions from the pushed release tag.
-Local packaging is optional and is only for test-package generation.
+Local packaging is optional and is only for test-package generation. After a
+release is published, the canonical GitHub-built artefacts and the two
+GitHub-generated source archives should be downloaded and mirrored to:
+
+- `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
 
 When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host.

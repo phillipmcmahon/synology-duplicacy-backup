@@ -16,6 +16,9 @@ on the macOS host.
 - Let the tag-triggered GitHub Actions workflow build and publish the release
   artefacts.
 - Do not build local release tarballs as part of the normal release flow.
+- After the GitHub release is live, download the published release artefacts
+  plus the GitHub-generated source archives and mirror them to
+  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`.
 
 ## Checklist
 
@@ -137,6 +140,44 @@ After the release workflow finishes:
 - confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story
+
+### 7. Mirror the published artefacts to homestorage
+
+After the release exists and the GitHub Actions asset set is complete:
+
+- download all published release assets from GitHub
+- download the GitHub-generated source archives:
+  - `Source code (zip)`
+  - `Source code (tar.gz)`
+- create the destination directory:
+  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
+- copy the full artefact set to `homestorage` with `scp`
+
+Expected artefacts for each release:
+
+- `duplicacy-backup_<version>_linux_amd64.tar.gz`
+- `duplicacy-backup_<version>_linux_amd64.tar.gz.sha256`
+- `duplicacy-backup_<version>_linux_arm64.tar.gz`
+- `duplicacy-backup_<version>_linux_arm64.tar.gz.sha256`
+- `duplicacy-backup_<version>_linux_armv7.tar.gz`
+- `duplicacy-backup_<version>_linux_armv7.tar.gz.sha256`
+- `SHA256SUMS.txt`
+- `Source code (zip)`
+- `Source code (tar.gz)`
+
+Example:
+
+```bash
+tag=vX.Y.Z
+stage_dir="$(mktemp -d)"
+
+gh release download "$tag" --dir "$stage_dir"
+gh release download "$tag" --archive zip --output "$stage_dir/source-code.zip"
+gh release download "$tag" --archive tar.gz --output "$stage_dir/source-code.tar.gz"
+
+ssh homestorage "mkdir -p /volume1/homes/phillipmcmahon/code/duplicacy-backup/$tag"
+scp "$stage_dir"/* "homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/$tag/"
+```
 
 ## Release Failure Rule
 
