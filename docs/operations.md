@@ -39,7 +39,13 @@ By default this will:
 - create or update `current`
 - create or update `/usr/local/bin/duplicacy-backup`
 - create `/usr/local/lib/duplicacy-backup/.config` if needed
-- leave `/root/.secrets` untouched for any object-target credentials
+- when run as `root`, normalise `/usr/local/lib/duplicacy-backup/.config` to
+  `root:administrators` with mode `750`
+- when run as `root`, normalise any existing `*-backup.toml` files in that
+  directory to `root:administrators` with mode `640`
+- when run as `root`, ensure `/root/.secrets` exists as `root:root` with mode
+  `700`
+- never create, rewrite, or chmod individual secrets files
 
 ### Installer options
 
@@ -55,6 +61,9 @@ sudo ./install.sh --no-activate
 
 # Use custom install locations
 sudo ./install.sh --install-root /volume1/tools/duplicacy-backup --bin-dir /usr/local/bin
+
+# Use a different trusted operator group for config access
+sudo ./install.sh --config-group users
 
 # Keep only the 3 newest installed binaries
 sudo ./install.sh --keep 3
@@ -97,6 +106,13 @@ With the recommended layout, the effective default config file path becomes:
 ```text
 /usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
 ```
+
+Recommended Synology permissions:
+
+- config directory: `root:administrators` with mode `750`
+- config files: `root:administrators` with mode `640`
+- secrets directory: `root:root` with mode `700`
+- secrets files: `root:root` with mode `600`
 
 You can still override this with:
 

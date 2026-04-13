@@ -94,6 +94,17 @@ duplicacy-backup config paths --target offsite-storj homes
 /var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
+Recommended permissions:
+- `/usr/local/lib/duplicacy-backup/.config`: `root:administrators` `750`
+- `/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml`: `root:administrators` `640`
+- `/root/.secrets`: `root:root` `700`
+- `/root/.secrets/<label>-secrets.toml`: `root:root` `600`
+
+Installer behaviour:
+- `install.sh` creates or normalises `/usr/local/lib/duplicacy-backup/.config`
+- when run as `root`, `install.sh` also creates or normalises `/root/.secrets`
+- `install.sh` never writes or rewrites individual secrets files
+
 ## Rules Of Thumb
 
 - Start with `--dry-run` for anything destructive or unfamiliar.

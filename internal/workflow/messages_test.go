@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"testing"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
@@ -173,7 +175,17 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "config open with hint",
 			err:  apperrors.NewConfigError("open", errors.New("cannot open"), "path", "/tmp/homes-backup.toml"),
+			want: "cannot open; check the config path and file permissions",
+		},
+		{
+			name: "config open not found",
+			err:  apperrors.NewConfigError("open", fmt.Errorf("cannot open config file /tmp/homes-backup.toml: %w", os.ErrNotExist), "path", "/tmp/homes-backup.toml"),
 			want: "Config file not found: /tmp/homes-backup.toml; create the TOML file or override the location with --config-dir",
+		},
+		{
+			name: "config open permission denied",
+			err:  apperrors.NewConfigError("open", fmt.Errorf("cannot open config file /tmp/homes-backup.toml: %w", os.ErrPermission), "path", "/tmp/homes-backup.toml"),
+			want: "Config file is not accessible: /tmp/homes-backup.toml; run as root or grant read and directory traverse access to the config path",
 		},
 		{
 			name: "config missing local target",

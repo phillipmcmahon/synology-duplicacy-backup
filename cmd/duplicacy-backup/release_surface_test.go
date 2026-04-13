@@ -43,12 +43,66 @@ func TestInstallScript_HelpMentionsCurrentLayout(t *testing.T) {
 		"/root/.secrets/",
 		"--no-activate",
 		"--keep",
+		"--config-group",
 		".config/",
 	}
 	for _, token := range required {
 		if !strings.Contains(help, token) {
 			t.Fatalf("install help missing %q:\n%s", token, help)
 		}
+	}
+}
+
+func TestInstallScript_NormalisesConfigPermissions(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
+	tempDir := t.TempDir()
+	installRoot := filepath.Join(tempDir, "install-root")
+	binDir := filepath.Join(tempDir, "bin")
+	if err := os.MkdirAll(filepath.Join(installRoot, ".config"), 0755); err != nil {
+		t.Fatalf("MkdirAll(.config) failed: %v", err)
+	}
+	configFile := filepath.Join(installRoot, ".config", "homes-backup.toml")
+	if err := os.WriteFile(configFile, []byte("label = \"homes\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(config) failed: %v", err)
+	}
+	binaryPath := filepath.Join(tempDir, "duplicacy-backup_9.9.9_linux_amd64")
+	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("WriteFile(binary) failed: %v", err)
+	}
+
+	cmd := exec.Command("sh", scriptPath,
+		"--binary", binaryPath,
+		"--install-root", installRoot,
+		"--bin-dir", binDir,
+		"--config-group", "staff",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("install script failed: %v\n%s", err, output)
+	}
+
+	configInfo, err := os.Stat(filepath.Join(installRoot, ".config"))
+	if err != nil {
+		t.Fatalf("Stat(.config) failed: %v", err)
+	}
+	if got := configInfo.Mode().Perm(); got != 0750 {
+		t.Fatalf(".config perms = %04o, want 0750", got)
+	}
+
+	fileInfo, err := os.Stat(configFile)
+	if err != nil {
+		t.Fatalf("Stat(config file) failed: %v", err)
+	}
+	if got := fileInfo.Mode().Perm(); got != 0640 {
+		t.Fatalf("config file perms = %04o, want 0640", got)
+	}
+
+	installOutput := string(output)
+	if !strings.Contains(installOutput, "Secrets directory: /root/.secrets") {
+		t.Fatalf("install output missing secrets directory guidance:\n%s", installOutput)
+	}
+	if !strings.Contains(installOutput, "run installer as root to create or normalise it") {
+		t.Fatalf("install output missing non-root secrets guidance:\n%s", installOutput)
 	}
 }
 

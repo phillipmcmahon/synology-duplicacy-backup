@@ -93,9 +93,10 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 
 	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.SnapshotSource)
+	privilegedValidation := planner.rt.Geteuid() == 0
 	btrfsStatus := "Not checked"
 	var btrfsErr error
-	if sourceAccessible {
+	if sourceAccessible && privilegedValidation {
 		btrfsStatus = "Valid"
 		btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
 	}
@@ -108,13 +109,20 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	repoHint := ""
 	var sec *secrets.Secrets
 	var secretsErr error
+	secretsChecked := !cfg.UsesObjectStorage()
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
-	if cfg.UsesObjectStorage() {
+	if cfg.UsesObjectStorage() && privilegedValidation {
+		secretsChecked = true
 		sec, secretsErr = planner.loadSecrets(plan)
 	}
 
-	if sourceAccessible && destinationErr == nil && (!cfg.UsesObjectStorage() || secretsErr == nil) {
-		repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+	if sourceAccessible && destinationErr == nil {
+		switch {
+		case cfg.UsesFilesystem():
+			repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+		case cfg.UsesObjectStorage() && secretsChecked && secretsErr == nil:
+			repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+		}
 		if repoStatus == "Not initialized" && repoErr == nil {
 			repoFailureMessage = "Repository is reachable but not initialized"
 		}
@@ -129,7 +137,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 	collector.addStatus("Health Thresholds", "Valid", healthErr)
 	collector.addStatus("Source Path Access", sourceStatus, sourceErr)
-	if sourceAccessible {
+	if sourceAccessible && privilegedValidation {
 		collector.addStatus("Btrfs Source", btrfsStatus, btrfsErr)
 	} else {
 		collector.addUnchecked("Btrfs Source")
@@ -151,7 +159,11 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 	collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
 	if cfg.UsesObjectStorage() {
-		collector.addStatus("Secrets", "Valid", secretsErr)
+		if secretsChecked {
+			collector.addStatus("Secrets", "Valid", secretsErr)
+		} else {
+			collector.addUnchecked("Secrets")
+		}
 	}
 
 	if collector.failed() {

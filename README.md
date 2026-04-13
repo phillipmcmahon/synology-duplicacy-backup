@@ -88,12 +88,29 @@ Example:
 ```bash
 mkdir -p /usr/local/lib/duplicacy-backup/.config
 cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+chown root:administrators /usr/local/lib/duplicacy-backup/.config
+chmod 750 /usr/local/lib/duplicacy-backup/.config
+chown root:administrators /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+chmod 640 /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
+
+The Synology installer also:
+
+- normalises `.config` to `root:administrators` with mode `750`
+- normalises any existing `*-backup.toml` files there to mode `640`
+- ensures `/root/.secrets` exists as `root:root` with mode `700`
+
+when run as `root`. Use `./install.sh --config-group <name>` if you want a
+different trusted operator group for config access. The installer never
+creates or rewrites individual secrets files.
 
 For labels with object-storage targets, create a matching label secrets file
 under `/root/.secrets` and add target-specific entries inside it:
 
 ```bash
+mkdir -p /root/.secrets
+chown root:root /root/.secrets
+chmod 700 /root/.secrets
 cp examples/homes-secrets.toml /root/.secrets/homes-secrets.toml
 chown root:root /root/.secrets/homes-secrets.toml
 chmod 600 /root/.secrets/homes-secrets.toml

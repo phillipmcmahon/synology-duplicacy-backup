@@ -35,6 +35,16 @@ Overrides:
 - `--config-dir <path>`
 - `DUPLICACY_BACKUP_CONFIG_DIR`
 
+Recommended Synology permissions for the installed layout:
+
+- config directory: `root:administrators` with mode `750`
+- config files: `root:administrators` with mode `640`
+
+The bundled installer applies that policy automatically to the default
+`.config` directory and any existing `*-backup.toml` files when it is run as
+`root`. Use `./install.sh --config-group <name>` if you want a different
+trusted operator group.
+
 ## Config File Format
 
 Each config file defines one source label plus one or more named targets.
@@ -227,6 +237,7 @@ health_webhook_bearer_token = "optional-webhook-bearer-token"
 Requirements:
 
 - owned by `root:root`
+- secrets directory permissions `0700`
 - permissions `0600`
 - only `storj_s3_id`, `storj_s3_secret`, and optional `health_webhook_bearer_token` are allowed
 - `storj_s3_id` must be at least 28 characters
@@ -234,6 +245,9 @@ Requirements:
 
 The current schema uses `storj_s3_id` and `storj_s3_secret` because those
 values are passed through to Duplicacy for gateway-backed target storage.
+
+When run as `root`, the bundled installer ensures `/root/.secrets` exists with
+mode `700`, but it does not create or rewrite any individual secrets files.
 
 Filesystem targets, whether local or remote, do not load secrets and therefore
 do not need a matching secrets file.

@@ -96,6 +96,52 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host", "Local Owner", "Local Group")
 }
 
+func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootSkipsPrivilegedChecks(t *testing.T) {
+	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
+		return []string{"203.0.113.10"}, nil
+	})
+
+	sourcePath := t.TempDir()
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	if err != nil {
+		t.Fatalf("HandleConfigCommand() error = %v", err)
+	}
+
+	for _, token := range []string{
+		"Config validation succeeded for homes/offsite-storj",
+		"Btrfs Source",
+		"Not checked",
+		"Destination Access",
+		"Resolved",
+		"Repository Access",
+		"Secrets",
+		"Result",
+		"Passed",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	values := extractValidationValues(t, out)
+	if values["Btrfs Source"] != "Not checked" {
+		t.Fatalf("Btrfs Source = %q:\n%s", values["Btrfs Source"], out)
+	}
+	if values["Repository Access"] != "Not checked" {
+		t.Fatalf("Repository Access = %q:\n%s", values["Repository Access"], out)
+	}
+	if values["Secrets"] != "Not checked" {
+		t.Fatalf("Secrets = %q:\n%s", values["Secrets"], out)
+	}
+	assertAllowedValidationOutcomes(t, out)
+}
+
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()

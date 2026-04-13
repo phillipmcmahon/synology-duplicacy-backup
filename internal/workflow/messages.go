@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
@@ -192,10 +193,28 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 	switch err.Field {
 	case "open":
 		if path := err.Context["path"]; path != "" {
-			return withHint(
-				fmt.Sprintf("Config file not found: %s", path),
-				"create the TOML file or override the location with --config-dir",
-			)
+			switch {
+			case err.Cause != nil && errors.Is(err.Cause, os.ErrNotExist):
+				return withHint(
+					fmt.Sprintf("Config file not found: %s", path),
+					"create the TOML file or override the location with --config-dir",
+				)
+			case err.Cause != nil && errors.Is(err.Cause, os.ErrPermission):
+				return withHint(
+					fmt.Sprintf("Config file is not accessible: %s", path),
+					"run as root or grant read and directory traverse access to the config path",
+				)
+			case err.Cause != nil:
+				return withHint(
+					err.Cause.Error(),
+					"check the config path and file permissions",
+				)
+			default:
+				return withHint(
+					fmt.Sprintf("Config file could not be opened: %s", path),
+					"check the config path and file permissions",
+				)
+			}
 		}
 	case "section-target":
 		if err.Cause != nil {

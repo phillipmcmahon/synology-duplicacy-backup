@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
@@ -449,6 +450,33 @@ func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T
 			}
 		}
 		if !strings.Contains(stderr, "Config validation failed for homes/onsite-usb") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_ConfigValidatePermissionDeniedReportsAccessIssue(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", apperrors.NewConfigError(
+				"open",
+				fmt.Errorf("cannot open config file /usr/local/lib/duplicacy-backup/.config/homes-backup.toml: %w", os.ErrPermission),
+				"path", "/usr/local/lib/duplicacy-backup/.config/homes-backup.toml",
+			)
+		}
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--target", "offsite-storj", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config validate permission denied) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Config file is not accessible: /usr/local/lib/duplicacy-backup/.config/homes-backup.toml") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stderr, "run as root or grant read and directory traverse access to the config path") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Config file not found") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
