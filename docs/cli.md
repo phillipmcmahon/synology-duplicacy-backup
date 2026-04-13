@@ -8,9 +8,9 @@ duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-Every runtime, `config`, and `health` command requires an explicit
+Every runtime, `config`, and `health` command needs an explicit
 `--target <name>`.
-Every runtime command must also pass at least one explicit primary operation.
+Every runtime command also needs at least one explicit primary operation.
 
 Targets now describe both storage kind and deployment location:
 

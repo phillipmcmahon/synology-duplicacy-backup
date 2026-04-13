@@ -2,10 +2,10 @@
 
 ## Goal
 
-This guide describes the recommended operational workflow for running
+Use this guide for the recommended operational workflow when running
 `duplicacy-backup` under Synology Task Scheduler.
 
-It is intentionally focused on supported, repeatable operator practice:
+It focuses on supported, repeatable operator practice:
 
 - separate scheduled tasks rather than unsupported DSM automation
 - stable task naming
@@ -60,7 +60,7 @@ Examples:
 
 ## Timing Rules
 
-Use these rules before choosing exact times:
+Use these guidelines before choosing exact times:
 
 - treat the most important label and target as the priority workload
 - keep onsite and offsite cadences independent
@@ -72,7 +72,7 @@ Good candidates for repeat-every scheduling:
 
 - frequent onsite backups such as every 6 hours
 
-Good candidates for distinct scheduled entries:
+Good candidates for separate scheduled entries:
 
 - offsite backups
 - prune

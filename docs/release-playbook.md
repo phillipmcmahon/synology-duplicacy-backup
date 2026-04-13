@@ -1,8 +1,7 @@
 # Release Playbook
 
-Use this checklist for every public release. Do not skip steps, do not
-improvise the release notes from memory, and do not generate release artefacts
-on the macOS host.
+Use this checklist for every public release. Do not skip steps, improvise the
+release notes from memory, or generate release artefacts on the macOS host.
 
 ## Rules
 

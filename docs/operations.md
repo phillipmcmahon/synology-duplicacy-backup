@@ -33,7 +33,7 @@ After extracting a release tarball, run:
 sudo ./install.sh
 ```
 
-By default this will:
+By default, it will:
 
 - copy the versioned binary into `/usr/local/lib/duplicacy-backup`
 - create or update `current`
@@ -78,9 +78,9 @@ Upgrading is the same as a fresh install:
 3. confirm `/usr/local/bin/duplicacy-backup --version`
 
 Config and secrets stay in their existing directories, so upgrades do not
-require copying TOML files again unless you are intentionally changing them.
-The intended day-2 layout is one config file per label and, when needed, one
-secrets file per label.
+require you to copy the TOML files again unless you are intentionally changing
+them. In normal day-to-day use, each label has one backup config file and,
+when needed, one matching secrets file.
 
 Under the current target model, only `type = "object"` targets need a secrets
 file for storage credentials. Filesystem targets, whether local or remote, only
@@ -173,8 +173,8 @@ Example: scheduled JSON integrity verification for label `homes` on target `onsi
 /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
-The health JSON report is intended for automation rather than terminal
-rendering. It exposes structured fields such as:
+The health JSON report is meant for automation rather than terminal reading.
+It exposes structured fields such as:
 
 - `status`
 - `revision_count`
@@ -188,8 +188,8 @@ rendering. It exposes structured fields such as:
 - `last_verify_run_at`
 
 Healthy verify runs keep the JSON compact and omit per-revision detail. When
-integrity issues are found, `revision_results` is included so the failing
-revisions can be diagnosed.
+integrity issues are found, `revision_results` is included so you can inspect
+the failing revisions.
 
 Unhealthy verify runs also emit machine-focused classification fields:
 
@@ -203,8 +203,8 @@ Targets now define both `type` and `location`, so mounted remote filesystems
 can be modelled as `type = "filesystem"` with `location = "remote"` without
 loading secrets.
 The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
-gateway-backed S3-compatible storage, with optional
-`health_webhook_bearer_token` and `health_ntfy_token` support for authenticated
+gateway-backed S3-compatible storage. It also supports optional
+`health_webhook_bearer_token` and `health_ntfy_token` values for authenticated
 notifications. Those notification auth tokens are target-scoped in the secrets
 file, so repeat them under each notifying target that needs authenticated
 delivery.
@@ -229,9 +229,9 @@ designed to be run separately from backup jobs so schedulers and external
 monitoring can check freshness and environment health without mutating backup
 state.
 
-As an operator rule of thumb, prefer separate scheduled tasks for backup,
-prune, health, and fix-perms rather than chaining everything together into a
-single recurring job.
+As an operator guideline, prefer separate scheduled tasks for backup, prune,
+health, and fix-perms rather than chaining everything together into one
+recurring job.
 
 Treat `--cleanup-storage` and `--force-prune` as explicit operator actions
 rather than routine scheduled work.

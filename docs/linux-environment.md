@@ -17,7 +17,7 @@ Use:
 - the repo mounted at `/work`
 - a temporary Go build cache inside the container
 
-This is the standard Linux machine for this project.
+Treat this as the standard Linux environment for the project.
 
 For normal release work, prefer:
 

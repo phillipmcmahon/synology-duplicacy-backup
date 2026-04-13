@@ -2,14 +2,14 @@
 
 ## Config File Location
 
-By default the binary resolves config files relative to the executable:
+By default, the binary resolves config files relative to the executable:
 
 ```text
 <binary-dir>/.config/<label>-backup.toml
 ```
 
 With the recommended installer layout from [`operations.md`](operations.md),
-the effective default becomes:
+that becomes:
 
 ```text
 /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
@@ -27,8 +27,8 @@ the config still resolves under:
 /usr/local/lib/duplicacy-backup/.config/
 ```
 
-because `/usr/local/bin/duplicacy-backup` is a symlink to the real installed
-binary under `/usr/local/lib/duplicacy-backup/`.
+because `/usr/local/bin/duplicacy-backup` is just a symlink to the real
+installed binary under `/usr/local/lib/duplicacy-backup/`.
 
 Overrides:
 
@@ -40,15 +40,15 @@ Recommended Synology permissions for the installed layout:
 - config directory: `root:administrators` with mode `750`
 - config files: `root:administrators` with mode `640`
 
-The bundled installer applies that policy automatically to the default
-`.config` directory and any existing `*-backup.toml` files when it is run as
-`root`. Use `./install.sh --config-group <name>` if you want a different
-trusted operator group.
+When the bundled installer is run as `root`, it applies that policy
+automatically to the default `.config` directory and any existing
+`*-backup.toml` files. Use `./install.sh --config-group <name>` if you want a
+different trusted operator group.
 
 ## Config File Format
 
-Each config file defines one source label plus one or more named targets.
-The preferred layout is:
+Each config file defines one source label and one or more named targets.
+The expected layout is:
 
 - top-level `label`
 - top-level `source_path`
@@ -72,7 +72,7 @@ Supported combinations:
 - `type = "filesystem"` with `location = "remote"`
 - `type = "object"` with `location = "remote"`
 
-This means a mounted filesystem path over VPN can be modelled honestly as
+This means a mounted filesystem path over VPN can be modelled cleanly as
 remote without forcing object-storage behaviour.
 
 Operational rules:
@@ -126,8 +126,8 @@ The optional `[health]` table controls read-only health checks:
 
 The optional `[health.notify]` table controls notifications for
 non-interactive health runs and selected runtime failures. It can deliver to a
-generic webhook destination, native `ntfy`, or both. Targets may override
-any of these values under `[targets.<name>.health]` and
+generic webhook destination, native `ntfy`, or both. Targets can override
+these values under `[targets.<name>.health]` and
 `[targets.<name>.health.notify]`:
 
 | Key | Required | Description |
@@ -139,8 +139,9 @@ any of these values under `[targets.<name>.health]` and
 | `interactive` | No | Allow notifications from interactive TTY runs; defaults to `false` |
 
 Runtime operations stay opt-in. Adding `backup`, `prune`, or
-`cleanup-storage` to `send_for` enables notification delivery for those failure
-events while keeping the default health-only behaviour for existing configs.
+`cleanup-storage` to `send_for` enables notifications for those failure
+events while preserving the default health-only behaviour for existing
+configs.
 
 Initial destination patterns:
 
@@ -165,8 +166,8 @@ destination requires authentication, store `health_webhook_bearer_token` and/or
 secrets file. If several targets notify to the same authenticated destination,
 repeat the token in each target section that needs to send notifications.
 
-Notification payloads are generic JSON, not vendor-specific payloads. Every payload
-includes shared fields such as:
+Notification payloads are generic JSON, not vendor-specific message formats.
+Every payload includes shared fields such as:
 - `version`
 - `event_id`
 - `timestamp`
@@ -183,9 +184,9 @@ includes shared fields such as:
 
 Health payloads also include `check` where relevant, runtime payloads include
 `operation`, and event-specific structured context is carried under `details`.
-This keeps the built-in generic output suitable for future providers such as
-Discord, Slack, Node-RED, or `n8n` without hard-coding every one of them up
-front, while native `ntfy` support covers the low-cost Synology path directly.
+That keeps the built-in generic output suitable for future providers such as
+Discord, Slack, Node-RED, or `n8n` without hard-coding each one up front,
+while native `ntfy` support covers the low-cost Synology path directly.
 
 ### Notification Signal Expectations
 
@@ -200,8 +201,8 @@ The v1 notification model keeps signal tight by default:
 There is no built-in deduplication, reminder cadence, or escalation policy in
 v1. If a scheduled run fails repeatedly and still matches your notification
 policy, it will notify on each matching run. Keep scheduler frequency sensible
-and use the receiving system's own suppression or grouping features if you need
-further noise control.
+and use the receiving system's own suppression or grouping features if you
+need more noise control.
 
 ## Example Config
 

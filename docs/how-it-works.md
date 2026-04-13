@@ -2,7 +2,7 @@
 
 This document is the detailed internal guide for `synology-duplicacy-backup`.
 
-It is meant to answer questions like:
+It answers questions like:
 
 - What actually happens when the binary starts?
 - Which package owns which decisions?
@@ -11,7 +11,7 @@ It is meant to answer questions like:
 - If I need to change backup, prune, storage cleanup, or fix-perms behaviour, where do I look?
 
 If you want the short version, start with [architecture.md](architecture.md).
-This document is the longer walkthrough.
+This is the longer walkthrough.
 
 ## Mental Model
 

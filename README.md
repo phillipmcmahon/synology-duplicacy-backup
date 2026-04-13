@@ -2,7 +2,7 @@
 
 [![Build Synology Binaries](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml/badge.svg)](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml)
 
-A compiled Go replacement for `duplicacy-backup.sh`.
+A Go replacement for `duplicacy-backup.sh`.
 
 It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for named per-label targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
 
@@ -57,9 +57,9 @@ make synology
 ```
 
 Build outputs are written to `build/`, and GitHub releases publish packaged
-Synology tarballs. CI smoke-tests each packaged tarball before release by
-verifying archive contents, checksum validation, binary `--version` / `--help`,
-and installer `--help`.
+Synology tarballs. Before release, CI smoke-tests each packaged tarball by
+checking the archive contents, checksum validation, binary `--version` and
+`--help`, and installer `--help`.
 
 Release preparation should follow [`docs/release-playbook.md`](docs/release-playbook.md).
 The standard Linux validation and packaging environment is documented in
@@ -94,15 +94,15 @@ chown root:administrators /usr/local/lib/duplicacy-backup/.config/homes-backup.t
 chmod 640 /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
 ```
 
-The Synology installer also:
+When it is run as `root`, the Synology installer also:
 
 - normalises `.config` to `root:administrators` with mode `750`
 - normalises any existing `*-backup.toml` files there to mode `640`
 - ensures `/root/.secrets` exists as `root:root` with mode `700`
 
-when run as `root`. Use `./install.sh --config-group <name>` if you want a
-different trusted operator group for config access. The installer never
-creates or rewrites individual secrets files.
+Use `./install.sh --config-group <name>` if you want a different trusted
+operator group for config access. The installer never creates or rewrites
+individual secrets files.
 
 For labels with object-storage targets, or for any target that needs
 authenticated notification delivery, create a matching label secrets file under
@@ -152,7 +152,7 @@ repository = "homes"
 
 ### 4. Run
 
-These examples show valid manual and ad hoc invocations. For recurring Synology
+These examples show valid manual and ad hoc commands. For recurring Synology
 Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
 and fix-perms; see [Workflow and scheduling](docs/workflow-scheduling.md).
 
@@ -191,8 +191,8 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 ## Common Commands
 
 These are useful operator commands, including combined manual maintenance
-invocations. For recommended recurring scheduler patterns, use the dedicated
-guide instead of treating this list as a schedule template:
+runs. For recommended recurring scheduler patterns, use the dedicated guide
+instead of treating this list as a schedule template:
 [Workflow and scheduling](docs/workflow-scheduling.md).
 
 ```bash

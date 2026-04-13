@@ -1,6 +1,6 @@
 # Architecture
 
-This is the short architecture overview.
+This is the short architecture overview for the project.
 
 If you want the detailed internal walkthrough, including the runtime path,
 package boundaries, and where specific responsibilities now live, see

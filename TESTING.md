@@ -2,7 +2,7 @@
 
 ## Overview
 
-The test suite is now layered around the same architecture as the application:
+The test suite follows the same layered architecture as the application:
 
 - `Request` tests validate CLI intent parsing
 - `Plan` tests validate config, secrets, and derived runtime state
@@ -44,7 +44,7 @@ Representative Linux Go 1.26 validation for this release candidate:
 - `go vet ./...`
 - `go test -cover ./...`
 
-Current Linux Go 1.26 development snapshot for the `v4.1.2` candidate:
+Current Linux Go 1.26 validation snapshot for the `v4.1.2` candidate:
 
 - overall coverage: `84.4%`
 - `cmd/duplicacy-backup`: `85.7%`
