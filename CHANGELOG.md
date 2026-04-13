@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.0.0] - 2026-04-13
+
 ### Changed
 - **Targets now use an explicit storage-kind and deployment-location model**:
   target config now uses `type = "filesystem" | "object"` plus
@@ -24,6 +26,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pre-run failure context is now fully aligned with the new target model**:
   when config can be resolved before a run aborts, pre-run failures now show
   `Type` and `Location` alongside `Operation`, `Label`, and `Target`.
+
+### Validation
+- **Local**: `go test ./...`
+- **Local**: `go vet ./...`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.0%`
+  - `cmd/duplicacy-backup`: `86.2%`
+  - `internal/workflow`: `84.8%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.3%`
+  - `internal/secrets`: `81.0%`
 
 ## [v3.1.1] - 2026-04-12
 
