@@ -25,6 +25,7 @@ var lookPath = osexec.LookPath
 var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
+var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 const scriptName = "duplicacy-backup"
 
@@ -116,7 +117,7 @@ func runWithArgs(args []string) int {
 		}
 		log.Error("%s", workflow.OperatorMessage(err))
 		if failurePlan != nil {
-			if notifyErr := workflow.MaybeSendPreRunFailureNotification(rt, log.Interactive(), failurePlan, result.Request, startedAt, rt.Now(), err); notifyErr != nil {
+			if notifyErr := maybeSendPreRunFailureNotification(rt, log.Interactive(), failurePlan, result.Request, startedAt, rt.Now(), err); notifyErr != nil {
 				log.Warn("%s", workflow.OperatorMessage(notifyErr))
 			}
 		}

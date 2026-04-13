@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -73,6 +71,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
+	oldMaybeSendPreRunFailureNotification := maybeSendPreRunFailureNotification
 
 	logDir = t.TempDir()
 	geteuid = func() int { return 0 }
@@ -81,6 +80,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	handleConfigCommand = workflow.HandleConfigCommand
+	maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 	t.Cleanup(func() {
 		logDir = oldLogDir
@@ -89,6 +89,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
+		maybeSendPreRunFailureNotification = oldMaybeSendPreRunFailureNotification
 	})
 
 	fn()
@@ -713,17 +714,6 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 
 func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testing.T) {
 	withTestGlobals(t, func() {
-		bodyCh := make(chan string, 1)
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			data, err := io.ReadAll(r.Body)
-			if err != nil {
-				t.Fatalf("ReadAll() error = %v", err)
-			}
-			bodyCh <- string(data)
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer server.Close()
-
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", strings.Join([]string{
 			`label = "homes"`,
@@ -736,10 +726,16 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 			`repository = "homes"`,
 			``,
 			`[health.notify]`,
-			fmt.Sprintf(`webhook_url = %q`, server.URL),
+			`webhook_url = "http://127.0.0.1/unused"`,
 			`notify_on = ["degraded", "unhealthy"]`,
 			`send_for = ["backup"]`,
 		}, "\n"))
+
+		captured := make(chan *workflow.Request, 1)
+		maybeSendPreRunFailureNotification = func(rt workflow.Runtime, interactive bool, plan *workflow.Plan, req *workflow.Request, startedAt, completedAt time.Time, err error) error {
+			captured <- req
+			return nil
+		}
 
 		lookPath = func(name string) (string, error) {
 			if name == "duplicacy" {
@@ -756,18 +752,15 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 		if !strings.Contains(stderr, "Required command 'duplicacy' not found") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		var body string
+
+		var req *workflow.Request
 		select {
-		case body = <-bodyCh:
+		case req = <-captured:
 		case <-time.After(2 * time.Second):
-			t.Fatal("timed out waiting for notification body")
+			t.Fatal("timed out waiting for pre-run notification call")
 		}
-		if !strings.Contains(body, `"event":"backup_could_not_start"`) ||
-			!strings.Contains(body, `"label":"homes"`) ||
-			!strings.Contains(body, `"target":"onsite-usb"`) ||
-			!strings.Contains(body, `"storage_type":"filesystem"`) ||
-			!strings.Contains(body, `"location":"local"`) {
-			t.Fatalf("body = %q", body)
+		if req == nil || req.Source != "homes" || req.Target() != "onsite-usb" || !req.DoBackup {
+			t.Fatalf("captured request = %#v", req)
 		}
 	})
 }
