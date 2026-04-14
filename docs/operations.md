@@ -247,7 +247,7 @@ Releases include:
 ### Verify a single file
 
 ```bash
-sha256sum -c duplicacy-backup_v1.2.3_linux_amd64.tar.gz.sha256
+sha256sum -c duplicacy-backup_1.2.3_linux_amd64.tar.gz.sha256
 ```
 
 ### Verify against the full manifest
@@ -259,7 +259,7 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 ### Inspect archive contents
 
 ```bash
-tar -tzf duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+tar -tzf duplicacy-backup_1.2.3_linux_amd64.tar.gz
 ```
 
 The extracted directory now includes:
@@ -272,7 +272,7 @@ The extracted directory now includes:
 ### Extract
 
 ```bash
-tar -xzf duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+tar -xzf duplicacy-backup_1.2.3_linux_amd64.tar.gz
 ```
 
 ### macOS note
@@ -280,5 +280,5 @@ tar -xzf duplicacy-backup_v1.2.3_linux_amd64.tar.gz
 macOS often ships `shasum` instead of `sha256sum`:
 
 ```bash
-shasum -a 256 duplicacy-backup_v1.2.3_linux_amd64.tar.gz
+shasum -a 256 duplicacy-backup_1.2.3_linux_amd64.tar.gz
 ```

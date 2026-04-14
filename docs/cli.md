@@ -5,10 +5,11 @@
 ```text
 duplicacy-backup [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
+duplicacy-backup notify <test> [OPTIONS] <source>
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-Every runtime, `config`, and `health` command needs an explicit
+Every runtime, `config`, `notify`, and `health` command needs an explicit
 `--target <name>`.
 Every runtime command also needs at least one explicit primary operation.
 
@@ -61,6 +62,11 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `config validate --target <target> <label>` | Validate the selected target from that label config and any required object-target secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
+
+## Notify Commands
+
+| Command | Description |
+|---|---|
 | `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
 
 ## Health Commands
