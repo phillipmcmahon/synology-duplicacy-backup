@@ -80,16 +80,16 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 		`[health.notify.ntfy]`,
 		`url = "` + ntfyServer.URL + `"`,
 		`topic = "duplicacy-alerts"`,
-		`[targets.offsite-storj]`,
-		`type = "object"`,
-		`location = "remote"`,
-		`destination = "s3://gateway.storjshare.io/bucket"`,
+		`[targets.onsite-usb]`,
+		`type = "filesystem"`,
+		`location = "local"`,
+		`destination = "/backups"`,
 		`repository = "homes"`,
 	}, "\n"))
 
 	req := &Request{
 		NotifyCommand:   "test",
-		RequestedTarget: "offsite-storj",
+		RequestedTarget: "onsite-usb",
 		Source:          "homes",
 		ConfigDir:       configDir,
 		NotifyProvider:  "all",
@@ -107,7 +107,7 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 	if !strings.Contains(webhookBody, `"category":"test"`) || !strings.Contains(webhookBody, `"event":"notification_test"`) {
 		t.Fatalf("webhookBody = %q", webhookBody)
 	}
-	if ntfyTitle != "CRITICAL: Notification test for homes/offsite-storj" {
+	if ntfyTitle != "CRITICAL: Notification test for homes/onsite-usb" {
 		t.Fatalf("Title = %q", ntfyTitle)
 	}
 	if !strings.Contains(ntfyBody, "Category: test") || !strings.Contains(ntfyBody, "simulated operator-initiated test notification") {
