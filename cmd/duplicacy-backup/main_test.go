@@ -376,6 +376,29 @@ func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_InvalidFlagDoesNotRequireLogger(t *testing.T) {
+	withTestGlobals(t, func() {
+		logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(logFilePath, []byte("x"), 0644); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		logDir = logFilePath
+
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--nope"}); code != 1 {
+				t.Fatalf("runWithArgs(--nope) = %d", code)
+			}
+		})
+
+		if !strings.Contains(stderr, "unknown option --nope") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
 func TestRunWithArgs_ExtraPositionalArgsReturnOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		_, stderr := captureOutput(t, func() {
