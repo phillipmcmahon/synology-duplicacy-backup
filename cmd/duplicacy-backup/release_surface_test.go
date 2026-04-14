@@ -242,9 +242,19 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		filepath.Join(root, "docs", "release-playbook.md"): {
 			"mirror-release-assets.sh",
 			"verify-release.sh",
+			"Release Tracking Conventions",
+			"Ready` -> `In Progress` -> `Done`",
+			"Suggested release-prep checklist",
 			"tar -cf - .",
 			"Source code (zip)",
 			"Source code (tar.gz)",
+		},
+		filepath.Join(root, ".github", "ISSUE_TEMPLATE", "release-prep.md"): {
+			"Release Prep",
+			"Prepare v",
+			"version metadata updated",
+			"Linux Go 1.26 validation passed",
+			"release-prep notes generated",
 		},
 	}
 

@@ -19,6 +19,28 @@ release notes from memory, or generate release artefacts on the macOS host.
   plus the GitHub-generated source archives and mirror them to
   `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`.
 
+## Release Tracking Conventions
+
+Use the project board and release issues in a lightweight, repeatable way:
+
+- Create one release-prep issue for each actual release.
+- Use focused child tasks under `#24` for release and operational-tooling
+  improvements such as mirroring, verification, or baseline reconciliation.
+- Move each active release item through `Ready` -> `In Progress` -> `Done`.
+- Close each release child with a short comment that includes:
+  - landed commit
+  - validation run
+  - any live smoke or real-world verification
+- Do not create a separate publish issue by default. Treat tag-and-publish as
+  the operational completion of the prepared release unless a failed release or
+  repair path is substantial enough to justify its own issue.
+
+Recommended project support:
+
+- Keep `#24` as the umbrella for release and operational-tooling follow-ons.
+- Optionally create a saved project view in the GitHub UI filtered to
+  `area:release` items so release work is easier to review at a glance.
+
 ## Checklist
 
 ### 1. Confirm scope
@@ -26,6 +48,7 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Decide exactly which user-visible changes are shipping.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
   real release entry if needed.
+- Create or update the release-prep issue and move it to `In Progress`.
 - Update repo docs that describe the shipped behaviour:
   - `README.md`
   - `docs/cli.md`
@@ -33,6 +56,15 @@ release notes from memory, or generate release artefacts on the macOS host.
   - `docs/configuration.md`
   - `docs/cheatsheet.md`
   - `TESTING.md`
+
+Suggested release-prep checklist:
+
+- [ ] version metadata updated
+- [ ] changelog entry added or refreshed
+- [ ] testing baseline refreshed
+- [ ] Linux Go 1.26 validation passed
+- [ ] release-prep notes generated
+- [ ] prep commit pushed to `main`
 
 ### 2. Prepare version
 
