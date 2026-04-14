@@ -191,6 +191,9 @@ func TestValidate(t *testing.T) {
 }
 
 func TestLoadOptionalHealthWebhookToken(t *testing.T) {
+	if token, err := LoadOptionalHealthWebhookToken("", "offsite-storj"); err != nil || token != "" {
+		t.Fatalf("empty-path token = %q, err = %v", token, err)
+	}
 	if token, err := LoadOptionalHealthWebhookToken(filepath.Join(t.TempDir(), "missing.toml"), "offsite-storj"); err != nil || token != "" {
 		t.Fatalf("missing token = %q, err = %v", token, err)
 	}
@@ -206,6 +209,9 @@ func TestLoadOptionalHealthWebhookToken(t *testing.T) {
 }
 
 func TestLoadOptionalHealthNtfyToken(t *testing.T) {
+	if token, err := LoadOptionalHealthNtfyToken("", "offsite-storj"); err != nil || token != "" {
+		t.Fatalf("empty-path token = %q, err = %v", token, err)
+	}
 	if token, err := LoadOptionalHealthNtfyToken(filepath.Join(t.TempDir(), "missing.toml"), "offsite-storj"); err != nil || token != "" {
 		t.Fatalf("missing token = %q, err = %v", token, err)
 	}
@@ -243,4 +249,64 @@ func TestMaskedHelpers(t *testing.T) {
 	if (&Secrets{StorjS3Secret: "AB"}).MaskedSecret() != "****" {
 		t.Fatal("short masked secret should collapse")
 	}
+}
+
+func TestParseOptionalTargetToken(t *testing.T) {
+	webhookSelector := func(section fileTargetSecrets) *string {
+		return section.HealthWebhookBearerToken
+	}
+	ntfySelector := func(section fileTargetSecrets) *string {
+		return section.HealthNtfyToken
+	}
+
+	t.Run("returns token when present", func(t *testing.T) {
+		token, err := parseOptionalTargetToken("[targets.offsite-storj]\nhealth_webhook_bearer_token = \"secret-token\"\n", "test.toml", "offsite-storj", webhookSelector)
+		if err != nil {
+			t.Fatalf("parseOptionalTargetToken() error = %v", err)
+		}
+		if token != "secret-token" {
+			t.Fatalf("token = %q", token)
+		}
+	})
+
+	t.Run("returns empty when target missing", func(t *testing.T) {
+		token, err := parseOptionalTargetToken("[targets.archive]\nhealth_webhook_bearer_token = \"secret-token\"\n", "test.toml", "offsite-storj", webhookSelector)
+		if err != nil {
+			t.Fatalf("parseOptionalTargetToken() error = %v", err)
+		}
+		if token != "" {
+			t.Fatalf("token = %q", token)
+		}
+	})
+
+	t.Run("returns empty when token missing", func(t *testing.T) {
+		token, err := parseOptionalTargetToken(validSecretContent(), "test.toml", "offsite-storj", ntfySelector)
+		if err != nil {
+			t.Fatalf("parseOptionalTargetToken() error = %v", err)
+		}
+		if token != "" {
+			t.Fatalf("token = %q", token)
+		}
+	})
+
+	t.Run("rejects uppercase keys", func(t *testing.T) {
+		_, err := parseOptionalTargetToken("[targets.offsite-storj]\nHEALTH_NTFY_TOKEN = \"secret-token\"\n", "test.toml", "offsite-storj", ntfySelector)
+		if err == nil || !strings.Contains(err.Error(), "lower snake case") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects invalid toml", func(t *testing.T) {
+		_, err := parseOptionalTargetToken("[targets.offsite-storj]\nhealth_webhook_bearer_token = [\n", "test.toml", "offsite-storj", webhookSelector)
+		if err == nil || !strings.Contains(strings.ToLower(err.Error()), "invalid toml") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects unknown keys", func(t *testing.T) {
+		_, err := parseOptionalTargetToken("[targets.offsite-storj]\nextra = \"nope\"\n", "test.toml", "offsite-storj", webhookSelector)
+		if err == nil || !strings.Contains(err.Error(), "unexpected key") {
+			t.Fatalf("err = %v", err)
+		}
+	})
 }

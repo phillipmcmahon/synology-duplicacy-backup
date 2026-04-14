@@ -126,50 +126,24 @@ func LoadSecretsFile(path, target string) (*Secrets, error) {
 }
 
 func LoadOptionalHealthWebhookToken(path, target string) (string, error) {
-	if path == "" {
-		return "", nil
-	}
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", apperrors.NewSecretsError("stat", fmt.Errorf("cannot stat secrets file: %w", err), "path", path)
-	}
-	if err := ValidateFileAccess(path); err != nil {
-		return "", err
-	}
-
-	body, err := os.ReadFile(path)
-	if err != nil {
-		return "", apperrors.NewSecretsError("open", fmt.Errorf("secrets file is not readable: %s", path), "path", path)
-	}
-	text := string(body)
-	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
-		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", path)
-	}
-
-	var raw fileSecrets
-	meta, err := toml.Decode(text, &raw)
-	if err != nil {
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets file %s contains invalid TOML: %w", path, err), "source", path)
-	}
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		key := undecoded[0].String()
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, path), "source", path)
-	}
-
-	section, ok := raw.Targets[target]
-	if !ok || section.HealthWebhookBearerToken == nil {
-		return "", nil
-	}
-	return *section.HealthWebhookBearerToken, nil
+	return loadOptionalTargetToken(path, target, func(section fileTargetSecrets) *string {
+		return section.HealthWebhookBearerToken
+	})
 }
 
 func LoadOptionalHealthNtfyToken(path, target string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
+	return loadOptionalTargetToken(path, target, func(section fileTargetSecrets) *string {
+		return section.HealthNtfyToken
+	})
+}
+
+func loadOptionalTargetToken(path, target string, selectToken func(fileTargetSecrets) *string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -184,27 +158,34 @@ func LoadOptionalHealthNtfyToken(path, target string) (string, error) {
 	if err != nil {
 		return "", apperrors.NewSecretsError("open", fmt.Errorf("secrets file is not readable: %s", path), "path", path)
 	}
-	text := string(body)
+	return parseOptionalTargetToken(string(body), path, target, selectToken)
+}
+
+func parseOptionalTargetToken(text, source, target string, selectToken func(fileTargetSecrets) *string) (string, error) {
 	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
 		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", path)
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", source)
 	}
 
 	var raw fileSecrets
 	meta, err := toml.Decode(text, &raw)
 	if err != nil {
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets file %s contains invalid TOML: %w", path, err), "source", path)
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets file %s contains invalid TOML: %w", source, err), "source", source)
 	}
 	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
 		key := undecoded[0].String()
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, path), "source", path)
+		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, source), "source", source)
 	}
 
 	section, ok := raw.Targets[target]
-	if !ok || section.HealthNtfyToken == nil {
+	if !ok {
 		return "", nil
 	}
-	return *section.HealthNtfyToken, nil
+	token := selectToken(section)
+	if token == nil {
+		return "", nil
+	}
+	return *token, nil
 }
 
 // Validate checks minimum length requirements for secrets.

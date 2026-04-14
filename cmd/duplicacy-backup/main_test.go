@@ -352,6 +352,30 @@ func TestRunWithArgs_NotifyHelpFullReturnsZero(t *testing.T) {
 	}
 }
 
+func TestRunWithArgs_HealthStatusLoggerInitFailureJSONReturnsTwo(t *testing.T) {
+	withTestGlobals(t, func() {
+		logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(logFilePath, []byte("x"), 0644); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		logDir = logFilePath
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"health", "status", "--target", "onsite-usb", "--json-summary", "homes"}); code != 2 {
+				t.Fatalf("runWithArgs(health status logger init failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, `"status": "unhealthy"`) ||
+			!strings.Contains(stdout, `"check_type": "status"`) ||
+			!strings.Contains(stdout, `"target": "onsite-usb"`) {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
 func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
@@ -364,6 +388,29 @@ func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stdout, `"check_type": "status"`) || !strings.Contains(stdout, `"status": "unhealthy"`) {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_RuntimeLoggerInitFailureJSONReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(logFilePath, []byte("x"), 0644); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		logDir = logFilePath
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "--json-summary", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(runtime logger init failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, `"result": "failed"`) ||
+			!strings.Contains(stdout, `"target": "onsite-usb"`) {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -650,6 +697,67 @@ func TestRunWithArgs_ConfigPathsReturnsZero(t *testing.T) {
 		}
 		if strings.Contains(stdout, "Work Dir") || strings.Contains(stdout, "Snapshot") {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_NotifyTestDryRunReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", strings.Join([]string{
+			`label = "homes"`,
+			`source_path = "/volume1/homes"`,
+			`[health.notify.ntfy]`,
+			`url = "https://ntfy.sh"`,
+			`topic = "duplicacy-alerts"`,
+			`[targets.onsite-usb]`,
+			`type = "filesystem"`,
+			`location = "local"`,
+			`destination = "/backups"`,
+			`repository = "homes"`,
+		}, "\n"))
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"notify", "test", "--dry-run", "--json-summary", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(notify test dry-run) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, `"command": "test"`) ||
+			!strings.Contains(stdout, `"provider": "all"`) ||
+			!strings.Contains(stdout, `"result": "preview"`) {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_NotifyTestFailurePrintsReportAndReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", strings.Join([]string{
+			`label = "homes"`,
+			`source_path = "/volume1/homes"`,
+			`[targets.onsite-usb]`,
+			`type = "filesystem"`,
+			`location = "local"`,
+			`destination = "/backups"`,
+			`repository = "homes"`,
+		}, "\n"))
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"notify", "test", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(notify test failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stdout, "Notification test for homes/onsite-usb") ||
+			!strings.Contains(stdout, "Result") ||
+			!strings.Contains(stdout, "Failed") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "Notification test failed for homes/onsite-usb") {
+			t.Fatalf("stderr = %q", stderr)
 		}
 	})
 }
@@ -1121,6 +1229,50 @@ func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "source directory required") {
 		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestInferNotifyFailureRequest(t *testing.T) {
+	req := inferNotifyFailureRequest([]string{
+		"notify", "test",
+		"--target", "offsite-storj",
+		"--provider", "ntfy",
+		"--severity", "critical",
+		"--summary", "Synthetic summary",
+		"--message", "Synthetic message",
+		"--dry-run",
+		"--json-summary",
+		"--config-dir", "/cfg",
+		"--secrets-dir", "/sec",
+		"homes", "ignored",
+	})
+	if req.NotifyCommand != "test" {
+		t.Fatalf("NotifyCommand = %q", req.NotifyCommand)
+	}
+	if req.RequestedTarget != "offsite-storj" {
+		t.Fatalf("RequestedTarget = %q", req.RequestedTarget)
+	}
+	if req.NotifyProvider != "ntfy" || req.NotifySeverity != "critical" {
+		t.Fatalf("req = %+v", req)
+	}
+	if req.NotifySummary != "Synthetic summary" || req.NotifyMessage != "Synthetic message" {
+		t.Fatalf("req = %+v", req)
+	}
+	if !req.DryRun || !req.JSONSummary {
+		t.Fatalf("req = %+v", req)
+	}
+	if req.Source != "homes" {
+		t.Fatalf("Source = %q", req.Source)
+	}
+}
+
+func TestInferNotifyFailureRequest_NonNotifyCommandReturnsDefaults(t *testing.T) {
+	req := inferNotifyFailureRequest([]string{"--target", "onsite-usb1", "homes"})
+	if req.NotifyCommand != "" || req.RequestedTarget != "" || req.Source != "" || req.DryRun || req.JSONSummary {
+		t.Fatalf("req = %+v", req)
+	}
+	if req.NotifyProvider != "all" || req.NotifySeverity != "warning" {
+		t.Fatalf("req = %+v", req)
 	}
 }
 
