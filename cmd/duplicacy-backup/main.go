@@ -172,20 +172,8 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		return nil, 1
 	}
 
-	log, logErr := initLogger(meta)
-	if logErr != nil {
-		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", logErr)
-		fmt.Fprintf(os.Stderr, "[ERRO] %v\n", err)
-		if wantsJSONSummary(args) {
-			emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, rt.Now(), err.Error())
-		}
-		return nil, 1
-	}
-	defer log.Close()
-
-	log.Error("%s", workflow.OperatorMessage(err))
+	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
 	completedAt := rt.Now()
-	printFailureCompletion(meta, rt, log, startedAt)
 	if wantsJSONSummary(args) {
 		if looksLikeHealthCommand(args) {
 			req := inferHealthFailureRequest(args)
@@ -196,11 +184,6 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		} else {
 			emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, workflow.OperatorMessage(err))
 		}
-	}
-	var requestErr *workflow.RequestError
-	if errors.As(err, &requestErr) && requestErr.ShowUsage && !wantsJSONSummary(args) {
-		fmt.Fprintln(os.Stderr)
-		fmt.Print(workflow.UsageText(meta, rt))
 	}
 	return nil, 1
 }

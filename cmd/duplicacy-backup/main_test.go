@@ -1124,7 +1124,7 @@ func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 	}
 }
 
-func TestBuildRequest_JSONSummaryLoggerInitFailureFallsBackToStderrAndRunReport(t *testing.T) {
+func TestBuildRequest_JSONSummaryParseFailureDoesNotRequireLogger(t *testing.T) {
 	logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
 	if err := os.WriteFile(logFilePath, []byte("x"), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -1142,7 +1142,7 @@ func TestBuildRequest_JSONSummaryLoggerInitFailureFallsBackToStderrAndRunReport(
 			t.Fatalf("buildRequest() result = %#v, want nil", result)
 		}
 	})
-	if !strings.Contains(stderr, "Failed to initialise logger") || !strings.Contains(stderr, "--nope") {
+	if strings.Contains(stderr, "Failed to initialise logger") || !strings.Contains(stderr, "--nope") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stdout, `"result": "failed"`) {
