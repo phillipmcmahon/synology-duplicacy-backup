@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux Go 1.26**: `go test -cover ./...`
 - **Coverage snapshot**:
   - overall coverage: `84.4%`
-  - `cmd/duplicacy-backup`: `85.8%`
+  - `cmd/duplicacy-backup`: `85.0%`
   - `internal/workflow`: `84.0%`
   - `internal/duplicacy`: `81.2%`
   - `internal/config`: `84.4%`
