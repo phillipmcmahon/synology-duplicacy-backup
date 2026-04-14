@@ -50,7 +50,7 @@ The high-level path is:
 main
   -> run
     -> runWithArgs
-      -> workflow.ParseRequest
+      -> command.ParseRequest
       -> initLogger
       -> workflow.NewPlanner(...).Build(...)
       -> workflow.NewExecutor(...).Run()
@@ -67,7 +67,7 @@ In other words:
 
 ```mermaid
 flowchart TD
-    A["main.go"] --> B["ParseRequest"]
+    A["main.go"] --> B["command.ParseRequest"]
     B --> C["Request"]
     C --> D["Planner.Build"]
     D --> E["Plan"]
@@ -104,6 +104,18 @@ It owns:
 It should not own business logic for backup, prune, storage cleanup, or
 fix-perms behaviour.
 
+### Command package
+
+- [`internal/command`](../internal/command)
+
+This is the command-surface layer.
+
+It owns:
+
+- request parsing
+- CLI help and usage text
+- request-level validation
+
 ### Workflow package
 
 - [`internal/workflow`](../internal/workflow)
@@ -112,7 +124,6 @@ This is the orchestration layer.
 
 It owns:
 
-- request parsing
 - runtime/environment seams
 - plan building
 - runtime execution
@@ -148,6 +159,8 @@ These packages do focused work and should stay relatively narrow:
 
 The request phase lives in:
 
+- [`internal/command/request.go`](../internal/command/request.go)
+- [`internal/command/usage.go`](../internal/command/usage.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
 - [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 

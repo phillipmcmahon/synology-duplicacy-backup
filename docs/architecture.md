@@ -20,7 +20,7 @@ coordinator type.
 
 ```text
 runWithArgs
-  -> ParseRequest
+  -> command.ParseRequest
   -> initLogger
   -> Planner.Build
   -> Executor.Run
@@ -28,7 +28,7 @@ runWithArgs
 
 ## Request
 
-`internal/workflow/request.go` owns CLI intent.
+`internal/command` owns CLI intent and help/usage generation.
 
 It is responsible for:
 
@@ -105,6 +105,7 @@ The main goal of the refactor was simplicity, not framework-building.
 The codebase now has:
 
 - a thin entrypoint in `cmd/duplicacy-backup`
+- a command-surface package in `internal/command`
 - one orchestration package in `internal/workflow`
 - unchanged domain packages for config, secrets, btrfs, duplicacy, locking,
   permissions, logging, and process execution
@@ -116,7 +117,8 @@ into many small packages.
 
 | Package | Purpose |
 |---|---|
-| `internal/workflow` | Request parsing, planning, execution, and summary composition |
+| `internal/command` | CLI request parsing and help / usage text |
+| `internal/workflow` | Planning, execution, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |
 | `internal/config` | Config parsing and validation |
 | `internal/duplicacy` | Duplicacy CLI operations |

@@ -69,8 +69,4 @@ func TestPlanHelpersAndVersionText(t *testing.T) {
 		t.Fatalf("WorkDir() = %q", plan.WorkDir())
 	}
 
-	text := VersionText(DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir()))
-	if !strings.Contains(text, "duplicacy-backup 2.1.3 (built now)") {
-		t.Fatalf("VersionText() = %q", text)
-	}
 }

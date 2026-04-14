@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -275,7 +276,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logDir)
 	rt := workflow.DefaultRuntime()
-	usage := workflow.FullUsageText(meta, rt)
+	usage := command.FullUsageText(meta, rt)
 
 	expected := []string{
 		"config <validate|explain|paths>",

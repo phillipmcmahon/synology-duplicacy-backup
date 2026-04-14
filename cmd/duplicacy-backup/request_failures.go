@@ -7,12 +7,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*workflow.ParseResult, int) {
+func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*command.ParseResult, int) {
 	startedAt := rt.Now()
-	result, err := workflow.ParseRequest(args, meta, rt)
+	result, err := command.ParseRequest(args, meta, rt)
 	if err == nil {
 		return result, 0
 	}
@@ -22,7 +23,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		var requestErr *workflow.RequestError
 		if errors.As(err, &requestErr) && requestErr.ShowUsage {
 			fmt.Fprintln(os.Stderr)
-			fmt.Print(workflow.UsageText(meta, rt))
+			fmt.Print(command.UsageText(meta, rt))
 		}
 		return nil, 1
 	}
