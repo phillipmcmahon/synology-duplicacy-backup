@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.6] - 2026-04-14
+
+### Changed
+- **CLI coverage is now much stronger at the real entrypoint**: the top-level
+  `cmd/duplicacy-backup` tests now cover `notify test` end-to-end behaviour,
+  plus logger-initialisation failure handling for both health and runtime
+  command paths.
+
+### Fixed
+- **Optional notification-token parsing now has less duplication and better
+  behavioural coverage**: the shared `internal/secrets` token-loading path now
+  exercises meaningful edge cases around missing targets, missing tokens,
+  uppercase keys, malformed TOML, and unknown keys while keeping the code
+  simpler.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `83.9%`
+  - `cmd/duplicacy-backup`: `94.7%`
+  - `internal/workflow`: `82.8%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `81.8%`
+
 ## [v4.1.5] - 2026-04-14
 
 ### Added
