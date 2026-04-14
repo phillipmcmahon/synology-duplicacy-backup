@@ -140,6 +140,16 @@ After the release workflow finishes:
 - if needed, edit the GitHub release body so it matches the validated release
   story
 
+Supported command:
+
+```bash
+sh ./scripts/verify-release.sh --tag vX.Y.Z
+```
+
+The script verifies the published GitHub release, required release-note
+headings, expected packaged assets, local-versus-remote tag commit alignment,
+and the mirrored artefact set on `homestorage`.
+
 ### 7. Mirror the published artefacts to homestorage
 
 After the release exists and the GitHub Actions asset set is complete:

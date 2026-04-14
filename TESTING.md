@@ -67,6 +67,11 @@ path. It downloads the published asset set and source archives, then mirrors
 them to `homestorage` with a `tar`-over-SSH transfer rather than relying on
 plain `scp` wildcard copying.
 
+Use `scripts/verify-release.sh --tag vX.Y.Z` as the supported post-release
+verification path. It checks the GitHub release object, release-note headings,
+expected asset names, tag commit alignment, and the mirrored artefact set on
+`homestorage`.
+
 When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host.
 

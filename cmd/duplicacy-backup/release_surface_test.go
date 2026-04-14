@@ -62,6 +62,39 @@ func TestMirrorReleaseScript_HelpMentionsCurrentFlow(t *testing.T) {
 	}
 }
 
+func TestVerifyReleaseScript_Syntax(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "verify-release.sh")
+	cmd := exec.Command("sh", "-n", scriptPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sh -n %s failed: %v\n%s", scriptPath, err, output)
+	}
+}
+
+func TestVerifyReleaseScript_HelpMentionsCurrentFlow(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "verify-release.sh")
+	cmd := exec.Command("sh", scriptPath, "--help")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("verify-release help failed: %v\n%s", err, output)
+	}
+
+	help := string(output)
+	required := []string{
+		"--tag",
+		"phillipmcmahon/synology-duplicacy-backup",
+		"homestorage",
+		"Highlights",
+		"Validation",
+		"Coverage",
+	}
+	for _, token := range required {
+		if !strings.Contains(help, token) {
+			t.Fatalf("verify-release help missing %q:\n%s", token, help)
+		}
+	}
+}
+
 func TestInstallScript_HelpMentionsCurrentLayout(t *testing.T) {
 	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
 	cmd := exec.Command("sh", scriptPath, "--help")
@@ -204,9 +237,11 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"help text in `UsageText`",
 			"release tarball smoke checks",
 			"mirror-release-assets.sh",
+			"verify-release.sh",
 		},
 		filepath.Join(root, "docs", "release-playbook.md"): {
 			"mirror-release-assets.sh",
+			"verify-release.sh",
 			"tar -cf - .",
 			"Source code (zip)",
 			"Source code (tar.gz)",
