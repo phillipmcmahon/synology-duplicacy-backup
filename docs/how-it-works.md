@@ -63,6 +63,10 @@ In other words:
 3. Build a validated execution plan.
 4. Execute the plan.
 
+Supporting packages now keep adjacent concerns together:
+- `internal/command` owns CLI request parsing and help text
+- `internal/notify` owns notification delivery and notify-test reporting
+
 ## Architecture Overview
 
 ```mermaid

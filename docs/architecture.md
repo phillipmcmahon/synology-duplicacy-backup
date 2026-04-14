@@ -38,6 +38,9 @@ It is responsible for:
 - validating flag combinations
 - validating the backup label
 
+`internal/notify` owns notification payload types, provider delivery, and
+notify-test reporting.
+
 The `Request` type is intentionally small. It describes what the user asked
 for, not what the application has resolved from the filesystem or config yet.
 Requested operations can be combined, but execution order is fixed later in

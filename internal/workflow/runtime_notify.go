@@ -1,6 +1,10 @@
 package workflow
 
-import "time"
+import (
+	"time"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+)
 
 func (e *Executor) maybeSendFailureNotification() {
 	if e == nil || e.plan == nil || e.report == nil || e.lastErr == nil {
@@ -19,8 +23,8 @@ func (e *Executor) maybeSendFailureNotification() {
 	if payload == nil {
 		return
 	}
-	if err := sendConfiguredNotifications(e.plan.Notify, e.plan.SecretsFile, e.report.Target, payload); err != nil {
-		e.log.Warn("%s", statusLinef("Failed to deliver notification: %v", err))
+	if err := notify.SendConfigured(e.plan.Notify, e.plan.SecretsFile, e.report.Target, payload); err != nil {
+		e.log.Warn("%s", statusLinef("Failed to deliver notification: %v", OperatorMessage(err)))
 	}
 }
 
@@ -58,5 +62,5 @@ func MaybeSendPreRunFailureNotification(rt Runtime, interactive bool, plan *Plan
 	}
 
 	payload := buildRuntimeNotificationPayload(rt, plan, report, err, false, nil)
-	return sendConfiguredNotifications(plan.Notify, plan.SecretsFile, report.Target, payload)
+	return notify.SendConfigured(plan.Notify, plan.SecretsFile, report.Target, payload)
 }

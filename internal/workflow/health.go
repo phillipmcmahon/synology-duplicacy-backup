@@ -14,6 +14,7 @@ import (
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -207,8 +208,8 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	h.finalizeReport(report)
 	if h.shouldSendNotification(req, cfg.Health, report.Status) {
 		if payload := buildHealthNotificationPayload(h.rt, report); payload != nil {
-			if err := sendConfiguredNotifications(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
-				h.addCheck(report, "Notification", "warn", err.Error())
+			if err := notify.SendConfigured(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
+				h.addCheck(report, "Notification", "warn", OperatorMessage(err))
 			} else {
 				report.NotificationSent = true
 				h.addCheck(report, "Notification", "pass", "Delivered")
@@ -716,8 +717,8 @@ func (h *HealthRunner) maybeSendEarlyNotification(req *Request, report *HealthRe
 	if payload == nil {
 		return
 	}
-	if err := sendConfiguredNotifications(cfg.Notify, secretsFile, report.Target, payload); err != nil {
-		h.addCheck(report, "Notification", "warn", err.Error())
+	if err := notify.SendConfigured(cfg.Notify, secretsFile, report.Target, payload); err != nil {
+		h.addCheck(report, "Notification", "warn", OperatorMessage(err))
 		return
 	}
 	report.NotificationSent = true

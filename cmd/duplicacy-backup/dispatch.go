@@ -7,6 +7,7 @@ import (
 
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -35,7 +36,7 @@ func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
 	output, err := handleNotifyCommand(req, meta, rt)
 	if err != nil {
-		return writeCommandFailure(workflow.NotifyCommandOutput(err), err)
+		return writeCommandFailure(notify.CommandOutput(err), err)
 	}
 	fmt.Print(output)
 	return 0

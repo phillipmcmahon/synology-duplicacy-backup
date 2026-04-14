@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 )
 
 func TestHandleNotifyCommand_DryRun(t *testing.T) {
@@ -150,7 +151,7 @@ func TestHandleNotifyCommand_JSONSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleNotifyCommand() error = %v", err)
 	}
-	var report NotifyTestReport
+	var report notify.TestReport
 	if err := json.Unmarshal([]byte(out), &report); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v\n%s", err, out)
 	}
@@ -224,13 +225,10 @@ func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenI
 		NotifyProvider:  "ntfy",
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	oldLoad := loadOptionalHealthNtfyToken
-	loadOptionalHealthNtfyToken = func(path, target string) (string, error) {
+	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
 		return "", apperrors.NewSecretsError("open", errors.New("secrets file is not readable: /root/.secrets/homes-secrets.toml"), "path", "/root/.secrets/homes-secrets.toml")
-	}
-	defer func() {
-		loadOptionalHealthNtfyToken = oldLoad
-	}()
+	})
+	defer restore()
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -268,13 +266,10 @@ func TestHandleNotifyCommand_ObjectTargetTokenParseErrorStillFails(t *testing.T)
 		NotifyProvider:  "ntfy",
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	oldLoad := loadOptionalHealthNtfyToken
-	loadOptionalHealthNtfyToken = func(path, target string) (string, error) {
+	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
 		return "", apperrors.NewSecretsError("parse", errors.New("unexpected key \"bad\" in secrets file /root/.secrets/homes-secrets.toml"), "source", "/root/.secrets/homes-secrets.toml")
-	}
-	defer func() {
-		loadOptionalHealthNtfyToken = oldLoad
-	}()
+	})
+	defer restore()
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err == nil {

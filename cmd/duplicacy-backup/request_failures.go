@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -35,7 +36,36 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(req, req.HealthCommand, workflow.OperatorMessage(err), completedAt))
 	} else if looksLikeNotifyCommand(args) {
 		req := inferNotifyFailureRequest(args)
-		_ = workflow.WriteNotifyTestReport(os.Stdout, workflow.NewFailureNotifyTestReport(req, workflow.OperatorMessage(err)))
+		commandName := req.NotifyCommand
+		if commandName == "" {
+			commandName = "test"
+		}
+		provider := req.NotifyProvider
+		if provider == "" {
+			provider = notify.ProviderAll
+		}
+		severity := req.NotifySeverity
+		if severity == "" {
+			severity = "warning"
+		}
+		summary := req.NotifySummary
+		if summary == "" {
+			summary = "Notification test failed"
+		}
+		message := req.NotifyMessage
+		if message == "" {
+			message = workflow.OperatorMessage(err)
+		}
+		_ = notify.WriteTestReport(os.Stdout, notify.NewFailureTestReport(notify.TestReportInput{
+			Command:  commandName,
+			Label:    req.Source,
+			Target:   req.Target(),
+			Provider: provider,
+			Severity: severity,
+			Summary:  summary,
+			Message:  message,
+			DryRun:   req.DryRun,
+		}))
 	} else {
 		emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, workflow.OperatorMessage(err))
 	}

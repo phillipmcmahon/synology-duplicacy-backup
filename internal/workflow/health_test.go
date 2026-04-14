@@ -19,7 +19,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
@@ -73,15 +72,6 @@ func newIPv4TestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	server.Listener = listener
 	server.Start()
 	return server
-}
-
-func withWebhookTokenLoader(t *testing.T, loader func(string, string) (string, error)) {
-	t.Helper()
-	old := loadOptionalHealthWebhookToken
-	loadOptionalHealthWebhookToken = loader
-	t.Cleanup(func() {
-		loadOptionalHealthWebhookToken = old
-	})
 }
 
 func healthOwnerGroup(t *testing.T) (string, string) {
@@ -449,41 +439,6 @@ func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 	}
 	if report.Status != "unhealthy" {
 		t.Fatalf("report = %+v", report)
-	}
-}
-
-func TestHealthWebhookDelivery(t *testing.T) {
-	var gotAuth string
-	server := newIPv4TestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuth = r.Header.Get("Authorization")
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
-	meta.StateDir = t.TempDir()
-	rt := newHealthRuntime(time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC), t.TempDir())
-	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
-	if err != nil {
-		t.Fatalf("logger.New() error = %v", err)
-	}
-	t.Cleanup(log.Close)
-
-	withWebhookTokenLoader(t, func(string, string) (string, error) {
-		return "hook-token", nil
-	})
-
-	report := NewFailureHealthReport(&Request{HealthCommand: "verify", Source: "homes", RequestedTarget: "offsite-storj"}, "verify", "boom", rt.Now())
-	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
-	payload := buildHealthNotificationPayload(rt, report)
-	if payload == nil {
-		t.Fatal("buildHealthNotificationPayload() = nil")
-	}
-	if err := sendWebhookPayload(cfg, "/root/.secrets/homes-secrets.toml", report.Target, payload, notificationSendOptions{}); err != nil {
-		t.Fatalf("sendWebhookPayload() error = %v", err)
-	}
-	if gotAuth != "Bearer hook-token" {
-		t.Fatalf("Authorization = %q", gotAuth)
 	}
 }
 

@@ -274,59 +274,6 @@ func TestExecutorMaybeSendFailureNotification_SafePruneBlocked(t *testing.T) {
 	}
 }
 
-func TestSendConfiguredNotifications_Ntfy(t *testing.T) {
-	rt := testRuntime()
-	var gotTitle, gotPriority, gotTags, gotAuth, gotBody string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotTitle = r.Header.Get("Title")
-		gotPriority = r.Header.Get("Priority")
-		gotTags = r.Header.Get("Tags")
-		gotAuth = r.Header.Get("Authorization")
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("ReadAll() error = %v", err)
-		}
-		gotBody = string(data)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	withWebhookTokenLoader(t, func(string, string) (string, error) { return "", nil })
-	oldNtfyLoader := loadOptionalHealthNtfyToken
-	loadOptionalHealthNtfyToken = func(string, string) (string, error) { return "ntfy-token", nil }
-	defer func() { loadOptionalHealthNtfyToken = oldNtfyLoader }()
-
-	payload := newNotificationPayload(rt, "warning", "maintenance", "safe_prune_blocked",
-		"Safe prune blocked for homes/offsite-storj",
-		"homes", "offsite-storj", storageTypeObject, locationRemote,
-		"prune", "", "blocked", map[string]any{"message": "Safe prune blocked because deletion threshold would be exceeded"},
-	)
-	cfg := config.HealthNotifyConfig{
-		Ntfy: config.HealthNotifyNtfyConfig{
-			URL:   server.URL,
-			Topic: "duplicacy-alerts",
-		},
-	}
-	if err := sendConfiguredNotifications(cfg, "/root/.secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
-		t.Fatalf("sendConfiguredNotifications() error = %v", err)
-	}
-	if gotTitle != "WARNING: Safe prune blocked for homes/offsite-storj" {
-		t.Fatalf("Title = %q", gotTitle)
-	}
-	if gotPriority != "3" {
-		t.Fatalf("Priority = %q", gotPriority)
-	}
-	if gotTags != "duplicacy,warning,maintenance,safe-prune-blocked,blocked" {
-		t.Fatalf("Tags = %q", gotTags)
-	}
-	if gotAuth != "Bearer ntfy-token" {
-		t.Fatalf("Authorization = %q", gotAuth)
-	}
-	if !strings.Contains(gotBody, "Type: object") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
-		t.Fatalf("Body = %q", gotBody)
-	}
-}
-
 func configHealthNotifyForTest(url string) config.HealthNotifyConfig {
 	return config.HealthNotifyConfig{
 		WebhookURL:  url,
