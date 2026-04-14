@@ -204,6 +204,31 @@ policy, it will notify on each matching run. Keep scheduler frequency sensible
 and use the receiving system's own suppression or grouping features if you
 need more noise control.
 
+### Simulated Notification Sends
+
+`notify test` uses the configured label and target exactly as a real runtime or
+health notification would, but it sends a clearly marked synthetic event with
+`category = test`.
+
+This is useful for validating:
+
+- destination resolution for the selected target
+- target-scoped notification auth
+- provider reachability and acceptance
+
+It does not prove that:
+
+- a real backup, prune, or health event has occurred
+- DSM scheduled-task email is working
+- your normal `notify_on` and `send_for` policy would emit for a real event
+
+Provider-specific expectations:
+
+- native `ntfy` sends a real message to the configured topic using the same
+  token handling as live notifications
+- generic webhook sends the same generic JSON payload shape used by live
+  notifications, leaving rendering and translation to the receiver
+
 ## Example Config
 
 ```toml

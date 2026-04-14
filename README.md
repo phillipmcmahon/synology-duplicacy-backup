@@ -191,6 +191,11 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 sudo duplicacy-backup notify test --target onsite-usb homes
 ```
 
+`notify test` uses the existing label and target config, sends a clearly marked
+synthetic notification, and is meant to validate provider delivery and auth. It
+does not prove that a backup, prune, or health condition has occurred, and it
+does not exercise scheduler email from DSM.
+
 ## Common Commands
 
 These are useful operator commands, including combined manual maintenance

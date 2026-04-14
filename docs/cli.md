@@ -207,3 +207,43 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
 - if config cannot be read at all, built-in notifications are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
 - keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root
+
+## Notification Test Semantics
+
+Use `notify test` when you want to validate the notification path for a
+specific label and target without waiting for a real backup or health event.
+
+What it validates:
+
+- the selected label and target resolve correctly
+- the requested provider is configured for that target
+- target-scoped auth tokens and destination settings can be loaded
+- the provider accepts a clearly marked synthetic notification
+
+What it does not validate:
+
+- that a real backup, prune, or health condition has occurred
+- that DSM scheduled-task email is working
+- that your normal `notify_on` or `send_for` policy would naturally emit for a
+  real event
+- that a remote provider UI will render the message exactly the same way in
+  every client
+
+Provider expectations:
+
+- `ntfy`
+  The command sends a real synthetic message to the configured topic using the
+  same target-scoped token handling as normal notifications. Expect a visible
+  test notification with `category = test` and the selected severity.
+- `webhook`
+  The command sends the same generic JSON payload shape used by real runtime and
+  health notifications. The receiving system is responsible for accepting,
+  displaying, or translating that payload.
+
+Recommended operator flow:
+
+1. Confirm the selected target has the provider configured.
+2. Start with `notify test --dry-run` if you want to inspect the resolved
+   destinations and synthetic payload details without sending anything.
+3. Run `notify test` without `--dry-run` to send the real synthetic message.
+4. Confirm the message arrives in the receiving system.
