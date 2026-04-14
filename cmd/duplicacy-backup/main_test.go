@@ -431,6 +431,29 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_ConfigValidateMissingTargetDoesNotRequireLogger(t *testing.T) {
+	withTestGlobals(t, func() {
+		logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(logFilePath, []byte("x"), 0644); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		logDir = logFilePath
+
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config validate missing target) = %d", code)
+			}
+		})
+
+		if !strings.Contains(stderr, "--target is required") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
 func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }

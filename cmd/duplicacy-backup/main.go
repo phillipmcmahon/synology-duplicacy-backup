@@ -149,6 +149,16 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		return result, 0
 	}
 
+	if !wantsJSONSummary(args) {
+		fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+		var requestErr *workflow.RequestError
+		if errors.As(err, &requestErr) && requestErr.ShowUsage {
+			fmt.Fprintln(os.Stderr)
+			fmt.Print(workflow.UsageText(meta, rt))
+		}
+		return nil, 1
+	}
+
 	log, logErr := initLogger(meta)
 	if logErr != nil {
 		fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", logErr)
