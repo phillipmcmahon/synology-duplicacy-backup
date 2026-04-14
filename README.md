@@ -186,6 +186,9 @@ sudo duplicacy-backup health status --target onsite-usb homes
 
 # JSON doctor report for homes on target onsite-usb
 sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
+
+# Send a simulated notification through the configured providers for homes on target onsite-usb
+sudo duplicacy-backup notify test --target onsite-usb homes
 ```
 
 ## Common Commands
@@ -228,6 +231,9 @@ sudo duplicacy-backup health doctor --target onsite-usb homes
 
 # Integrity check for homes on target onsite-usb
 sudo duplicacy-backup health verify --target onsite-usb homes
+
+# Send a simulated notification through the configured providers for homes on target onsite-usb
+sudo duplicacy-backup notify test --target onsite-usb homes
 ```
 
 When operations are combined, execution order is fixed:

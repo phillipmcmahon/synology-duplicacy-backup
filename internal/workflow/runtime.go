@@ -174,6 +174,7 @@ func EffectiveConfigDir(rt Runtime) string {
 func UsageText(meta Metadata, rt Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
+       %s notify <test> [OPTIONS] <source>
        %s health <status|doctor|verify> [OPTIONS] <source>
 
 Operations:
@@ -203,10 +204,13 @@ Examples:
     %s --target onsite-usb --json-summary --dry-run --backup homes
     %s --target offsite-storj --backup homes
     %s config validate --target onsite-usb homes
+    %s notify test --target onsite-usb homes
     %s health status --target onsite-usb homes
 
 Use --help-full for the detailed reference.
 `,
+		meta.ScriptName,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -223,6 +227,7 @@ func FullUsageText(meta Metadata, rt Runtime) string {
 	cfgDir := EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
+       %s notify <test> [OPTIONS] <source>
        %s health <status|doctor|verify> [OPTIONS] <source>
 
 OPERATIONS:
@@ -256,6 +261,9 @@ HEALTH COMMANDS:
     health status            Fast read-only health summary for operators and schedulers
     health doctor            Read-only environment and storage diagnostics
     health verify            Read-only integrity check across revisions found for the current label
+
+NOTIFY COMMANDS:
+    notify test             Send a clearly marked simulated notification through the configured providers
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
@@ -361,7 +369,9 @@ EXAMPLES:
     %s config validate --target onsite-usb homes
     %s config explain --target offsite-storj homes
     %s config paths --target onsite-usb homes
+    %s notify test --target onsite-usb homes
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -376,7 +386,7 @@ EXAMPLES:
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName,
+		meta.ScriptName, meta.ScriptName,
 	)
 }
 
@@ -402,6 +412,90 @@ Examples:
 
 Use --help-full for the detailed config reference.
 `,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func NotifyUsageText(meta Metadata, rt Runtime) string {
+	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source>
+
+Notify commands:
+    test
+
+Options:
+    --target <name>
+    --provider <all|webhook|ntfy>
+    --severity <warning|critical|info>
+    --summary <text>
+    --message <text>
+    --dry-run
+    --json-summary
+    --config-dir <path>
+    --secrets-dir <path>
+    --help
+    --help-full
+
+Examples:
+    %s notify test --target onsite-usb homes
+    %s notify test --target offsite-storj --provider ntfy homes
+    %s notify test --target onsite-usb --dry-run homes
+
+Use --help-full for the detailed notify reference.
+`,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func FullNotifyUsageText(meta Metadata, rt Runtime) string {
+	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source>
+
+NOTIFY COMMANDS:
+    test                    Send a synthetic test notification through the configured providers for the selected label and target
+
+OPTIONS:
+    --target <name>         Select the configured target to test (required)
+    --provider <name>       One of all, webhook, or ntfy (default: all)
+    --severity <level>      One of warning, critical, or info (default: warning)
+    --summary <text>        Override the default test summary line
+    --message <text>        Override the default synthetic message body
+    --dry-run               Preview the resolved destinations and synthetic payload without sending
+    --json-summary          Write a machine-readable test summary to stdout
+    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --secrets-dir <path>    Override secrets directory (default: %s)
+    --help                  Show the concise notify help message
+    --help-full             Show the detailed notify help message
+
+BEHAVIOUR:
+    notify test:
+      - uses the existing label and target config
+      - uses target-scoped notification auth tokens when configured
+      - sends a clearly marked synthetic notification
+      - bypasses notify_on / send_for gating because it is an explicit operator test
+      - fails if the selected provider is not configured for the selected target
+
+PROVIDER SELECTION:
+    --provider all          Test every configured destination for the selected target
+    --provider webhook      Test only the configured webhook destination
+    --provider ntfy         Test only the configured ntfy destination
+
+EXAMPLES:
+    %s notify test --target onsite-usb homes
+    %s notify test --target offsite-storj --provider ntfy homes
+    %s notify test --target onsite-usb --severity critical homes
+    %s notify test --target onsite-usb --summary "NAS alert path test" --message "Synthetic end-to-end notification check" homes
+    %s notify test --target onsite-usb --dry-run homes
+    %s notify test --target onsite-usb --json-summary homes
+`,
+		meta.ScriptName,
+		config.DefaultSecretsDir,
+		meta.ScriptName,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,

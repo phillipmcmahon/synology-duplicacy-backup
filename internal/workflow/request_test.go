@@ -38,6 +38,17 @@ func TestParseRequest_ConfigHelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_NotifyHelpHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify", "--help"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_HelpFullHandled(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"--help-full"}, meta, DefaultRuntime())
@@ -52,6 +63,17 @@ func TestParseRequest_HelpFullHandled(t *testing.T) {
 func TestParseRequest_ConfigHelpFullHandled(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "--help-full"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_NotifyHelpFullHandled(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify", "--help-full"}, meta, DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -90,6 +112,24 @@ func TestParseRequest_TargetFlag(t *testing.T) {
 	}
 	if result.Request.Target() != "offsite-storj" {
 		t.Fatalf("Target() = %q", result.Request.Target())
+	}
+}
+
+func TestParseRequest_NotifyTest(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify", "test", "--target", "offsite-storj", "--provider", "ntfy", "--severity", "critical", "--summary", "Smoke", "--message", "Synthetic", "--json-summary", "--dry-run", "homes"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.NotifyCommand != "test" ||
+		result.Request.Target() != "offsite-storj" ||
+		result.Request.NotifyProvider != "ntfy" ||
+		result.Request.NotifySeverity != "critical" ||
+		result.Request.NotifySummary != "Smoke" ||
+		result.Request.NotifyMessage != "Synthetic" ||
+		!result.Request.JSONSummary ||
+		!result.Request.DryRun {
+		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 
@@ -272,6 +312,29 @@ func TestParseRequest_ConfigNoActionShowsUsage(t *testing.T) {
 	}
 }
 
+func TestParseRequest_NotifyNoActionShowsUsage(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify"}, meta, DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || !strings.Contains(result.Output, "notify <test>") {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_NotifyUnknownCommandFails(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"notify", "unknown", "homes"}, meta, DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*RequestError)
+	if !ok || !reqErr.ShowUsage {
+		t.Fatalf("error = %#v", err)
+	}
+}
+
 func TestParseRequest_ConfigUnknownCommandFails(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	_, err := ParseRequest([]string{"config", "unknown", "homes"}, meta, DefaultRuntime())
@@ -291,6 +354,10 @@ func TestParseRequest_OptionValueErrors(t *testing.T) {
 		{"--secrets-dir"},
 		{"config", "validate", "--config-dir"},
 		{"config", "validate", "--secrets-dir"},
+		{"notify", "test", "--provider"},
+		{"notify", "test", "--severity"},
+		{"notify", "test", "--summary"},
+		{"notify", "test", "--message"},
 	}
 	for _, args := range cases {
 		if _, err := ParseRequest(args, meta, DefaultRuntime()); err == nil {
@@ -304,6 +371,7 @@ func TestParseRequest_UnknownOptionsFail(t *testing.T) {
 	cases := [][]string{
 		{"--target", "onsite-usb", "--mystery", "homes"},
 		{"config", "validate", "--target", "onsite-usb", "--mystery", "homes"},
+		{"notify", "test", "--target", "onsite-usb", "--mystery", "homes"},
 	}
 	for _, args := range cases {
 		_, err := ParseRequest(args, meta, DefaultRuntime())
@@ -327,9 +395,20 @@ func TestParseRequest_TargetRequiredForRuntimeConfigAndHealth(t *testing.T) {
 		{"--backup", "homes"},
 		{"config", "validate", "homes"},
 		{"health", "status", "homes"},
+		{"notify", "test", "homes"},
 	} {
 		if _, err := ParseRequest(args, meta, DefaultRuntime()); err == nil || !strings.Contains(err.Error(), "--target is required") {
 			t.Fatalf("args %v err = %v", args, err)
 		}
+	}
+}
+
+func TestParseRequest_NotifyRejectsInvalidProviderAndSeverity(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	if _, err := ParseRequest([]string{"notify", "test", "--target", "onsite-usb", "--provider", "email", "homes"}, meta, DefaultRuntime()); err == nil || !strings.Contains(err.Error(), "unsupported notify provider") {
+		t.Fatalf("provider err = %v", err)
+	}
+	if _, err := ParseRequest([]string{"notify", "test", "--target", "onsite-usb", "--severity", "low", "homes"}, meta, DefaultRuntime()); err == nil || !strings.Contains(err.Error(), "unsupported notify severity") {
+		t.Fatalf("severity err = %v", err)
 	}
 }

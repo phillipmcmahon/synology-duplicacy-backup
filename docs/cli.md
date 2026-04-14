@@ -61,6 +61,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `config validate --target <target> <label>` | Validate the selected target from that label config and any required object-target secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
+| `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
 
 ## Health Commands
 
@@ -142,6 +143,9 @@ sudo duplicacy-backup health status --target onsite-usb homes
 # JSON doctor report for homes on target onsite-usb
 sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 
+# Send a simulated notification through the configured providers for homes on target onsite-usb
+sudo duplicacy-backup notify test --target onsite-usb homes
+
 # Verify homes on target offsite-storj
 sudo duplicacy-backup health verify --target offsite-storj homes
 ```
@@ -177,6 +181,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
 - `config paths` includes secrets paths only for object targets
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
+- `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr

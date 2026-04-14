@@ -120,6 +120,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"--fix-perms",
 			"--json-summary",
 			"config validate",
+			"notify test",
 			"health status",
 			"/var/lib/duplicacy-backup/<label>.<target>.json",
 			"[health.notify]",
@@ -132,6 +133,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"--fix-perms",
 			"--json-summary",
 			"config validate",
+			"notify test",
 			"health status",
 			"health doctor",
 			"health verify",
@@ -192,10 +194,12 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 
 	expected := []string{
 		"config <validate|explain|paths>",
+		"notify <test>",
 		"health <status|doctor|verify>",
 		"--target <name>          Perform operation against the named target config (required)",
 		"--json-summary           Write a machine-readable run summary to stdout",
 		"health status            Fast read-only health summary for operators and schedulers",
+		"notify test             Send a clearly marked simulated notification through the configured providers",
 		"health verify            Read-only integrity check across revisions found for the current label",
 		"Target-specific run and health state are stored under:",
 		"health_webhook_bearer_token",

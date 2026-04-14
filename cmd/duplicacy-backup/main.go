@@ -25,6 +25,7 @@ var lookPath = osexec.LookPath
 var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
+var handleNotifyCommand = workflow.HandleNotifyCommand
 var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 const scriptName = "duplicacy-backup"
@@ -59,6 +60,18 @@ func runWithArgs(args []string) int {
 		output, err := handleConfigCommand(result.Request, meta, rt)
 		if err != nil {
 			if report := workflow.ConfigCommandOutput(err); report != "" {
+				fmt.Print(report)
+			}
+			fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+			return 1
+		}
+		fmt.Print(output)
+		return 0
+	}
+	if result.Request.NotifyCommand != "" {
+		output, err := handleNotifyCommand(result.Request, meta, rt)
+		if err != nil {
+			if report := workflow.NotifyCommandOutput(err); report != "" {
 				fmt.Print(report)
 			}
 			fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
@@ -177,6 +190,9 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		if looksLikeHealthCommand(args) {
 			req := inferHealthFailureRequest(args)
 			_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(req, req.HealthCommand, workflow.OperatorMessage(err), completedAt))
+		} else if looksLikeNotifyCommand(args) {
+			req := inferNotifyFailureRequest(args)
+			_ = workflow.WriteNotifyTestReport(os.Stdout, workflow.NewFailureNotifyTestReport(req, workflow.OperatorMessage(err)))
 		} else {
 			emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, workflow.OperatorMessage(err))
 		}
@@ -202,6 +218,10 @@ func looksLikeHealthCommand(args []string) bool {
 	return len(args) > 0 && args[0] == "health"
 }
 
+func looksLikeNotifyCommand(args []string) bool {
+	return len(args) > 0 && args[0] == "notify"
+}
+
 func inferHealthFailureRequest(args []string) *workflow.Request {
 	req := &workflow.Request{}
 	if len(args) == 0 || args[0] != "health" {
@@ -222,6 +242,60 @@ func inferHealthFailureRequest(args []string) *workflow.Request {
 			req.JSONSummary = true
 		case "--verbose":
 			req.Verbose = true
+		case "--config-dir", "--secrets-dir":
+			i++
+		default:
+			if len(args[i]) > 0 && args[i][0] != '-' {
+				positional = append(positional, args[i])
+			}
+		}
+	}
+	if len(positional) > 0 {
+		req.Source = positional[0]
+	}
+	return req
+}
+
+func inferNotifyFailureRequest(args []string) *workflow.Request {
+	req := &workflow.Request{NotifyProvider: "all", NotifySeverity: "warning"}
+	if len(args) == 0 || args[0] != "notify" {
+		return req
+	}
+	if len(args) > 1 && args[1] != "" && args[1][0] != '-' {
+		req.NotifyCommand = args[1]
+	}
+	var positional []string
+	for i := 2; i < len(args); i++ {
+		switch args[i] {
+		case "--target":
+			if i+1 < len(args) {
+				i++
+				req.RequestedTarget = args[i]
+			}
+		case "--provider":
+			if i+1 < len(args) {
+				i++
+				req.NotifyProvider = args[i]
+			}
+		case "--severity":
+			if i+1 < len(args) {
+				i++
+				req.NotifySeverity = args[i]
+			}
+		case "--summary":
+			if i+1 < len(args) {
+				i++
+				req.NotifySummary = args[i]
+			}
+		case "--message":
+			if i+1 < len(args) {
+				i++
+				req.NotifyMessage = args[i]
+			}
+		case "--dry-run":
+			req.DryRun = true
+		case "--json-summary":
+			req.JSONSummary = true
 		case "--config-dir", "--secrets-dir":
 			i++
 		default:

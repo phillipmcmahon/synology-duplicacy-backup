@@ -38,6 +38,24 @@ type NotificationPayload struct {
 	Details     map[string]any `json:"details,omitempty"`
 }
 
+type NotificationDeliveryResult struct {
+	Provider    string `json:"provider"`
+	Destination string `json:"destination,omitempty"`
+	Result      string `json:"result"`
+	Message     string `json:"message,omitempty"`
+}
+
+type configuredNotificationDestination struct {
+	Provider    string
+	Destination string
+}
+
+const (
+	notifyProviderAll     = "all"
+	notifyProviderWebhook = "webhook"
+	notifyProviderNtfy    = "ntfy"
+)
+
 func shouldSendConfiguredNotification(rt Runtime, interactive bool, cfg config.HealthNotifyConfig, sendFor string) bool {
 	if !hasNotifyDestination(cfg) {
 		return false
@@ -56,21 +74,48 @@ func hasNotifyDestination(cfg config.HealthNotifyConfig) bool {
 }
 
 func sendConfiguredNotifications(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
-	if payload == nil {
+	results, err := sendConfiguredNotificationsDetailed(cfg, secretsFile, target, payload, notifyProviderAll)
+	if err == nil {
 		return nil
 	}
 	var errs []error
-	if strings.TrimSpace(cfg.WebhookURL) != "" {
-		if err := sendWebhookPayload(cfg, secretsFile, target, payload); err != nil {
-			errs = append(errs, err)
+	for _, result := range results {
+		if result.Result == "failed" && result.Message != "" {
+			errs = append(errs, errors.New(result.Message))
 		}
 	}
-	if strings.TrimSpace(cfg.Ntfy.Topic) != "" {
-		if err := sendNtfyNotification(cfg, secretsFile, target, payload); err != nil {
-			errs = append(errs, err)
-		}
+	if len(errs) == 0 {
+		return err
 	}
 	return errors.Join(errs...)
+}
+
+func sendConfiguredNotificationsDetailed(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, provider string) ([]NotificationDeliveryResult, error) {
+	if payload == nil {
+		return nil, nil
+	}
+	destinations, err := configuredNotificationDestinations(cfg, provider)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]NotificationDeliveryResult, 0, len(destinations))
+	var errs []error
+	for _, destination := range destinations {
+		sendErr := sendNotificationToProvider(destination.Provider, cfg, secretsFile, target, payload)
+		result := NotificationDeliveryResult{
+			Provider:    destination.Provider,
+			Destination: destination.Destination,
+		}
+		if sendErr != nil {
+			result.Result = "failed"
+			result.Message = OperatorMessage(sendErr)
+			errs = append(errs, sendErr)
+		} else {
+			result.Result = "delivered"
+		}
+		results = append(results, result)
+	}
+	return results, errors.Join(errs...)
 }
 
 func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
@@ -123,6 +168,58 @@ func doNotifyRequest(req *http.Request, label string) error {
 		return fmt.Errorf("%s returned %s", label, resp.Status)
 	}
 	return nil
+}
+
+func configuredNotificationDestinations(cfg config.HealthNotifyConfig, provider string) ([]configuredNotificationDestination, error) {
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		provider = notifyProviderAll
+	}
+
+	webhookConfigured := strings.TrimSpace(cfg.WebhookURL) != ""
+	ntfyConfigured := strings.TrimSpace(cfg.Ntfy.Topic) != ""
+	ntfyURL := strings.TrimRight(strings.TrimSpace(cfg.Ntfy.URL), "/")
+	if ntfyURL == "" {
+		ntfyURL = "https://ntfy.sh"
+	}
+
+	switch provider {
+	case notifyProviderAll:
+		var destinations []configuredNotificationDestination
+		if webhookConfigured {
+			destinations = append(destinations, configuredNotificationDestination{Provider: notifyProviderWebhook, Destination: cfg.WebhookURL})
+		}
+		if ntfyConfigured {
+			destinations = append(destinations, configuredNotificationDestination{Provider: notifyProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)})
+		}
+		if len(destinations) == 0 {
+			return nil, NewMessageError("No notification destinations are configured for the selected target")
+		}
+		return destinations, nil
+	case notifyProviderWebhook:
+		if !webhookConfigured {
+			return nil, NewMessageError("No webhook notification destination is configured for the selected target")
+		}
+		return []configuredNotificationDestination{{Provider: notifyProviderWebhook, Destination: cfg.WebhookURL}}, nil
+	case notifyProviderNtfy:
+		if !ntfyConfigured {
+			return nil, NewMessageError("No ntfy notification destination is configured for the selected target")
+		}
+		return []configuredNotificationDestination{{Provider: notifyProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)}}, nil
+	default:
+		return nil, NewMessageError("Unsupported notify provider %q", provider)
+	}
+}
+
+func sendNotificationToProvider(provider string, cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
+	switch provider {
+	case notifyProviderWebhook:
+		return sendWebhookPayload(cfg, secretsFile, target, payload)
+	case notifyProviderNtfy:
+		return sendNtfyNotification(cfg, secretsFile, target, payload)
+	default:
+		return NewMessageError("Unsupported notify provider %q", provider)
+	}
 }
 
 func ntfyTitle(payload *NotificationPayload) string {
@@ -201,6 +298,24 @@ func ntfyMessageBody(payload *NotificationPayload) string {
 		lines = append(lines, "", message)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func buildTestNotificationPayload(rt Runtime, label, target, storageType, location string, req *Request) *NotificationPayload {
+	severity := strings.TrimSpace(req.NotifySeverity)
+	if severity == "" {
+		severity = "warning"
+	}
+	summary := strings.TrimSpace(req.NotifySummary)
+	if summary == "" {
+		summary = fmt.Sprintf("Notification test for %s/%s", label, target)
+	}
+	message := strings.TrimSpace(req.NotifyMessage)
+	if message == "" {
+		message = "This is a simulated operator-initiated test notification."
+	}
+	return newNotificationPayload(rt, severity, "test", "notification_test", summary, label, target, storageType, location, "", "", "test", map[string]any{
+		"message": message,
+	})
 }
 
 func notifyDetailsMessage(details map[string]any) string {

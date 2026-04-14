@@ -238,6 +238,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
+		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
 		!strings.Contains(stdout, "--cleanup-storage") ||
@@ -260,6 +261,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
+		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -297,6 +299,20 @@ func TestRunWithArgs_ConfigHelpReturnsZero(t *testing.T) {
 	}
 }
 
+func TestRunWithArgs_NotifyHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"notify", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(notify --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Notify commands:") || !strings.Contains(stdout, "Use --help-full for the detailed notify reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
 func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help-full"}); code != 0 {
@@ -307,6 +323,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "Use [targets.<name>] tables with:") ||
+		!strings.Contains(stdout, "notify test             Send a clearly marked simulated notification through the configured providers") ||
 		!strings.Contains(stdout, "storj_s3_id") ||
 		!strings.Contains(stdout, "storj_s3_secret") ||
 		!strings.Contains(stdout, "health_webhook_bearer_token") ||
@@ -316,6 +333,21 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
 		!strings.Contains(stdout, "config explain --target offsite-storj homes") ||
 		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_NotifyHelpFullReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"notify", "--help-full"}); code != 0 {
+			t.Fatalf("runWithArgs(notify --help-full) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "--provider <name>       One of all, webhook, or ntfy (default: all)") ||
+		!strings.Contains(stdout, "notify test --target onsite-usb homes") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -1061,6 +1093,30 @@ func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
 		}
 	})
 	if !strings.Contains(stdout, `"check_type": "verify"`) || !strings.Contains(stdout, `"target": "offsite-storj"`) {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stderr, "source directory required") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
+	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
+	rt := workflow.DefaultRuntime()
+
+	stdout, stderr := captureOutput(t, func() {
+		result, code := buildRequest([]string{"notify", "test", "--json-summary", "--target", "offsite-storj"}, meta, rt)
+		if code != 1 {
+			t.Fatalf("buildRequest() code = %d", code)
+		}
+		if result != nil {
+			t.Fatalf("buildRequest() result = %#v, want nil", result)
+		}
+	})
+	if !strings.Contains(stdout, `"command": "test"`) ||
+		!strings.Contains(stdout, `"provider": "all"`) ||
+		!strings.Contains(stdout, `"target": "offsite-storj"`) ||
+		!strings.Contains(stdout, `"result": "failed"`) {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if !strings.Contains(stderr, "source directory required") {

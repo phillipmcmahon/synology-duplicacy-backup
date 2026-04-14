@@ -27,6 +27,7 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 type Request struct {
 	ConfigCommand   string
 	HealthCommand   string
+	NotifyCommand   string
 	FixPerms        bool
 	ForcePrune      bool
 	RequestedTarget string
@@ -36,6 +37,10 @@ type Request struct {
 	ConfigDir       string
 	SecretsDir      string
 	Source          string
+	NotifyProvider  string
+	NotifySeverity  string
+	NotifySummary   string
+	NotifyMessage   string
 	DoBackup        bool
 	DoPrune         bool
 	DoCleanupStore  bool
@@ -65,6 +70,9 @@ func ParseRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error
 	}
 	if len(args) > 0 && args[0] == "health" {
 		return parseHealthRequest(args[1:], meta, rt)
+	}
+	if len(args) > 0 && args[0] == "notify" {
+		return parseNotifyRequest(args[1:], meta, rt)
 	}
 
 	for _, arg := range args {
@@ -174,6 +182,44 @@ func parseConfigRequest(args []string, meta Metadata, rt Runtime) (*ParseResult,
 	return &ParseResult{Request: req}, nil
 }
 
+func parseNotifyRequest(args []string, meta Metadata, rt Runtime) (*ParseResult, error) {
+	if len(args) == 0 {
+		return &ParseResult{Handled: true, Output: NotifyUsageText(meta, rt)}, nil
+	}
+	for _, arg := range args {
+		if arg == "--help" {
+			return &ParseResult{Handled: true, Output: NotifyUsageText(meta, rt)}, nil
+		}
+		if arg == "--help-full" {
+			return &ParseResult{Handled: true, Output: FullNotifyUsageText(meta, rt)}, nil
+		}
+	}
+
+	action := args[0]
+	switch action {
+	case "test":
+	default:
+		return nil, NewUsageRequestError("unknown notify command %s", action)
+	}
+
+	req, err := parseNotifyFlags(args[1:])
+	if err != nil {
+		return nil, err
+	}
+	req.NotifyCommand = action
+	if req.RequestedTarget == "" {
+		return nil, NewRequestError("--target is required")
+	}
+	if err := ValidateTargetName(req.RequestedTarget); err != nil {
+		return nil, err
+	}
+	if err := ValidateLabel(req.Source); err != nil {
+		return nil, fmt.Errorf("Invalid source label: %w", err)
+	}
+
+	return &ParseResult{Request: req}, nil
+}
+
 func parseFlags(args []string) (*Request, error) {
 	req := &Request{}
 	var positional []string
@@ -232,6 +278,85 @@ func parseFlags(args []string) (*Request, error) {
 	return req, nil
 }
 
+func parseNotifyFlags(args []string) (*Request, error) {
+	req := &Request{
+		NotifyProvider: "all",
+		NotifySeverity: "warning",
+	}
+	var positional []string
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--target":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--target requires a value")
+			}
+			i++
+			req.RequestedTarget = args[i]
+		case "--provider":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--provider requires a value")
+			}
+			i++
+			req.NotifyProvider = args[i]
+		case "--severity":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--severity requires a value")
+			}
+			i++
+			req.NotifySeverity = args[i]
+		case "--summary":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--summary requires a value")
+			}
+			i++
+			req.NotifySummary = args[i]
+		case "--message":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--message requires a value")
+			}
+			i++
+			req.NotifyMessage = args[i]
+		case "--dry-run":
+			req.DryRun = true
+		case "--json-summary":
+			req.JSONSummary = true
+		case "--config-dir":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--config-dir requires a value")
+			}
+			i++
+			req.ConfigDir = args[i]
+		case "--secrets-dir":
+			if i+1 >= len(args) {
+				return nil, NewUsageRequestError("--secrets-dir requires a value")
+			}
+			i++
+			req.SecretsDir = args[i]
+		default:
+			if len(args[i]) > 0 && args[i][0] == '-' {
+				return nil, NewUsageRequestError("unknown option %s", args[i])
+			}
+			positional = append(positional, args[i])
+		}
+	}
+
+	if len(positional) < 1 {
+		return nil, NewUsageRequestError("source directory required")
+	}
+	if len(positional) > 1 {
+		return nil, NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
+	}
+	req.Source = positional[0]
+	if err := validateNotifyProvider(req.NotifyProvider); err != nil {
+		return nil, err
+	}
+	if err := validateNotifySeverity(req.NotifySeverity); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
 func parseConfigFlags(args []string) (*Request, error) {
 	req := &Request{}
 	var positional []string
@@ -272,6 +397,24 @@ func parseConfigFlags(args []string) (*Request, error) {
 	}
 	req.Source = positional[0]
 	return req, nil
+}
+
+func validateNotifyProvider(provider string) error {
+	switch strings.TrimSpace(provider) {
+	case "", "all", "webhook", "ntfy":
+		return nil
+	default:
+		return NewRequestError("unsupported notify provider %q; expected all, webhook, or ntfy", provider)
+	}
+}
+
+func validateNotifySeverity(severity string) error {
+	switch strings.TrimSpace(severity) {
+	case "", "warning", "critical", "info":
+		return nil
+	default:
+		return NewRequestError("unsupported notify severity %q; expected warning, critical, or info", severity)
+	}
 }
 
 func parseHealthFlags(args []string) (*Request, error) {
