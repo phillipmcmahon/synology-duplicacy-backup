@@ -479,7 +479,7 @@ func TestHealthWebhookDelivery(t *testing.T) {
 	if payload == nil {
 		t.Fatal("buildHealthNotificationPayload() = nil")
 	}
-	if err := sendWebhookPayload(cfg, "", report.Target, payload); err != nil {
+	if err := sendWebhookPayload(cfg, "/root/.secrets/homes-secrets.toml", report.Target, payload, notificationSendOptions{}); err != nil {
 		t.Fatalf("sendWebhookPayload() error = %v", err)
 	}
 	if gotAuth != "Bearer hook-token" {

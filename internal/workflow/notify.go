@@ -13,6 +13,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -50,6 +51,10 @@ type configuredNotificationDestination struct {
 	Destination string
 }
 
+type notificationSendOptions struct {
+	IgnoreOptionalAuthLoadErrors bool
+}
+
 const (
 	notifyProviderAll     = "all"
 	notifyProviderWebhook = "webhook"
@@ -74,7 +79,7 @@ func hasNotifyDestination(cfg config.HealthNotifyConfig) bool {
 }
 
 func sendConfiguredNotifications(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
-	results, err := sendConfiguredNotificationsDetailed(cfg, secretsFile, target, payload, notifyProviderAll)
+	results, err := sendConfiguredNotificationsDetailedWithOptions(cfg, secretsFile, target, payload, notifyProviderAll, notificationSendOptions{})
 	if err == nil {
 		return nil
 	}
@@ -91,6 +96,10 @@ func sendConfiguredNotifications(cfg config.HealthNotifyConfig, secretsFile, tar
 }
 
 func sendConfiguredNotificationsDetailed(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, provider string) ([]NotificationDeliveryResult, error) {
+	return sendConfiguredNotificationsDetailedWithOptions(cfg, secretsFile, target, payload, provider, notificationSendOptions{})
+}
+
+func sendConfiguredNotificationsDetailedWithOptions(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, provider string, opts notificationSendOptions) ([]NotificationDeliveryResult, error) {
 	if payload == nil {
 		return nil, nil
 	}
@@ -101,7 +110,7 @@ func sendConfiguredNotificationsDetailed(cfg config.HealthNotifyConfig, secretsF
 	results := make([]NotificationDeliveryResult, 0, len(destinations))
 	var errs []error
 	for _, destination := range destinations {
-		sendErr := sendNotificationToProvider(destination.Provider, cfg, secretsFile, target, payload)
+		sendErr := sendNotificationToProvider(destination.Provider, cfg, secretsFile, target, payload, opts)
 		result := NotificationDeliveryResult{
 			Provider:    destination.Provider,
 			Destination: destination.Destination,
@@ -118,7 +127,7 @@ func sendConfiguredNotificationsDetailed(cfg config.HealthNotifyConfig, secretsF
 	return results, errors.Join(errs...)
 }
 
-func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
+func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, opts notificationSendOptions) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to encode webhook payload: %w", err)
@@ -128,7 +137,7 @@ func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target strin
 		return fmt.Errorf("failed to build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if token, err := loadOptionalHealthWebhookToken(secretsFile, target); err != nil {
+	if token, err := loadOptionalNotificationToken(secretsFile, target, loadOptionalHealthWebhookToken, opts); err != nil {
 		return err
 	} else if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -136,7 +145,7 @@ func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target strin
 	return doNotifyRequest(req, "webhook delivery")
 }
 
-func sendNtfyNotification(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
+func sendNtfyNotification(cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, opts notificationSendOptions) error {
 	url := strings.TrimRight(strings.TrimSpace(cfg.Ntfy.URL), "/")
 	if url == "" {
 		url = "https://ntfy.sh"
@@ -149,7 +158,7 @@ func sendNtfyNotification(cfg config.HealthNotifyConfig, secretsFile, target str
 	req.Header.Set("Title", ntfyTitle(payload))
 	req.Header.Set("Priority", ntfyPriority(payload.Severity))
 	req.Header.Set("Tags", ntfyTags(payload))
-	if token, err := loadOptionalHealthNtfyToken(secretsFile, target); err != nil {
+	if token, err := loadOptionalNotificationToken(secretsFile, target, loadOptionalHealthNtfyToken, opts); err != nil {
 		return err
 	} else if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -211,14 +220,36 @@ func configuredNotificationDestinations(cfg config.HealthNotifyConfig, provider 
 	}
 }
 
-func sendNotificationToProvider(provider string, cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload) error {
+func sendNotificationToProvider(provider string, cfg config.HealthNotifyConfig, secretsFile, target string, payload *NotificationPayload, opts notificationSendOptions) error {
 	switch provider {
 	case notifyProviderWebhook:
-		return sendWebhookPayload(cfg, secretsFile, target, payload)
+		return sendWebhookPayload(cfg, secretsFile, target, payload, opts)
 	case notifyProviderNtfy:
-		return sendNtfyNotification(cfg, secretsFile, target, payload)
+		return sendNtfyNotification(cfg, secretsFile, target, payload, opts)
 	default:
 		return NewMessageError("Unsupported notify provider %q", provider)
+	}
+}
+
+func loadOptionalNotificationToken(secretsFile, target string, loader func(string, string) (string, error), opts notificationSendOptions) (string, error) {
+	if strings.TrimSpace(secretsFile) == "" {
+		return "", nil
+	}
+	token, err := loader(secretsFile, target)
+	if err == nil || !opts.IgnoreOptionalAuthLoadErrors {
+		return token, err
+	}
+
+	var secErr *apperrors.SecretsError
+	if !errors.As(err, &secErr) {
+		return "", err
+	}
+
+	switch secErr.Phase {
+	case "stat", "open", "permissions", "ownership":
+		return "", nil
+	default:
+		return "", err
 	}
 }
 

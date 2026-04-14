@@ -128,7 +128,14 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 		return notifyOutput(report, req.JSONSummary), nil
 	}
 
-	results, sendErr := sendConfiguredNotificationsDetailed(cfg.Health.Notify, plan.SecretsFile, cfg.Target, payload, req.NotifyProvider)
+	results, sendErr := sendConfiguredNotificationsDetailedWithOptions(
+		cfg.Health.Notify,
+		plan.SecretsFile,
+		cfg.Target,
+		payload,
+		req.NotifyProvider,
+		notificationSendOptions{IgnoreOptionalAuthLoadErrors: true},
+	)
 	report.Providers = results
 	if sendErr != nil {
 		report.Result = "failed"

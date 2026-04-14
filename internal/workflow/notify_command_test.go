@@ -193,7 +193,58 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 	}
 }
 
-func TestHandleNotifyCommand_ObjectTargetMissingSecretsExplainsStorageRequirement(t *testing.T) {
+func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenIsOptional(t *testing.T) {
+	configDir := t.TempDir()
+	var ntfyTitle string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ntfyTitle = r.Header.Get("Title")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
+		`label = "homes"`,
+		`source_path = "/volume1/homes"`,
+		`[health.notify.ntfy]`,
+		`url = "` + server.URL + `"`,
+		`topic = "duplicacy-alerts"`,
+		`[targets.offsite-storj]`,
+		`type = "object"`,
+		`location = "remote"`,
+		`destination = "s3://EU@gateway.storjshare.io/bucket"`,
+		`repository = "homes"`,
+	}, "\n"))
+
+	req := &Request{
+		NotifyCommand:   "test",
+		RequestedTarget: "offsite-storj",
+		Source:          "homes",
+		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
+		NotifyProvider:  "ntfy",
+	}
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	oldLoad := loadOptionalHealthNtfyToken
+	loadOptionalHealthNtfyToken = func(path, target string) (string, error) {
+		return "", apperrors.NewSecretsError("open", errors.New("secrets file is not readable: /root/.secrets/homes-secrets.toml"), "path", "/root/.secrets/homes-secrets.toml")
+	}
+	defer func() {
+		loadOptionalHealthNtfyToken = oldLoad
+	}()
+
+	out, err := HandleNotifyCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("HandleNotifyCommand() error = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Ntfy") || !strings.Contains(out, "Success") {
+		t.Fatalf("output = %q", out)
+	}
+	if ntfyTitle != "WARNING: Notification test for homes/offsite-storj" {
+		t.Fatalf("Title = %q", ntfyTitle)
+	}
+}
+
+func TestHandleNotifyCommand_ObjectTargetTokenParseErrorStillFails(t *testing.T) {
 	configDir := t.TempDir()
 	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
 		`label = "homes"`,
@@ -219,7 +270,7 @@ func TestHandleNotifyCommand_ObjectTargetMissingSecretsExplainsStorageRequiremen
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	oldLoad := loadOptionalHealthNtfyToken
 	loadOptionalHealthNtfyToken = func(path, target string) (string, error) {
-		return "", apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml")
+		return "", apperrors.NewSecretsError("parse", errors.New("unexpected key \"bad\" in secrets file /root/.secrets/homes-secrets.toml"), "source", "/root/.secrets/homes-secrets.toml")
 	}
 	defer func() {
 		loadOptionalHealthNtfyToken = oldLoad
@@ -232,9 +283,8 @@ func TestHandleNotifyCommand_ObjectTargetMissingSecretsExplainsStorageRequiremen
 	if !strings.Contains(out, "Ntfy") || !strings.Contains(out, "failed") {
 		t.Fatalf("output = %q", out)
 	}
-	msg := OperatorMessage(err)
-	if !strings.Contains(msg, "storage credentials") || !strings.Contains(msg, "notification provider is ntfy") {
-		t.Fatalf("OperatorMessage(err) = %q", msg)
+	if !strings.Contains(OperatorMessage(err), "unexpected key") {
+		t.Fatalf("OperatorMessage(err) = %q", OperatorMessage(err))
 	}
 }
 

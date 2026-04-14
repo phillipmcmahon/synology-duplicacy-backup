@@ -307,7 +307,7 @@ func TestSendConfiguredNotifications_Ntfy(t *testing.T) {
 			Topic: "duplicacy-alerts",
 		},
 	}
-	if err := sendConfiguredNotifications(cfg, "", "offsite-storj", payload); err != nil {
+	if err := sendConfiguredNotifications(cfg, "/root/.secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
 		t.Fatalf("sendConfiguredNotifications() error = %v", err)
 	}
 	if gotTitle != "WARNING: Safe prune blocked for homes/offsite-storj" {
