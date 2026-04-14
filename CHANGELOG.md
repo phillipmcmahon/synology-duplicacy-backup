@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.3] - 2026-04-14
+
+### Changed
+- **Documentation now reads more naturally across the operator guides**: the
+  README, configuration guide, operations guide, CLI reference, workflow guide,
+  cheat sheet, testing guide, and supporting internal docs were tightened so
+  guidance is clearer and less mechanical without changing the underlying
+  behaviour.
+
+### Fixed
+- **Config-command parse failures no longer try to open `/var/log` first**:
+  request and config-command parse errors such as missing `--target` now report
+  the real CLI problem directly instead of surfacing a misleading
+  `Failed to initialise logger` error on non-root runs.
+- **CLI regression coverage now protects non-logger parse paths**:
+  top-level tests now cover both generic parse failures and `config validate`
+  parse failures when logger initialisation is unavailable, so this behaviour
+  remains stable in CI.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `84.4%`
+  - `cmd/duplicacy-backup`: `85.8%`
+  - `internal/workflow`: `84.0%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `76.2%`
+
 ## [v4.1.2] - 2026-04-13
 
 ### Added
