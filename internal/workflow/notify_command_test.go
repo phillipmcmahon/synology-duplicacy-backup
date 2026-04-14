@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 func TestHandleNotifyCommand_DryRun(t *testing.T) {
@@ -187,6 +190,51 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 	}
 	if !strings.Contains(OperatorMessage(err), "Notification test failed for homes/onsite-usb") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestHandleNotifyCommand_ObjectTargetMissingSecretsExplainsStorageRequirement(t *testing.T) {
+	configDir := t.TempDir()
+	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
+		`label = "homes"`,
+		`source_path = "/volume1/homes"`,
+		`[health.notify.ntfy]`,
+		`url = "https://ntfy.sh"`,
+		`topic = "duplicacy-alerts"`,
+		`[targets.offsite-storj]`,
+		`type = "object"`,
+		`location = "remote"`,
+		`destination = "s3://EU@gateway.storjshare.io/bucket"`,
+		`repository = "homes"`,
+	}, "\n"))
+
+	req := &Request{
+		NotifyCommand:   "test",
+		RequestedTarget: "offsite-storj",
+		Source:          "homes",
+		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
+		NotifyProvider:  "ntfy",
+	}
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	oldLoad := loadOptionalHealthNtfyToken
+	loadOptionalHealthNtfyToken = func(path, target string) (string, error) {
+		return "", apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml")
+	}
+	defer func() {
+		loadOptionalHealthNtfyToken = oldLoad
+	}()
+
+	out, err := HandleNotifyCommand(req, meta, testRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(out, "Ntfy") || !strings.Contains(out, "failed") {
+		t.Fatalf("output = %q", out)
+	}
+	msg := OperatorMessage(err)
+	if !strings.Contains(msg, "storage credentials") || !strings.Contains(msg, "notification provider is ntfy") {
+		t.Fatalf("OperatorMessage(err) = %q", msg)
 	}
 }
 

@@ -78,7 +78,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "secrets stat includes creation hint",
 			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml"),
-			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table or override the directory with --secrets-dir",
+			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table; object targets also use this file for storage credentials even when the notification provider is ntfy, so run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
 		},
 		{
 			name: "permissions chown includes target hint",

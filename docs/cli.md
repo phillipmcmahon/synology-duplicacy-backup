@@ -233,8 +233,10 @@ Provider expectations:
 
 - `ntfy`
   The command sends a real synthetic message to the configured topic using the
-  same target-scoped token handling as normal notifications. Expect a visible
-  test notification with `category = test` and the selected severity.
+  same target-scoped token handling as normal notifications. For object
+  targets, the command still needs the label secrets file because that target's
+  storage credentials live there too. Expect a visible test notification with
+  `category = test` and the selected severity.
 - `webhook`
   The command sends the same generic JSON payload shape used by real runtime and
   health notifications. The receiving system is responsible for accepting,
