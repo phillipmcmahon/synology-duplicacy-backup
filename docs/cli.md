@@ -177,6 +177,7 @@ sudo duplicacy-backup health verify --target offsite-storj homes
   - `Repository Access : Not initialized`
   - `Repository Access : Invalid (...)`
 - `config explain` and `config paths` surface `Type` and `Location` for the selected target
+- `config explain` does not load object-target secrets by default; it stays read-only and identity-focused while still showing the expected secrets-file path
 - `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
 - `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
 - `config paths` includes secrets paths only for object targets

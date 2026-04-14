@@ -603,27 +603,26 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	assertFlatLabels(t, pathsOut, "Label", "Target", "Type", "Location", "Config Dir", "Config File", "Source Path", "Log Dir")
 }
 
-func TestHandleConfigCommand_ExplainRemoteMasksSecrets(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
+func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing.T) {
 	configDir := t.TempDir()
-	secretsDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
-	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config explanation for homes/offsite-storj", "Secrets File", "homes-secrets.toml", "Remote Access Key", "****YZ01", "Remote Secret Key"} {
+	for _, token := range []string{"Config explanation for homes/offsite-storj", "Secrets File", "homes-secrets.toml"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File", "Remote Access Key", "Remote Secret Key")
+	for _, token := range []string{"Remote Access Key", "Remote Secret Key"} {
+		if strings.Contains(out, token) {
+			t.Fatalf("output should not include %q:\n%s", token, out)
+		}
+	}
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {

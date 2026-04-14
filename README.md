@@ -246,7 +246,7 @@ When operations are combined, execution order is fixed:
 
 Config commands are read-only helpers:
 - `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, and performs read-only Btrfs, secrets, and repository readiness checks when the current user has enough access
-- `config explain` shows the resolved values for the selected target, including `Type` and `Location`
+- `config explain` shows the resolved values for the selected target, including `Type` and `Location`, without loading object-target secrets by default
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths, including `Type` and `Location`
 
 `config validate` never initialises storage or changes repository state. Its

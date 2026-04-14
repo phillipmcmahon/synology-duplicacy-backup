@@ -404,6 +404,7 @@ Human-facing screens now make the selected target shape explicit:
 - runtime headers show `Label`, `Target`, `Type`, and `Location`
 - health headers show `Check`, `Label`, `Target`, `Type`, and `Location`
 - `config explain` and `config paths` show `Type` and `Location`
+- `config explain` stays read-only by default and does not load object-target secrets
 - `config validate` includes `Privileges`, reported as `Full` or `Limited`
 
 `config validate` intentionally keeps its `Resolved` section identity-only:

@@ -227,14 +227,8 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 	}
 
 	if cfg.UsesObjectStorage() {
-		sec, err := planner.loadSecrets(plan)
-		if err != nil {
-			return "", err
-		}
 		lines = append(lines,
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
-			SummaryLine{Label: "Remote Access Key", Value: sec.MaskedID()},
-			SummaryLine{Label: "Remote Secret Key", Value: sec.MaskedSecret()},
 		)
 	} else {
 		lines = append(lines,
