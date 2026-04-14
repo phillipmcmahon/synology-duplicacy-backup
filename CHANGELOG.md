@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.4] - 2026-04-14
+
+### Added
+- **Simulated notification sends are now a first-class operator workflow**:
+  `duplicacy-backup notify test --target <name> <label>` now sends a clearly
+  marked synthetic notification through the configured providers for the
+  selected target, with support for `--provider`, `--severity`, `--summary`,
+  `--message`, `--dry-run`, and `--json-summary`.
+
+### Changed
+- **Notification test guidance now explains what the command proves**: the
+  README, CLI reference, configuration guide, and cheat sheet now explain that
+  simulated sends validate provider delivery and auth for the selected target,
+  while clearly separating that from real backup, prune, health, and DSM email
+  behaviour.
+
+### Fixed
+- **Notification provider tests are now hermetic in CI**: the send-all notify
+  test now uses isolated config and secrets paths, so GitHub Actions no longer
+  depends on any host-local secrets state when validating the notification
+  command surface.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `83.1%`
+  - `cmd/duplicacy-backup`: `74.5%`
+  - `internal/workflow`: `82.9%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `76.2%`
+
 ## [v4.1.3] - 2026-04-14
 
 ### Changed
