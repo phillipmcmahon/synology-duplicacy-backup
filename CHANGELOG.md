@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.5] - 2026-04-14
+
+### Added
+- **Release asset mirroring is now a first-class scripted workflow**:
+  `scripts/mirror-release-assets.sh` now downloads the published GitHub assets
+  and source archives for a tagged release, then mirrors the full artefact set
+  to `homestorage` with a `tar`-over-SSH transfer that avoids the Synology
+  `scp` edge cases we hit in real use.
+- **Post-release verification is now scripted end to end**:
+  `scripts/verify-release.sh` now verifies the published GitHub release object,
+  required release-note headings, expected packaged asset names, tag commit
+  alignment, and the mirrored artefact set on `homestorage`.
+
+### Changed
+- **The repo now reflects live release state more cleanly after publish**:
+  the testing guide now updates the current public release baseline after a
+  release is published instead of continuing to read as though the same version
+  is still only an active prep target.
+- **Release tracking conventions are now documented and templated**: the
+  release playbook now records the lightweight issue/board workflow we’ve been
+  using, and the repo now includes a dedicated `Release Prep` issue template.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `83.1%`
+  - `cmd/duplicacy-backup`: `74.5%`
+  - `internal/workflow`: `82.9%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `76.2%`
+
 ## [v4.1.4] - 2026-04-14
 
 ### Added
