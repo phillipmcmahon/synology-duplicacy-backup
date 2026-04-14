@@ -92,6 +92,7 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 		RequestedTarget: "onsite-usb",
 		Source:          "homes",
 		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
 		NotifyProvider:  "all",
 		NotifySeverity:  "critical",
 	}
