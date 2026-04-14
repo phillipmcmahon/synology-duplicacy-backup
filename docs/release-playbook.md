@@ -150,7 +150,7 @@ After the release exists and the GitHub Actions asset set is complete:
   - `Source code (tar.gz)`
 - create the destination directory:
   - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
-- copy the full artefact set to `homestorage` with `scp`
+- mirror the full artefact set with `scripts/mirror-release-assets.sh`
 
 Expected artefacts for each release:
 
@@ -164,19 +164,18 @@ Expected artefacts for each release:
 - `Source code (zip)`
 - `Source code (tar.gz)`
 
-Example:
+Supported command:
 
 ```bash
-tag=vX.Y.Z
-stage_dir="$(mktemp -d)"
-
-gh release download "$tag" --dir "$stage_dir"
-gh release download "$tag" --archive zip --output "$stage_dir/source-code.zip"
-gh release download "$tag" --archive tar.gz --output "$stage_dir/source-code.tar.gz"
-
-ssh homestorage "mkdir -p /volume1/homes/phillipmcmahon/code/duplicacy-backup/$tag"
-scp "$stage_dir"/* "homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/$tag/"
+sh ./scripts/mirror-release-assets.sh --tag vX.Y.Z
 ```
+
+The script downloads the published release assets plus the two GitHub source
+archives into a local staging directory, creates the remote release directory,
+and mirrors the files with a `tar`-over-SSH transfer (`tar -cf - . | ssh ...`).
+This avoids the filename
+and wildcard edge cases we saw from plain `scp` when copying files such as
+`Source code (zip)` to Synology.
 
 ## Release Failure Rule
 

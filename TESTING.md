@@ -62,6 +62,11 @@ GitHub-generated source archives should be downloaded and mirrored to:
 
 - `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
 
+Use `scripts/mirror-release-assets.sh --tag vX.Y.Z` as the supported mirroring
+path. It downloads the published asset set and source archives, then mirrors
+them to `homestorage` with a `tar`-over-SSH transfer rather than relying on
+plain `scp` wildcard copying.
+
 When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host.
 
