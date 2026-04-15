@@ -134,9 +134,33 @@ It owns:
 - plan building
 - runtime execution
 - operator-facing message translation
-- summary and presentation logic
+- workflow-specific execution sequencing and policy
 
 This package is now the heart of the application.
+
+### Health package
+
+- [`internal/health`](../internal/health)
+
+This package owns health-specific report modelling and presentation.
+
+It owns:
+
+- health JSON report shaping
+- health report status/failure semantics
+- health-specific terminal presentation helpers
+
+### Presentation package
+
+- [`internal/presentation`](../internal/presentation)
+
+This package owns shared runtime/config presentation helpers.
+
+It owns:
+
+- runtime presenter behaviour used by backup/prune/fix-perms execution
+- config/report line formatting helpers
+- shared output-shaping logic that should not live in orchestration code
 
 ### Domain packages
 
@@ -168,7 +192,6 @@ The request phase lives in:
 - [`internal/command/request.go`](../internal/command/request.go)
 - [`internal/command/usage.go`](../internal/command/usage.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
-- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 
 The job of the request phase is to answer:
 
@@ -550,9 +573,9 @@ If any step fails:
 
 Presentation is handled by:
 
-- [`internal/workflow/presenter.go`](../internal/workflow/presenter.go)
+- [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
 
-This file exists so `Executor` does not have to mix sequencing with formatting.
+This package exists so `Executor` does not have to mix sequencing with formatting.
 
 The presenter owns:
 
@@ -770,8 +793,9 @@ If you want to change a specific behaviour, start here:
 
 ### CLI behaviour
 
+- [`internal/command/request.go`](../internal/command/request.go)
+- [`internal/command/usage.go`](../internal/command/usage.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
-- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
 
 ### Path derivation and execution contract
 
@@ -781,7 +805,12 @@ If you want to change a specific behaviour, start here:
 ### Summary rendering
 
 - [`internal/workflow/summary.go`](../internal/workflow/summary.go)
-- [`internal/workflow/presenter.go`](../internal/workflow/presenter.go)
+- [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
+
+### Health reports and health presentation
+
+- [`internal/health/report.go`](../internal/health/report.go)
+- [`internal/health/presenter.go`](../internal/health/presenter.go)
 
 ### Operator-facing error text
 
@@ -810,13 +839,14 @@ If you want to change a specific behaviour, start here:
 If you have been away from the codebase and need to re-orient quickly, this is the reading order I would recommend:
 
 1. [`cmd/duplicacy-backup/main.go`](../cmd/duplicacy-backup/main.go)
-2. [`internal/workflow/request.go`](../internal/workflow/request.go)
-3. [`internal/workflow/planner.go`](../internal/workflow/planner.go)
-4. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
-5. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
-6. [`internal/workflow/prune.go`](../internal/workflow/prune.go)
-7. [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
-8. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
+2. [`internal/command/request.go`](../internal/command/request.go)
+3. [`internal/command/usage.go`](../internal/command/usage.go)
+4. [`internal/workflow/request.go`](../internal/workflow/request.go)
+5. [`internal/workflow/planner.go`](../internal/workflow/planner.go)
+6. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
+7. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
+8. [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
+9. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
 
 That path usually gives the clearest mental model with the least jumping around.
 

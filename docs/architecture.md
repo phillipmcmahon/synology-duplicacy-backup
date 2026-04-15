@@ -123,6 +123,38 @@ The codebase now has:
 That gives the application clear boundaries without over-splitting the design
 into many small packages.
 
+## Package Ownership Guidelines
+
+When we add or change behaviour, the default question should be:
+
+> Can this logic live in a focused package first?
+
+The rule of thumb is:
+
+- `internal/workflow` should coordinate work that is already defined elsewhere.
+- Domain-oriented packages should own the logic that is specific to their area.
+- `cmd/duplicacy-backup` should stay as thin entrypoint wiring.
+
+In practice that means:
+
+- put CLI parsing and help changes in `internal/command`
+- put health-report and health-presentation logic in `internal/health`
+- put notification delivery and provider logic in `internal/notify`
+- put shared runtime/config formatting in `internal/presentation`
+- put config, secrets, btrfs, duplicacy, permissions, and locking behaviour in their existing domain packages
+
+`internal/workflow` is the place where those pieces are sequenced together.
+It should own:
+
+- request-to-plan orchestration
+- execution sequencing
+- workflow policy decisions that span multiple domains
+- final operator-facing message translation
+
+It should not be the default home for new provider logic, parser logic,
+formatting logic, or health-specific semantics just because those features
+happen to be used during execution.
+
 ## Main Packages
 
 | Package | Purpose |
