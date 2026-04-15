@@ -41,6 +41,9 @@ It is responsible for:
 `internal/notify` owns notification payload types, provider delivery, and
 notify-test reporting.
 
+`internal/health` owns health report modelling, health-specific terminal
+presentation, and JSON health report serialization.
+
 `internal/presentation` owns shared operator-facing text formatting and the
 runtime presenter used by workflow execution.
 
@@ -112,6 +115,7 @@ The codebase now has:
 
 - a thin entrypoint in `cmd/duplicacy-backup`
 - a command-surface package in `internal/command`
+- a health package in `internal/health`
 - one orchestration package in `internal/workflow`
 - unchanged domain packages for config, secrets, btrfs, duplicacy, locking,
   permissions, logging, and process execution
@@ -124,6 +128,7 @@ into many small packages.
 | Package | Purpose |
 |---|---|
 | `internal/command` | CLI request parsing and help / usage text |
+| `internal/health` | Health reports, health JSON output, and health presentation |
 | `internal/workflow` | Planning, execution, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |
 | `internal/config` | Config parsing and validation |

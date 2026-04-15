@@ -65,6 +65,7 @@ In other words:
 
 Supporting packages now keep adjacent concerns together:
 - `internal/command` owns CLI request parsing and help text
+- `internal/health` owns health reporting, health JSON output, and health presentation
 - `internal/notify` owns notification delivery and notify-test reporting
 - `internal/presentation` owns shared output formatting and the runtime presenter
 
