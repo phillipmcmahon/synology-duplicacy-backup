@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.7] - 2026-04-15
+
+### Changed
+- **The command and orchestration surface is now split into clearer packages**:
+  CLI request parsing now lives in `internal/command`, notification delivery
+  now lives in `internal/notify`, presentation formatting now lives in
+  `internal/presentation`, and the health reporting model now lives in
+  `internal/health`, which reduces drift risk in both `main.go` and the
+  remaining workflow orchestration layer.
+- **The health path is decomposed further without changing behaviour**:
+  health bootstrap, checks, state handling, and notification gating are now
+  split into smaller workflow units so the orchestration path is easier to
+  navigate and extend.
+- **The maintainer docs now reflect the real ownership boundaries**:
+  `docs/how-it-works.md` and `docs/architecture.md` now point change-oriented
+  guidance at the extracted packages and explicitly document the rule that new
+  feature logic should land in focused domain packages before `workflow`.
+
+### Fixed
+- **Newly extracted package boundaries now have stronger direct test coverage**:
+  `internal/health` and `internal/presentation` now have focused package-level
+  tests so the refactor is protected by behaviour checks at the new boundary,
+  not only through higher-level workflow tests.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `79.9%`
+  - `cmd/duplicacy-backup`: `93.7%`
+  - `internal/workflow`: `82.1%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `81.8%`
+
 ## [v4.1.6] - 2026-04-14
 
 ### Changed
