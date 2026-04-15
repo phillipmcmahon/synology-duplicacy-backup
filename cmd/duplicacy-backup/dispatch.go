@@ -43,6 +43,9 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if rt.Geteuid() != 0 {
+		return writeHealthPrivilegeFailure(req, rt)
+	}
 	log, err := initLogger(meta)
 	if err != nil {
 		return writeHealthLoggerFailure(req, rt, err)
@@ -64,6 +67,9 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if rt.Geteuid() != 0 {
+		return writeRuntimePrivilegeFailure(req, rt)
+	}
 	log, err := initLogger(meta)
 	if err != nil {
 		return writeRuntimeLoggerFailure(req, rt, err)
@@ -108,11 +114,31 @@ func writeHealthLoggerFailure(req *workflow.Request, rt workflow.Runtime, err er
 	return 2
 }
 
+func writeHealthPrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
+	message := "Health commands must be run as root"
+	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	if req.JSONSummary {
+		report := workflow.NewFailureHealthReport(req, req.HealthCommand, message, rt.Now())
+		_ = workflow.WriteHealthReport(os.Stdout, report)
+	}
+	return 2
+}
+
 func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err error) int {
 	fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
 	if req.JSONSummary {
 		now := rt.Now()
 		emitJSONFailureSummary(os.Stdout, req, nil, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
+	}
+	return 1
+}
+
+func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
+	message := "Must be run as root"
+	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	if req.JSONSummary {
+		now := rt.Now()
+		emitJSONFailureSummary(os.Stdout, req, nil, now, now, message)
 	}
 	return 1
 }

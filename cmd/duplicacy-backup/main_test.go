@@ -387,6 +387,9 @@ func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 		if !strings.Contains(stderr, "Health commands must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
+		if strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
 		if !strings.Contains(stdout, `"check_type": "status"`) || !strings.Contains(stdout, `"status": "unhealthy"`) {
 			t.Fatalf("stdout = %q", stdout)
 		}
@@ -501,6 +504,29 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 		})
 		if !strings.Contains(stderr, "Must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_NonRootPruneJSONFailureDoesNotRequireLogger(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "onsite-usb", "--prune", "--json-summary", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(non-root prune json) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Must be run as root") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "Failed to initialise logger") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, `"result": "failed"`) || !strings.Contains(stdout, `"failure_message": "Must be run as root"`) {
+			t.Fatalf("stdout = %q", stdout)
 		}
 	})
 }
