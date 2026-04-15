@@ -41,6 +41,9 @@ It is responsible for:
 `internal/notify` owns notification payload types, provider delivery, and
 notify-test reporting.
 
+`internal/presentation` owns shared operator-facing text formatting and the
+runtime presenter used by workflow execution.
+
 The `Request` type is intentionally small. It describes what the user asked
 for, not what the application has resolved from the filesystem or config yet.
 Requested operations can be combined, but execution order is fixed later in

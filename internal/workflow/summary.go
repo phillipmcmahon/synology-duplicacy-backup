@@ -3,12 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
-type SummaryLine struct {
-	Label string
-	Value string
-}
+type SummaryLine = presentation.Line
 
 func OperationMode(req *Request) string {
 	var parts []string

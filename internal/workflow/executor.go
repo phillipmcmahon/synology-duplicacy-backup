@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
+
+var backupRevisionExtractPattern = regexp.MustCompile(`(?i)revision\s+(\d+)\s+completed`)
 
 type Executor struct {
 	meta   Metadata
@@ -280,7 +283,7 @@ func (e *Executor) runBackupPhase() error {
 	if err != nil {
 		return err
 	}
-	if match := backupRevisionPattern.FindStringSubmatch(stdout); len(match) > 1 {
+	if match := backupRevisionExtractPattern.FindStringSubmatch(stdout); len(match) > 1 {
 		if revision, convErr := strconv.Atoi(match[1]); convErr == nil {
 			e.lastBackupRevision = revision
 		}
