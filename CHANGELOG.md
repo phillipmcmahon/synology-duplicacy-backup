@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.8] - 2026-04-15
+
+### Fixed
+- **Config validation now accepts `--verbose` consistently**: `config validate`
+  no longer rejects `--verbose` as an unknown option, so operators can use the
+  same verbosity flag on config validation that they already use elsewhere in
+  the CLI.
+- **Non-root runtime and health failures now report the real privilege
+  requirement first**: runtime operations such as prune, cleanup, and
+  fix-perms, plus health commands such as `health status`, now surface
+  `Must be run as root` or `Health commands must be run as root` before any
+  `/var/log` logger-init failure can obscure the real problem.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `79.8%`
+  - `cmd/duplicacy-backup`: `90.7%`
+  - `internal/workflow`: `82.1%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `81.8%`
+
 ## [v4.1.7] - 2026-04-15
 
 ### Changed
