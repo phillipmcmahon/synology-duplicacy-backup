@@ -95,6 +95,17 @@ func TestParseRequest_ConfigValidate(t *testing.T) {
 	}
 }
 
+func TestParseRequest_ConfigValidateVerbose(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"config", "validate", "--verbose", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.ConfigCommand != "validate" || result.Request.Source != "homes" || result.Request.Target() != "onsite-usb" || !result.Request.Verbose {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
 func TestParseRequest_ConfigExplainExplicitTarget(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "explain", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultRuntime())

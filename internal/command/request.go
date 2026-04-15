@@ -250,6 +250,7 @@ func parseConfigFlags(args []string) (*workflow.Request, error) {
 	for i := 0; i < len(args); i++ {
 		handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
 			target:     true,
+			verbose:    true,
 			configDir:  true,
 			secretsDir: true,
 		})

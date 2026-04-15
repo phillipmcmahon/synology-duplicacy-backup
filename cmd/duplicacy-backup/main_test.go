@@ -533,6 +533,29 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_ConfigValidateVerboseReturnsZeroWithoutRoot(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			if !req.Verbose {
+				t.Fatalf("expected verbose request, got %+v", req)
+			}
+			return "Config validation succeeded for homes/onsite-usb\n  Result               : Passed\n", nil
+		}
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "validate", "--verbose", "--target", "onsite-usb", "--config-dir", t.TempDir(), "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(config validate verbose) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if !strings.Contains(stdout, "Config validation succeeded for homes/onsite-usb") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
 func TestRunWithArgs_ConfigValidateMissingTargetDoesNotRequireLogger(t *testing.T) {
 	withTestGlobals(t, func() {
 		logFilePath := filepath.Join(t.TempDir(), "not-a-dir")
