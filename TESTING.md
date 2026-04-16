@@ -44,6 +44,25 @@ Representative Linux Go 1.26 validation for the current release baseline:
 - `go vet ./...`
 - `go test -cover ./...`
 
+Current Linux Go 1.26 validation snapshot for active release-prep target
+`v4.3.2`:
+
+- overall coverage: `81.1%`
+- `cmd/duplicacy-backup`: `91.4%`
+- `internal/workflow`: `83.1%`
+- `internal/duplicacy`: `81.2%`
+- `internal/exec`: `97.4%`
+- `internal/secrets`: `90.9%`
+- `internal/update`: `84.7%`
+
+Additional v4.3.2 release-prep validation:
+
+- Update notification mapping contract tests lock success, failure, and
+  notify-test event mappings to structured status values.
+- Update package coverage is back above the 80% minimum after focused tests for
+  release lookup, package extraction, install execution, and report handling.
+- Release-prep notes were generated under `build/release-prep/v4.3.2/`.
+
 Current Linux Go 1.26 validation snapshot for `v4.3.1`:
 
 - overall coverage: `79.8%`

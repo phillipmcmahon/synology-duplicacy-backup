@@ -29,7 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   locations.
 
 ### Validation
-- **Linux Go 1.26**: pending release-prep validation.
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `81.1%`
+  - `cmd/duplicacy-backup`: `91.4%`
+  - `internal/workflow`: `83.1%`
+  - `internal/update`: `84.7%`
+  - `internal/exec`: `97.4%`
+  - `internal/secrets`: `90.9%`
 
 ## [v4.3.1] - 2026-04-16
 
