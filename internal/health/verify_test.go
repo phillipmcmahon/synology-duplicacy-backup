@@ -92,3 +92,33 @@ func TestReconcileVerifyResultsDeduplicatesFailureCodes(t *testing.T) {
 		t.Fatalf("MissingRevisions = %#v", got.MissingRevisions)
 	}
 }
+
+func TestReconcileVerifyResultsMismatchedResultsDoNotSatisfyVisibleRevisions(t *testing.T) {
+	visible := []VerifyRevision{
+		{Revision: 42, CreatedAt: time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)},
+	}
+	results := []VerifyResult{
+		{Revision: 99, Result: "pass", Message: "All chunks exist for a different snapshot"},
+	}
+
+	got := ReconcileVerifyResults(visible, results)
+
+	if got.CheckedRevisionCount != 1 {
+		t.Fatalf("CheckedRevisionCount = %d, want raw returned result count 1", got.CheckedRevisionCount)
+	}
+	if got.PassedRevisionCount != 0 || got.FailedRevisionCount != 0 {
+		t.Fatalf("passed/failed counts = %d/%d, want no visible revision result accounted", got.PassedRevisionCount, got.FailedRevisionCount)
+	}
+	if !reflect.DeepEqual(got.MissingRevisions, []int{42}) {
+		t.Fatalf("MissingRevisions = %#v, want []int{42}", got.MissingRevisions)
+	}
+	if !reflect.DeepEqual(got.FailureCodes, []string{VerifyFailureResultMissing}) {
+		t.Fatalf("FailureCodes = %#v, want [%q]", got.FailureCodes, VerifyFailureResultMissing)
+	}
+	if len(got.RevisionResults) != 1 ||
+		got.RevisionResults[0].Revision != 42 ||
+		got.RevisionResults[0].Message != "No integrity result returned" ||
+		got.RevisionResults[0].CreatedAt != "2026-04-15T12:00:00Z" {
+		t.Fatalf("RevisionResults = %#v", got.RevisionResults)
+	}
+}
