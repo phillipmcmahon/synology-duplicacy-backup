@@ -122,6 +122,7 @@ CONFIG FILE LOCATION:
     <binary-dir>/.config/<label>-backup.toml
     Effective default: %s/<label>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
+    Global app config, when used: %s/%s
 
 CONFIG STRUCTURE:
     label config files define:
@@ -178,6 +179,18 @@ HEALTH CONFIG:
       health_webhook_bearer_token
       health_ntfy_token
 
+UPDATE NOTIFY CONFIG:
+    Optional global update notification config lives in %s/%s:
+      [update.notify]
+      notify_on = ["failed"]
+      interactive = false
+
+      [update.notify.ntfy]
+      url = "https://ntfy.sh"
+      topic = "duplicacy-updates"
+
+    Update notifications are not label/target scoped and do not read storage secrets.
+
 ARGUMENTS:
     source                   Backup label
 
@@ -227,8 +240,12 @@ EXAMPLES:
 		config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
 		config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
 		cfgDir,
+		cfgDir,
+		config.DefaultAppConfigFile,
 		config.DefaultSecretsDir,
 		meta.StateDir,
+		cfgDir,
+		config.DefaultAppConfigFile,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
@@ -267,7 +284,7 @@ Use --help-full for the detailed config reference.
 }
 
 func NotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source>
+	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source|update>
 
 Notify commands:
     test
@@ -276,6 +293,7 @@ Options:
     --target <name>
     --provider <all|webhook|ntfy>
     --severity <warning|critical|info>
+    --event <name>
     --summary <text>
     --message <text>
     --dry-run
@@ -288,6 +306,7 @@ Options:
 Examples:
     %s notify test --target onsite-usb homes
     %s notify test --target offsite-storj --provider ntfy homes
+    %s notify test update --provider ntfy --dry-run
     %s notify test --target onsite-usb --dry-run homes
 
 Use --help-full for the detailed notify reference.
@@ -296,19 +315,22 @@ Use --help-full for the detailed notify reference.
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
+		meta.ScriptName,
 	)
 }
 
 func FullNotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source>
+	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source|update>
 
 NOTIFY COMMANDS:
     test                    Send a synthetic test notification through the configured providers for the selected label and target
+    test update             Send a synthetic update notification through the global update notification config
 
 OPTIONS:
-    --target <name>         Select the configured target to test (required)
+    --target <name>         Select the configured target to test (required for label/target tests)
     --provider <name>       One of all, webhook, or ntfy (default: all)
     --severity <level>      One of warning, critical, or info (default: warning)
+    --event <name>          Update event to simulate for notify test update
     --summary <text>        Override the default test summary line
     --message <text>        Override the default synthetic message body
     --dry-run               Preview the resolved destinations and synthetic payload without sending
@@ -326,6 +348,12 @@ BEHAVIOUR:
       - bypasses notify_on / send_for gating because it is an explicit operator test
       - fails if the selected provider is not configured for the selected target
 
+    notify test update:
+      - uses the global app config at <config-dir>/%s
+      - does not require a label, target, or storage secrets
+      - sends a synthetic update notification; default event is update_install_failed
+      - bypasses update.notify.notify_on because it is an explicit operator test
+
 PROVIDER SELECTION:
     --provider all          Test every configured destination for the selected target
     --provider webhook      Test only the configured webhook destination
@@ -338,9 +366,14 @@ EXAMPLES:
     %s notify test --target onsite-usb --summary "NAS alert path test" --message "Synthetic end-to-end notification check" homes
     %s notify test --target onsite-usb --dry-run homes
     %s notify test --target onsite-usb --json-summary homes
+    %s notify test update --provider ntfy --event update_install_failed
+    %s notify test update --provider ntfy --severity critical --dry-run
 `,
 		meta.ScriptName,
 		config.DefaultSecretsDir,
+		config.DefaultAppConfigFile,
+		meta.ScriptName,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -359,6 +392,7 @@ Update options:
     --yes
     --keep <count>
     --version <tag>
+    --config-dir <path>
     --help
     --help-full
 
@@ -366,9 +400,11 @@ Examples:
     %s update --check-only
     %s update --yes
     %s update --version v4.1.8 --yes
+    %s update --yes --config-dir /usr/local/lib/duplicacy-backup/.config
 
 Use --help-full for the detailed update reference.
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -377,6 +413,7 @@ Use --help-full for the detailed update reference.
 }
 
 func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	cfgDir := workflow.EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s update [OPTIONS]
 
 UPDATE BEHAVIOUR:
@@ -393,6 +430,7 @@ OPTIONS:
     --yes                  Skip the interactive confirmation prompt
     --keep <count>         Keep this many newest installed binaries after activation (default: 2)
     --version <tag>        Install one specific published release tag instead of the latest release
+    --config-dir <path>    Override config directory for update notifications (default: <binary-dir>/.config)
     --help                 Show the concise update help message
     --help-full            Show the detailed update help message
 
@@ -407,6 +445,23 @@ SUPPORTED LAYOUT:
       /usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current
     If the running binary is outside that layout, update stops and asks for a manual install.
 
+UPDATE NOTIFICATIONS:
+    update notification config is global, not label/target scoped:
+      %s/%s
+
+    Example:
+      [update.notify]
+      notify_on = ["failed"]
+      interactive = false
+
+      [update.notify.ntfy]
+      url = "https://ntfy.sh"
+      topic = "duplicacy-updates"
+
+    Failure notifications do not read label storage secrets. If no update
+    notification config is present, update still runs normally and Synology
+    scheduled-task monitoring remains the fallback for hard failures.
+
 EXAMPLES:
     %s update --check-only
     %s update --yes
@@ -415,6 +470,8 @@ EXAMPLES:
     %s update --version v4.1.8 --yes
 `,
 		meta.ScriptName,
+		cfgDir,
+		config.DefaultAppConfigFile,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,

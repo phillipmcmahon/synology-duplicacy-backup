@@ -28,6 +28,7 @@ func CommandOutput(err error) string {
 
 type TestReport struct {
 	Command     string           `json:"command"`
+	Scope       string           `json:"scope,omitempty"`
 	Label       string           `json:"label"`
 	Target      string           `json:"target"`
 	StorageType string           `json:"storage_type,omitempty"`
@@ -45,6 +46,7 @@ type TestReport struct {
 
 type TestReportInput struct {
 	Command     string
+	Scope       string
 	Label       string
 	Target      string
 	StorageType string
@@ -61,6 +63,7 @@ type TestReportInput struct {
 func NewFailureTestReport(input TestReportInput) *TestReport {
 	report := &TestReport{
 		Command:  fallbackValue(input.Command, "test"),
+		Scope:    input.Scope,
 		Label:    input.Label,
 		Target:   input.Target,
 		Provider: fallbackValue(input.Provider, ProviderAll),
@@ -78,6 +81,7 @@ func NewFailureTestReport(input TestReportInput) *TestReport {
 func NewTestReport(input TestReportInput, destinations []Destination, result string) *TestReport {
 	report := &TestReport{
 		Command:     fallbackValue(input.Command, "test"),
+		Scope:       input.Scope,
 		Label:       input.Label,
 		Target:      input.Target,
 		StorageType: input.StorageType,
@@ -137,6 +141,7 @@ func formatTestJSON(report *TestReport) string {
 
 func formatTestText(report *TestReport) string {
 	lines := []reportLine{
+		{Label: "Scope", Value: report.Scope},
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
 		{Label: "Type", Value: report.StorageType},
@@ -166,8 +171,18 @@ func formatTestText(report *TestReport) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Notification test for %s/%s\n", report.Label, report.Target))
+	title := strings.TrimSpace(report.Scope)
+	if title == "" {
+		title = strings.Trim(strings.TrimSpace(report.Label)+"/"+strings.TrimSpace(report.Target), "/")
+	}
+	if title == "" {
+		title = "notification"
+	}
+	b.WriteString(fmt.Sprintf("Notification test for %s\n", title))
 	for _, line := range lines {
+		if strings.TrimSpace(line.Value) == "" {
+			continue
+		}
 		fmt.Fprintf(&b, "  %-20s : %s\n", line.Label, line.Value)
 	}
 	if len(providerLines) > 0 {

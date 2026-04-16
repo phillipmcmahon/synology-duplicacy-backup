@@ -190,6 +190,9 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 # Send a simulated notification through the configured providers for homes on target onsite-usb
 sudo duplicacy-backup notify test --target onsite-usb homes
 
+# Preview the global update notification route
+duplicacy-backup notify test update --provider ntfy --dry-run
+
 # Check whether a newer published release is available
 /usr/local/bin/duplicacy-backup update --check-only
 
@@ -204,6 +207,8 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 synthetic notification, and is meant to validate provider delivery and auth. It
 does not prove that a backup, prune, or health condition has occurred, and it
 does not exercise scheduler email from DSM.
+`notify test update` validates the global update notification route without
+running a real self-update.
 
 ## Common Commands
 
@@ -249,6 +254,9 @@ sudo duplicacy-backup health verify --target onsite-usb homes
 # Send a simulated notification through the configured providers for homes on target onsite-usb
 sudo duplicacy-backup notify test --target onsite-usb homes
 
+# Send a simulated update notification through the global update notify config
+duplicacy-backup notify test update --provider ntfy
+
 # Check whether a newer published release is available
 /usr/local/bin/duplicacy-backup update --check-only
 
@@ -284,6 +292,22 @@ safe for routine inspection. Installing through `update` expects the standard
 managed layout under `/usr/local/lib/duplicacy-backup` and `/usr/local/bin`.
 Use `update --force` when you intentionally want to reinstall the selected
 release even though it is already current.
+
+Unattended update failures can notify through the global app config at
+`<config-dir>/duplicacy-backup.toml`:
+
+```toml
+[update.notify]
+notify_on = ["failed"]
+interactive = false
+
+[update.notify.ntfy]
+url = "https://ntfy.sh"
+topic = "duplicacy-updates"
+```
+
+This update notification path is intentionally separate from label and target
+notification settings, and it does not read storage secrets.
 
 Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
 Every runtime command must also include at least one explicit operation flag
@@ -352,11 +376,14 @@ format into the core application.
 
 For a low-cost `email + ntfy` setup, keep Synology scheduled-task email enabled
 for raw job failures and use native `[health.notify.ntfy]` delivery for health
-and selected runtime alerts.
+and selected runtime alerts. Use global `[update.notify]` settings for
+self-update failures.
 
 In v1, notification noise control is intentionally simple: success events do
-not notify, runtime alerts are opt-in, interactive runs stay quiet by default,
-and repeated scheduled failures notify on each matching run. If you need
+not notify by default unless an update outcome such as `succeeded` is
+explicitly listed in `[update.notify].notify_on`, runtime alerts are opt-in,
+update failure alerts are global and opt-in, interactive runs stay quiet by
+default, and repeated scheduled failures notify on each matching run. If you need
 deduplication or escalation, handle that in the receiving system.
 
 If the environment is broken early enough that the backup TOML cannot be read,

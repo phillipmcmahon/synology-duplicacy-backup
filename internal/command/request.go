@@ -125,6 +125,17 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 		return nil, err
 	}
 	req.NotifyCommand = action
+	if action == "test" && req.Source == "update" {
+		req.Source = ""
+		req.NotifyScope = "update"
+		if req.RequestedTarget != "" {
+			return nil, workflow.NewUsageRequestError("notify test update does not use --target")
+		}
+		return &ParseResult{Request: req}, nil
+	}
+	if req.NotifyEvent != "" {
+		return nil, workflow.NewUsageRequestError("--event is only supported for notify test update")
+	}
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
@@ -224,6 +235,12 @@ func parseNotifyFlags(args []string) (*workflow.Request, error) {
 			}
 			i++
 			req.NotifyMessage = args[i]
+		case "--event":
+			if i+1 >= len(args) {
+				return nil, workflow.NewUsageRequestError("--event requires a value")
+			}
+			i++
+			req.NotifyEvent = args[i]
 		default:
 			handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
 				target:      true,
@@ -254,6 +271,9 @@ func parseNotifyFlags(args []string) (*workflow.Request, error) {
 		return nil, err
 	}
 	if err := validateNotifySeverity(req.NotifySeverity); err != nil {
+		return nil, err
+	}
+	if err := validateNotifyEvent(req.NotifyEvent); err != nil {
 		return nil, err
 	}
 	return req, nil
@@ -352,6 +372,12 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 				return nil, err
 			}
 			req.UpdateVersion = value
+		case "--config-dir":
+			value, err := consumeRequiredValue(args, &i, "--config-dir")
+			if err != nil {
+				return nil, err
+			}
+			req.ConfigDir = value
 		default:
 			if isOption(args[i]) {
 				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
@@ -514,6 +540,15 @@ func validateNotifySeverity(severity string) error {
 		return nil
 	default:
 		return workflow.NewRequestError("unsupported notify severity %q; expected warning, critical, or info", severity)
+	}
+}
+
+func validateNotifyEvent(event string) error {
+	switch strings.TrimSpace(event) {
+	case "", "update_check_failed", "update_download_failed", "update_checksum_failed", "update_install_failed", "update_install_succeeded", "update_already_current", "update_reinstall_requested":
+		return nil
+	default:
+		return workflow.NewUsageRequestError("unsupported notify event %q", event)
 	}
 }
 

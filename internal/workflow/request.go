@@ -39,6 +39,8 @@ type Request struct {
 	NotifySeverity  string
 	NotifySummary   string
 	NotifyMessage   string
+	NotifyScope     string
+	NotifyEvent     string
 	UpdateVersion   string
 	UpdateKeep      int
 	UpdateCheckOnly bool

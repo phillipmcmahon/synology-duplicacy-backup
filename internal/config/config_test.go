@@ -948,3 +948,42 @@ func TestHealthConfigValidate(t *testing.T) {
 		t.Fatalf("Validate() ntfy topic err = %v", err)
 	}
 }
+
+func TestLoadAppConfig_UpdateNotify(t *testing.T) {
+	path := writeTempConfig(t, strings.Join([]string{
+		`[update.notify]`,
+		`notify_on = ["failed", "succeeded"]`,
+		`interactive = true`,
+		`webhook_url = "https://example.invalid/update"`,
+		`[update.notify.ntfy]`,
+		`url = "https://ntfy.example.com"`,
+		`topic = "duplicacy-updates"`,
+	}, "\n"))
+
+	cfg, err := LoadAppConfig(path)
+	if err != nil {
+		t.Fatalf("LoadAppConfig() error = %v", err)
+	}
+	notify := cfg.Update.Notify
+	if notify.WebhookURL != "https://example.invalid/update" || !notify.Interactive {
+		t.Fatalf("notify = %+v", notify)
+	}
+	if notify.Ntfy.URL != "https://ntfy.example.com" || notify.Ntfy.Topic != "duplicacy-updates" {
+		t.Fatalf("ntfy = %+v", notify.Ntfy)
+	}
+	if got := strings.Join(notify.NotifyOn, ","); got != "failed,succeeded" {
+		t.Fatalf("NotifyOn = %q", got)
+	}
+}
+
+func TestLoadAppConfig_UpdateNotifyRejectsTargetSendFor(t *testing.T) {
+	path := writeTempConfig(t, strings.Join([]string{
+		`[update.notify]`,
+		`send_for = ["backup"]`,
+	}, "\n"))
+
+	_, err := LoadAppConfig(path)
+	if err == nil || !strings.Contains(err.Error(), "update.notify.send_for") {
+		t.Fatalf("LoadAppConfig() err = %v", err)
+	}
+}

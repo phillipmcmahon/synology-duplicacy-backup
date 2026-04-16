@@ -19,6 +19,10 @@ func HandleNotifyCommand(req *Request, meta Metadata, rt Runtime) (string, error
 }
 
 func handleNotifyTest(req *Request, planner *Planner) (string, error) {
+	if req.NotifyScope == "update" {
+		return handleUpdateNotifyTest(req, planner.meta, planner.rt)
+	}
+
 	plan := planner.derivePlan(configValidationRequest(req, req.Target()))
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -78,6 +82,67 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 	return notify.FormatTestOutput(report, req.JSONSummary), nil
 }
 
+func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, error) {
+	cfg, configPath, ok, err := LoadUpdateNotifyConfig(req, rt)
+	if err != nil {
+		return "", err
+	}
+	payload := BuildUpdateTestNotificationPayload(req, meta, rt)
+	if !ok {
+		report := newUpdateNotifyTestReport(req, payload, nil, "failed")
+		output := notify.FormatTestOutput(report, req.JSONSummary)
+		return output, &notify.CommandError{
+			Message: fmt.Sprintf("Notification test failed for update; update notification config not found: %s", configPath),
+			Output:  output,
+		}
+	}
+
+	destinations, err := notify.ConfiguredDestinationsForScope(cfg, req.NotifyProvider, updateNotifyScope)
+	if err != nil {
+		report := newUpdateNotifyTestReport(req, payload, nil, "failed")
+		output := notify.FormatTestOutput(report, req.JSONSummary)
+		return output, &notify.CommandError{
+			Message: fmt.Sprintf("Notification test failed for update; %s", OperatorMessage(err)),
+			Output:  output,
+		}
+	}
+
+	report := newUpdateNotifyTestReport(req, payload, destinations, "")
+	if req.DryRun {
+		for i := range report.Providers {
+			report.Providers[i].Result = "preview"
+			report.Providers[i].Message = "Would send a simulated update notification"
+		}
+		report.Result = "preview"
+		return notify.FormatTestOutput(report, req.JSONSummary), nil
+	}
+
+	results, sendErr := notify.SendConfiguredDetailedWithOptions(
+		cfg,
+		"",
+		"",
+		payload,
+		req.NotifyProvider,
+		notify.SendOptions{IgnoreOptionalAuthLoadErrors: true},
+	)
+	report.Providers = results
+	if sendErr != nil {
+		report.Result = "failed"
+		output := notify.FormatTestOutput(report, req.JSONSummary)
+		message := "Notification test failed for update"
+		if failure := firstFailedNotificationResult(results); failure != "" {
+			message = fmt.Sprintf("%s; %s", message, OperatorMessage(fmt.Errorf("%s", failure)))
+		}
+		return output, &notify.CommandError{
+			Message: message,
+			Output:  output,
+		}
+	}
+
+	report.Result = "success"
+	return notify.FormatTestOutput(report, req.JSONSummary), nil
+}
+
 func newNotifyTestReport(req *Request, cfg *config.Config, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
 	return notify.NewTestReport(notify.TestReportInput{
 		Command:     "test",
@@ -92,6 +157,20 @@ func newNotifyTestReport(req *Request, cfg *config.Config, payload *notify.Paylo
 		Summary:     payload.Summary,
 		Message:     notifyDetailsMessage(payload.Details),
 		DryRun:      req.DryRun,
+	}, destinations, result)
+}
+
+func newUpdateNotifyTestReport(req *Request, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
+	return notify.NewTestReport(notify.TestReportInput{
+		Command:  "test",
+		Scope:    "update",
+		Provider: req.NotifyProvider,
+		Severity: payload.Severity,
+		Category: payload.Category,
+		Event:    payload.Event,
+		Summary:  payload.Summary,
+		Message:  notifyDetailsMessage(payload.Details),
+		DryRun:   req.DryRun,
 	}, destinations, result)
 }
 

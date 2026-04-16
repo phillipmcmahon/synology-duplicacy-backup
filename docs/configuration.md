@@ -188,6 +188,32 @@ That keeps the built-in generic output suitable for future providers such as
 Discord, Slack, Node-RED, or `n8n` without hard-coding each one up front,
 while native `ntfy` support covers the low-cost Synology path directly.
 
+### Update Notifications
+
+Self-update notifications are global application settings, not label or target
+settings. Put them in:
+
+```text
+<config-dir>/duplicacy-backup.toml
+```
+
+Example:
+
+```toml
+[update.notify]
+notify_on = ["failed"]
+interactive = false
+
+[update.notify.ntfy]
+url = "https://ntfy.sh"
+topic = "duplicacy-updates"
+```
+
+`notify_on` defaults to `["failed"]`. You can also opt into `succeeded`,
+`current`, and `reinstall-requested` outcomes. Update notifications do not
+read label storage secrets. Public `ntfy` topics and unauthenticated webhooks
+therefore work without a `<label>-secrets.toml` file.
+
 ### Notification Signal Expectations
 
 The v1 notification model keeps signal tight by default:
@@ -195,8 +221,10 @@ The v1 notification model keeps signal tight by default:
 - `notify_on` defaults to `["degraded", "unhealthy"]`
 - `send_for` defaults to `["doctor", "verify"]`
 - runtime failures are opt-in
+- update failures are opt-in through the global `[update.notify]` config
 - interactive TTY runs do not notify unless `interactive = true`
-- success events do not notify
+- success events do not notify unless an update outcome such as `succeeded` is
+  explicitly listed in `[update.notify].notify_on`
 
 There is no built-in deduplication, reminder cadence, or escalation policy in
 v1. If a scheduled run fails repeatedly and still matches your notification
@@ -208,17 +236,20 @@ need more noise control.
 
 `notify test` uses the configured label and target exactly as a real runtime or
 health notification would, but it sends a clearly marked synthetic event with
-`category = test`.
+`category = test`. `notify test update` uses the global update notification
+config and simulates an update event without running the updater.
 
 This is useful for validating:
 
 - destination resolution for the selected target
 - target-scoped notification auth
 - provider reachability and acceptance
+- global update notification routing, when using `notify test update`
 
 It does not prove that:
 
 - a real backup, prune, or health event has occurred
+- a real self-update has occurred
 - DSM scheduled-task email is working
 - your normal `notify_on` and `send_for` policy would emit for a real event
 

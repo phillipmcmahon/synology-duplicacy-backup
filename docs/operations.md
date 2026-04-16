@@ -86,6 +86,26 @@ sudo /usr/local/bin/duplicacy-backup update --yes
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
+Unattended update failures can use the same notification providers as the rest
+of the tool, but the config is global rather than label-specific. Put update
+notification settings in `/usr/local/lib/duplicacy-backup/.config/duplicacy-backup.toml`:
+
+```toml
+[update.notify]
+notify_on = ["failed"]
+interactive = false
+
+[update.notify.ntfy]
+url = "https://ntfy.sh"
+topic = "duplicacy-updates"
+```
+
+Test that route without running a real update:
+
+```bash
+/usr/local/bin/duplicacy-backup notify test update --provider ntfy
+```
+
 Config and secrets stay in their existing directories, so upgrades do not
 require you to copy the TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
@@ -230,8 +250,11 @@ Notification noise control in v1 is intentionally simple:
 
 - default health notifications are only for `degraded` and `unhealthy`
 - runtime notifications are opt-in through `send_for`
+- update failure notifications are opt-in through the global `[update.notify]`
+  config
 - interactive runs do not notify unless explicitly enabled
-- success events do not notify
+- success events do not notify unless an update outcome such as `succeeded` is
+  explicitly listed in `[update.notify].notify_on`
 - repeated matching failures notify on each matching scheduled run
 
 If you need deduplication, reminder cadence, or escalation, handle that in the

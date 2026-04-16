@@ -69,6 +69,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Command | Description |
 |---|---|
 | `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
+| `notify test update` | Send a simulated update notification through the global update notification config |
 
 ## Update Command
 
@@ -159,6 +160,9 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 # Send a simulated notification through the configured providers for homes on target onsite-usb
 sudo duplicacy-backup notify test --target onsite-usb homes
 
+# Preview the global update notification route without running an update
+duplicacy-backup notify test update --provider ntfy --dry-run
+
 # Verify homes on target offsite-storj
 sudo duplicacy-backup health verify --target offsite-storj homes
 
@@ -205,11 +209,13 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `config paths` includes secrets paths only for object targets
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
+- `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
 - `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
 - `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
 - `update --force` reinstalls the selected release even when it is already current; it does not skip interactive confirmation unless `--yes` is also supplied
 - `update` expects the standard managed layout under `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as the stable command path
 - `update` defaults to `--keep 2`, so the newly activated version and one previous version are retained unless you override that policy
+- `update` can send failure notifications from the global `[update.notify]` config without reading label storage secrets
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
@@ -229,6 +235,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `send_for` may include `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`; runtime operations are opt-in
 - optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML; native `ntfy` can use `health_ntfy_token`
 - notification auth tokens are target-scoped in the secrets file, so authenticated delivery must be configured under each notifying `[targets.<name>]` section
+- update notification settings are global under `[update.notify]`; they are intentionally separate from label and target notification settings
 - notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
 - native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
@@ -240,6 +247,8 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 
 Use `notify test` when you want to validate the notification path for a
 specific label and target without waiting for a real backup or health event.
+Use `notify test update` when you want to validate the global update
+notification route without performing a real update.
 
 What it validates:
 
@@ -247,10 +256,13 @@ What it validates:
 - the requested provider is configured for that target
 - target-scoped auth tokens and destination settings can be loaded
 - the provider accepts a clearly marked synthetic notification
+- the global update notification route is reachable, when using
+  `notify test update`
 
 What it does not validate:
 
 - that a real backup, prune, or health condition has occurred
+- that a real self-update has occurred
 - that DSM scheduled-task email is working
 - that your normal `notify_on` or `send_for` policy would naturally emit for a
   real event

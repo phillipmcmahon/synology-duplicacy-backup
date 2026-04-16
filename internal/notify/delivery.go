@@ -129,9 +129,17 @@ func SendConfiguredDetailedWithOptions(cfg config.HealthNotifyConfig, secretsFil
 }
 
 func ConfiguredDestinations(cfg config.HealthNotifyConfig, provider string) ([]Destination, error) {
+	return ConfiguredDestinationsForScope(cfg, provider, "selected target")
+}
+
+func ConfiguredDestinationsForScope(cfg config.HealthNotifyConfig, provider string, scope string) ([]Destination, error) {
 	provider = strings.TrimSpace(provider)
 	if provider == "" {
 		provider = ProviderAll
+	}
+	scope = strings.TrimSpace(scope)
+	if scope == "" {
+		scope = "selected notification scope"
 	}
 
 	webhookConfigured := strings.TrimSpace(cfg.WebhookURL) != ""
@@ -151,17 +159,17 @@ func ConfiguredDestinations(cfg config.HealthNotifyConfig, provider string) ([]D
 			destinations = append(destinations, Destination{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)})
 		}
 		if len(destinations) == 0 {
-			return nil, fmt.Errorf("No notification destinations are configured for the selected target")
+			return nil, fmt.Errorf("No notification destinations are configured for the %s", scope)
 		}
 		return destinations, nil
 	case ProviderWebhook:
 		if !webhookConfigured {
-			return nil, fmt.Errorf("No webhook notification destination is configured for the selected target")
+			return nil, fmt.Errorf("No webhook notification destination is configured for the %s", scope)
 		}
 		return []Destination{{Provider: ProviderWebhook, Destination: cfg.WebhookURL}}, nil
 	case ProviderNtfy:
 		if !ntfyConfigured {
-			return nil, fmt.Errorf("No ntfy notification destination is configured for the selected target")
+			return nil, fmt.Errorf("No ntfy notification destination is configured for the %s", scope)
 		}
 		return []Destination{{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)}}, nil
 	default:

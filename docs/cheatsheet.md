@@ -140,7 +140,9 @@ Installer behaviour:
 - Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple targets under that label.
 - `[health.notify]` can opt runtime failure notifications in with `send_for = ["backup", "prune", "cleanup-storage"]`.
 - `notify test` validates provider delivery and auth for the selected target; it does not prove that a real backup or health event occurred.
+- `notify test update` validates the global update notification route without running a real update.
 - Configure native `ntfy` delivery under `[health.notify.ntfy]`; generic webhook output remains available for future providers and bridges.
+- Configure update failure alerts under `[update.notify]` in `<config-dir>/duplicacy-backup.toml`; this is separate from label and target notification settings.
 - Authenticated webhook and `ntfy` tokens are target-scoped in the secrets file, so repeat them under each notifying target that needs auth.
 - If notification config cannot be read, fall back to Synology scheduled-task alerts.
 

@@ -58,6 +58,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		}
 		_ = notify.WriteTestReport(os.Stdout, notify.NewFailureTestReport(notify.TestReportInput{
 			Command:  commandName,
+			Scope:    req.NotifyScope,
 			Label:    req.Source,
 			Target:   req.Target(),
 			Provider: provider,
@@ -159,6 +160,11 @@ func inferNotifyFailureRequest(args []string) *workflow.Request {
 				i++
 				req.NotifyMessage = args[i]
 			}
+		case "--event":
+			if i+1 < len(args) {
+				i++
+				req.NotifyEvent = args[i]
+			}
 		case "--dry-run":
 			req.DryRun = true
 		case "--json-summary":
@@ -173,6 +179,10 @@ func inferNotifyFailureRequest(args []string) *workflow.Request {
 	}
 	if len(positional) > 0 {
 		req.Source = positional[0]
+		if req.Source == "update" {
+			req.Source = ""
+			req.NotifyScope = "update"
+		}
 	}
 	return req
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -143,6 +145,22 @@ func writeTargetConfig(t *testing.T, dir, label, target, body string) string {
 	t.Helper()
 	path := filepath.Join(dir, fmt.Sprintf("%s-backup.toml", label))
 	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	return path
+}
+
+func writeUpdateNotifyAppConfig(t *testing.T, dir, ntfyURL, notifyOn string) string {
+	t.Helper()
+	path := filepath.Join(dir, "duplicacy-backup.toml")
+	body := strings.Join([]string{
+		`[update.notify]`,
+		fmt.Sprintf(`notify_on = [%q]`, notifyOn),
+		`[update.notify.ntfy]`,
+		fmt.Sprintf(`url = %q`, ntfyURL),
+		`topic = "duplicacy-updates"`,
+	}, "\n")
+	if err := os.WriteFile(path, []byte(body+"\n"), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	return path
@@ -407,6 +425,87 @@ func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 		}
 		if stdout != "update ok\n" {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		var gotTitle string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotTitle = r.Header.Get("Title")
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
+
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", fmt.Errorf("update install failed: exit status 1")
+		}
+
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--yes", "--config-dir", configDir}); code != 1 {
+				t.Fatalf("runWithArgs(update --yes) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "[ERRO] update install failed") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if gotTitle != "WARNING: Duplicacy Backup update install failed" {
+			t.Fatalf("Title = %q", gotTitle)
+		}
+	})
+}
+
+func TestRunWithArgs_UpdateFailureNotificationFailureDoesNotMaskUpdateError(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
+
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "", fmt.Errorf("update install failed: exit status 1")
+		}
+
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--yes", "--config-dir", configDir}); code != 1 {
+				t.Fatalf("runWithArgs(update --yes) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "[WARN] Failed to send update failure notification") ||
+			!strings.Contains(stderr, "[ERRO] update install failed") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+		writeUpdateNotifyAppConfig(t, configDir, server.URL, "succeeded")
+
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			return "Update\n  Result               : Installed\n", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--yes", "--config-dir", configDir}); code != 0 {
+				t.Fatalf("runWithArgs(update --yes) = %d", code)
+			}
+		})
+		if !strings.Contains(stdout, "Result               : Installed") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "[WARN] Failed to send update notification") {
+			t.Fatalf("stderr = %q", stderr)
 		}
 	})
 }
@@ -1340,6 +1439,28 @@ func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 	}
 }
 
+func TestBuildRequest_JSONSummaryNotifyUpdateFailureInfersScope(t *testing.T) {
+	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
+	rt := workflow.DefaultRuntime()
+
+	stdout, stderr := captureOutput(t, func() {
+		result, code := buildRequest([]string{"notify", "test", "update", "--json-summary", "--event", "unknown"}, meta, rt)
+		if code != 1 {
+			t.Fatalf("buildRequest() code = %d", code)
+		}
+		if result != nil {
+			t.Fatalf("buildRequest() result = %#v, want nil", result)
+		}
+	})
+	if !strings.Contains(stdout, `"scope": "update"`) ||
+		!strings.Contains(stdout, `"result": "failed"`) {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stderr, "unsupported notify event") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
 func TestInferNotifyFailureRequest(t *testing.T) {
 	req := inferNotifyFailureRequest([]string{
 		"notify", "test",
@@ -1371,6 +1492,25 @@ func TestInferNotifyFailureRequest(t *testing.T) {
 	}
 	if req.Source != "homes" {
 		t.Fatalf("Source = %q", req.Source)
+	}
+}
+
+func TestInferNotifyFailureRequest_UpdateScope(t *testing.T) {
+	req := inferNotifyFailureRequest([]string{
+		"notify", "test", "update",
+		"--provider", "ntfy",
+		"--event", "update_install_failed",
+		"--dry-run",
+		"--json-summary",
+	})
+	if req.NotifyCommand != "test" || req.NotifyScope != "update" || req.Source != "" || req.Target() != "" {
+		t.Fatalf("req = %+v", req)
+	}
+	if req.NotifyProvider != "ntfy" || req.NotifyEvent != "update_install_failed" {
+		t.Fatalf("req = %+v", req)
+	}
+	if !req.DryRun || !req.JSONSummary {
+		t.Fatalf("req = %+v", req)
 	}
 }
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Global self-update notifications**: `update` can now send failure
+  notifications through a global `[update.notify]` config, separate from
+  label/target backup settings and without reading storage secrets.
+- **Update notification testing**: `notify test update` sends a simulated
+  update notification through the global app notification config without
+  running a real update.
+
 ## [v4.2.2] - 2026-04-16
 
 ### Fixed

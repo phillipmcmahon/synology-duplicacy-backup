@@ -168,6 +168,32 @@ func TestParseRequest_NotifyTest(t *testing.T) {
 	}
 }
 
+func TestParseRequest_NotifyTestUpdate(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify", "test", "update", "--provider", "ntfy", "--event", "update_install_failed", "--dry-run", "--config-dir", "/cfg"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.NotifyCommand != "test" ||
+		result.Request.NotifyScope != "update" ||
+		result.Request.NotifyProvider != "ntfy" ||
+		result.Request.NotifyEvent != "update_install_failed" ||
+		result.Request.ConfigDir != "/cfg" ||
+		result.Request.Source != "" ||
+		result.Request.Target() != "" ||
+		!result.Request.DryRun {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_NotifyTestUpdateRejectsTarget(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"notify", "test", "update", "--target", "onsite-usb"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "does not use --target") {
+		t.Fatalf("ParseRequest() err = %v", err)
+	}
+}
+
 func TestParseRequest_HealthStatus(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"health", "status", "--target", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultRuntime())
@@ -181,7 +207,7 @@ func TestParseRequest_HealthStatus(t *testing.T) {
 
 func TestParseRequest_Update(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"update", "--check-only", "--force", "--keep", "3", "--version", "v4.1.8", "--yes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"update", "--check-only", "--force", "--keep", "3", "--version", "v4.1.8", "--yes", "--config-dir", "/cfg"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -190,7 +216,8 @@ func TestParseRequest_Update(t *testing.T) {
 		!result.Request.UpdateForce ||
 		!result.Request.UpdateYes ||
 		result.Request.UpdateKeep != 3 ||
-		result.Request.UpdateVersion != "v4.1.8" {
+		result.Request.UpdateVersion != "v4.1.8" ||
+		result.Request.ConfigDir != "/cfg" {
 		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }

@@ -67,6 +67,7 @@ Supporting packages now keep adjacent concerns together:
 - `internal/command` owns CLI request parsing and help text
 - `internal/health` owns health reporting, health JSON output, and health presentation
 - `internal/notify` owns notification delivery and notify-test reporting
+- `internal/update` owns self-update planning, download, verification, and install execution
 - `internal/presentation` owns shared output formatting and the runtime presenter
 
 ## Architecture Overview
@@ -90,6 +91,9 @@ flowchart TD
     F --> P["lock"]
     F --> Q["logger"]
     F --> R["exec runner"]
+    C --> S["update.HandleCommand"]
+    S --> T["Updater.Run"]
+    S --> U["workflow update notification hook"]
 ```
 
 ## Main Packages
@@ -438,6 +442,11 @@ It:
   - deployment location
   - allowed combinations
 - validates owner/group if `--fix-perms` is active
+
+Self-update notifications intentionally do not flow through `loadConfig`,
+because update is application maintenance rather than a label/target
+operation. The update path reads global app config from
+`<config-dir>/duplicacy-backup.toml` when `[update.notify]` is present.
 - builds prune args
 - validates backup thread rules
 - validates btrfs placement for backup mode

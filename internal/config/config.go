@@ -23,6 +23,7 @@ const (
 	DefaultSafePruneMinTotalForPercent = 20
 	DefaultLogRetentionDays            = 30
 	DefaultSecretsDir                  = "/root/.secrets"
+	DefaultAppConfigFile               = "duplicacy-backup.toml"
 	MaxThreads                         = 16
 	MaxHealthThresholdHours            = 24 * 366
 )
@@ -73,6 +74,22 @@ type HealthNotifyConfig struct {
 type HealthNotifyNtfyConfig struct {
 	URL   string
 	Topic string
+}
+
+type AppConfig struct {
+	Update UpdateConfig
+}
+
+type UpdateConfig struct {
+	Notify HealthNotifyConfig
+}
+
+type appFile struct {
+	Update *tableUpdate `toml:"update"`
+}
+
+type tableUpdate struct {
+	Notify *tableHealthNotify `toml:"notify"`
 }
 
 type tableCommon struct {
@@ -208,6 +225,20 @@ func NewDefaults() *Config {
 	}
 }
 
+func NewAppDefaults() *AppConfig {
+	return &AppConfig{
+		Update: UpdateConfig{
+			Notify: HealthNotifyConfig{
+				Ntfy: HealthNotifyNtfyConfig{
+					URL: "https://ntfy.sh",
+				},
+				NotifyOn:    []string{"failed"},
+				Interactive: false,
+			},
+		},
+	}
+}
+
 // ParseFile parses the TOML config file into its raw table model.
 func ParseFile(path string) (*File, error) {
 	body, err := os.ReadFile(path)
@@ -232,6 +263,37 @@ func ParseFile(path string) (*File, error) {
 	}
 
 	return &raw, nil
+}
+
+func LoadAppConfig(path string) (*AppConfig, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, apperrors.NewConfigError("open", fmt.Errorf("cannot open config file %s: %w", path, err), "path", path)
+	}
+	text := string(body)
+
+	if match := upperCaseConfigKeyPattern.FindString(text); match != "" {
+		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
+		return nil, apperrors.NewConfigError("parse", fmt.Errorf("config key %q must use lower snake case in TOML files", key), "path", path)
+	}
+
+	var raw appFile
+	meta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return nil, apperrors.NewConfigError("parse", fmt.Errorf("config file %s contains invalid TOML: %w", path, err), "path", path)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		return nil, unexpectedTOMLKey(path, undecoded[0])
+	}
+
+	cfg := NewAppDefaults()
+	if raw.Update != nil && raw.Update.Notify != nil {
+		applyNotify(&cfg.Update.Notify, raw.Update.Notify)
+	}
+	if err := cfg.Update.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // ResolveValues merges the decoded file into the existing key/value shape used
@@ -908,6 +970,22 @@ func (h HealthConfig) Validate() error {
 	}
 	if strings.TrimSpace(h.Notify.Ntfy.Topic) != "" && strings.TrimSpace(h.Notify.Ntfy.URL) == "" {
 		return fmt.Errorf("health.notify.ntfy.url must not be empty when health.notify.ntfy.topic is set")
+	}
+	return nil
+}
+
+func (u UpdateConfig) Validate() error {
+	if err := validateHealthNotifyValues("update.notify.notify_on", u.Notify.NotifyOn, "failed", "succeeded", "current", "reinstall-requested"); err != nil {
+		return err
+	}
+	if len(u.Notify.SendFor) > 0 {
+		return apperrors.NewConfigError("update.notify.send_for", fmt.Errorf("update.notify.send_for is not supported; use update.notify.notify_on to choose update notification outcomes"))
+	}
+	if strings.TrimSpace(u.Notify.Ntfy.URL) != "" && strings.TrimSpace(u.Notify.Ntfy.Topic) == "" && u.Notify.Ntfy.URL != "https://ntfy.sh" {
+		return fmt.Errorf("update.notify.ntfy.topic must not be empty when update.notify.ntfy.url is set")
+	}
+	if strings.TrimSpace(u.Notify.Ntfy.Topic) != "" && strings.TrimSpace(u.Notify.Ntfy.URL) == "" {
+		return fmt.Errorf("update.notify.ntfy.url must not be empty when update.notify.ntfy.topic is set")
 	}
 	return nil
 }
