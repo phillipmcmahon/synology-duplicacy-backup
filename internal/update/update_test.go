@@ -357,6 +357,47 @@ func TestRunForceCheckOnlyReportsReinstall(t *testing.T) {
 	}
 }
 
+func TestRunInstallScriptDoesNotInheritMissingWorkingDirectory(t *testing.T) {
+	scriptDir := t.TempDir()
+	scriptPath := filepath.Join(scriptDir, "install.sh")
+	script := "#!/bin/sh\nset -eu\nprintf 'installer-pwd=%s\\n' \"$(pwd)\"\n"
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("WriteFile(scriptPath) failed: %v", err)
+	}
+
+	originalWorkingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() failed: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalWorkingDir); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	})
+	missingWorkingDir := filepath.Join(t.TempDir(), "removed")
+	if err := os.Mkdir(missingWorkingDir, 0755); err != nil {
+		t.Fatalf("Mkdir(missingWorkingDir) failed: %v", err)
+	}
+	if err := os.Chdir(missingWorkingDir); err != nil {
+		t.Fatalf("Chdir(missingWorkingDir) failed: %v", err)
+	}
+	if err := os.RemoveAll(missingWorkingDir); err != nil {
+		t.Fatalf("RemoveAll(missingWorkingDir) failed: %v", err)
+	}
+
+	output, err := runInstallScript(scriptPath, nil)
+	if err != nil {
+		t.Fatalf("runInstallScript() error = %v\n%s", err, output)
+	}
+	if strings.Contains(string(output), "getcwd") {
+		t.Fatalf("runInstallScript() inherited missing working directory warnings: %s", output)
+	}
+	want := "installer-pwd=" + scriptDir
+	if !strings.Contains(string(output), want) {
+		t.Fatalf("runInstallScript() output = %q, want %q", output, want)
+	}
+}
+
 func TestRunInstallRequiresYesWithoutTTY(t *testing.T) {
 	executablePath, _ := managedExecutableLayout(t, "4.1.8")
 	var server *httptest.Server

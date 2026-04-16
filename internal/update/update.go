@@ -555,6 +555,7 @@ func findVersionedBinary(dir string) (string, error) {
 func runInstallScript(scriptPath string, args []string) ([]byte, error) {
 	cmdArgs := append([]string{scriptPath}, args...)
 	cmd := exec.Command("sh", cmdArgs...)
+	cmd.Dir = filepath.Dir(scriptPath)
 	return cmd.CombinedOutput()
 }
 
