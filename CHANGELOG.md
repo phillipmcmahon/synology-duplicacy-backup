@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.2] - 2026-04-16
+
+### Changed
+- **Update internals are split into clearer units**: release lookup, package
+  verification/extraction, install execution, and report rendering now live in
+  focused update package files. This keeps self-update behaviour easier to
+  review as the feature grows.
+- **Update notification classification now uses structured status values**:
+  update success and failure notifications no longer depend on parsing
+  human-readable report text, reducing the chance that wording-only changes
+  alter notification behaviour.
+- **Verify health reconciliation is separated from orchestration**: integrity
+  result matching now has a dedicated helper path, making edge cases around
+  missing or mismatched verify results easier to test and reason about.
+- **Documentation now reflects the current command dispatch path**: the
+  architecture notes describe how parsed CLI requests are routed through
+  dispatch, presentation, and update modules.
+- **Local test-package outputs are standardized**: operator test packages are
+  expected under `build/test-packages`, avoiding ad-hoc build artefact
+  locations.
+
+### Validation
+- **Linux Go 1.26**: pending release-prep validation.
+
 ## [v4.3.1] - 2026-04-16
 
 ### Fixed

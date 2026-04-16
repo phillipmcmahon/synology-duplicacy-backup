@@ -36,7 +36,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 Current public release baseline: `v4.3.1`
 
-Active release-prep target: none
+Active release-prep target: `v4.3.2`
 
 Representative Linux Go 1.26 validation for the current release baseline:
 
