@@ -24,10 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the caller working directory before launching the installer and asserts the
   installer runs from the extracted package directory without `getcwd` noise.
 - **Coverage snapshot**:
-  - overall coverage: `79.7%`
+  - overall coverage: `79.8%`
   - `cmd/duplicacy-backup`: `91.4%`
   - `internal/workflow`: `82.7%`
-  - `internal/update`: `71.3%`
+  - `internal/update`: `69.8%`
 
 ## [v4.3.0] - 2026-04-16
 
