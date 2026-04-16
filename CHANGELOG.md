@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.2.2] - 2026-04-16
+
+### Fixed
+- **Forced self-update can now reinstall the active version**: the packaged
+  installer stages the replacement binary inside the install root and then
+  renames it into place, avoiding Linux `Text file busy` failures when
+  `update --force` reinstalls the currently running version.
+
 ## [v4.2.1] - 2026-04-16
 
 ### Fixed
