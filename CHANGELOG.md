@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renames it into place, avoiding Linux `Text file busy` failures when
   `update --force` reinstalls the currently running version.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Linux running-binary installer regression**: the installer replaced a
+  versioned target path while that target was executing, proving the staged
+  rename path avoids `Text file busy`.
+- **Coverage snapshot**:
+  - overall coverage: `79.9%`
+  - `cmd/duplicacy-backup`: `90.5%`
+  - `internal/workflow`: `83.2%`
+  - `internal/update`: `68.7%`
+
 ## [v4.2.1] - 2026-04-16
 
 ### Fixed
