@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.2.1] - 2026-04-16
+
+### Fixed
+- **Updater command resolution now works through `PATH`**: `duplicacy-backup
+  update` now resolves the invoked stable command through `PATH` before
+  validating the managed install layout, so normal shell usage no longer tries
+  to resolve a missing binary from the current working directory.
+- **Update examples now prefer the stable absolute path**: operator examples use
+  `/usr/local/bin/duplicacy-backup` for update commands, which is clearer and
+  safer for unattended Synology Task Scheduler jobs.
+
 ## [v4.2.0] - 2026-04-16
 
 ### Added
