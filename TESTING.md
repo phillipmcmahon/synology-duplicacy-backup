@@ -83,7 +83,9 @@ expected asset names, tag commit alignment, and the mirrored artefact set on
 `homestorage`.
 
 When you do create a local test package, it must be generated inside the Linux
-container, not on the macOS host.
+container, not on the macOS host. All local test packages must be written under
+`build/test-packages`; do not create one-off package directories elsewhere
+under `build/`.
 
 That includes:
 

@@ -47,7 +47,7 @@ package-synology-amd64:
 		--build-time "$(BUILD_TIME)" \
 		--goos linux \
 		--goarch amd64 \
-		--output-dir /work/build/linux-go1.26-packages
+		--output-dir /work/build/test-packages
 
 package-synology-arm64:
 	@echo "Packaging Synology linux/arm64 artifact in Linux container..."
@@ -56,7 +56,7 @@ package-synology-arm64:
 		--build-time "$(BUILD_TIME)" \
 		--goos linux \
 		--goarch arm64 \
-		--output-dir /work/build/linux-go1.26-packages
+		--output-dir /work/build/test-packages
 
 package-synology-armv7:
 	@echo "Packaging Synology linux/armv7 artifact in Linux container..."
@@ -66,7 +66,7 @@ package-synology-armv7:
 		--goos linux \
 		--goarch arm \
 		--goarm 7 \
-		--output-dir /work/build/linux-go1.26-packages
+		--output-dir /work/build/test-packages
 
 release-prep:
 	@echo "Running strict release-prep flow..."

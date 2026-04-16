@@ -113,7 +113,9 @@ Capture:
 If these numbers changed materially, update `TESTING.md`.
 
 Local packaging is optional here and should be treated as a test-package flow
-only, not as the source of truth for public release artefacts.
+only, not as the source of truth for public release artefacts. Any local test
+package must be written under `build/test-packages`; do not create ad-hoc
+package directories elsewhere under `build/`.
 
 ### 4. Write release notes
 
