@@ -154,6 +154,99 @@ func TestMaybeSendUpdateSuccessNotificationUsesStructuredStatus(t *testing.T) {
 	}
 }
 
+func TestUpdateSuccessStatusEventMappingContract(t *testing.T) {
+	tests := []struct {
+		name        string
+		status      UpdateStatus
+		wantStatus  string
+		wantEvent   string
+		wantSummary string
+	}{
+		{
+			name:        "installed",
+			status:      UpdateStatusInstalled,
+			wantStatus:  "succeeded",
+			wantEvent:   "update_install_succeeded",
+			wantSummary: "Duplicacy Backup update installed",
+		},
+		{
+			name:        "current",
+			status:      UpdateStatusCurrent,
+			wantStatus:  "current",
+			wantEvent:   "update_already_current",
+			wantSummary: "Duplicacy Backup is already up to date",
+		},
+		{
+			name:        "reinstall requested",
+			status:      UpdateStatusReinstallRequested,
+			wantStatus:  "reinstall-requested",
+			wantEvent:   "update_reinstall_requested",
+			wantSummary: "Duplicacy Backup update reinstall requested",
+		},
+		{name: "available", status: UpdateStatusAvailable},
+		{name: "failed", status: UpdateStatusFailed},
+		{name: "cancelled", status: UpdateStatusCancelled},
+		{name: "unknown", status: UpdateStatusUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotStatus, gotEvent, gotSummary := classifyUpdateSuccessStatus(tt.status)
+			if gotStatus != tt.wantStatus || gotEvent != tt.wantEvent || gotSummary != tt.wantSummary {
+				t.Fatalf("classifyUpdateSuccessStatus(%q) = (%q, %q, %q), want (%q, %q, %q)",
+					tt.status, gotStatus, gotEvent, gotSummary, tt.wantStatus, tt.wantEvent, tt.wantSummary)
+			}
+		})
+	}
+}
+
+func TestUpdateFailureEventMappingContract(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		wantEvent string
+	}{
+		{name: "checksum", err: errors.New("downloaded package checksum did not match duplicacy-backup.tar.gz.sha256"), wantEvent: "update_checksum_failed"},
+		{name: "download", err: errors.New("failed to download duplicacy-backup.tar.gz: 404 Not Found"), wantEvent: "update_download_failed"},
+		{name: "install", err: errors.New("update install failed: exit status 1"), wantEvent: "update_install_failed"},
+		{name: "extract", err: errors.New("failed to extract package: unsupported file"), wantEvent: "update_install_failed"},
+		{name: "staging", err: errors.New("failed to create update staging directory: permission denied"), wantEvent: "update_install_failed"},
+		{name: "check", err: errors.New("GitHub release metadata did not include a tag name"), wantEvent: "update_check_failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := classifyUpdateFailureEvent(tt.err); got != tt.wantEvent {
+				t.Fatalf("classifyUpdateFailureEvent(%v) = %q, want %q", tt.err, got, tt.wantEvent)
+			}
+		})
+	}
+}
+
+func TestUpdateNotifyTestEventStatusMappingContract(t *testing.T) {
+	tests := []struct {
+		event      string
+		wantStatus string
+	}{
+		{event: "update_install_succeeded", wantStatus: "succeeded"},
+		{event: "update_already_current", wantStatus: "current"},
+		{event: "update_reinstall_requested", wantStatus: "reinstall-requested"},
+		{event: "update_check_failed", wantStatus: "failed"},
+		{event: "update_download_failed", wantStatus: "failed"},
+		{event: "update_checksum_failed", wantStatus: "failed"},
+		{event: "update_install_failed", wantStatus: "failed"},
+		{event: "", wantStatus: "failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.event, func(t *testing.T) {
+			if got := updateStatusForEvent(tt.event); got != tt.wantStatus {
+				t.Fatalf("updateStatusForEvent(%q) = %q, want %q", tt.event, got, tt.wantStatus)
+			}
+		})
+	}
+}
+
 func writeUpdateNotifyConfig(t *testing.T, configDir, content string) {
 	t.Helper()
 	if err := os.MkdirAll(configDir, 0755); err != nil {
