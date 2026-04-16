@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/usr/local/bin/duplicacy-backup` for update commands, which is clearer and
   safer for unattended Synology Task Scheduler jobs.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `79.9%`
+  - `cmd/duplicacy-backup`: `90.5%`
+  - `internal/workflow`: `83.2%`
+  - `internal/update`: `68.7%`
+
 ## [v4.2.0] - 2026-04-16
 
 ### Added
