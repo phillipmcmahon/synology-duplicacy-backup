@@ -283,13 +283,14 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 
 	expected := []string{
 		"config <validate|explain|paths>",
-		"notify <test>",
+		"notify <test> [OPTIONS] <source|update>",
 		"update [OPTIONS]",
 		"health <status|doctor|verify>",
-		"--target <name>          Perform operation against the named target config (required)",
+		"--target <name>          Select the named target config where the command uses a label target",
 		"--json-summary           Write a machine-readable run summary to stdout",
 		"health status            Fast read-only health summary for operators and schedulers",
 		"notify test             Send a clearly marked simulated notification through the configured providers",
+		"notify test update      Send a simulated update notification through the global update config",
 		"update                  Check GitHub for a newer published release and install it through the packaged installer",
 		"health verify            Read-only integrity check across revisions found for the current label",
 		"Target-specific run and health state are stored under:",

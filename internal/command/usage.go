@@ -10,7 +10,7 @@ import (
 func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
-       %s notify <test> [OPTIONS] <source>
+       %s notify <test> [OPTIONS] <source|update>
        %s update [OPTIONS]
        %s health <status|doctor|verify> [OPTIONS] <source>
 
@@ -67,7 +67,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
-       %s notify <test> [OPTIONS] <source>
+       %s notify <test> [OPTIONS] <source|update>
        %s update [OPTIONS]
        %s health <status|doctor|verify> [OPTIONS] <source>
 
@@ -88,7 +88,7 @@ OPERATIONS:
 
 MODIFIERS:
     --force-prune            Override safe prune thresholds during prune
-    --target <name>          Perform operation against the named target config (required)
+    --target <name>          Select the named target config where the command uses a label target
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable run summary to stdout
@@ -105,6 +105,7 @@ HEALTH COMMANDS:
 
 NOTIFY COMMANDS:
     notify test             Send a clearly marked simulated notification through the configured providers
+    notify test update      Send a simulated update notification through the global update config
 
 UPDATE COMMAND:
     update                  Check GitHub for a newer published release and install it through the packaged installer

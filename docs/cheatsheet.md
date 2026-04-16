@@ -1,10 +1,12 @@
 # Desk Cheat Sheet
 
-Use `sudo` for most commands. `config paths` is usually the only one you can run without it.
+Use `sudo` for most installed NAS operations. `config paths`, `update --check-only`,
+and dry-run notification tests are common normal-user exceptions.
 
-Every command needs an explicit `--target <name>`.
-Every runtime command also needs at least one explicit operation flag such
-as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
+Runtime, `config`, `health`, and label-scoped `notify test` commands need an
+explicit `--target <name>`. Runtime commands also need at least one explicit
+operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
+`--fix-perms`.
 
 Target model:
 
@@ -152,6 +154,8 @@ Installer behaviour:
 duplicacy-backup --help
 duplicacy-backup --help-full
 duplicacy-backup config --help
+duplicacy-backup notify --help
+duplicacy-backup update --help
 duplicacy-backup health --help
 duplicacy-backup config --help-full
 ```

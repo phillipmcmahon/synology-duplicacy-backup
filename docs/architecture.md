@@ -21,10 +21,15 @@ coordinator type.
 ```text
 runWithArgs
   -> command.ParseRequest
-  -> initLogger
-  -> Planner.Build
-  -> Executor.Run
+  -> handled help/version output, or dispatchRequest
+       -> config / notify / update / health / runtime
 ```
+
+Only the runtime backup/prune/cleanup/fix-perms path goes through the full
+`Planner.Build -> Executor.Run` sequence. Config, notify, update, and health
+commands dispatch to their own narrower handlers so they do not inherit runtime
+requirements such as root access, logger setup, or target storage secrets unless
+that command actually needs them.
 
 ## Request
 
@@ -54,7 +59,8 @@ the workflow so CLI flag order never changes runtime sequencing.
 
 ## Plan
 
-`internal/workflow/planner.go` turns a `Request` into a validated `Plan`.
+For runtime operations, `internal/workflow/planner.go` turns a `Request` into a
+validated `Plan`.
 
 It is responsible for:
 
@@ -116,8 +122,11 @@ The codebase now has:
 - a thin entrypoint in `cmd/duplicacy-backup`
 - a command-surface package in `internal/command`
 - a health package in `internal/health`
+- a notify package in `internal/notify`
+- an update package in `internal/update`
+- a presentation package in `internal/presentation`
 - one orchestration package in `internal/workflow`
-- unchanged domain packages for config, secrets, btrfs, duplicacy, locking,
+- focused domain packages for config, secrets, btrfs, duplicacy, locking,
   permissions, logging, and process execution
 
 That gives the application clear boundaries without over-splitting the design
@@ -161,6 +170,9 @@ happen to be used during execution.
 |---|---|
 | `internal/command` | CLI request parsing and help / usage text |
 | `internal/health` | Health reports, health JSON output, and health presentation |
+| `internal/notify` | Notification payloads, provider delivery, and notify-test reports |
+| `internal/presentation` | Shared output formatting and runtime presentation helpers |
+| `internal/update` | Self-update planning, package verification, and installer execution |
 | `internal/workflow` | Planning, execution, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |
 | `internal/config` | Config parsing and validation |

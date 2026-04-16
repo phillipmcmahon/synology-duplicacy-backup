@@ -5,13 +5,14 @@
 ```text
 duplicacy-backup [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
-duplicacy-backup notify <test> [OPTIONS] <source>
+duplicacy-backup notify <test> [OPTIONS] <source|update>
 duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-Every runtime, `config`, `notify`, and `health` command needs an explicit
-`--target <name>`.
+Runtime, `config`, `health`, and label-scoped `notify test` commands need an
+explicit `--target <name>`. `notify test update` and `update` are global
+application commands and do not use a target.
 Every runtime command also needs at least one explicit primary operation.
 
 Targets now describe both storage kind and deployment location:
@@ -46,7 +47,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Flag | Description |
 |---|---|
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
-| `--target <name>` | Use the named target config; required for every command |
+| `--target <name>` | Use the named target config; required for runtime, `config`, `health`, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -207,7 +208,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
 - `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
 - `config paths` includes secrets paths only for object targets
-- there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
+- there is no implicit target selection; every runtime, `config`, `health`, and label-scoped `notify test` command must pass `--target <name>`
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
 - `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
@@ -239,7 +240,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
 - native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
-- installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths` is the main normal-user exception
+- installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths`, `update --check-only`, and dry-run update notification tests are common normal-user exceptions
 - if config cannot be read at all, built-in notifications are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
 - keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root
 

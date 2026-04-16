@@ -51,17 +51,17 @@ main
   -> run
     -> runWithArgs
       -> command.ParseRequest
-      -> initLogger
-      -> workflow.NewPlanner(...).Build(...)
-      -> workflow.NewExecutor(...).Run()
+      -> handled help/version output, or dispatchRequest
+           -> config / notify / update / health / runtime
 ```
 
 In other words:
 
 1. Parse CLI intent.
-2. Initialise logging.
-3. Build a validated execution plan.
-4. Execute the plan.
+2. Print handled help/version output immediately, or dispatch the parsed
+   request to the matching command path.
+3. Initialise logging, build a plan, and execute only when the selected path
+   actually needs those runtime steps.
 
 Supporting packages now keep adjacent concerns together:
 - `internal/command` owns CLI request parsing and help text
@@ -75,25 +75,30 @@ Supporting packages now keep adjacent concerns together:
 ```mermaid
 flowchart TD
     A["main.go"] --> B["command.ParseRequest"]
-    B --> C["Request"]
-    C --> D["Planner.Build"]
-    D --> E["Plan"]
-    E --> F["Executor.Run"]
-    F --> G["Presenter"]
-    F --> H["Cleanup helpers"]
-    F --> I["Prune policy helpers"]
-    D --> J["config"]
-    D --> K["secrets"]
-    D --> L["btrfs validation"]
-    F --> M["duplicacy"]
-    F --> N["btrfs snapshot ops"]
-    F --> O["permissions"]
-    F --> P["lock"]
-    F --> Q["logger"]
-    F --> R["exec runner"]
-    C --> S["update.HandleCommand"]
-    S --> T["Updater.Run"]
-    S --> U["workflow update notification hook"]
+    B --> C{"Handled output?"}
+    C -->|yes| C1["Print help/version text"]
+    C -->|no| D["dispatchRequest"]
+    D --> E["config command handler"]
+    D --> F["notify command handler"]
+    D --> G["update command handler"]
+    D --> H["health runner"]
+    D --> I["runtime planner"]
+    I --> J["Plan"]
+    J --> K["Executor.Run"]
+    K --> L["Presenter"]
+    K --> M["Cleanup helpers"]
+    K --> N["Prune policy helpers"]
+    I --> O["config"]
+    I --> P["secrets"]
+    I --> Q["btrfs validation"]
+    K --> R["duplicacy"]
+    K --> S["btrfs snapshot ops"]
+    K --> T["permissions"]
+    K --> U["lock"]
+    K --> V["logger"]
+    K --> W["exec runner"]
+    G --> X["Updater.Run"]
+    G --> Y["workflow update notification hook"]
 ```
 
 ## Main Packages
@@ -108,7 +113,7 @@ It owns:
 
 - application version/build metadata
 - runtime/bootstrap wiring
-- logger initialisation
+- logger initialisation for health and runtime execution paths
 - transition from CLI arguments into workflow
 
 It should not own business logic for backup, prune, storage cleanup, or
@@ -153,6 +158,32 @@ It owns:
 - health JSON report shaping
 - health report status/failure semantics
 - health-specific terminal presentation helpers
+
+### Notify package
+
+- [`internal/notify`](../internal/notify)
+
+This package owns provider delivery and notify-test reports.
+
+It owns:
+
+- generic notification payload modelling
+- webhook and native `ntfy` delivery
+- notify-test terminal and JSON report shaping
+
+### Update package
+
+- [`internal/update`](../internal/update)
+
+This package owns the self-update command path.
+
+It owns:
+
+- GitHub release lookup
+- package and checksum download
+- checksum verification
+- package extraction
+- packaged installer execution
 
 ### Presentation package
 
@@ -218,6 +249,7 @@ The `Request` type contains user intent only:
 - `--dry-run`
 - config/secrets directory overrides
 - source label
+- command selectors for `config`, `notify`, `update`, and `health`
 
 It also derives convenience booleans such as:
 
@@ -255,6 +287,28 @@ Those are still request-level concepts because they describe intent, not machine
 3. explicit operation validation
 4. request validation
 5. source-label validation
+
+### How parse output is dispatched
+
+`ParseRequest` returns either handled output or a populated `Request`.
+
+Handled output is terminal and side-effect free. `runWithArgs` prints it and
+returns without creating a logger, reading config, checking privileges, or
+touching backup state.
+
+Unresolved requests go through `dispatchRequest` in
+[`cmd/duplicacy-backup/dispatch.go`](../cmd/duplicacy-backup/dispatch.go):
+
+- `ConfigCommand` routes to `workflow.HandleConfigCommand`
+- `NotifyCommand` routes to `workflow.HandleNotifyCommand`
+- `UpdateCommand` routes to `update.HandleCommand` and the update notification
+  hooks
+- `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
+- everything else is treated as a runtime backup/prune/cleanup/fix-perms
+  request and goes through `Planner.Build` followed by `Executor.Run`
+
+This dispatch point is why global commands such as `update` and
+`notify test update` do not inherit label-target runtime requirements.
 
 ### Why this matters
 

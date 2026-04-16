@@ -309,9 +309,11 @@ topic = "duplicacy-updates"
 This update notification path is intentionally separate from label and target
 notification settings, and it does not read storage secrets.
 
-Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
-Every runtime command must also include at least one explicit operation flag
-such as `--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
+Runtime, `config`, `health`, and label-scoped `notify test` commands require
+an explicit `--target <name>`. Global update commands and `notify test update`
+do not use a target. Every runtime command must also include at least one
+explicit operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
+`--fix-perms`.
 
 Runtime and health headers now identify the selected work as:
 

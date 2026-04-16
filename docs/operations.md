@@ -230,8 +230,9 @@ Unhealthy verify runs also emit machine-focused classification fields:
 - `failure_codes`
 - `recommended_action_codes`
 
-`--target <name>` selects one named target from the label config. Every
-runtime, `config`, and `health` command requires an explicit target.
+`--target <name>` selects one named target from the label config. Runtime,
+`config`, `health`, and label-scoped `notify test` commands require an
+explicit target. Global update commands and `notify test update` do not.
 Targets now define both `type` and `location`, so mounted remote filesystems
 can be modelled as `type = "filesystem"` with `location = "remote"` without
 loading secrets.
@@ -283,7 +284,7 @@ Releases include:
 ### Verify a single file
 
 ```bash
-sha256sum -c duplicacy-backup_1.2.3_linux_amd64.tar.gz.sha256
+sha256sum -c duplicacy-backup_<version>_linux_amd64.tar.gz.sha256
 ```
 
 ### Verify against the full manifest
@@ -295,7 +296,7 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 ### Inspect archive contents
 
 ```bash
-tar -tzf duplicacy-backup_1.2.3_linux_amd64.tar.gz
+tar -tzf duplicacy-backup_<version>_linux_amd64.tar.gz
 ```
 
 The extracted directory now includes:
@@ -308,7 +309,7 @@ The extracted directory now includes:
 ### Extract
 
 ```bash
-tar -xzf duplicacy-backup_1.2.3_linux_amd64.tar.gz
+tar -xzf duplicacy-backup_<version>_linux_amd64.tar.gz
 ```
 
 ### macOS note
@@ -316,5 +317,5 @@ tar -xzf duplicacy-backup_1.2.3_linux_amd64.tar.gz
 macOS often ships `shasum` instead of `sha256sum`:
 
 ```bash
-shasum -a 256 duplicacy-backup_1.2.3_linux_amd64.tar.gz
+shasum -a 256 duplicacy-backup_<version>_linux_amd64.tar.gz
 ```
