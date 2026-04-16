@@ -157,6 +157,7 @@ It owns:
 
 - health JSON report shaping
 - health report status/failure semantics
+- verify result reconciliation for failed or missing revision integrity results
 - health-specific terminal presentation helpers
 
 ### Notify package
@@ -873,6 +874,7 @@ If you want to change a specific behaviour, start here:
 ### Health reports and health presentation
 
 - [`internal/health/report.go`](../internal/health/report.go)
+- [`internal/health/verify.go`](../internal/health/verify.go)
 - [`internal/health/presenter.go`](../internal/health/presenter.go)
 
 ### Operator-facing error text

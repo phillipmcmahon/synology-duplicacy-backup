@@ -149,68 +149,18 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 
-	visibleByRevision := make(map[int]duplicacy.RevisionInfo, len(revisions))
-	for _, revision := range revisions {
-		visibleByRevision[revision.Revision] = revision
-	}
-	accounted := make(map[int]bool, len(results))
-	report.CheckedRevisionCount = len(results)
-	var detailChecks []HealthCheck
-
-	for _, result := range results {
-		revisionInfo, ok := visibleByRevision[result.Revision]
-		if !ok {
-			continue
-		}
-		accounted[result.Revision] = true
-		if result.Result == "fail" {
-			report.AddVerifyFailureCode(verifyFailureIntegrityFailed)
-			entry := HealthRevisionResult{
-				Revision: result.Revision,
-				Result:   result.Result,
-				Message:  normaliseOperatorSentence(result.Message),
-			}
-			if !revisionInfo.CreatedAt.IsZero() {
-				entry.CreatedAt = formatReportTime(revisionInfo.CreatedAt)
-			}
-			report.RevisionResults = append(report.RevisionResults, entry)
-			report.FailedRevisionCount++
-			report.FailedRevisions = append(report.FailedRevisions, result.Revision)
-			detailChecks = append(detailChecks, HealthCheck{
-				Name:    fmt.Sprintf("Revision %d", result.Revision),
-				Result:  "fail",
-				Message: result.Message,
-			})
-			continue
-		}
-		report.PassedRevisionCount++
-	}
-
-	missing := make([]int, 0)
-	for _, revision := range revisions {
-		if accounted[revision.Revision] {
-			continue
-		}
-		report.AddVerifyFailureCode(verifyFailureResultMissing)
-		missing = append(missing, revision.Revision)
-		entry := HealthRevisionResult{
-			Revision: revision.Revision,
-			Result:   "fail",
-			Message:  "No integrity result returned",
-		}
-		if !revision.CreatedAt.IsZero() {
-			entry.CreatedAt = formatReportTime(revision.CreatedAt)
-		}
-		report.RevisionResults = append(report.RevisionResults, entry)
-		detailChecks = append(detailChecks, HealthCheck{
-			Name:    fmt.Sprintf("Revision %d", revision.Revision),
-			Result:  "fail",
-			Message: "No integrity result returned",
-		})
+	reconciled := healthpkg.ReconcileVerifyResults(healthVerifyRevisions(revisions), healthVerifyResults(results))
+	report.CheckedRevisionCount = reconciled.CheckedRevisionCount
+	report.PassedRevisionCount = reconciled.PassedRevisionCount
+	report.FailedRevisionCount = reconciled.FailedRevisionCount
+	report.FailedRevisions = append(report.FailedRevisions, reconciled.FailedRevisions...)
+	report.RevisionResults = append(report.RevisionResults, reconciled.RevisionResults...)
+	for _, code := range reconciled.FailureCodes {
+		report.AddVerifyFailureCode(code)
 	}
 
 	verifiedResult := "pass"
-	if len(missing) > 0 {
+	if len(reconciled.MissingRevisions) > 0 {
 		verifiedResult = "fail"
 	}
 	report.AddDisplayCheck("Revisions checked", verifiedResult, fmt.Sprintf("%d", report.CheckedRevisionCount))
@@ -225,9 +175,9 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	}
 	report.AddDisplayCheck("Revisions failed", failedResult, failedSummary)
 
-	if len(missing) > 0 {
-		report.AddCheck("Integrity check", "fail", healthpkg.IntegrityCheckFailureMessage(report.FailedRevisions, missing))
-		for _, check := range detailChecks {
+	if len(reconciled.MissingRevisions) > 0 {
+		report.AddCheck("Integrity check", "fail", healthpkg.IntegrityCheckFailureMessage(report.FailedRevisions, reconciled.MissingRevisions))
+		for _, check := range reconciled.DetailChecks {
 			report.AddDisplayCheck(check.Name, check.Result, check.Message)
 		}
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
@@ -235,7 +185,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	}
 	if report.FailedRevisionCount > 0 {
 		report.AddCheck("Integrity check", "fail", healthpkg.IntegrityCheckFailureMessage(report.FailedRevisions, nil))
-		for _, check := range detailChecks {
+		for _, check := range reconciled.DetailChecks {
 			report.AddDisplayCheck(check.Name, check.Result, check.Message)
 		}
 		h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
@@ -243,4 +193,27 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	}
 	report.AddCheck("Integrity check", "pass", "All revisions validated")
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
+}
+
+func healthVerifyRevisions(revisions []duplicacy.RevisionInfo) []healthpkg.VerifyRevision {
+	converted := make([]healthpkg.VerifyRevision, 0, len(revisions))
+	for _, revision := range revisions {
+		converted = append(converted, healthpkg.VerifyRevision{
+			Revision:  revision.Revision,
+			CreatedAt: revision.CreatedAt,
+		})
+	}
+	return converted
+}
+
+func healthVerifyResults(results []duplicacy.RevisionCheckResult) []healthpkg.VerifyResult {
+	converted := make([]healthpkg.VerifyResult, 0, len(results))
+	for _, result := range results {
+		converted = append(converted, healthpkg.VerifyResult{
+			Revision: result.Revision,
+			Result:   result.Result,
+			Message:  result.Message,
+		})
+	}
+	return converted
 }
