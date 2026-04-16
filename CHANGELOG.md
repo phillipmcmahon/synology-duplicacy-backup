@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Coverage snapshot**:
   - overall coverage: `79.7%`
   - `cmd/duplicacy-backup`: `91.4%`
-  - `internal/workflow`: `82.8%`
+  - `internal/workflow`: `82.7%`
   - `internal/config`: `83.8%`
 
 ## [v4.2.2] - 2026-04-16

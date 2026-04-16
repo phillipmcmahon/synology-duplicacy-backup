@@ -48,7 +48,7 @@ Current Linux Go 1.26 validation snapshot for the `v4.3.0` candidate:
 
 - overall coverage: `79.7%`
 - `cmd/duplicacy-backup`: `91.4%`
-- `internal/workflow`: `82.8%`
+- `internal/workflow`: `82.7%`
 - `internal/duplicacy`: `81.2%`
 - `internal/config`: `83.8%`
 - `internal/secrets`: `90.9%`
