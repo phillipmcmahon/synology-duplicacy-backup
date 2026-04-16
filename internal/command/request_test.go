@@ -51,6 +51,17 @@ func TestParseRequest_NotifyHelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_UpdateHelpHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"update", "--help"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_HelpFullHandled(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"--help-full"}, meta, workflow.DefaultRuntime())
@@ -80,6 +91,17 @@ func TestParseRequest_NotifyHelpFullHandled(t *testing.T) {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if !result.Handled || result.Output == "" {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_UpdateHelpFullHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"update", "--help-full"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
 		t.Fatalf("unexpected parse result: %+v", result)
 	}
 }
@@ -154,6 +176,36 @@ func TestParseRequest_HealthStatus(t *testing.T) {
 	}
 	if result.Request.HealthCommand != "status" || !result.Request.JSONSummary {
 		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_Update(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"update", "--check-only", "--keep", "3", "--version", "v4.1.8", "--yes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.UpdateCommand != "update" ||
+		!result.Request.UpdateCheckOnly ||
+		!result.Request.UpdateYes ||
+		result.Request.UpdateKeep != 3 ||
+		result.Request.UpdateVersion != "v4.1.8" {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_UpdateRejectsUnexpectedArgs(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"update", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*workflow.RequestError)
+	if !ok || !reqErr.ShowUsage {
+		t.Fatalf("error = %#v", err)
+	}
+	if got := err.Error(); got != "unexpected extra arguments: homes" {
+		t.Fatalf("error = %q", got)
 	}
 }
 

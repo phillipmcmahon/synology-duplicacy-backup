@@ -11,6 +11,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
        %s notify <test> [OPTIONS] <source>
+       %s update [OPTIONS]
        %s health <status|doctor|verify> [OPTIONS] <source>
 
 Operations:
@@ -41,10 +42,13 @@ Examples:
     %s --target offsite-storj --backup homes
     %s config validate --target onsite-usb homes
     %s notify test --target onsite-usb homes
+    %s update --check-only
     %s health status --target onsite-usb homes
 
 Use --help-full for the detailed reference.
 `,
+		meta.ScriptName,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -64,6 +68,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
        %s config <validate|explain|paths> [OPTIONS] <source>
        %s notify <test> [OPTIONS] <source>
+       %s update [OPTIONS]
        %s health <status|doctor|verify> [OPTIONS] <source>
 
 OPERATIONS:
@@ -100,6 +105,9 @@ HEALTH COMMANDS:
 
 NOTIFY COMMANDS:
     notify test             Send a clearly marked simulated notification through the configured providers
+
+UPDATE COMMAND:
+    update                  Check GitHub for a newer published release and install it through the packaged installer
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
@@ -206,7 +214,10 @@ EXAMPLES:
     %s config explain --target offsite-storj homes
     %s config paths --target onsite-usb homes
     %s notify test --target onsite-usb homes
+    %s update --check-only
+    %s update --yes
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -222,7 +233,7 @@ EXAMPLES:
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName,
+		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
 	)
 }
 
@@ -331,6 +342,74 @@ EXAMPLES:
 		meta.ScriptName,
 		config.DefaultSecretsDir,
 		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func UpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return fmt.Sprintf(`Usage: %s update [OPTIONS]
+
+Update options:
+    --check-only
+    --yes
+    --keep <count>
+    --version <tag>
+    --help
+    --help-full
+
+Examples:
+    %s update --check-only
+    %s update --yes
+    %s update --version v4.1.8 --yes
+
+Use --help-full for the detailed update reference.
+`,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+		meta.ScriptName,
+	)
+}
+
+func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return fmt.Sprintf(`Usage: %s update [OPTIONS]
+
+UPDATE BEHAVIOUR:
+    update:
+      - checks GitHub releases for the latest published version by default
+      - downloads the matching Linux package for the current platform
+      - verifies the package checksum before extracting it
+      - reuses the packaged install.sh to switch the installation safely
+      - only works on the supported managed install layout
+
+OPTIONS:
+    --check-only           Show the planned update without downloading or installing
+    --yes                  Skip the interactive confirmation prompt
+    --keep <count>         Keep this many newest installed binaries after activation (default: 2)
+    --version <tag>        Install one specific published release tag instead of the latest release
+    --help                 Show the concise update help message
+    --help-full            Show the detailed update help message
+
+INTERACTIVE RULES:
+    Interactive runs show the detected install plan and ask for confirmation before install.
+    Non-interactive runs require --yes for the install step.
+
+SUPPORTED LAYOUT:
+    update expects the standard managed install layout:
+      /usr/local/lib/duplicacy-backup/
+      /usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current
+    If the running binary is outside that layout, update stops and asks for a manual install.
+
+EXAMPLES:
+    %s update --check-only
+    %s update --yes
+    %s update --keep 3 --yes
+    %s update --version v4.1.8 --yes
+`,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,

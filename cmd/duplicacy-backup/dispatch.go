@@ -17,6 +17,8 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 		return runConfigRequest(req, meta, rt)
 	case req.NotifyCommand != "":
 		return runNotifyRequest(req, meta, rt)
+	case req.UpdateCommand != "":
+		return runUpdateRequest(req, meta, rt)
 	case req.HealthCommand != "":
 		return runHealthRequest(req, meta, rt)
 	default:
@@ -37,6 +39,15 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	output, err := handleNotifyCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure(notify.CommandOutput(err), err)
+	}
+	fmt.Print(output)
+	return 0
+}
+
+func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	output, err := handleUpdateCommand(req, meta, rt)
+	if err != nil {
+		return writeCommandFailure("", err)
 	}
 	fmt.Print(output)
 	return 0

@@ -25,6 +25,7 @@ type Request struct {
 	ConfigCommand   string
 	HealthCommand   string
 	NotifyCommand   string
+	UpdateCommand   string
 	FixPerms        bool
 	ForcePrune      bool
 	RequestedTarget string
@@ -38,6 +39,10 @@ type Request struct {
 	NotifySeverity  string
 	NotifySummary   string
 	NotifyMessage   string
+	UpdateVersion   string
+	UpdateKeep      int
+	UpdateCheckOnly bool
+	UpdateYes       bool
 	DoBackup        bool
 	DoPrune         bool
 	DoCleanupStore  bool

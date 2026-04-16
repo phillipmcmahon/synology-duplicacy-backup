@@ -6,6 +6,7 @@
 duplicacy-backup [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source>
+duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
@@ -68,6 +69,12 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Command | Description |
 |---|---|
 | `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
+
+## Update Command
+
+| Command | Description |
+|---|---|
+| `update [--check-only]` | Check GitHub for the latest published release and, when requested, install it through the packaged installer |
 
 ## Health Commands
 
@@ -154,6 +161,12 @@ sudo duplicacy-backup notify test --target onsite-usb homes
 
 # Verify homes on target offsite-storj
 sudo duplicacy-backup health verify --target offsite-storj homes
+
+# Check whether a newer published release is available
+duplicacy-backup update --check-only
+
+# Download and install the latest published release
+sudo duplicacy-backup update --yes
 ```
 
 ## Notes
@@ -189,6 +202,10 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 - `config paths` includes secrets paths only for object targets
 - there is no implicit target selection; every runtime, `config`, and `health` command must pass `--target <name>`
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
+- `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
+- `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
+- `update` expects the standard managed layout under `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as the stable command path
+- `update` defaults to `--keep 2`, so the newly activated version and one previous version are retained unless you override that policy
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr

@@ -189,6 +189,12 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 
 # Send a simulated notification through the configured providers for homes on target onsite-usb
 sudo duplicacy-backup notify test --target onsite-usb homes
+
+# Check whether a newer published release is available
+duplicacy-backup update --check-only
+
+# Download and install the latest published release
+sudo duplicacy-backup update --yes
 ```
 
 `notify test` uses the existing label and target config, sends a clearly marked
@@ -239,6 +245,12 @@ sudo duplicacy-backup health verify --target onsite-usb homes
 
 # Send a simulated notification through the configured providers for homes on target onsite-usb
 sudo duplicacy-backup notify test --target onsite-usb homes
+
+# Check whether a newer published release is available
+duplicacy-backup update --check-only
+
+# Download and install the latest published release
+sudo duplicacy-backup update --yes
 ```
 
 When operations are combined, execution order is fixed:
@@ -258,6 +270,12 @@ repository readiness probe reports one of three operator-facing outcomes:
 When `config validate` is run without the privileges needed for root-only
 checks, those lines are reported as `Not checked` instead of failing the whole
 validation.
+
+`update` checks GitHub for the latest published release, downloads the matching
+Linux package for the current platform, verifies the checksum, and reuses the
+packaged `install.sh` to activate the new version. `update --check-only` is
+safe for routine inspection. Installing through `update` expects the standard
+managed layout under `/usr/local/lib/duplicacy-backup` and `/usr/local/bin`.
 
 Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
 Every runtime command must also include at least one explicit operation flag

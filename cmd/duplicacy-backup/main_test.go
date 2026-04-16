@@ -71,6 +71,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
+	oldHandleUpdateCommand := handleUpdateCommand
 	oldMaybeSendPreRunFailureNotification := maybeSendPreRunFailureNotification
 
 	logDir = t.TempDir()
@@ -80,6 +81,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	handleConfigCommand = workflow.HandleConfigCommand
+	handleUpdateCommand = oldHandleUpdateCommand
 	maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 	t.Cleanup(func() {
@@ -89,6 +91,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
+		handleUpdateCommand = oldHandleUpdateCommand
 		maybeSendPreRunFailureNotification = oldMaybeSendPreRunFailureNotification
 	})
 
@@ -239,6 +242,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
 		!strings.Contains(stdout, "notify <test>") ||
+		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
 		!strings.Contains(stdout, "--cleanup-storage") ||
@@ -261,6 +265,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
+		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
@@ -313,6 +318,20 @@ func TestRunWithArgs_NotifyHelpReturnsZero(t *testing.T) {
 	}
 }
 
+func TestRunWithArgs_UpdateHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"update", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(update --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Update options:") || !strings.Contains(stdout, "Use --help-full for the detailed update reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
 func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help-full"}); code != 0 {
@@ -324,6 +343,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Use [targets.<name>] tables with:") ||
 		!strings.Contains(stdout, "notify test             Send a clearly marked simulated notification through the configured providers") ||
+		!strings.Contains(stdout, "update                  Check GitHub for a newer published release and install it through the packaged installer") ||
 		!strings.Contains(stdout, "storj_s3_id") ||
 		!strings.Contains(stdout, "storj_s3_secret") ||
 		!strings.Contains(stdout, "health_webhook_bearer_token") ||
@@ -350,6 +370,44 @@ func TestRunWithArgs_NotifyHelpFullReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "notify test --target onsite-usb homes") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+}
+
+func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"update", "--help-full"}); code != 0 {
+			t.Fatalf("runWithArgs(update --help-full) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "--check-only           Show the planned update without downloading or installing") ||
+		!strings.Contains(stdout, "/usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || req.UpdateKeep != 2 {
+				t.Fatalf("req = %+v", req)
+			}
+			return "update ok\n", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--check-only"}); code != 0 {
+				t.Fatalf("runWithArgs(update --check-only) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if stdout != "update ok\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
 }
 
 func TestRunWithArgs_HealthStatusLoggerInitFailureJSONReturnsTwo(t *testing.T) {

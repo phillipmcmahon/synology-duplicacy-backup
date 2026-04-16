@@ -77,6 +77,14 @@ Upgrading is the same as a fresh install:
 2. run `sudo ./install.sh`
 3. confirm `/usr/local/bin/duplicacy-backup --version`
 
+Once the tool is already installed in the standard managed layout, you can also
+check for and apply published upgrades with:
+
+```bash
+duplicacy-backup update --check-only
+sudo duplicacy-backup update --yes
+```
+
 Config and secrets stay in their existing directories, so upgrades do not
 require you to copy the TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,

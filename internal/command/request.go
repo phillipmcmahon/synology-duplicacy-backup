@@ -26,6 +26,9 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if len(args) > 0 && args[0] == "notify" {
 		return parseNotifyRequest(args[1:], meta, rt)
 	}
+	if len(args) > 0 && args[0] == "update" {
+		return parseUpdateRequest(args[1:], meta, rt)
+	}
 
 	if result := parseTopLevelMetaRequest(args, meta, rt); result != nil {
 		return result, nil
@@ -126,6 +129,19 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 		return nil, err
 	}
 
+	return &ParseResult{Request: req}, nil
+}
+
+func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+	if result := parseHelpRequest(args, UpdateUsageText(meta, rt), FullUpdateUsageText(meta, rt)); result != nil {
+		return result, nil
+	}
+
+	req, err := parseUpdateFlags(args)
+	if err != nil {
+		return nil, err
+	}
+	req.UpdateCommand = "update"
 	return &ParseResult{Request: req}, nil
 }
 
@@ -306,6 +322,45 @@ func parseHealthFlags(args []string) (*workflow.Request, error) {
 	return req, nil
 }
 
+func parseUpdateFlags(args []string) (*workflow.Request, error) {
+	req := &workflow.Request{UpdateKeep: 2}
+	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
+		return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
+	}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--yes":
+			req.UpdateYes = true
+		case "--check-only":
+			req.UpdateCheckOnly = true
+		case "--keep":
+			value, err := consumeRequiredValue(args, &i, "--keep")
+			if err != nil {
+				return nil, err
+			}
+			keep, err := parseNonNegativeInt(value, "--keep")
+			if err != nil {
+				return nil, err
+			}
+			req.UpdateKeep = keep
+		case "--version":
+			value, err := consumeRequiredValue(args, &i, "--version")
+			if err != nil {
+				return nil, err
+			}
+			req.UpdateVersion = value
+		default:
+			if isOption(args[i]) {
+				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+			}
+			return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
+		}
+	}
+
+	return req, nil
+}
+
 func parseTopLevelMetaRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) *ParseResult {
 	for _, arg := range args {
 		switch arg {
@@ -412,6 +467,17 @@ func parseSourcePositional(positional []string) (string, error) {
 		return "", workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
 	}
 	return positional[0], nil
+}
+
+func parseNonNegativeInt(value string, flag string) (int, error) {
+	var parsed int
+	for _, ch := range value {
+		if ch < '0' || ch > '9' {
+			return 0, workflow.NewUsageRequestError("%s must be a non-negative integer", flag)
+		}
+		parsed = parsed*10 + int(ch-'0')
+	}
+	return parsed, nil
 }
 
 func validateTargetAndLabel(req *workflow.Request) error {
