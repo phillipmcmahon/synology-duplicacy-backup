@@ -9,6 +9,7 @@ CONFIG_GROUP_EXPLICIT=0
 ACTIVATE=1
 KEEP=0
 BINARY_PATH=""
+TEMP_TARGET_PATH=""
 
 usage() {
     cat <<'EOF'
@@ -55,6 +56,14 @@ fail() {
     echo "Error: $*" >&2
     exit 1
 }
+
+cleanup_temp_target() {
+    if [ -n "$TEMP_TARGET_PATH" ]; then
+        rm -f -- "$TEMP_TARGET_PATH"
+    fi
+}
+
+trap cleanup_temp_target EXIT HUP INT TERM
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
@@ -239,8 +248,12 @@ if [ "$(id -u)" -eq 0 ]; then
     chown root:root "$SECRETS_DIR"
     chmod 700 "$SECRETS_DIR"
 fi
-cp "$BINARY_PATH" "$TARGET_PATH"
-chmod 755 "$TARGET_PATH"
+
+TEMP_TARGET_PATH="$INSTALL_ROOT/.$BINARY_NAME.$$"
+cp "$BINARY_PATH" "$TEMP_TARGET_PATH"
+chmod 755 "$TEMP_TARGET_PATH"
+mv -f "$TEMP_TARGET_PATH" "$TARGET_PATH"
+TEMP_TARGET_PATH=""
 
 if [ "$ACTIVATE" -eq 1 ]; then
     ln -sfn "$BINARY_NAME" "$CURRENT_LINK"
