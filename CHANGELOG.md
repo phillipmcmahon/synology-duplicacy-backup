@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.2.0] - 2026-04-16
+
+### Added
+- **Managed self-update command**: `duplicacy-backup update` can now check the
+  latest published GitHub release, select the matching Linux asset, verify the
+  per-asset checksum, extract the package, and hand installation over to the
+  packaged `install.sh`.
+- **Safe update controls for operators**: `update --check-only` reports the
+  planned update without downloading or installing, `update --yes` enables
+  non-interactive installs, `--version <tag>` pins a specific release, and
+  `--keep <count>` controls installed-binary retention with a default of
+  `--keep 2`.
+
+### Changed
+- **Updater uses the existing managed install model**: self-update only runs
+  from the supported stable command layout and reuses the installer for
+  symlink switching, config-directory handling, and retention pruning instead
+  of duplicating install logic inside Go.
+- **Operator documentation now includes the update path**: the README, CLI
+  reference, and operations guide now document `update --check-only`,
+  `update --yes`, the managed-layout expectation, and the default retention
+  policy.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS managed-layout smoke**: `update --check-only` and `update --yes`
+  upgraded a temporary `homestorage` install from `4.1.7` to `4.1.8`.
+- **Coverage snapshot**:
+  - overall coverage: `79.7%`
+  - `cmd/duplicacy-backup`: `90.5%`
+  - `internal/workflow`: `83.2%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/config`: `84.4%`
+  - `internal/secrets`: `90.9%`
+
 ## [v4.1.8] - 2026-04-15
 
 ### Fixed
