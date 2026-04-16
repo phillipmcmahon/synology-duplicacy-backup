@@ -47,13 +47,13 @@ Representative Linux Go 1.26 validation for the current release baseline:
 Current Linux Go 1.26 validation snapshot for active release-prep target
 `v4.3.2`:
 
-- overall coverage: `81.1%`
-- `cmd/duplicacy-backup`: `91.4%`
+- overall coverage: `81.0%`
+- `cmd/duplicacy-backup`: `91.9%`
 - `internal/workflow`: `83.1%`
 - `internal/duplicacy`: `81.2%`
 - `internal/exec`: `97.4%`
 - `internal/secrets`: `90.9%`
-- `internal/update`: `84.7%`
+- `internal/update`: `82.3%`
 
 Additional v4.3.2 release-prep validation:
 
