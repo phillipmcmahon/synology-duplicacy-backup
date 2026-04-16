@@ -15,6 +15,7 @@ import (
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -408,11 +409,11 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || !req.UpdateForce || req.UpdateKeep != 2 {
 				t.Fatalf("req = %+v", req)
 			}
-			return "update ok\n", nil
+			return update.Result{Output: "update ok\n", Status: workflow.UpdateStatusAvailable}, nil
 		}
 
 		stdout, stderr := captureOutput(t, func() {
@@ -440,8 +441,8 @@ func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			return "", fmt.Errorf("update install failed: exit status 1")
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			return update.Result{Status: workflow.UpdateStatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
 		_, stderr := captureOutput(t, func() {
@@ -467,8 +468,8 @@ func TestRunWithArgs_UpdateFailureNotificationFailureDoesNotMaskUpdateError(t *t
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			return "", fmt.Errorf("update install failed: exit status 1")
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			return update.Result{Status: workflow.UpdateStatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
 		_, stderr := captureOutput(t, func() {
@@ -492,8 +493,11 @@ func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testi
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "succeeded")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			return "Update\n  Result               : Installed\n", nil
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			return update.Result{
+				Output: "Update\n  Human text changed   : yes\n",
+				Status: workflow.UpdateStatusInstalled,
+			}, nil
 		}
 
 		stdout, stderr := captureOutput(t, func() {
@@ -501,7 +505,7 @@ func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testi
 				t.Fatalf("runWithArgs(update --yes) = %d", code)
 			}
 		})
-		if !strings.Contains(stdout, "Result               : Installed") {
+		if !strings.Contains(stdout, "Human text changed   : yes") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 		if !strings.Contains(stderr, "[WARN] Failed to send update notification") {

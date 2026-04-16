@@ -37,7 +37,7 @@ func TestMaybeSendUpdateFailureNotification(t *testing.T) {
 	req := &Request{UpdateCommand: "update", ConfigDir: configDir, UpdateYes: true}
 	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
-	if err := MaybeSendUpdateFailureNotification(req, meta, rt, errors.New("update install failed: exit status 1")); err != nil {
+	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("update install failed: exit status 1")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
 	}
 	if gotTitle != "WARNING: Duplicacy Backup update install failed" {
@@ -57,7 +57,7 @@ func TestMaybeSendUpdateFailureNotificationMissingConfigNoops(t *testing.T) {
 	req := &Request{UpdateCommand: "update", ConfigDir: t.TempDir(), UpdateYes: true}
 	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
-	if err := MaybeSendUpdateFailureNotification(req, meta, rt, errors.New("release lookup failed")); err != nil {
+	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("release lookup failed")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
 	}
 }
@@ -81,7 +81,7 @@ func TestMaybeSendUpdateFailureNotificationHonoursInteractiveGate(t *testing.T) 
 	req := &Request{UpdateCommand: "update", ConfigDir: configDir}
 	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
-	if err := MaybeSendUpdateFailureNotification(req, meta, rt, errors.New("release lookup failed")); err != nil {
+	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("release lookup failed")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
 	}
 	if called {
@@ -109,13 +109,48 @@ func TestMaybeSendUpdateSuccessNotificationOptIn(t *testing.T) {
 	rt.StdinIsTTY = func() bool { return false }
 	req := &Request{UpdateCommand: "update", ConfigDir: configDir, UpdateYes: true}
 	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
-	output := "Update\n  Result               : Installed\n"
 
-	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, output); err != nil {
+	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, UpdateStatusInstalled); err != nil {
 		t.Fatalf("MaybeSendUpdateSuccessNotification() error = %v", err)
 	}
 	if gotTitle != "INFO: Duplicacy Backup update installed" {
 		t.Fatalf("Title = %q", gotTitle)
+	}
+}
+
+func TestMaybeSendUpdateSuccessNotificationUsesStructuredStatus(t *testing.T) {
+	configDir := t.TempDir()
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	writeUpdateNotifyConfig(t, configDir, strings.Join([]string{
+		`[update.notify]`,
+		`notify_on = ["succeeded"]`,
+		`[update.notify.ntfy]`,
+		`url = "` + server.URL + `"`,
+		`topic = "duplicacy-updates"`,
+	}, "\n"))
+
+	rt := testRuntime()
+	rt.StdinIsTTY = func() bool { return false }
+	req := &Request{UpdateCommand: "update", ConfigDir: configDir, UpdateYes: true}
+	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+
+	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, UpdateStatusAvailable); err != nil {
+		t.Fatalf("MaybeSendUpdateSuccessNotification(available) error = %v", err)
+	}
+	if called {
+		t.Fatal("available status should preserve existing no-notification behaviour")
+	}
+
+	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, UpdateStatusInstalled); err != nil {
+		t.Fatalf("MaybeSendUpdateSuccessNotification(installed) error = %v", err)
+	}
+	if !called {
+		t.Fatal("installed status should send notification without reading rendered report text")
 	}
 }
 

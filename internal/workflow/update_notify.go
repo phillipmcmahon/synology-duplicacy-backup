@@ -34,11 +34,15 @@ func LoadUpdateNotifyConfig(req *Request, rt Runtime) (config.HealthNotifyConfig
 	return appCfg.Update.Notify, path, true, nil
 }
 
-func MaybeSendUpdateFailureNotification(req *Request, meta Metadata, rt Runtime, updateErr error) error {
+func MaybeSendUpdateFailureNotification(req *Request, meta Metadata, rt Runtime, updateStatus UpdateStatus, updateErr error) error {
 	if updateErr == nil {
 		return nil
 	}
-	return maybeSendUpdateNotification(req, rt, "failed", classifyUpdateFailureEvent(updateErr), "warning", updateFailureSummary(updateErr), map[string]any{
+	status := updateStatus
+	if status == UpdateStatusUnknown {
+		status = UpdateStatusFailed
+	}
+	return maybeSendUpdateNotification(req, rt, string(status), classifyUpdateFailureEvent(updateErr), "warning", updateFailureSummary(updateErr), map[string]any{
 		"message":         OperatorMessage(updateErr),
 		"current_version": meta.Version,
 		"check_only":      updateCheckOnly(req),
@@ -46,8 +50,8 @@ func MaybeSendUpdateFailureNotification(req *Request, meta Metadata, rt Runtime,
 	})
 }
 
-func MaybeSendUpdateSuccessNotification(req *Request, meta Metadata, rt Runtime, output string) error {
-	status, event, summary := classifyUpdateSuccessOutput(output)
+func MaybeSendUpdateSuccessNotification(req *Request, meta Metadata, rt Runtime, updateStatus UpdateStatus) error {
+	status, event, summary := classifyUpdateSuccessStatus(updateStatus)
 	if status == "" {
 		return nil
 	}
@@ -142,13 +146,13 @@ func updateFailureSummary(err error) string {
 	}
 }
 
-func classifyUpdateSuccessOutput(output string) (string, string, string) {
-	switch {
-	case strings.Contains(output, "Result               : Installed"):
+func classifyUpdateSuccessStatus(updateStatus UpdateStatus) (string, string, string) {
+	switch updateStatus {
+	case UpdateStatusInstalled:
 		return "succeeded", "update_install_succeeded", "Duplicacy Backup update installed"
-	case strings.Contains(output, "Result               : Already up to date"):
+	case UpdateStatusCurrent:
 		return "current", "update_already_current", "Duplicacy Backup is already up to date"
-	case strings.Contains(output, "Result               : Reinstall requested"):
+	case UpdateStatusReinstallRequested:
 		return "reinstall-requested", "update_reinstall_requested", "Duplicacy Backup update reinstall requested"
 	default:
 		return "", "", ""

@@ -24,7 +24,7 @@ var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
 var handleNotifyCommand = workflow.HandleNotifyCommand
-var handleUpdateCommand = update.HandleCommand
+var handleUpdateCommand = update.HandleCommandResult
 var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 const scriptName = "duplicacy-backup"

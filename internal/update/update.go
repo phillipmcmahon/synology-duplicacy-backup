@@ -56,6 +56,11 @@ type Updater struct {
 	RunInstaller   func(string, []string) ([]byte, error)
 }
 
+type Result struct {
+	Output string
+	Status workflow.UpdateStatus
+}
+
 func DefaultRuntime() Runtime {
 	return Runtime{
 		GOOS:         runtime.GOOS,
@@ -119,6 +124,11 @@ func New(scriptName, currentVersion string, rt Runtime) *Updater {
 }
 
 func HandleCommand(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+	result, err := HandleCommandResult(req, meta, rt)
+	return result.Output, err
+}
+
+func HandleCommandResult(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (Result, error) {
 	updater := New(meta.ScriptName, meta.Version, Runtime{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
@@ -132,32 +142,43 @@ func HandleCommand(req *workflow.Request, meta workflow.Metadata, rt workflow.Ru
 		MkdirTemp:    os.MkdirTemp,
 		RemoveAll:    os.RemoveAll,
 	})
-	return updater.Run(req)
+	return updater.RunResult(req)
 }
 
 func (u *Updater) Run(req *workflow.Request) (string, error) {
+	result, err := u.RunResult(req)
+	return result.Output, err
+}
+
+func (u *Updater) RunResult(req *workflow.Request) (Result, error) {
 	planned, err := u.buildPlan(req)
 	if err != nil {
-		return "", err
+		return Result{Status: workflow.UpdateStatusFailed}, err
 	}
 	if planned.AlreadyCurrent {
-		return renderReport(planned, "Already up to date", ""), nil
+		return Result{Output: renderReport(planned, "Already up to date", ""), Status: workflow.UpdateStatusCurrent}, nil
 	}
 	if planned.CheckOnly {
 		result := "Update available"
+		status := workflow.UpdateStatusAvailable
 		if planned.Force && planned.TargetVersion == planned.CurrentVersion {
 			result = "Reinstall requested"
+			status = workflow.UpdateStatusReinstallRequested
 		}
-		return renderReport(planned, result, ""), nil
+		return Result{Output: renderReport(planned, result, ""), Status: status}, nil
 	}
 	if err := u.confirmInstall(planned, req); err != nil {
-		return "", err
+		status := workflow.UpdateStatusFailed
+		if strings.Contains(strings.ToLower(err.Error()), "cancelled") {
+			status = workflow.UpdateStatusCancelled
+		}
+		return Result{Status: status}, err
 	}
 	installerOutput, err := u.install(planned)
 	if err != nil {
-		return "", err
+		return Result{Status: workflow.UpdateStatusFailed}, err
 	}
-	return renderReport(planned, "Installed", installerOutput), nil
+	return Result{Output: renderReport(planned, "Installed", installerOutput), Status: workflow.UpdateStatusInstalled}, nil
 }
 
 func (u *Updater) buildPlan(req *workflow.Request) (*plan, error) {

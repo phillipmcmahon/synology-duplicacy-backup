@@ -164,10 +164,14 @@ func TestRunCheckOnlyReportsAvailableUpdate(t *testing.T) {
 	updater.Repo = "phillipmcmahon/synology-duplicacy-backup"
 	updater.APIBase = server.URL
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
+	if result.Status != workflow.UpdateStatusAvailable {
+		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusAvailable)
+	}
+	output := result.Output
 	if !strings.Contains(output, "Target Version       : v4.1.9") ||
 		!strings.Contains(output, "Result               : Update available") ||
 		!strings.Contains(output, "Keep                 : 2") {
@@ -283,10 +287,14 @@ func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 		return []byte("Installed: ok\nActivated: ok"), nil
 	}
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
+	if result.Status != workflow.UpdateStatusInstalled {
+		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusInstalled)
+	}
+	output := result.Output
 	if !strings.Contains(output, "Result               : Installed") ||
 		!strings.Contains(output, "Installed: ok") {
 		t.Fatalf("output = %q", output)
@@ -321,10 +329,14 @@ func TestRunAlreadyCurrentSkipsInstallWithoutForce(t *testing.T) {
 		return nil, nil
 	}
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
+	if result.Status != workflow.UpdateStatusCurrent {
+		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusCurrent)
+	}
+	output := result.Output
 	if !strings.Contains(output, "Result               : Already up to date") ||
 		!strings.Contains(output, "Force                : false") {
 		t.Fatalf("output = %q", output)
@@ -400,10 +412,14 @@ func TestRunForceCheckOnlyReportsReinstall(t *testing.T) {
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateForce: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateForce: true, UpdateKeep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
+	if result.Status != workflow.UpdateStatusReinstallRequested {
+		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusReinstallRequested)
+	}
+	output := result.Output
 	if !strings.Contains(output, "Result               : Reinstall requested") ||
 		!strings.Contains(output, "Force                : true") {
 		t.Fatalf("output = %q", output)
