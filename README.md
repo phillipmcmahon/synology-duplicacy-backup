@@ -191,10 +191,10 @@ sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
 sudo duplicacy-backup notify test --target onsite-usb homes
 
 # Check whether a newer published release is available
-duplicacy-backup update --check-only
+/usr/local/bin/duplicacy-backup update --check-only
 
 # Download and install the latest published release
-sudo duplicacy-backup update --yes
+sudo /usr/local/bin/duplicacy-backup update --yes
 ```
 
 `notify test` uses the existing label and target config, sends a clearly marked
@@ -247,10 +247,10 @@ sudo duplicacy-backup health verify --target onsite-usb homes
 sudo duplicacy-backup notify test --target onsite-usb homes
 
 # Check whether a newer published release is available
-duplicacy-backup update --check-only
+/usr/local/bin/duplicacy-backup update --check-only
 
 # Download and install the latest published release
-sudo duplicacy-backup update --yes
+sudo /usr/local/bin/duplicacy-backup update --yes
 ```
 
 When operations are combined, execution order is fixed:

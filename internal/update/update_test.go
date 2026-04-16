@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -152,6 +153,44 @@ func TestRunCheckOnlyUsesInvokedStablePathWhenExecutableIsResolved(t *testing.T)
 	}
 }
 
+func TestRunCheckOnlyResolvesBareCommandThroughPath(t *testing.T) {
+	executablePath, resolvedPath := managedExecutableLayout(t, "4.1.8")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(release{
+			TagName: "v4.1.9",
+			Name:    "v4.1.9",
+			Assets: []releaseAsset{
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+			},
+		})
+	}))
+	defer server.Close()
+	t.Chdir(t.TempDir())
+
+	rt := testRuntime(executablePath)
+	rt.Executable = func() (string, error) { return resolvedPath, nil }
+	rt.CommandPath = func() string { return "duplicacy-backup" }
+	rt.LookPath = func(name string) (string, error) {
+		if name != "duplicacy-backup" {
+			t.Fatalf("LookPath(%q), want duplicacy-backup", name)
+		}
+		return executablePath, nil
+	}
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+
+	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !strings.Contains(output, "Result               : Update available") ||
+		!strings.Contains(output, "Bin Dir              : "+filepath.Dir(executablePath)) {
+		t.Fatalf("output = %q", output)
+	}
+}
+
 func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 	executablePath, _ := managedExecutableLayout(t, "4.1.8")
 	tarball := buildPackageTarball(t, "4.1.9")
@@ -247,6 +286,38 @@ func TestRunRejectsUnmanagedLayout(t *testing.T) {
 
 	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "managed stable command path") {
+		t.Fatalf("Run() err = %v", err)
+	}
+}
+
+func TestRunRejectsBareCommandMissingFromPath(t *testing.T) {
+	executablePath, resolvedPath := managedExecutableLayout(t, "4.1.8")
+	rt := testRuntime(executablePath)
+	rt.Executable = func() (string, error) { return resolvedPath, nil }
+	rt.CommandPath = func() string { return "duplicacy-backup" }
+	rt.LookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	if err == nil || !strings.Contains(err.Error(), "failed to find invoked command \"duplicacy-backup\" on PATH") {
+		t.Fatalf("Run() err = %v", err)
+	}
+}
+
+func TestRunRejectsMissingRelativeCommandPath(t *testing.T) {
+	executablePath, resolvedPath := managedExecutableLayout(t, "4.1.8")
+	t.Chdir(t.TempDir())
+	rt := testRuntime(executablePath)
+	rt.Executable = func() (string, error) { return resolvedPath, nil }
+	rt.CommandPath = func() string { return "./duplicacy-backup" }
+	rt.LookPath = func(name string) (string, error) {
+		t.Fatalf("LookPath(%q) should not be used for explicit relative paths", name)
+		return "", exec.ErrNotFound
+	}
+
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	if err == nil || !strings.Contains(err.Error(), "failed to resolve invoked command path") {
 		t.Fatalf("Run() err = %v", err)
 	}
 }

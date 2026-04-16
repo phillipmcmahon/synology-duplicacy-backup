@@ -34,6 +34,7 @@ type Runtime struct {
 	Stdin        func() *os.File
 	StdinIsTTY   func() bool
 	CommandPath  func() string
+	LookPath     func(string) (string, error)
 	Executable   func() (string, error)
 	EvalSymlinks func(string) (string, error)
 	TempDir      func() string
@@ -90,6 +91,7 @@ func DefaultRuntime() Runtime {
 		Stdin:        func() *os.File { return os.Stdin },
 		StdinIsTTY:   func() bool { return workflow.DefaultRuntime().StdinIsTTY() },
 		CommandPath:  func() string { return os.Args[0] },
+		LookPath:     exec.LookPath,
 		Executable:   os.Executable,
 		EvalSymlinks: filepath.EvalSymlinks,
 		TempDir:      os.TempDir,
@@ -110,6 +112,9 @@ func New(scriptName, currentVersion string, rt Runtime) *Updater {
 	}
 	if rt.CommandPath == nil {
 		rt.CommandPath = func() string { return os.Args[0] }
+	}
+	if rt.LookPath == nil {
+		rt.LookPath = exec.LookPath
 	}
 	if rt.EvalSymlinks == nil {
 		rt.EvalSymlinks = filepath.EvalSymlinks
@@ -148,6 +153,7 @@ func HandleCommand(req *workflow.Request, meta workflow.Metadata, rt workflow.Ru
 		Stdin:        rt.Stdin,
 		StdinIsTTY:   rt.StdinIsTTY,
 		CommandPath:  func() string { return os.Args[0] },
+		LookPath:     exec.LookPath,
 		Executable:   rt.Executable,
 		EvalSymlinks: rt.EvalSymlinks,
 		TempDir:      rt.TempDir,
@@ -300,11 +306,19 @@ func (u *Updater) stableCommandPath(resolvedExecutable string) (string, error) {
 		return "", fmt.Errorf("update requires the managed stable command path %q; current executable is %s", u.ScriptName, resolvedExecutable)
 	}
 	if !filepath.IsAbs(commandPath) {
-		abs, err := filepath.Abs(commandPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve invoked command path %s: %w", commandPath, err)
+		if !strings.ContainsAny(commandPath, `/\`) {
+			resolvedCommand, err := u.Runtime.LookPath(commandPath)
+			if err != nil {
+				return "", fmt.Errorf("failed to find invoked command %q on PATH: %w", commandPath, err)
+			}
+			commandPath = resolvedCommand
+		} else {
+			abs, err := filepath.Abs(commandPath)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve invoked command path %s: %w", commandPath, err)
+			}
+			commandPath = abs
 		}
-		commandPath = abs
 	}
 	commandResolved, err := u.Runtime.EvalSymlinks(commandPath)
 	if err != nil {

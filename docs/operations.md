@@ -81,8 +81,8 @@ Once the tool is already installed in the standard managed layout, you can also
 check for and apply published upgrades with:
 
 ```bash
-duplicacy-backup update --check-only
-sudo duplicacy-backup update --yes
+/usr/local/bin/duplicacy-backup update --check-only
+sudo /usr/local/bin/duplicacy-backup update --yes
 ```
 
 Config and secrets stay in their existing directories, so upgrades do not

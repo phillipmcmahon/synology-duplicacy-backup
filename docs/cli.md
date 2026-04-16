@@ -163,10 +163,10 @@ sudo duplicacy-backup notify test --target onsite-usb homes
 sudo duplicacy-backup health verify --target offsite-storj homes
 
 # Check whether a newer published release is available
-duplicacy-backup update --check-only
+/usr/local/bin/duplicacy-backup update --check-only
 
 # Download and install the latest published release
-sudo duplicacy-backup update --yes
+sudo /usr/local/bin/duplicacy-backup update --yes
 ```
 
 ## Notes
