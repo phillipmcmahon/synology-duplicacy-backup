@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.0] - 2026-04-16
+
 ### Added
 - **Global self-update notifications**: `update` can now send failure
   notifications through a global `[update.notify]` config, separate from
@@ -14,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Update notification testing**: `notify test update` sends a simulated
   update notification through the global app notification config without
   running a real update.
+
+### Changed
+- **Update notification config stays global by design**: update alerts use
+  `<config-dir>/duplicacy-backup.toml` and do not require a backup label,
+  target, or object-storage secrets unless a future authenticated notification
+  provider explicitly needs its own token source.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS update-notification smoke**: an amd64 test package successfully sent
+  `notify test update` through the real ntfy topic on `homestorage`.
+- **Coverage snapshot**:
+  - overall coverage: `79.7%`
+  - `cmd/duplicacy-backup`: `91.4%`
+  - `internal/workflow`: `82.8%`
+  - `internal/config`: `83.8%`
 
 ## [v4.2.2] - 2026-04-16
 
