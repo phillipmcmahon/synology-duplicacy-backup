@@ -334,6 +334,8 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 			req.UpdateYes = true
 		case "--check-only":
 			req.UpdateCheckOnly = true
+		case "--force":
+			req.UpdateForce = true
 		case "--keep":
 			value, err := consumeRequiredValue(args, &i, "--keep")
 			if err != nil {

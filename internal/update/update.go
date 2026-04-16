@@ -70,6 +70,7 @@ type plan struct {
 	InstallRoot    string
 	BinDir         string
 	CheckOnly      bool
+	Force          bool
 	Keep           int
 	AlreadyCurrent bool
 }
@@ -172,7 +173,11 @@ func (u *Updater) Run(req *workflow.Request) (string, error) {
 		return renderReport(planned, "Already up to date", ""), nil
 	}
 	if planned.CheckOnly {
-		return renderReport(planned, "Update available", ""), nil
+		result := "Update available"
+		if planned.Force && planned.TargetVersion == planned.CurrentVersion {
+			result = "Reinstall requested"
+		}
+		return renderReport(planned, result, ""), nil
 	}
 	if err := u.confirmInstall(planned, req); err != nil {
 		return "", err
@@ -264,8 +269,9 @@ func (u *Updater) buildPlan(req *workflow.Request) (*plan, error) {
 		InstallRoot:    layout.InstallRoot,
 		BinDir:         layout.BinDir,
 		CheckOnly:      req.UpdateCheckOnly,
+		Force:          req.UpdateForce,
 		Keep:           keep,
-		AlreadyCurrent: targetVersion == u.CurrentVersion,
+		AlreadyCurrent: targetVersion == u.CurrentVersion && !req.UpdateForce,
 	}, nil
 }
 
@@ -562,6 +568,7 @@ func renderReport(planned *plan, result string, installerOutput string) string {
 	fmt.Fprintf(&b, "  Bin Dir              : %s\n", planned.BinDir)
 	fmt.Fprintf(&b, "  Keep                 : %d\n", planned.Keep)
 	fmt.Fprintf(&b, "  Check Only           : %t\n", planned.CheckOnly)
+	fmt.Fprintf(&b, "  Force                : %t\n", planned.Force)
 	fmt.Fprintf(&b, "  Result               : %s\n", result)
 	if installerOutput != "" {
 		b.WriteString("  Section: Installer\n")

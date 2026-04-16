@@ -167,6 +167,9 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
+
+# Reinstall the selected release even if it is already current
+sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
 ## Notes
@@ -204,6 +207,7 @@ sudo /usr/local/bin/duplicacy-backup update --yes
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
 - `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
+- `update --force` reinstalls the selected release even when it is already current; it does not skip interactive confirmation unless `--yes` is also supplied
 - `update` expects the standard managed layout under `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as the stable command path
 - `update` defaults to `--keep 2`, so the newly activated version and one previous version are retained unless you override that policy
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs

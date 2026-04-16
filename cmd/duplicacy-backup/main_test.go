@@ -382,6 +382,7 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "--check-only           Show the planned update without downloading or installing") ||
+		!strings.Contains(stdout, "--force                Reinstall even when the selected release is already current") ||
 		!strings.Contains(stdout, "/usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -390,14 +391,14 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || req.UpdateKeep != 2 {
+			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || !req.UpdateForce || req.UpdateKeep != 2 {
 				t.Fatalf("req = %+v", req)
 			}
 			return "update ok\n", nil
 		}
 
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"update", "--check-only"}); code != 0 {
+			if code := runWithArgs([]string{"update", "--check-only", "--force"}); code != 0 {
 				t.Fatalf("runWithArgs(update --check-only) = %d", code)
 			}
 		})

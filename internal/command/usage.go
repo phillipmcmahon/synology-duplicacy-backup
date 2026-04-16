@@ -355,6 +355,7 @@ func UpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 
 Update options:
     --check-only
+    --force
     --yes
     --keep <count>
     --version <tag>
@@ -388,6 +389,7 @@ UPDATE BEHAVIOUR:
 
 OPTIONS:
     --check-only           Show the planned update without downloading or installing
+    --force                Reinstall even when the selected release is already current
     --yes                  Skip the interactive confirmation prompt
     --keep <count>         Keep this many newest installed binaries after activation (default: 2)
     --version <tag>        Install one specific published release tag instead of the latest release
@@ -397,6 +399,7 @@ OPTIONS:
 INTERACTIVE RULES:
     Interactive runs show the detected install plan and ask for confirmation before install.
     Non-interactive runs require --yes for the install step.
+    --force changes version selection behaviour only; it does not skip confirmation.
 
 SUPPORTED LAYOUT:
     update expects the standard managed install layout:
@@ -407,9 +410,11 @@ SUPPORTED LAYOUT:
 EXAMPLES:
     %s update --check-only
     %s update --yes
+    %s update --force --yes
     %s update --keep 3 --yes
     %s update --version v4.1.8 --yes
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,

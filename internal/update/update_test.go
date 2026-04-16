@@ -246,6 +246,117 @@ func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 	}
 }
 
+func TestRunAlreadyCurrentSkipsInstallWithoutForce(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(release{
+			TagName: "v4.1.8",
+			Name:    "v4.1.8",
+			Assets: []releaseAsset{
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	updater := New("duplicacy-backup", "4.1.8", testRuntime(executablePath))
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		t.Fatal("RunInstaller should not be called when already current")
+		return nil, nil
+	}
+
+	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !strings.Contains(output, "Result               : Already up to date") ||
+		!strings.Contains(output, "Force                : false") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestRunForceReinstallsAlreadyCurrentVersion(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	tarball := buildPackageTarball(t, "4.1.8")
+	sum := sha256.Sum256(tarball)
+	checksum := hex.EncodeToString(sum[:]) + "  duplicacy-backup_4.1.8_linux_amd64.tar.gz\n"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/phillipmcmahon/synology-duplicacy-backup/releases/latest":
+			_ = json.NewEncoder(w).Encode(release{
+				TagName: "v4.1.8",
+				Name:    "v4.1.8",
+				Assets: []releaseAsset{
+					{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: server.URL + "/asset"},
+					{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: server.URL + "/asset.sha256"},
+				},
+			})
+		case "/asset":
+			_, _ = w.Write(tarball)
+		case "/asset.sha256":
+			_, _ = w.Write([]byte(checksum))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	updater := New("duplicacy-backup", "4.1.8", testRuntime(executablePath))
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	installerCalled := false
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		installerCalled = true
+		return []byte("Installed: forced reinstall"), nil
+	}
+
+	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateForce: true, UpdateKeep: DefaultKeep})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !installerCalled {
+		t.Fatal("RunInstaller was not called")
+	}
+	if !strings.Contains(output, "Result               : Installed") ||
+		!strings.Contains(output, "Force                : true") ||
+		!strings.Contains(output, "Installed: forced reinstall") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestRunForceCheckOnlyReportsReinstall(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(release{
+			TagName: "v4.1.8",
+			Name:    "v4.1.8",
+			Assets: []releaseAsset{
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	updater := New("duplicacy-backup", "4.1.8", testRuntime(executablePath))
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+
+	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateForce: true, UpdateKeep: DefaultKeep})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !strings.Contains(output, "Result               : Reinstall requested") ||
+		!strings.Contains(output, "Force                : true") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
 func TestRunInstallRequiresYesWithoutTTY(t *testing.T) {
 	executablePath, _ := managedExecutableLayout(t, "4.1.8")
 	var server *httptest.Server

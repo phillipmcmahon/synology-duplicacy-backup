@@ -43,6 +43,7 @@ type Request struct {
 	UpdateKeep      int
 	UpdateCheckOnly bool
 	UpdateYes       bool
+	UpdateForce     bool
 	DoBackup        bool
 	DoPrune         bool
 	DoCleanupStore  bool

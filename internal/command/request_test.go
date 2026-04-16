@@ -181,12 +181,13 @@ func TestParseRequest_HealthStatus(t *testing.T) {
 
 func TestParseRequest_Update(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"update", "--check-only", "--keep", "3", "--version", "v4.1.8", "--yes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"update", "--check-only", "--force", "--keep", "3", "--version", "v4.1.8", "--yes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if result.Request.UpdateCommand != "update" ||
 		!result.Request.UpdateCheckOnly ||
+		!result.Request.UpdateForce ||
 		!result.Request.UpdateYes ||
 		result.Request.UpdateKeep != 3 ||
 		result.Request.UpdateVersion != "v4.1.8" {

@@ -195,6 +195,9 @@ sudo duplicacy-backup notify test --target onsite-usb homes
 
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
+
+# Reinstall the selected release even if it is already current
+sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
 `notify test` uses the existing label and target config, sends a clearly marked
@@ -251,6 +254,9 @@ sudo duplicacy-backup notify test --target onsite-usb homes
 
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
+
+# Reinstall the selected release even if it is already current
+sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
 When operations are combined, execution order is fixed:
@@ -276,6 +282,8 @@ Linux package for the current platform, verifies the checksum, and reuses the
 packaged `install.sh` to activate the new version. `update --check-only` is
 safe for routine inspection. Installing through `update` expects the standard
 managed layout under `/usr/local/lib/duplicacy-backup` and `/usr/local/bin`.
+Use `update --force` when you intentionally want to reinstall the selected
+release even though it is already current.
 
 Every runtime, `config`, and `health` command requires an explicit `--target <name>`.
 Every runtime command must also include at least one explicit operation flag

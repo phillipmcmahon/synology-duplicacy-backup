@@ -83,12 +83,17 @@ check for and apply published upgrades with:
 ```bash
 /usr/local/bin/duplicacy-backup update --check-only
 sudo /usr/local/bin/duplicacy-backup update --yes
+sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
 Config and secrets stay in their existing directories, so upgrades do not
 require you to copy the TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
 when needed, one matching secrets file.
+
+Use `update --force` only when you intentionally want to reinstall the selected
+release, for example after repairing a managed install. It still follows normal
+interactive rules, so add `--yes` for unattended scheduler or repair jobs.
 
 Under the current target model, only `type = "object"` targets need a secrets
 file for storage credentials. Filesystem targets, whether local or remote, only

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   update` now resolves the invoked stable command through `PATH` before
   validating the managed install layout, so normal shell usage no longer tries
   to resolve a missing binary from the current working directory.
+- **Updater can reinstall the selected release on demand**: `update --force`
+  now performs the install path even when the selected release is already
+  current, giving operators a repair path for managed installs without waiting
+  for a newer release.
 - **Update examples now prefer the stable absolute path**: operator examples use
   `/usr/local/bin/duplicacy-backup` for update commands, which is clearer and
   safer for unattended Synology Task Scheduler jobs.
