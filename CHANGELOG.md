@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.1] - 2026-04-16
+
+### Fixed
+- **Self-update installer no longer inherits an unsafe caller directory**:
+  `duplicacy-backup update` now launches the packaged installer from the
+  extracted package directory, preventing repeated Synology shell `getcwd`
+  warnings when the operator's current directory has disappeared or become
+  inaccessible.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Updater missing-working-directory regression**: unit coverage now deletes
+  the caller working directory before launching the installer and asserts the
+  installer runs from the extracted package directory without `getcwd` noise.
+- **Coverage snapshot**:
+  - overall coverage: `79.7%`
+  - `cmd/duplicacy-backup`: `91.4%`
+  - `internal/workflow`: `82.7%`
+  - `internal/update`: `71.3%`
+
 ## [v4.3.0] - 2026-04-16
 
 ### Added

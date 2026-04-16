@@ -34,9 +34,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.2.2`
+Current public release baseline: `v4.3.0`
 
-Active release-prep target: `v4.3.0`
+Active release-prep target: `v4.3.1`
 
 Representative Linux Go 1.26 validation for this release candidate:
 
@@ -44,7 +44,7 @@ Representative Linux Go 1.26 validation for this release candidate:
 - `go vet ./...`
 - `go test -cover ./...`
 
-Current Linux Go 1.26 validation snapshot for the `v4.3.0` candidate:
+Current Linux Go 1.26 validation snapshot for the `v4.3.1` candidate:
 
 - overall coverage: `79.7%`
 - `cmd/duplicacy-backup`: `91.4%`
@@ -52,11 +52,16 @@ Current Linux Go 1.26 validation snapshot for the `v4.3.0` candidate:
 - `internal/duplicacy`: `81.2%`
 - `internal/config`: `83.8%`
 - `internal/secrets`: `90.9%`
+- `internal/update`: `71.3%`
 
-Additional v4.3.0 release smoke:
+Additional v4.3.1 release smoke:
 
-- NAS amd64 test package for `4.3.0-smoke` successfully validated
-  `notify test update` against the real ntfy topic on `homestorage`.
+- The updater regression deletes the caller working directory before launching
+  the installer and confirms the installer runs from the extracted package
+  directory without `getcwd` warnings.
+- Linux amd64 test packaging produced
+  `duplicacy-backup_4.3.1-getcwd.1_linux_amd64.tar.gz` successfully for the
+  working-directory fix.
 
 ## Packaging Rule
 
