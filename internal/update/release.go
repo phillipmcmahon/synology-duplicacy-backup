@@ -1,12 +1,15 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 )
 
 type releaseAsset struct {
@@ -27,7 +30,9 @@ func (u *Updater) fetchRelease(requestedVersion string) (*release, error) {
 	} else {
 		url = fmt.Sprintf("%s/repos/%s/releases/tags/%s", strings.TrimRight(u.APIBase, "/"), u.Repo, ensureTagPrefix(requestedVersion))
 	}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout(u.ReleaseTimeout, DefaultReleaseMetadataTimeout))
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build GitHub release request: %w", err)
 	}
@@ -35,6 +40,9 @@ func (u *Updater) fetchRelease(requestedVersion string) (*release, error) {
 	req.Header.Set("User-Agent", u.ScriptName)
 	resp, err := u.HTTPClient.Do(req)
 	if err != nil {
+		if isTimeoutError(err) {
+			return nil, fmt.Errorf("GitHub release metadata request timed out after %s: %w", requestTimeout(u.ReleaseTimeout, DefaultReleaseMetadataTimeout), err)
+		}
 		return nil, fmt.Errorf("failed to query GitHub releases: %w", err)
 	}
 	defer resp.Body.Close()
@@ -50,6 +58,33 @@ func (u *Updater) fetchRelease(requestedVersion string) (*release, error) {
 		return nil, errors.New("GitHub release metadata did not include a tag name")
 	}
 	return &parsed, nil
+}
+
+func requestTimeout(configured, fallback time.Duration) time.Duration {
+	if configured > 0 {
+		return configured
+	}
+	return fallback
+}
+
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		if urlErr.Timeout() {
+			return true
+		}
+	}
+	type timeout interface {
+		Timeout() bool
+	}
+	var timeoutErr timeout
+	return errors.As(err, &timeoutErr) && timeoutErr.Timeout()
 }
 
 func assetNameForPlatform(version, goos, goarch string) (string, error) {

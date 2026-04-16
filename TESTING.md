@@ -59,6 +59,10 @@ Additional v4.3.2 release-prep validation:
 
 - Update notification mapping contract tests lock success, failure, and
   notify-test event mappings to structured status values.
+- Update HTTP timeout tests verify release metadata and asset download requests
+  carry explicit context deadlines and return operator-friendly timeout errors.
+- CLI adapter tests lock the mapping from update-domain status values to
+  workflow notification statuses.
 - Update package coverage is back above the 80% minimum after focused tests for
   release lookup, package extraction, install execution, and report handling.
 - Release-prep notes were generated under `build/release-prep/v4.3.2/`.

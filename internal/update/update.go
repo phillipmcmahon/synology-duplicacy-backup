@@ -8,13 +8,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
 
 const (
-	DefaultRepo = "phillipmcmahon/synology-duplicacy-backup"
-	DefaultKeep = 2
+	DefaultRepo                   = "phillipmcmahon/synology-duplicacy-backup"
+	DefaultKeep                   = 2
+	DefaultReleaseMetadataTimeout = 15 * time.Second
+	DefaultAssetDownloadTimeout   = 10 * time.Minute
 )
 
 type Runtime struct {
@@ -47,18 +50,20 @@ type plan struct {
 }
 
 type Updater struct {
-	Repo           string
-	APIBase        string
-	ScriptName     string
-	CurrentVersion string
-	Runtime        Runtime
-	HTTPClient     *http.Client
-	RunInstaller   func(string, []string) ([]byte, error)
+	Repo            string
+	APIBase         string
+	ScriptName      string
+	CurrentVersion  string
+	Runtime         Runtime
+	HTTPClient      *http.Client
+	RunInstaller    func(string, []string) ([]byte, error)
+	ReleaseTimeout  time.Duration
+	DownloadTimeout time.Duration
 }
 
 type Result struct {
 	Output string
-	Status workflow.UpdateStatus
+	Status Status
 }
 
 func DefaultRuntime() Runtime {
@@ -66,7 +71,7 @@ func DefaultRuntime() Runtime {
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
 		Stdin:        func() *os.File { return os.Stdin },
-		StdinIsTTY:   func() bool { return workflow.DefaultRuntime().StdinIsTTY() },
+		StdinIsTTY:   func() bool { return logger.IsTerminal(os.Stdin) },
 		CommandPath:  func() string { return os.Args[0] },
 		LookPath:     exec.LookPath,
 		Executable:   os.Executable,
@@ -82,7 +87,7 @@ func New(scriptName, currentVersion string, rt Runtime) *Updater {
 		rt.Stdin = func() *os.File { return os.Stdin }
 	}
 	if rt.StdinIsTTY == nil {
-		rt.StdinIsTTY = func() bool { return workflow.DefaultRuntime().StdinIsTTY() }
+		rt.StdinIsTTY = func() bool { return logger.IsTerminal(os.Stdin) }
 	}
 	if rt.Executable == nil {
 		rt.Executable = os.Executable
@@ -113,80 +118,60 @@ func New(scriptName, currentVersion string, rt Runtime) *Updater {
 	}
 
 	return &Updater{
-		Repo:           DefaultRepo,
-		APIBase:        "https://api.github.com",
-		ScriptName:     scriptName,
-		CurrentVersion: strings.TrimPrefix(currentVersion, "v"),
-		Runtime:        rt,
-		HTTPClient:     http.DefaultClient,
-		RunInstaller:   runInstallScript,
+		Repo:            DefaultRepo,
+		APIBase:         "https://api.github.com",
+		ScriptName:      scriptName,
+		CurrentVersion:  strings.TrimPrefix(currentVersion, "v"),
+		Runtime:         rt,
+		HTTPClient:      http.DefaultClient,
+		RunInstaller:    runInstallScript,
+		ReleaseTimeout:  DefaultReleaseMetadataTimeout,
+		DownloadTimeout: DefaultAssetDownloadTimeout,
 	}
 }
 
-func HandleCommand(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-	result, err := HandleCommandResult(req, meta, rt)
+func (u *Updater) Run(options Options) (string, error) {
+	result, err := u.RunResult(options)
 	return result.Output, err
 }
 
-func HandleCommandResult(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (Result, error) {
-	updater := New(meta.ScriptName, meta.Version, Runtime{
-		GOOS:         runtime.GOOS,
-		GOARCH:       runtime.GOARCH,
-		Stdin:        rt.Stdin,
-		StdinIsTTY:   rt.StdinIsTTY,
-		CommandPath:  func() string { return os.Args[0] },
-		LookPath:     exec.LookPath,
-		Executable:   rt.Executable,
-		EvalSymlinks: rt.EvalSymlinks,
-		TempDir:      rt.TempDir,
-		MkdirTemp:    os.MkdirTemp,
-		RemoveAll:    os.RemoveAll,
-	})
-	return updater.RunResult(req)
-}
-
-func (u *Updater) Run(req *workflow.Request) (string, error) {
-	result, err := u.RunResult(req)
-	return result.Output, err
-}
-
-func (u *Updater) RunResult(req *workflow.Request) (Result, error) {
-	planned, err := u.buildPlan(req)
+func (u *Updater) RunResult(options Options) (Result, error) {
+	planned, err := u.buildPlan(options)
 	if err != nil {
-		return Result{Status: workflow.UpdateStatusFailed}, err
+		return Result{Status: StatusFailed}, err
 	}
 	if planned.AlreadyCurrent {
-		return Result{Output: renderReport(planned, "Already up to date", ""), Status: workflow.UpdateStatusCurrent}, nil
+		return Result{Output: renderReport(planned, "Already up to date", ""), Status: StatusCurrent}, nil
 	}
 	if planned.CheckOnly {
 		result := "Update available"
-		status := workflow.UpdateStatusAvailable
+		status := StatusAvailable
 		if planned.Force && planned.TargetVersion == planned.CurrentVersion {
 			result = "Reinstall requested"
-			status = workflow.UpdateStatusReinstallRequested
+			status = StatusReinstallRequested
 		}
 		return Result{Output: renderReport(planned, result, ""), Status: status}, nil
 	}
-	if err := u.confirmInstall(planned, req); err != nil {
-		status := workflow.UpdateStatusFailed
+	if err := u.confirmInstall(planned, options); err != nil {
+		status := StatusFailed
 		if strings.Contains(strings.ToLower(err.Error()), "cancelled") {
-			status = workflow.UpdateStatusCancelled
+			status = StatusCancelled
 		}
 		return Result{Status: status}, err
 	}
 	installerOutput, err := u.install(planned)
 	if err != nil {
-		return Result{Status: workflow.UpdateStatusFailed}, err
+		return Result{Status: StatusFailed}, err
 	}
-	return Result{Output: renderReport(planned, "Installed", installerOutput), Status: workflow.UpdateStatusInstalled}, nil
+	return Result{Output: renderReport(planned, "Installed", installerOutput), Status: StatusInstalled}, nil
 }
 
-func (u *Updater) buildPlan(req *workflow.Request) (*plan, error) {
+func (u *Updater) buildPlan(options Options) (*plan, error) {
 	layout, err := u.detectManagedLayout()
 	if err != nil {
 		return nil, err
 	}
-	releaseInfo, err := u.fetchRelease(req.UpdateVersion)
+	releaseInfo, err := u.fetchRelease(options.RequestedVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +191,7 @@ func (u *Updater) buildPlan(req *workflow.Request) (*plan, error) {
 	if checksumURL == "" {
 		return nil, fmt.Errorf("release %s does not contain checksum asset %s", releaseInfo.TagName, assetName+".sha256")
 	}
-	keep := req.UpdateKeep
+	keep := options.Keep
 	if keep < 0 {
 		keep = DefaultKeep
 	}
@@ -220,9 +205,9 @@ func (u *Updater) buildPlan(req *workflow.Request) (*plan, error) {
 		ChecksumURL:    checksumURL,
 		InstallRoot:    layout.InstallRoot,
 		BinDir:         layout.BinDir,
-		CheckOnly:      req.UpdateCheckOnly,
-		Force:          req.UpdateForce,
+		CheckOnly:      options.CheckOnly,
+		Force:          options.Force,
 		Keep:           keep,
-		AlreadyCurrent: targetVersion == u.CurrentVersion && !req.UpdateForce,
+		AlreadyCurrent: targetVersion == u.CurrentVersion && !options.Force,
 	}, nil
 }

@@ -46,14 +46,15 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 
 func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
 	result, err := handleUpdateCommand(req, meta, rt)
+	updateStatus := updateStatusForWorkflow(result.Status)
 	if err != nil {
-		if notifyErr := workflow.MaybeSendUpdateFailureNotification(req, meta, rt, result.Status, err); notifyErr != nil {
+		if notifyErr := workflow.MaybeSendUpdateFailureNotification(req, meta, rt, updateStatus, err); notifyErr != nil {
 			fmt.Fprintf(os.Stderr, "[WARN] Failed to send update failure notification: %s\n", workflow.OperatorMessage(notifyErr))
 		}
 		return writeCommandFailure("", err)
 	}
 	fmt.Print(result.Output)
-	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(req, meta, rt, result.Status); notifyErr != nil {
+	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(req, meta, rt, updateStatus); notifyErr != nil {
 		fmt.Fprintf(os.Stderr, "[WARN] Failed to send update notification: %s\n", workflow.OperatorMessage(notifyErr))
 	}
 	return 0

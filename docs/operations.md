@@ -115,6 +115,10 @@ Use `update --force` only when you intentionally want to reinstall the selected
 release, for example after repairing a managed install. It still follows normal
 interactive rules, so add `--yes` for unattended scheduler or repair jobs.
 
+Update network calls are bounded. If GitHub release metadata lookup or package
+download stalls, the command reports which phase timed out instead of waiting
+indefinitely.
+
 Under the current target model, only `type = "object"` targets need a secrets
 file for storage credentials. Filesystem targets, whether local or remote, only
 need one if a notifying target uses authenticated webhook or `ntfy` delivery.

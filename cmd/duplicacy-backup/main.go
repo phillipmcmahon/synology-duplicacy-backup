@@ -8,7 +8,6 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -24,7 +23,7 @@ var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
 var handleNotifyCommand = workflow.HandleNotifyCommand
-var handleUpdateCommand = update.HandleCommandResult
+var handleUpdateCommand = handleUpdateRequest
 var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
 const scriptName = "duplicacy-backup"

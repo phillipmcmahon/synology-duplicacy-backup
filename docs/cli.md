@@ -212,6 +212,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
 - `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
+- `update` uses explicit timeouts for GitHub release metadata and package downloads, and reports whether the metadata lookup or download phase timed out
 - `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
 - `update --force` reinstalls the selected release even when it is already current; it does not skip interactive confirmation unless `--yes` is also supplied
 - `update` expects the standard managed layout under `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as the stable command path

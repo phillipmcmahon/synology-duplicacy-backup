@@ -3,6 +3,7 @@ package update
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -18,13 +19,19 @@ import (
 var versionedBinaryPattern = regexp.MustCompile(`^duplicacy-backup_(.+)_linux_(amd64|arm64|armv7)$`)
 
 func (u *Updater) downloadFile(url, path string) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	timeout := requestTimeout(u.DownloadTimeout, DefaultAssetDownloadTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to build download request: %w", err)
 	}
 	req.Header.Set("User-Agent", u.ScriptName)
 	resp, err := u.HTTPClient.Do(req)
 	if err != nil {
+		if isTimeoutError(err) {
+			return fmt.Errorf("download timed out after %s while downloading %s: %w", timeout, filepath.Base(path), err)
+		}
 		return fmt.Errorf("failed to download %s: %w", filepath.Base(path), err)
 	}
 	defer resp.Body.Close()
@@ -38,6 +45,9 @@ func (u *Updater) downloadFile(url, path string) error {
 	}
 	defer file.Close()
 	if _, err := io.Copy(file, resp.Body); err != nil {
+		if isTimeoutError(err) {
+			return fmt.Errorf("download timed out after %s while writing %s: %w", timeout, filepath.Base(path), err)
+		}
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil

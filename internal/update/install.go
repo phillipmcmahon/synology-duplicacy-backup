@@ -9,8 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
 type managedLayout struct {
@@ -20,8 +18,8 @@ type managedLayout struct {
 	BinDir         string
 }
 
-func (u *Updater) confirmInstall(planned *plan, req *workflow.Request) error {
-	if req.UpdateYes {
+func (u *Updater) confirmInstall(planned *plan, options Options) error {
+	if options.Yes {
 		return nil
 	}
 	if !u.Runtime.StdinIsTTY() {

@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,8 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"time"
 )
 
 func managedExecutableLayout(t *testing.T, version string) (string, string) {
@@ -55,6 +55,12 @@ func testRuntime(executablePath string) Runtime {
 		MkdirTemp:    os.MkdirTemp,
 		RemoveAll:    os.RemoveAll,
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func TestAssetNameForPlatform(t *testing.T) {
@@ -113,6 +119,12 @@ func TestDefaultRuntimeAndNewFillDefaults(t *testing.T) {
 	if updater.HTTPClient != http.DefaultClient {
 		t.Fatalf("HTTPClient = %#v, want http.DefaultClient", updater.HTTPClient)
 	}
+	if updater.ReleaseTimeout != DefaultReleaseMetadataTimeout {
+		t.Fatalf("ReleaseTimeout = %s, want %s", updater.ReleaseTimeout, DefaultReleaseMetadataTimeout)
+	}
+	if updater.DownloadTimeout != DefaultAssetDownloadTimeout {
+		t.Fatalf("DownloadTimeout = %s, want %s", updater.DownloadTimeout, DefaultAssetDownloadTimeout)
+	}
 	if updater.RunInstaller == nil {
 		t.Fatal("RunInstaller was not populated")
 	}
@@ -122,23 +134,6 @@ func TestDefaultRuntimeAndNewFillDefaults(t *testing.T) {
 		updater.Runtime.TempDir == nil || updater.Runtime.MkdirTemp == nil ||
 		updater.Runtime.RemoveAll == nil {
 		t.Fatalf("New did not populate all runtime hooks: %#v", updater.Runtime)
-	}
-}
-
-func TestHandleCommandUsesWorkflowRuntime(t *testing.T) {
-	_, err := HandleCommand(
-		&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep},
-		workflow.Metadata{ScriptName: "duplicacy-backup", Version: "v4.1.8"},
-		workflow.Runtime{
-			Stdin:        func() *os.File { return os.Stdin },
-			StdinIsTTY:   func() bool { return false },
-			Executable:   func() (string, error) { return "/tmp/custom-binary", nil },
-			EvalSymlinks: func(path string) (string, error) { return path, nil },
-			TempDir:      os.TempDir,
-		},
-	)
-	if err == nil || !strings.Contains(err.Error(), "managed stable command path") {
-		t.Fatalf("HandleCommand() err = %v", err)
 	}
 }
 
@@ -164,12 +159,12 @@ func TestRunCheckOnlyReportsAvailableUpdate(t *testing.T) {
 	updater.Repo = "phillipmcmahon/synology-duplicacy-backup"
 	updater.APIBase = server.URL
 
-	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Status != workflow.UpdateStatusAvailable {
-		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusAvailable)
+	if result.Status != StatusAvailable {
+		t.Fatalf("Status = %q, want %q", result.Status, StatusAvailable)
 	}
 	output := result.Output
 	if !strings.Contains(output, "Target Version       : v4.1.9") ||
@@ -200,7 +195,7 @@ func TestRunCheckOnlyUsesInvokedStablePathWhenExecutableIsResolved(t *testing.T)
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	output, err := updater.Run(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -238,7 +233,7 @@ func TestRunCheckOnlyResolvesBareCommandThroughPath(t *testing.T) {
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	output, err := updater.Run(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -287,12 +282,12 @@ func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 		return []byte("Installed: ok\nActivated: ok"), nil
 	}
 
-	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Status != workflow.UpdateStatusInstalled {
-		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusInstalled)
+	if result.Status != StatusInstalled {
+		t.Fatalf("Status = %q, want %q", result.Status, StatusInstalled)
 	}
 	output := result.Output
 	if !strings.Contains(output, "Result               : Installed") ||
@@ -329,12 +324,12 @@ func TestRunAlreadyCurrentSkipsInstallWithoutForce(t *testing.T) {
 		return nil, nil
 	}
 
-	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Status != workflow.UpdateStatusCurrent {
-		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusCurrent)
+	if result.Status != StatusCurrent {
+		t.Fatalf("Status = %q, want %q", result.Status, StatusCurrent)
 	}
 	output := result.Output
 	if !strings.Contains(output, "Result               : Already up to date") ||
@@ -380,7 +375,7 @@ func TestRunForceReinstallsAlreadyCurrentVersion(t *testing.T) {
 		return []byte("Installed: forced reinstall"), nil
 	}
 
-	output, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateYes: true, UpdateForce: true, UpdateKeep: DefaultKeep})
+	output, err := updater.Run(Options{Yes: true, Force: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -412,12 +407,12 @@ func TestRunForceCheckOnlyReportsReinstall(t *testing.T) {
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
 
-	result, err := updater.RunResult(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateForce: true, UpdateKeep: DefaultKeep})
+	result, err := updater.RunResult(Options{CheckOnly: true, Force: true, Keep: DefaultKeep})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Status != workflow.UpdateStatusReinstallRequested {
-		t.Fatalf("Status = %q, want %q", result.Status, workflow.UpdateStatusReinstallRequested)
+	if result.Status != StatusReinstallRequested {
+		t.Fatalf("Status = %q, want %q", result.Status, StatusReinstallRequested)
 	}
 	output := result.Output
 	if !strings.Contains(output, "Result               : Reinstall requested") ||
@@ -450,7 +445,7 @@ func TestConfirmInstallInteractiveResponses(t *testing.T) {
 		Stdin:      func() *os.File { return yesFile },
 		StdinIsTTY: func() bool { return true },
 	})
-	if err := updater.confirmInstall(planned, &workflow.Request{}); err != nil {
+	if err := updater.confirmInstall(planned, Options{}); err != nil {
 		t.Fatalf("confirmInstall(yes) error = %v", err)
 	}
 
@@ -467,7 +462,7 @@ func TestConfirmInstallInteractiveResponses(t *testing.T) {
 		Stdin:      func() *os.File { return noFile },
 		StdinIsTTY: func() bool { return true },
 	})
-	err = updater.confirmInstall(planned, &workflow.Request{})
+	err = updater.confirmInstall(planned, Options{})
 	if err == nil || !strings.Contains(err.Error(), "update cancelled") {
 		t.Fatalf("confirmInstall(no) err = %v", err)
 	}
@@ -478,7 +473,7 @@ func TestConfirmInstallInteractiveResponses(t *testing.T) {
 			return false
 		},
 	})
-	if err := updater.confirmInstall(planned, &workflow.Request{UpdateYes: true}); err != nil {
+	if err := updater.confirmInstall(planned, Options{Yes: true}); err != nil {
 		t.Fatalf("confirmInstall(--yes) error = %v", err)
 	}
 }
@@ -524,6 +519,28 @@ func TestFetchReleaseErrorsAndRequestedVersion(t *testing.T) {
 	}
 }
 
+func TestFetchReleaseAppliesTimeoutAndReportsOperatorMessage(t *testing.T) {
+	updater := New("duplicacy-backup", "4.1.8", Runtime{})
+	updater.ReleaseTimeout = 2 * time.Second
+	var sawDeadline bool
+	updater.HTTPClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if _, ok := req.Context().Deadline(); ok {
+				sawDeadline = true
+			}
+			return nil, context.DeadlineExceeded
+		}),
+	}
+
+	_, err := updater.fetchRelease("")
+	if err == nil || !strings.Contains(err.Error(), "GitHub release metadata request timed out after 2s") {
+		t.Fatalf("fetchRelease(timeout) err = %v", err)
+	}
+	if !sawDeadline {
+		t.Fatal("fetchRelease() request did not carry a context deadline")
+	}
+}
+
 func TestDownloadFileWritesAndReportsErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -558,6 +575,28 @@ func TestDownloadFileWritesAndReportsErrors(t *testing.T) {
 	err = updater.downloadFile(server.URL+"/payload", t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "failed to create") {
 		t.Fatalf("downloadFile(create failure) err = %v", err)
+	}
+}
+
+func TestDownloadFileAppliesTimeoutAndReportsOperatorMessage(t *testing.T) {
+	updater := New("duplicacy-backup", "4.1.8", Runtime{})
+	updater.DownloadTimeout = 3 * time.Second
+	var sawDeadline bool
+	updater.HTTPClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if _, ok := req.Context().Deadline(); ok {
+				sawDeadline = true
+			}
+			return nil, context.DeadlineExceeded
+		}),
+	}
+
+	err := updater.downloadFile("https://example.invalid/asset.tar.gz", filepath.Join(t.TempDir(), "asset.tar.gz"))
+	if err == nil || !strings.Contains(err.Error(), "download timed out after 3s while downloading asset.tar.gz") {
+		t.Fatalf("downloadFile(timeout) err = %v", err)
+	}
+	if !sawDeadline {
+		t.Fatal("downloadFile() request did not carry a context deadline")
 	}
 }
 
@@ -708,7 +747,7 @@ func TestBuildPlanRejectsMissingAssetsAndUnsupportedPlatforms(t *testing.T) {
 	updater := New("duplicacy-backup", "4.1.8", testRuntime(executablePath))
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
-	_, err := updater.buildPlan(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	_, err := updater.buildPlan(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "does not contain checksum asset") {
 		t.Fatalf("buildPlan(missing checksum) err = %v", err)
 	}
@@ -718,7 +757,7 @@ func TestBuildPlanRejectsMissingAssetsAndUnsupportedPlatforms(t *testing.T) {
 	updater = New("duplicacy-backup", "4.1.8", rt)
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
-	_, err = updater.buildPlan(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	_, err = updater.buildPlan(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "only supports packaged Linux releases") {
 		t.Fatalf("buildPlan(unsupported platform) err = %v", err)
 	}
@@ -784,7 +823,7 @@ func TestRunInstallRequiresYesWithoutTTY(t *testing.T) {
 	updater.HTTPClient = server.Client()
 	updater.APIBase = server.URL
 
-	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateKeep: DefaultKeep})
+	_, err := updater.Run(Options{Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "requires --yes") {
 		t.Fatalf("Run() err = %v", err)
 	}
@@ -803,7 +842,7 @@ func TestRunRejectsUnmanagedLayout(t *testing.T) {
 		RemoveAll:    os.RemoveAll,
 	})
 
-	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	_, err := updater.Run(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "managed stable command path") {
 		t.Fatalf("Run() err = %v", err)
 	}
@@ -817,7 +856,7 @@ func TestRunRejectsBareCommandMissingFromPath(t *testing.T) {
 	rt.LookPath = func(string) (string, error) { return "", exec.ErrNotFound }
 
 	updater := New("duplicacy-backup", "4.1.8", rt)
-	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	_, err := updater.Run(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "failed to find invoked command \"duplicacy-backup\" on PATH") {
 		t.Fatalf("Run() err = %v", err)
 	}
@@ -835,7 +874,7 @@ func TestRunRejectsMissingRelativeCommandPath(t *testing.T) {
 	}
 
 	updater := New("duplicacy-backup", "4.1.8", rt)
-	_, err := updater.Run(&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: DefaultKeep})
+	_, err := updater.Run(Options{CheckOnly: true, Keep: DefaultKeep})
 	if err == nil || !strings.Contains(err.Error(), "failed to resolve invoked command path") {
 		t.Fatalf("Run() err = %v", err)
 	}

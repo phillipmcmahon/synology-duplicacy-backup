@@ -413,7 +413,7 @@ func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || !req.UpdateForce || req.UpdateKeep != 2 {
 				t.Fatalf("req = %+v", req)
 			}
-			return update.Result{Output: "update ok\n", Status: workflow.UpdateStatusAvailable}, nil
+			return update.Result{Output: "update ok\n", Status: update.StatusAvailable}, nil
 		}
 
 		stdout, stderr := captureOutput(t, func() {
@@ -442,7 +442,7 @@ func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
 		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
-			return update.Result{Status: workflow.UpdateStatusFailed}, fmt.Errorf("update install failed: exit status 1")
+			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
 		_, stderr := captureOutput(t, func() {
@@ -469,7 +469,7 @@ func TestRunWithArgs_UpdateFailureNotificationFailureDoesNotMaskUpdateError(t *t
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
 		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
-			return update.Result{Status: workflow.UpdateStatusFailed}, fmt.Errorf("update install failed: exit status 1")
+			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
 		_, stderr := captureOutput(t, func() {
@@ -496,7 +496,7 @@ func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testi
 		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			return update.Result{
 				Output: "Update\n  Human text changed   : yes\n",
-				Status: workflow.UpdateStatusInstalled,
+				Status: update.StatusInstalled,
 			}, nil
 		}
 

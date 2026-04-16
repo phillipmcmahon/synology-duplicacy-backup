@@ -14,10 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verification/extraction, install execution, and report rendering now live in
   focused update package files. This keeps self-update behaviour easier to
   review as the feature grows.
+- **Update network calls now have explicit timeouts**: GitHub release metadata
+  lookups and release asset downloads use bounded request contexts and return
+  phase-specific timeout errors for operators.
 - **Update notification classification now uses structured status values**:
   update success and failure notifications no longer depend on parsing
   human-readable report text, reducing the chance that wording-only changes
   alter notification behaviour.
+- **Update status is now adapted at the command boundary**: `internal/update`
+  owns its domain status values, while `cmd/duplicacy-backup` maps them to
+  workflow notification statuses.
 - **Verify health reconciliation is separated from orchestration**: integrity
   result matching now has a dedicated helper path, making edge cases around
   missing or mismatched verify results easier to test and reason about.
