@@ -180,11 +180,11 @@ This package owns the self-update command path.
 
 It owns:
 
-- GitHub release lookup
-- package and checksum download
-- checksum verification
-- package extraction
-- packaged installer execution
+- [`internal/update/update.go`](../internal/update/update.go): updater construction, command handoff, high-level run flow, and update plan assembly
+- [`internal/update/release.go`](../internal/update/release.go): GitHub release lookup and platform asset naming
+- [`internal/update/package.go`](../internal/update/package.go): package download, checksum verification, archive extraction, and binary discovery
+- [`internal/update/install.go`](../internal/update/install.go): managed install layout detection, operator confirmation, and packaged installer execution
+- [`internal/update/report.go`](../internal/update/report.go): operator-facing update report rendering
 
 ### Presentation package
 
