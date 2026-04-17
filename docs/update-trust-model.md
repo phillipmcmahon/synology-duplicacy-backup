@@ -29,6 +29,10 @@ fails. `--attestations auto` verifies when `gh` is available, skips
 attestation verification when `gh` is missing, and still stops when
 verification fails.
 
+On unattended systems, `gh` must also be logged in for attestation verification;
+otherwise use `--attestations auto` so scheduled updates can continue with
+checksum verification when authenticated attestation checks are unavailable.
+
 Attestation verification strengthens the normal update path, but it still
 trusts GitHub as the release and attestation authority. If your threat model
 includes a compromised GitHub release, compromised maintainer account, or
