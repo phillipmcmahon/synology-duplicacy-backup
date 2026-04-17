@@ -138,6 +138,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Download all artifacts
         uses: actions/download-artifact@v6
@@ -170,10 +173,15 @@ jobs:
           set -euo pipefail
 
           NOTES_FILE="${RUNNER_TEMP}/release-notes.md"
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
           git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > "${NOTES_FILE}"
-          grep -F "## Highlights" "${NOTES_FILE}" >/dev/null
-          grep -F "## Validation" "${NOTES_FILE}" >/dev/null
-          grep -F "## Coverage" "${NOTES_FILE}" >/dev/null
+          for heading in "## Highlights" "## Validation" "## Coverage"; do
+            if ! grep -F "${heading}" "${NOTES_FILE}" >/dev/null; then
+              echo "::error::release notes from ${GITHUB_REF_NAME} are missing ${heading}"
+              sed -n '1,120p' "${NOTES_FILE}"
+              exit 1
+            fi
+          done
 
           gh release create "${GITHUB_REF_NAME}" release/* \
             --repo "${GITHUB_REPOSITORY}" \
