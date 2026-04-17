@@ -156,7 +156,59 @@ func formatCommand(cmd string, args []string) string {
 	if len(args) == 0 {
 		return cmd
 	}
-	return cmd + " " + strings.Join(args, " ")
+	return cmd + " " + strings.Join(redactCommandArgs(args), " ")
+}
+
+func redactCommandArgs(args []string) []string {
+	redacted := make([]string, len(args))
+	redactNext := false
+	for i, arg := range args {
+		if redactNext {
+			redacted[i] = "[REDACTED]"
+			redactNext = false
+			continue
+		}
+
+		if key, value, ok := strings.Cut(arg, "="); ok {
+			if isSensitiveArgKey(key) {
+				redacted[i] = key + "=[REDACTED]"
+				continue
+			}
+			if isSensitiveArgKey(value) {
+				redacted[i] = key + "=[REDACTED]"
+				continue
+			}
+		}
+
+		redacted[i] = arg
+		if isSensitiveArgKey(arg) {
+			redactNext = true
+		}
+	}
+	return redacted
+}
+
+func isSensitiveArgKey(value string) bool {
+	value = strings.ToLower(strings.TrimLeft(strings.TrimSpace(value), "-"))
+	value = strings.ReplaceAll(value, "_", "-")
+	for _, token := range []string{
+		"password",
+		"passwd",
+		"secret",
+		"token",
+		"credential",
+		"access-key",
+		"secret-key",
+		"api-key",
+		"bearer-token",
+		"storj-s3-id",
+		"storj-s3-secret",
+	} {
+		if strings.Contains(value, token) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

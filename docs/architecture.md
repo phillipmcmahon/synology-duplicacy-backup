@@ -198,6 +198,12 @@ layer one consistent way to run:
 The same abstraction is also what makes unit tests practical with
 `exec.MockRunner`.
 
+Secrets should not be passed to external commands in argv. If a future command
+does need a sensitive value, prefer environment variables or stdin. The command
+runner redacts common sensitive flag patterns in debug and dry-run command
+logs as a safety net, but redaction is not a substitute for keeping secrets out
+of process arguments.
+
 ## Output Ownership
 
 Operator-facing output is still owned by the top-level execution layer.

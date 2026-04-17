@@ -461,3 +461,71 @@ func TestFormatCommand_WithArgs(t *testing.T) {
 		t.Errorf("formatCommand = %q, want %q", got, want)
 	}
 }
+
+func TestFormatCommand_RedactsSensitiveArgs(t *testing.T) {
+	got := formatCommand("duplicacy", []string{
+		"backup",
+		"--password", "hunter2",
+		"--token=abc123",
+		"storj_s3_secret=secret-value",
+		"--config", "/safe/path",
+	})
+	for _, secret := range []string{"hunter2", "abc123", "secret-value"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("formatCommand leaked %q in %q", secret, got)
+		}
+	}
+	for _, token := range []string{
+		"--password [REDACTED]",
+		"--token=[REDACTED]",
+		"storj_s3_secret=[REDACTED]",
+		"--config /safe/path",
+	} {
+		if !strings.Contains(got, token) {
+			t.Fatalf("formatCommand = %q, want token %q", got, token)
+		}
+	}
+}
+
+func TestCommandRunner_DebugLogRedactsSensitiveArgs(t *testing.T) {
+	oldStderr := os.Stderr
+	pipeR, pipeW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() error = %v", err)
+	}
+	os.Stderr = pipeW
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+		_ = pipeR.Close()
+		_ = pipeW.Close()
+	})
+
+	log, err := logger.New(t.TempDir(), "test", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+	log.SetVerbose(true)
+	r := NewCommandRunner(log, false)
+
+	stdout, stderr, err := r.Run(context.Background(), "echo", "--token", "supersecret")
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !strings.Contains(stdout, "supersecret") || stderr != "" {
+		t.Fatalf("unexpected command output stdout=%q stderr=%q", stdout, stderr)
+	}
+
+	_ = pipeW.Close()
+	data, err := io.ReadAll(pipeR)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v", err)
+	}
+	logged := string(data)
+	if strings.Contains(logged, "supersecret") {
+		t.Fatalf("stderr leaked sensitive argument: %q", logged)
+	}
+	if !strings.Contains(logged, "exec: echo --token [REDACTED]") {
+		t.Fatalf("stderr = %q", logged)
+	}
+}
