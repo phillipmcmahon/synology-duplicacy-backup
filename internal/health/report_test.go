@@ -71,9 +71,22 @@ func TestNewFailureReportAndWriteReport(t *testing.T) {
 func TestReportFinalizeAndVerifyFailureCodes(t *testing.T) {
 	report := &Report{CheckType: "verify"}
 	report.AddCheck("Backup freshness", "warn", "older than expected")
+	report.AddDisplayCheck("Repository access", "pass", "reachable")
 	report.Finalize()
 	if report.Status != "degraded" {
 		t.Fatalf("report.Status = %q, want degraded", report.Status)
+	}
+	if len(report.Issues) != 1 {
+		t.Fatalf("AddDisplayCheck should not add an issue: %+v", report.Issues)
+	}
+	if result, message, ok := CheckResult(report, "Repository access"); !ok || result != "pass" || message != "Reachable" {
+		t.Fatalf("CheckResult() = %q, %q, %t", result, message, ok)
+	}
+	if got := CheckMessage(report, "Backup freshness"); got != "Older than expected" {
+		t.Fatalf("CheckMessage() = %q", got)
+	}
+	if got := FirstIssueMessage(report); got != "Older than expected" {
+		t.Fatalf("FirstIssueMessage() = %q", got)
 	}
 
 	report.AddVerifyFailureCode(VerifyFailureNoRevisionsFound)
@@ -97,6 +110,57 @@ func TestReportFinalizeAndVerifyFailureCodes(t *testing.T) {
 	report.Finalize()
 	if report.Status != "unhealthy" {
 		t.Fatalf("report.Status = %q, want unhealthy", report.Status)
+	}
+}
+
+func TestHealthFormattingHelpers(t *testing.T) {
+	ageCases := []struct {
+		duration time.Duration
+		age      string
+		ago      string
+	}{
+		{duration: -time.Second, age: "less than 1m", ago: "<1m ago"},
+		{duration: 30 * time.Second, age: "less than 1m", ago: "<1m ago"},
+		{duration: 90 * time.Minute, age: "1h30m", ago: "1h30m ago"},
+		{duration: 49*time.Hour + 45*time.Minute, age: "2d1h", ago: "2d1h ago"},
+	}
+	for _, tt := range ageCases {
+		if got := HumanAge(tt.duration); got != tt.age {
+			t.Fatalf("HumanAge(%s) = %q, want %q", tt.duration, got, tt.age)
+		}
+		if got := HumanAgo(tt.duration); got != tt.ago {
+			t.Fatalf("HumanAgo(%s) = %q, want %q", tt.duration, got, tt.ago)
+		}
+	}
+
+	if got := SummariseRevisionIDs([]int{10, 11, 12, 13, 14}, 3); got != "10, 11, 12, +2 more" {
+		t.Fatalf("SummariseRevisionIDs() = %q", got)
+	}
+	if got := SummariseRevisionIDs(nil, 3); got != "" {
+		t.Fatalf("SummariseRevisionIDs(nil) = %q", got)
+	}
+
+	messageCases := []struct {
+		failed  []int
+		missing []int
+		want    string
+	}{
+		{failed: []int{1, 2}, missing: []int{3}, want: "2 failed; 1 returned no result"},
+		{missing: []int{3, 4, 5, 6, 7}, want: "5 revision(s) returned no integrity result: 3, 4, 5, 6, +1 more"},
+		{failed: []int{8}, want: "1 revision(s) failed integrity checks: 8"},
+		{want: "Integrity validation did not succeed"},
+	}
+	for _, tt := range messageCases {
+		if got := IntegrityCheckFailureMessage(tt.failed, tt.missing); got != tt.want {
+			t.Fatalf("IntegrityCheckFailureMessage(%v, %v) = %q, want %q", tt.failed, tt.missing, got, tt.want)
+		}
+	}
+
+	if got := SectionForCheck("Revision 42"); got != "Verify" {
+		t.Fatalf("SectionForCheck(Revision 42) = %q", got)
+	}
+	if got := ExitCode("mystery"); got != 2 {
+		t.Fatalf("ExitCode(mystery) = %d", got)
 	}
 }
 

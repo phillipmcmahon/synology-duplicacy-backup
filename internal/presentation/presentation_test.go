@@ -114,3 +114,48 @@ func TestRuntimePresenterPrunePreviewAndForcedOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
+	log, logDir := newPresentationTestLogger(t)
+	p := NewRuntimePresenter(func() time.Time {
+		return time.Date(2026, 4, 15, 10, 3, 0, 0, time.UTC)
+	}, log, false)
+
+	p.PrintPreRunFailure(PreRunFailureData{
+		Operation:   "Backup",
+		Label:       "homes",
+		Target:      "onsite-usb1",
+		StorageType: "filesystem",
+		Location:    "local",
+	})
+	p.PrintPhase("Permissions")
+	stop := p.StartStatusActivity("Checking permissions")
+	stop()
+	p.PrintDuration(time.Date(2026, 4, 15, 10, 3, 1, 0, time.UTC))
+	log.Close()
+
+	output := readPresentationLog(t, logDir)
+	for _, token := range []string{
+		"Run could not start",
+		"Operation", "Backup",
+		"Phase: Permissions",
+		"Status", "Checking permissions",
+		"Duration", "00:00:00",
+	} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
+	}
+
+	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Limited", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
+	for _, value := range valueCases {
+		if got := ColourizeValidationValue(value, false); got != value {
+			t.Fatalf("ColourizeValidationValue(%q, false) = %q", value, got)
+		}
+	}
+	for _, value := range []string{"Passed", "Failed", "Skipped"} {
+		if got := ColourizeValidationResult(value, false); got != value {
+			t.Fatalf("ColourizeValidationResult(%q, false) = %q", value, got)
+		}
+	}
+}

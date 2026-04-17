@@ -70,6 +70,24 @@ func TestNew_PathConstruction(t *testing.T) {
 	}
 }
 
+func TestNewScopedLocksPathConstruction(t *testing.T) {
+	target := NewTarget("/tmp/locks", "homes", "onsite-usb1")
+	if want := filepath.Join("/tmp/locks", "backup-homes-onsite-usb1.lock.d"); target.Path != want {
+		t.Fatalf("NewTarget Path = %q, want %q", target.Path, want)
+	}
+	if target.PIDFile != filepath.Join(target.Path, "pid") {
+		t.Fatalf("NewTarget PIDFile = %q", target.PIDFile)
+	}
+
+	source := NewSource("/tmp/locks", "homes")
+	if want := filepath.Join("/tmp/locks", "source-homes.lock.d"); source.Path != want {
+		t.Fatalf("NewSource Path = %q, want %q", source.Path, want)
+	}
+	if source.PIDFile != filepath.Join(source.Path, "pid") {
+		t.Fatalf("NewSource PIDFile = %q", source.PIDFile)
+	}
+}
+
 func TestNew_DifferentLabels(t *testing.T) {
 	l1 := New("/tmp/locks", "homes")
 	l2 := New("/tmp/locks", "photos")
@@ -424,6 +442,41 @@ func TestInspect_ActiveAndStale(t *testing.T) {
 	}
 	if !status.Present || status.Active || !status.Stale {
 		t.Fatalf("stale status = %+v", status)
+	}
+}
+
+func TestInspectScopedLocks(t *testing.T) {
+	restoreLockHooks(t)
+	processExists = func(pid int) bool { return pid == 1234 }
+
+	dir := t.TempDir()
+	target := NewTarget(dir, "homes", "onsite-usb1")
+	if err := os.MkdirAll(target.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll(target) error = %v", err)
+	}
+	if err := os.WriteFile(target.PIDFile, []byte("1234"), 0644); err != nil {
+		t.Fatalf("WriteFile(target pid) error = %v", err)
+	}
+
+	status, err := InspectTarget(dir, "homes", "onsite-usb1")
+	if err != nil {
+		t.Fatalf("InspectTarget() error = %v", err)
+	}
+	if status.Path != target.Path || status.PID != 1234 || !status.Present || !status.Active || status.Stale {
+		t.Fatalf("target status = %+v", status)
+	}
+
+	source := NewSource(dir, "homes")
+	if err := os.MkdirAll(source.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll(source) error = %v", err)
+	}
+
+	status, err = InspectSource(dir, "homes")
+	if err != nil {
+		t.Fatalf("InspectSource() error = %v", err)
+	}
+	if status.Path != source.Path || !status.Present || !status.Stale || status.Active {
+		t.Fatalf("source status = %+v", status)
 	}
 }
 

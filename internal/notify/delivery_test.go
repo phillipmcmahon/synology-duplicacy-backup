@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
 func TestSendConfigured_WebhookAddsBearerToken(t *testing.T) {
@@ -85,5 +87,108 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 	}
 	if !strings.Contains(gotBody, "Type: object") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
 		t.Fatalf("Body = %q", gotBody)
+	}
+}
+
+func TestConfiguredDestinationsAndHasDestination(t *testing.T) {
+	empty := config.HealthNotifyConfig{}
+	if HasDestination(empty) {
+		t.Fatal("HasDestination(empty) = true, want false")
+	}
+
+	cfg := config.HealthNotifyConfig{
+		WebhookURL: "https://example.invalid/hook",
+		Ntfy: config.HealthNotifyNtfyConfig{
+			URL:   "https://ntfy.example.invalid/",
+			Topic: "homes-alerts",
+		},
+	}
+	if !HasDestination(cfg) {
+		t.Fatal("HasDestination(configured) = false, want true")
+	}
+
+	destinations, err := ConfiguredDestinationsForScope(cfg, "", "homes label")
+	if err != nil {
+		t.Fatalf("ConfiguredDestinationsForScope(all) error = %v", err)
+	}
+	if len(destinations) != 2 || destinations[0].Provider != ProviderWebhook || destinations[1].Destination != "https://ntfy.example.invalid/homes-alerts" {
+		t.Fatalf("destinations = %+v", destinations)
+	}
+
+	if _, err := ConfiguredDestinationsForScope(empty, ProviderNtfy, "homes label"); err == nil || !strings.Contains(err.Error(), "No ntfy notification destination") {
+		t.Fatalf("ConfiguredDestinationsForScope(missing ntfy) err = %v", err)
+	}
+	if _, err := ConfiguredDestinationsForScope(empty, ProviderWebhook, "homes label"); err == nil || !strings.Contains(err.Error(), "No webhook notification destination") {
+		t.Fatalf("ConfiguredDestinationsForScope(missing webhook) err = %v", err)
+	}
+	if _, err := ConfiguredDestinationsForScope(empty, "discord", "homes label"); err == nil || !strings.Contains(err.Error(), "Unsupported notify provider") {
+		t.Fatalf("ConfiguredDestinationsForScope(unsupported) err = %v", err)
+	}
+}
+
+func TestSendConfiguredDetailedWrapperReportsProviderFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "object", "remote", "", "", "")
+	results, err := SendConfiguredDetailed(config.HealthNotifyConfig{WebhookURL: server.URL}, "", "offsite-storj", payload, ProviderWebhook)
+	if err == nil {
+		t.Fatal("SendConfiguredDetailed() err = nil, want provider failure")
+	}
+	if len(results) != 1 || results[0].Result != "failed" || !strings.Contains(results[0].Message, "webhook delivery returned 500") {
+		t.Fatalf("results = %+v, err = %v", results, err)
+	}
+}
+
+func TestSendConfiguredAggregatesFailedProviderMessages(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "object", "remote", "", "", "")
+	err := SendConfigured(config.HealthNotifyConfig{WebhookURL: server.URL}, "", "offsite-storj", payload)
+	if err == nil || !strings.Contains(err.Error(), "webhook delivery returned 502") {
+		t.Fatalf("SendConfigured() err = %v", err)
+	}
+}
+
+func TestLoadOptionalNotificationTokenIgnoresOnlyOptionalAccessFailures(t *testing.T) {
+	ignored := func(string, string) (string, error) {
+		return "", apperrors.NewSecretsError("stat", errors.New("missing secrets file"))
+	}
+	token, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", ignored, SendOptions{IgnoreOptionalAuthLoadErrors: true})
+	if err != nil || token != "" {
+		t.Fatalf("ignored optional token load = %q, %v", token, err)
+	}
+
+	parseFailure := func(string, string) (string, error) {
+		return "", apperrors.NewSecretsError("parse", errors.New("invalid TOML"))
+	}
+	if _, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", parseFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
+		t.Fatal("parse failure err = nil, want error")
+	}
+
+	plainFailure := func(string, string) (string, error) {
+		return "", errors.New("networked secret backend failed")
+	}
+	if _, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", plainFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
+		t.Fatal("plain failure err = nil, want error")
+	}
+}
+
+func TestNtfyPriorityMapping(t *testing.T) {
+	tests := map[string]string{
+		"critical": "5",
+		"info":     "2",
+		"warning":  "3",
+		"unknown":  "3",
+	}
+	for severity, want := range tests {
+		if got := ntfyPriority(severity); got != want {
+			t.Fatalf("ntfyPriority(%q) = %q, want %q", severity, got, want)
+		}
 	}
 }
