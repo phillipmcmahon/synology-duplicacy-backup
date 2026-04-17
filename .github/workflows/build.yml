@@ -169,8 +169,14 @@ jobs:
         run: |
           set -euo pipefail
 
+          NOTES_FILE="${RUNNER_TEMP}/release-notes.md"
+          git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > "${NOTES_FILE}"
+          grep -F "## Highlights" "${NOTES_FILE}" >/dev/null
+          grep -F "## Validation" "${NOTES_FILE}" >/dev/null
+          grep -F "## Coverage" "${NOTES_FILE}" >/dev/null
+
           gh release create "${GITHUB_REF_NAME}" release/* \
             --repo "${GITHUB_REPOSITORY}" \
             --title "${GITHUB_REF_NAME}" \
-            --notes-from-tag \
+            --notes-file "${NOTES_FILE}" \
             --verify-tag

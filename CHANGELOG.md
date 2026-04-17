@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v4.3.3] - 2026-04-17
+## [v4.3.4] - 2026-04-17
 
 ### Changed
 - **GitHub releases now use immutable release attestations**: the tag-triggered
@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release guidance now matches the attestation model**: the release playbook
   and operations guide describe immutable releases, release-level verification,
   and asset-level verification with GitHub CLI.
+- **Release notes are now validated before immutable publication**: the release
+  workflow extracts the annotated tag notes, checks that `Highlights`,
+  `Validation`, and `Coverage` are present, and publishes those notes with the
+  release.
 
 ### Validation
 - **Linux Go 1.26**: `go test ./...`
@@ -34,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `internal/update`: `83.5%`
   - `internal/exec`: `93.7%`
   - `internal/secrets`: `93.3%`
+
+## [v4.3.3] - 2026-04-17
+
+### Superseded
+- The v4.3.3 tag was pushed, but the GitHub release workflow failed before a
+  release was published. Its intended release notes are folded into v4.3.4.
 
 ## [v4.3.2] - 2026-04-16
 
