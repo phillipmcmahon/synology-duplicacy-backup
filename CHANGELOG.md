@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.3] - 2026-04-17
+
+### Changed
+- **GitHub releases now use immutable release attestations**: the tag-triggered
+  release workflow publishes via GitHub CLI so release assets are created before
+  the immutable release is published and can be verified with GitHub release
+  attestation commands.
+- **Release verification now checks the release attestation**:
+  `scripts/verify-release.sh` verifies the GitHub release itself before
+  verifying each downloaded asset against that release.
+- **Release guidance now matches the attestation model**: the release playbook
+  and operations guide describe immutable releases, release-level verification,
+  and asset-level verification with GitHub CLI.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Release workflow validation**: workflow YAML parsed successfully; local
+  `actionlint` was unavailable.
+- **Coverage snapshot**:
+  - overall coverage: `85.4%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `83.3%`
+  - `internal/update`: `83.5%`
+  - `internal/exec`: `93.7%`
+  - `internal/secrets`: `93.3%`
+
 ## [v4.3.2] - 2026-04-16
 
 ### Changed
