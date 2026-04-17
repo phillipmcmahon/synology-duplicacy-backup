@@ -94,6 +94,10 @@ file over HTTPS, verifies the tarball against the checksum, extracts the
 package with path and symlink safety checks, and then runs the packaged
 installer.
 
+The asset URLs in release metadata must point at this repository's GitHub
+release download path. Redirects are accepted only when they remain on the
+expected GitHub release or GitHub-owned asset delivery hosts.
+
 That protects against corrupted downloads, wrong assets, and modified tarballs
 that do not match the published checksum. It does not provide an independent
 publisher signature: the tarball and checksum are both trusted because they came

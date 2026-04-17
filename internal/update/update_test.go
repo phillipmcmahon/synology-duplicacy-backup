@@ -63,6 +63,10 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+func githubReleaseAssetURL(version, assetName string) string {
+	return "https://github.com/phillipmcmahon/synology-duplicacy-backup/releases/download/v" + version + "/" + assetName
+}
+
 func TestAssetNameForPlatform(t *testing.T) {
 	tests := []struct {
 		goos    string
@@ -147,8 +151,8 @@ func TestRunCheckOnlyReportsAvailableUpdate(t *testing.T) {
 			TagName: "v4.1.9",
 			Name:    "v4.1.9",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz")},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256")},
 			},
 		})
 	}))
@@ -181,8 +185,8 @@ func TestRunCheckOnlyUsesInvokedStablePathWhenExecutableIsResolved(t *testing.T)
 			TagName: "v4.1.9",
 			Name:    "v4.1.9",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz")},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256")},
 			},
 		})
 	}))
@@ -212,8 +216,8 @@ func TestRunCheckOnlyResolvesBareCommandThroughPath(t *testing.T) {
 			TagName: "v4.1.9",
 			Name:    "v4.1.9",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz")},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256")},
 			},
 		})
 	}))
@@ -309,8 +313,8 @@ func TestRunAlreadyCurrentSkipsInstallWithoutForce(t *testing.T) {
 			TagName: "v4.1.8",
 			Name:    "v4.1.8",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
-				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.8", "duplicacy-backup_4.1.8_linux_amd64.tar.gz")},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: githubReleaseAssetURL("4.1.8", "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256")},
 			},
 		})
 	}))
@@ -396,8 +400,8 @@ func TestRunForceCheckOnlyReportsReinstall(t *testing.T) {
 			TagName: "v4.1.8",
 			Name:    "v4.1.8",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
-				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: "https://example.invalid/asset.sha256"},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.8", "duplicacy-backup_4.1.8_linux_amd64.tar.gz")},
+				{Name: "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256", URL: githubReleaseAssetURL("4.1.8", "duplicacy-backup_4.1.8_linux_amd64.tar.gz.sha256")},
 			},
 		})
 	}))
@@ -578,6 +582,37 @@ func TestDownloadFileWritesAndReportsErrors(t *testing.T) {
 	}
 }
 
+func TestDownloadFileValidatesRedirectHosts(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/redirect-ok":
+			http.Redirect(w, r, server.URL+"/payload", http.StatusFound)
+		case "/redirect-bad":
+			http.Redirect(w, r, "https://evil.example/payload", http.StatusFound)
+		case "/payload":
+			_, _ = w.Write([]byte("payload"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	updater := New("duplicacy-backup", "4.1.8", Runtime{})
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+
+	outputPath := filepath.Join(t.TempDir(), "asset")
+	if err := updater.downloadFile(server.URL+"/redirect-ok", outputPath); err != nil {
+		t.Fatalf("downloadFile(allowed redirect) error = %v", err)
+	}
+
+	err := updater.downloadFile(server.URL+"/redirect-bad", filepath.Join(t.TempDir(), "asset.tar.gz"))
+	if err == nil || !strings.Contains(err.Error(), "unexpected host \"evil.example\"") {
+		t.Fatalf("downloadFile(rejected redirect) err = %v", err)
+	}
+}
+
 func TestDownloadFileAppliesTimeoutAndReportsOperatorMessage(t *testing.T) {
 	updater := New("duplicacy-backup", "4.1.8", Runtime{})
 	updater.DownloadTimeout = 3 * time.Second
@@ -597,6 +632,57 @@ func TestDownloadFileAppliesTimeoutAndReportsOperatorMessage(t *testing.T) {
 	}
 	if !sawDeadline {
 		t.Fatal("downloadFile() request did not carry a context deadline")
+	}
+}
+
+func TestBuildPlanRejectsUnexpectedAssetURLs(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	assetName := "duplicacy-backup_4.1.9_linux_amd64.tar.gz"
+	checksumName := assetName + ".sha256"
+
+	cases := []struct {
+		name        string
+		assetURL    string
+		checksumURL string
+		want        string
+	}{
+		{
+			name:        "tarball host",
+			assetURL:    "https://evil.example/" + assetName,
+			checksumURL: githubReleaseAssetURL("4.1.9", checksumName),
+			want:        "unexpected host \"evil.example\"",
+		},
+		{
+			name:        "checksum name",
+			assetURL:    githubReleaseAssetURL("4.1.9", assetName),
+			checksumURL: githubReleaseAssetURL("4.1.9", "wrong.sha256"),
+			want:        "does not end with the expected asset name",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewEncoder(w).Encode(release{
+					TagName: "v4.1.9",
+					Name:    "v4.1.9",
+					Assets: []releaseAsset{
+						{Name: assetName, URL: tc.assetURL},
+						{Name: checksumName, URL: tc.checksumURL},
+					},
+				})
+			}))
+			defer server.Close()
+
+			updater := New("duplicacy-backup", "4.1.8", testRuntime(executablePath))
+			updater.HTTPClient = server.Client()
+			updater.APIBase = server.URL
+
+			_, err := updater.buildPlan(Options{CheckOnly: true, Keep: DefaultKeep})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("buildPlan() err = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 
@@ -791,7 +877,7 @@ func TestBuildPlanRejectsMissingAssetsAndUnsupportedPlatforms(t *testing.T) {
 			TagName: "v4.1.9",
 			Name:    "v4.1.9",
 			Assets: []releaseAsset{
-				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: "https://example.invalid/asset"},
+				{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: githubReleaseAssetURL("4.1.9", "duplicacy-backup_4.1.9_linux_amd64.tar.gz")},
 			},
 		})
 	}))

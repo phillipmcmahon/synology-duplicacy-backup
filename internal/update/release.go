@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	urlpath "path"
 	"strings"
 	"time"
 )
@@ -58,6 +59,75 @@ func (u *Updater) fetchRelease(requestedVersion string) (*release, error) {
 		return nil, errors.New("GitHub release metadata did not include a tag name")
 	}
 	return &parsed, nil
+}
+
+func (u *Updater) validateReleaseAssetURL(rawURL, assetName string) error {
+	parsed, err := parseDownloadURL(rawURL, assetName, "release asset URL")
+	if err != nil {
+		return err
+	}
+	if u.isSameCustomAPIBase(parsed) {
+		return nil
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("release asset URL for %s must use https: %s", assetName, rawURL)
+	}
+	if !strings.EqualFold(parsed.Hostname(), "github.com") {
+		return fmt.Errorf("release asset URL for %s uses unexpected host %q: %s", assetName, parsed.Hostname(), rawURL)
+	}
+	expectedPrefix := "/" + strings.Trim(u.Repo, "/") + "/releases/download/"
+	if !strings.HasPrefix(strings.ToLower(parsed.Path), strings.ToLower(expectedPrefix)) {
+		return fmt.Errorf("release asset URL for %s is outside expected GitHub release path %q: %s", assetName, expectedPrefix, rawURL)
+	}
+	if urlpath.Base(parsed.Path) != assetName {
+		return fmt.Errorf("release asset URL for %s does not end with the expected asset name: %s", assetName, rawURL)
+	}
+	return nil
+}
+
+func (u *Updater) validateDownloadRedirectURL(rawURL, assetName string) error {
+	parsed, err := parseDownloadURL(rawURL, assetName, "release asset redirect")
+	if err != nil {
+		return err
+	}
+	if u.isSameCustomAPIBase(parsed) {
+		return nil
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("release asset redirect for %s must use https: %s", assetName, rawURL)
+	}
+	host := strings.ToLower(parsed.Hostname())
+	switch host {
+	case "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "github-releases.githubusercontent.com":
+		return nil
+	default:
+		return fmt.Errorf("release asset redirect for %s uses unexpected host %q: %s", assetName, parsed.Hostname(), rawURL)
+	}
+}
+
+func parseDownloadURL(rawURL, assetName, context string) (*url.URL, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s for %s: %w", context, assetName, err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return nil, fmt.Errorf("invalid %s for %s: URL must be absolute: %s", context, assetName, rawURL)
+	}
+	if parsed.User != nil {
+		return nil, fmt.Errorf("invalid %s for %s: URL must not contain user information: %s", context, assetName, rawURL)
+	}
+	return parsed, nil
+}
+
+func (u *Updater) isSameCustomAPIBase(parsed *url.URL) bool {
+	apiBase, err := url.Parse(u.APIBase)
+	if err != nil || apiBase.Scheme == "" || apiBase.Host == "" {
+		return false
+	}
+	if strings.EqualFold(apiBase.Hostname(), "api.github.com") {
+		return false
+	}
+	return strings.EqualFold(parsed.Scheme, apiBase.Scheme) && strings.EqualFold(parsed.Host, apiBase.Host)
 }
 
 func requestTimeout(configured, fallback time.Duration) time.Duration {

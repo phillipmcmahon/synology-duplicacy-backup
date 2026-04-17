@@ -27,7 +27,7 @@ func (u *Updater) downloadFile(url, path string) error {
 		return fmt.Errorf("failed to build download request: %w", err)
 	}
 	req.Header.Set("User-Agent", u.ScriptName)
-	resp, err := u.HTTPClient.Do(req)
+	resp, err := u.downloadHTTPClient(filepath.Base(path)).Do(req)
 	if err != nil {
 		if isTimeoutError(err) {
 			return fmt.Errorf("download timed out after %s while downloading %s: %w", timeout, filepath.Base(path), err)
@@ -51,6 +51,26 @@ func (u *Updater) downloadFile(url, path string) error {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil
+}
+
+func (u *Updater) downloadHTTPClient(assetName string) *http.Client {
+	base := http.DefaultClient
+	if u.HTTPClient != nil {
+		base = u.HTTPClient
+	}
+	client := *base
+	previous := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if previous != nil {
+			if err := previous(req, via); err != nil {
+				return err
+			}
+		} else if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return u.validateDownloadRedirectURL(req.URL.String(), assetName)
+	}
+	return &client
 }
 
 func verifyChecksum(tarballPath, checksumPath string) error {

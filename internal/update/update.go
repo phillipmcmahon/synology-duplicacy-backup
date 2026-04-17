@@ -187,9 +187,15 @@ func (u *Updater) buildPlan(options Options) (*plan, error) {
 	if assetURL == "" {
 		return nil, fmt.Errorf("release %s does not contain asset %s", releaseInfo.TagName, assetName)
 	}
+	if err := u.validateReleaseAssetURL(assetURL, assetName); err != nil {
+		return nil, err
+	}
 	checksumURL := assets[assetName+".sha256"]
 	if checksumURL == "" {
 		return nil, fmt.Errorf("release %s does not contain checksum asset %s", releaseInfo.TagName, assetName+".sha256")
+	}
+	if err := u.validateReleaseAssetURL(checksumURL, assetName+".sha256"); err != nil {
+		return nil, err
 	}
 	keep := options.Keep
 	if keep < 0 {
