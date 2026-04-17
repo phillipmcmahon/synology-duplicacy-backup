@@ -74,8 +74,8 @@ Suggested release-prep checklist:
 - [ ] prep commit pushed to `main`
 - [ ] release tag pushed from the validated commit
 - [ ] GitHub release workflow passed
-- [ ] published artefacts mirrored to homestorage
-- [ ] full release verification passed with `scripts/verify-release.sh`
+- [ ] release finalized with `scripts/finalize-release.sh`
+- [ ] closure summary pasted into the release issue
 
 ### 2. Prepare version
 
@@ -211,7 +211,7 @@ gh release verify-asset vX.Y.Z ./duplicacy-backup_X.Y.Z_linux_amd64.tar.gz \
   --repo phillipmcmahon/synology-duplicacy-backup
 ```
 
-### 7. Mirror the published artefacts to homestorage
+### 7. Finalize the release
 
 After the release exists and the GitHub Actions asset set is complete:
 
@@ -221,7 +221,20 @@ After the release exists and the GitHub Actions asset set is complete:
   - `Source code (tar.gz)`
 - create the destination directory:
   - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
-- mirror the full artefact set with `scripts/mirror-release-assets.sh`
+- mirror the full artefact set to homestorage
+- run the full release verifier
+- paste the generated closure summary into the release issue before closing it
+
+Supported command:
+
+```bash
+sh ./scripts/finalize-release.sh --tag vX.Y.Z --issue <release-issue-number>
+```
+
+This is the standard release closure gate. It runs
+`scripts/mirror-release-assets.sh`, then `scripts/verify-release.sh`, then
+prints a concise release-issue comment that includes the GitHub release URL,
+NAS mirror path, verification result, and attestation result.
 
 Expected artefacts for each release:
 
@@ -235,7 +248,7 @@ Expected artefacts for each release:
 - `Source code (zip)`
 - `Source code (tar.gz)`
 
-Supported command:
+If you need to repair only the mirror step, use:
 
 ```bash
 sh ./scripts/mirror-release-assets.sh --tag vX.Y.Z
@@ -248,10 +261,10 @@ This avoids the filename
 and wildcard edge cases we saw from plain `scp` when copying files such as
 `Source code (zip)` to Synology.
 
-### 8. Verify the complete release
+### 8. Manually verify the complete release
 
-After mirroring, run the full release verifier before closing the release-prep
-issue:
+`scripts/finalize-release.sh` runs the full verifier automatically. If you need
+to rerun verification without re-mirroring, use:
 
 ```bash
 sh ./scripts/verify-release.sh --tag vX.Y.Z

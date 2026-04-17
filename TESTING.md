@@ -129,15 +129,14 @@ GitHub-generated source archives should be downloaded and mirrored to:
 
 - `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
 
-Use `scripts/mirror-release-assets.sh --tag vX.Y.Z` as the supported mirroring
-path. It downloads the published asset set and source archives, then mirrors
-them to `homestorage` with a `tar`-over-SSH transfer rather than relying on
-plain `scp` wildcard copying.
+Use `scripts/finalize-release.sh --tag vX.Y.Z` as the supported post-release
+closure path. It mirrors the published asset set and source archives to
+`homestorage`, runs the full release verifier, and prints a release-issue
+closure summary.
 
-Use `scripts/verify-release.sh --tag vX.Y.Z` as the supported post-release
-verification path. It checks the GitHub release object, release-note headings,
-expected asset names, tag commit alignment, and the mirrored artefact set on
-`homestorage`.
+Use `scripts/mirror-release-assets.sh --tag vX.Y.Z` only when repairing the
+mirror step directly. Use `scripts/verify-release.sh --tag vX.Y.Z` when you
+need to rerun full verification without re-mirroring.
 
 When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host. All local test packages must be written under
