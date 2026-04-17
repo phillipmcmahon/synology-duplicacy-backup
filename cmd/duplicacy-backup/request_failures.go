@@ -191,8 +191,8 @@ func emitJSONFailureSummary(w io.Writer, req *workflow.Request, plan *workflow.P
 	if w == nil {
 		return
 	}
-	if err := workflow.WriteRunReport(w, workflow.NewFailureRunReport(req, plan, startedAt, completedAt, 1, message)); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
+	if err := workflow.WriteRunReport(w, workflow.NewFailureRunReport(req, plan, startedAt, completedAt, exitCodeGeneralFailure, message)); err != nil {
+		writeJSONSummaryFailure(err)
 	}
 }
 

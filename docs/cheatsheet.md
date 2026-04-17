@@ -68,6 +68,10 @@ Exit codes:
 - `1` degraded
 - `2` unhealthy
 
+Runtime, config, notify, and update failures exit `1`. Health commands keep
+their health-specific exit-code contract, so a health pre-run failure such as a
+logger or privilege problem exits `2`.
+
 ## Config Commands
 
 ```bash

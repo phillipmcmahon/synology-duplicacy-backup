@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -9,6 +10,12 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+)
+
+const (
+	exitCodeOK              = 0
+	exitCodeGeneralFailure  = 1
+	exitCodeHealthUnhealthy = 2
 )
 
 func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
@@ -73,12 +80,7 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	runner := execpkg.NewCommandRunner(log, false)
 	report, code := workflow.NewHealthRunner(meta, rt, log, runner).Run(req)
 	if req.JSONSummary {
-		if err := workflow.WriteHealthReport(os.Stdout, report); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
-			if code == 0 {
-				code = 2
-			}
-		}
+		code = writeHealthJSONSummary(os.Stdout, report, code)
 	}
 	log.Close()
 	return code
@@ -105,12 +107,7 @@ func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 	executor := workflow.NewExecutor(meta, rt, log, runner, plan)
 	code := executor.Run()
 	if plan.JSONSummary {
-		if err := workflow.WriteRunReport(os.Stdout, executor.Report()); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
-			if code == 0 {
-				code = 1
-			}
-		}
+		code = writeRuntimeJSONSummary(os.Stdout, executor.Report(), code)
 	}
 	return code
 }
@@ -120,7 +117,31 @@ func writeCommandFailure(report string, err error) int {
 		fmt.Print(report)
 	}
 	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
-	return 1
+	return exitCodeGeneralFailure
+}
+
+func writeRuntimeJSONSummary(w io.Writer, report *workflow.RunReport, code int) int {
+	if err := workflow.WriteRunReport(w, report); err != nil {
+		writeJSONSummaryFailure(err)
+		if code == exitCodeOK {
+			return exitCodeGeneralFailure
+		}
+	}
+	return code
+}
+
+func writeHealthJSONSummary(w io.Writer, report *workflow.HealthReport, code int) int {
+	if err := workflow.WriteHealthReport(w, report); err != nil {
+		writeJSONSummaryFailure(err)
+		if code == exitCodeOK {
+			return exitCodeHealthUnhealthy
+		}
+	}
+	return code
+}
+
+func writeJSONSummaryFailure(err error) {
+	fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
 }
 
 func writeHealthLoggerFailure(req *workflow.Request, rt workflow.Runtime, err error) int {
@@ -129,7 +150,7 @@ func writeHealthLoggerFailure(req *workflow.Request, rt workflow.Runtime, err er
 		report := workflow.NewFailureHealthReport(req, req.HealthCommand, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
 		_ = workflow.WriteHealthReport(os.Stdout, report)
 	}
-	return 2
+	return exitCodeHealthUnhealthy
 }
 
 func writeHealthPrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
@@ -139,7 +160,7 @@ func writeHealthPrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int
 		report := workflow.NewFailureHealthReport(req, req.HealthCommand, message, rt.Now())
 		_ = workflow.WriteHealthReport(os.Stdout, report)
 	}
-	return 2
+	return exitCodeHealthUnhealthy
 }
 
 func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err error) int {
@@ -148,7 +169,7 @@ func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err e
 		now := rt.Now()
 		emitJSONFailureSummary(os.Stdout, req, nil, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
 	}
-	return 1
+	return exitCodeGeneralFailure
 }
 
 func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
@@ -158,7 +179,7 @@ func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) in
 		now := rt.Now()
 		emitJSONFailureSummary(os.Stdout, req, nil, now, now, message)
 	}
-	return 1
+	return exitCodeGeneralFailure
 }
 
 func handlePlannerFailure(req *workflow.Request, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time, err error) int {
@@ -179,5 +200,5 @@ func handlePlannerFailure(req *workflow.Request, failurePlan *workflow.Plan, met
 		emitJSONFailureSummary(os.Stdout, req, failurePlan, startedAt, rt.Now(), workflow.OperatorMessage(err))
 	}
 	log.Close()
-	return 1
+	return exitCodeGeneralFailure
 }

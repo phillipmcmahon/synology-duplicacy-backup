@@ -1398,6 +1398,53 @@ func TestEmitJSONFailureSummary_WriteFailureReportsError(t *testing.T) {
 	}
 }
 
+func TestWriteRuntimeJSONSummaryFailureOnlyUpgradesSuccess(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		code int
+		want int
+	}{
+		{name: "success becomes general failure", code: 0, want: 1},
+		{name: "existing failure is preserved", code: 1, want: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, stderr := captureOutput(t, func() {
+				got := writeRuntimeJSONSummary(errWriter{}, &workflow.RunReport{}, tt.code)
+				if got != tt.want {
+					t.Fatalf("writeRuntimeJSONSummary() = %d, want %d", got, tt.want)
+				}
+			})
+			if !strings.Contains(stderr, "Failed to write JSON summary") {
+				t.Fatalf("stderr = %q", stderr)
+			}
+		})
+	}
+}
+
+func TestWriteHealthJSONSummaryFailureOnlyUpgradesHealthySuccess(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		code int
+		want int
+	}{
+		{name: "healthy success becomes unhealthy", code: 0, want: 2},
+		{name: "degraded result is preserved", code: 1, want: 1},
+		{name: "unhealthy result is preserved", code: 2, want: 2},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, stderr := captureOutput(t, func() {
+				got := writeHealthJSONSummary(errWriter{}, &workflow.HealthReport{}, tt.code)
+				if got != tt.want {
+					t.Fatalf("writeHealthJSONSummary() = %d, want %d", got, tt.want)
+				}
+			})
+			if !strings.Contains(stderr, "Failed to write JSON summary") {
+				t.Fatalf("stderr = %q", stderr)
+			}
+		})
+	}
+}
+
 func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
 	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
 	rt := workflow.DefaultRuntime()

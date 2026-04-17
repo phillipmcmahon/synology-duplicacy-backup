@@ -221,6 +221,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - default output is concise and phase-oriented; use `--verbose` for detailed operational logs
 - `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
 - `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
+- if `--json-summary` itself cannot write to stdout, an otherwise successful runtime command exits `1` and an otherwise healthy health command exits `2`; commands that were already failing keep their original non-zero exit code
 - runtime and health headers now identify `Label`, `Target`, `Type`, and `Location` before work begins
 - health commands are read-only and never prompt for confirmation
 - health commands use target-specific state under `/var/lib/duplicacy-backup/<label>.<target>.json` together with live Duplicacy storage inspection
@@ -242,6 +243,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - health notification payloads also carry `failure_code`, `failure_codes`, and `recommended_action_codes` in `details` when the health report has structured remediation metadata
 - native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
+- runtime, config, notify, and update command failures exit `1`; health commands use the health-specific `0`/`1`/`2` contract, including pre-run health failures that prevent a real check from starting
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths`, `update --check-only`, and dry-run update notification tests are common normal-user exceptions
 - if config cannot be read at all, built-in notifications are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
 - keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root
