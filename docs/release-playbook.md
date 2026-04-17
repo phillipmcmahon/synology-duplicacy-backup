@@ -153,7 +153,8 @@ Rules for release notes:
 
 - Commit the release prep changes.
 - Push `main`.
-- Tag the release from that exact commit.
+- Tag the release from that exact commit, using the validated release notes as
+  the annotated tag message.
 - Push the tag.
 - Let the tag-triggered GitHub Actions workflow publish the release artefacts.
 - Do not manually upload local release tarballs to GitHub after tagging unless
@@ -163,7 +164,7 @@ Example:
 
 ```bash
 git push origin main
-git tag -a vX.Y.Z -m "vX.Y.Z"
+git tag -a vX.Y.Z -F build/release-prep/vX.Y.Z/release-notes.md
 git push origin vX.Y.Z
 ```
 
