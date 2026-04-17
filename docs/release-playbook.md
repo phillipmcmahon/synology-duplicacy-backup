@@ -164,7 +164,7 @@ Example:
 
 ```bash
 git push origin main
-git tag -a vX.Y.Z -F build/release-prep/vX.Y.Z/release-notes.md
+git tag -a vX.Y.Z --cleanup=verbatim -F build/release-prep/vX.Y.Z/release-notes.md
 git push origin vX.Y.Z
 ```
 

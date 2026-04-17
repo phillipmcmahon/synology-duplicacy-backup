@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v4.3.5] - 2026-04-17
+## [v4.3.6] - 2026-04-17
 
 ### Changed
 - **GitHub releases now use immutable release attestations**: the tag-triggered
@@ -20,10 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release guidance now matches the attestation model**: the release playbook
   and operations guide describe immutable releases, release-level verification,
   and asset-level verification with GitHub CLI.
-- **Release notes are fetched from the annotated tag before immutable
-  publication**: the release workflow fetches the tag object, extracts the tag
-  notes, validates that `Highlights`, `Validation`, and `Coverage` are present,
-  and publishes those notes with the release.
+- **Release notes are preserved before immutable publication**: the release
+  playbook now tags with `--cleanup=verbatim`, and the workflow validates that
+  annotated tag notes still contain `Highlights`, `Validation`, and `Coverage`
+  before publishing the immutable release.
 
 ### Validation
 - **Linux Go 1.26**: `go test ./...`
@@ -39,17 +39,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `internal/exec`: `93.7%`
   - `internal/secrets`: `93.3%`
 
+## [v4.3.5] - 2026-04-17
+
+### Superseded
+- The v4.3.5 tag was pushed, but the GitHub release workflow failed before a
+  release was published because tag cleanup stripped Markdown release-note
+  headings. Its intended release notes are folded into v4.3.6.
+
 ## [v4.3.4] - 2026-04-17
 
 ### Superseded
 - The v4.3.4 tag was pushed, but the GitHub release workflow failed before a
-  release was published. Its intended release notes are folded into v4.3.5.
+  release was published. Its intended release notes are folded into v4.3.6.
 
 ## [v4.3.3] - 2026-04-17
 
 ### Superseded
 - The v4.3.3 tag was pushed, but the GitHub release workflow failed before a
-  release was published. Its intended release notes are folded into v4.3.5.
+  release was published. Its intended release notes are folded into v4.3.6.
 
 ## [v4.3.2] - 2026-04-16
 
