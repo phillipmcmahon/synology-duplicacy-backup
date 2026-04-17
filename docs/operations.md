@@ -86,6 +86,22 @@ sudo /usr/local/bin/duplicacy-backup update --yes
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
+### Update trust model
+
+The update command uses the GitHub Releases API for this project, selects the
+asset for the NAS platform, downloads that tarball and its matching `.sha256`
+file over HTTPS, verifies the tarball against the checksum, extracts the
+package with path and symlink safety checks, and then runs the packaged
+installer.
+
+That protects against corrupted downloads, wrong assets, and modified tarballs
+that do not match the published checksum. It does not provide an independent
+publisher signature: the tarball and checksum are both trusted because they came
+from the same GitHub release channel. If your threat model includes a
+compromised GitHub release, compromised maintainer account, or malicious release
+asset replacement, treat the update command as insufficient on its own until
+signature or artifact-attestation verification is added.
+
 Unattended update failures can use the same notification providers as the rest
 of the tool, but the config is global rather than label-specific. Put update
 notification settings in `/usr/local/lib/duplicacy-backup/.config/duplicacy-backup.toml`:
