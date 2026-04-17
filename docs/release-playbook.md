@@ -14,6 +14,9 @@ release notes from memory, or generate release artefacts on the macOS host.
   changes into the successful release notes so nothing important disappears.
 - Let the tag-triggered GitHub Actions workflow build and publish the release
   artefacts.
+- Keep GitHub immutable releases enabled for the repository. The release
+  workflow depends on that setting for the release attestations verified by
+  `gh release verify` and `gh release verify-asset`.
 - Do not build local release tarballs as part of the normal release flow.
 - After the GitHub release is live, download the published release artefacts
   plus the GitHub-generated source archives and mirror them to
@@ -173,7 +176,8 @@ After the release workflow finishes:
 - confirm there is one canonical asset set only, with filenames like
   `duplicacy-backup_3.1.0_linux_amd64.tar.gz` and no duplicate `v3.1.0`
   variants
-- confirm each release asset has a GitHub artifact attestation
+- confirm the GitHub release and each release asset verify against GitHub
+  release attestations
 - confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story
@@ -185,12 +189,18 @@ sh ./scripts/verify-release.sh --tag vX.Y.Z
 ```
 
 The script verifies the published GitHub release, required release-note
-headings, expected packaged assets, GitHub artifact attestations,
+headings, expected packaged assets, GitHub release attestations,
 local-versus-remote tag commit alignment, and the mirrored artefact set on
 `homestorage`.
 
-For a historical release published before artifact attestations were enabled,
+For a historical release published before release attestations were enabled,
 use `--skip-attestations`. Do not use that option for new releases.
+
+To manually verify the release attestation:
+
+```bash
+gh release verify vX.Y.Z --repo phillipmcmahon/synology-duplicacy-backup
+```
 
 To manually verify one downloaded asset:
 

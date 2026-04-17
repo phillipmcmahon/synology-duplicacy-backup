@@ -19,7 +19,8 @@ Checks:
   - release name and tag match the requested tag
   - release notes include Highlights, Validation, and Coverage sections
   - expected packaged assets are present on GitHub
-  - release assets have GitHub artifact attestations
+  - the GitHub release has a release attestation
+  - release assets verify against the release attestation
   - the remote tag commit matches the local tag commit
   - the mirrored artefact set exists under homestorage
 
@@ -30,7 +31,7 @@ Options:
   --host <value>        SSH host used for the mirror check (default: homestorage)
   --remote-root <path>  Remote base directory
                         (default: /volume1/homes/phillipmcmahon/code/duplicacy-backup)
-  --skip-attestations   Skip GitHub release asset attestation checks
+  --skip-attestations   Skip GitHub release and asset attestation checks
                         (only for historical releases)
   --help                Show this help text
 EOF
@@ -144,6 +145,8 @@ printf '%s\n' "$EXPECTED_RELEASE_ASSETS" | sort >"$expected_release_tmp"
 diff -u "$expected_release_tmp" "$release_assets_tmp" >/dev/null || fail "release asset set does not match expected names"
 
 if [ "$VERIFY_ATTESTATIONS" -eq 1 ]; then
+    gh release verify "$TAG" --repo "$REPO" >/dev/null || fail "GitHub release attestation verification failed for $TAG"
+
     printf '%s\n' "$EXPECTED_RELEASE_ASSETS" | while IFS= read -r asset; do
         [ -n "$asset" ] || continue
         gh release download "$TAG" --repo "$REPO" --pattern "$asset" --dir "$attestation_dir" >/dev/null
@@ -165,7 +168,7 @@ echo "Verified $TAG"
 echo "Release URL: $(jq -r '.url' "$release_json_file")"
 echo "Remote mirror: $HOST:$REMOTE_DIR"
 if [ "$VERIFY_ATTESTATIONS" -eq 1 ]; then
-    echo "Release asset attestations: verified"
+    echo "Release attestations: verified"
 else
-    echo "Release asset attestations: skipped"
+    echo "Release attestations: skipped"
 fi

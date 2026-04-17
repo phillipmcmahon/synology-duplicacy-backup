@@ -102,11 +102,12 @@ That protects against corrupted downloads, wrong assets, and modified tarballs
 that do not match the published checksum. It does not provide an independent
 publisher check during `duplicacy-backup update`: the tarball and checksum are
 both trusted because they came from the same GitHub release channel. New
-releases publish GitHub artifact attestations so operators can manually verify
-release assets before install. If your threat model includes a compromised
+releases are immutable and publish GitHub release attestations so operators can
+manually verify releases and release assets before install. If your threat model
+includes a compromised
 GitHub release, compromised maintainer account, or malicious release asset
 replacement, treat the update command as insufficient on its own until
-updater-side artifact-attestation verification is added.
+updater-side attestation verification is added.
 
 Unattended update failures can use the same notification providers as the rest
 of the tool, but the config is global rather than label-specific. Put update
@@ -311,7 +312,7 @@ Releases include:
 - `.tar.gz` archives
 - per-file `.sha256` files
 - `SHA256SUMS.txt`
-- GitHub artifact attestations for the release assets
+- GitHub release attestations for the release and assets
 
 ### Verify a single file
 
@@ -331,7 +332,13 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 tar -tzf duplicacy-backup_<version>_linux_amd64.tar.gz
 ```
 
-### Verify the GitHub artifact attestation
+### Verify the GitHub release attestation
+
+```bash
+gh release verify v<version> --repo phillipmcmahon/synology-duplicacy-backup
+```
+
+### Verify a downloaded asset against the release attestation
 
 ```bash
 gh release verify-asset v<version> ./duplicacy-backup_<version>_linux_amd64.tar.gz \
