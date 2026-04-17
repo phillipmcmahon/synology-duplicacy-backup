@@ -824,6 +824,11 @@ func TestExtractTarballRejectsUnsafeAndUnsupportedEntries(t *testing.T) {
 			entries: []tarEntry{{name: "package/current", typ: tar.TypeSymlink, mode: 0777, linkname: "/etc/passwd"}},
 			wantErr: "unsupported symlink target",
 		},
+		{
+			name:    "symlink control character",
+			entries: []tarEntry{{name: "package/current", typ: tar.TypeSymlink, mode: 0777, linkname: "bin/target\n"}},
+			wantErr: "unsupported symlink target",
+		},
 	}
 
 	for _, tt := range tests {
@@ -846,6 +851,17 @@ func TestExtractTarballRejectsUnsafeAndUnsupportedEntries(t *testing.T) {
 	err := extractTarball(plainFile, filepath.Join(t.TempDir(), "out"))
 	if err == nil || !strings.Contains(err.Error(), "gzip stream") {
 		t.Fatalf("extractTarball(non-gzip) err = %v", err)
+	}
+}
+
+func TestValidatePackageSymlinkTargetRejectsControlCharacters(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "out")
+	target := filepath.Join(destination, "package/current")
+	for _, linkname := range []string{"bin/target\x00", "bin/target\t", "bin/target\x7f"} {
+		err := validatePackageSymlinkTarget(destination, target, linkname)
+		if err == nil || !strings.Contains(err.Error(), "unsupported symlink target") {
+			t.Fatalf("validatePackageSymlinkTarget(%q) err = %v, want unsupported symlink target", linkname, err)
+		}
 	}
 }
 

@@ -487,6 +487,14 @@ func TestFormatCommand_RedactsSensitiveArgs(t *testing.T) {
 	}
 }
 
+func TestFormatCommand_TrailingSensitiveArgKeyHasNoPhantomValue(t *testing.T) {
+	got := formatCommand("duplicacy", []string{"backup", "--token"})
+	want := "duplicacy backup --token"
+	if got != want {
+		t.Fatalf("formatCommand = %q, want %q", got, want)
+	}
+}
+
 func TestCommandRunner_DebugLogRedactsSensitiveArgs(t *testing.T) {
 	oldStderr := os.Stderr
 	pipeR, pipeW, err := os.Pipe()

@@ -86,6 +86,10 @@ func (u *Updater) install(planned *plan) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// detectManagedLayout verifies the managed update invariant before any install
+// work begins: operators invoke duplicacy-backup through a stable command on
+// PATH, that command resolves through the managed symlink, and the symlink
+// resolves to the versioned binary that is currently running.
 func (u *Updater) detectManagedLayout() (*managedLayout, error) {
 	executablePath, err := u.Runtime.Executable()
 	if err != nil {

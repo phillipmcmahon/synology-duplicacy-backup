@@ -169,6 +169,9 @@ func archivePerm(mode int64) os.FileMode {
 }
 
 func validatePackageSymlinkTarget(destination, target, linkname string) error {
+	if containsControlCharacter(linkname) {
+		return fmt.Errorf("unsupported symlink target in update package: %s -> %s", target, linkname)
+	}
 	if filepath.IsAbs(linkname) {
 		return fmt.Errorf("unsupported symlink target in update package: %s -> %s", target, linkname)
 	}
@@ -177,6 +180,15 @@ func validatePackageSymlinkTarget(destination, target, linkname string) error {
 		return fmt.Errorf("unsupported symlink target in update package: %s -> %s", target, linkname)
 	}
 	return nil
+}
+
+func containsControlCharacter(value string) bool {
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func pathWithin(root, path string) bool {
