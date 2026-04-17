@@ -19,6 +19,41 @@ func requireLinuxProc(t *testing.T) {
 	}
 }
 
+func restoreLockHooks(t *testing.T) {
+	t.Helper()
+	origMkdirAll := lockMkdirAll
+	origMkdir := lockMkdir
+	origRemoveAll := lockRemoveAll
+	origReadFile := lockReadFile
+	origWriteFile := lockWriteFile
+	origStat := lockStat
+	origProcessExists := processExists
+	t.Cleanup(func() {
+		lockMkdirAll = origMkdirAll
+		lockMkdir = origMkdir
+		lockRemoveAll = origRemoveAll
+		lockReadFile = origReadFile
+		lockWriteFile = origWriteFile
+		lockStat = origStat
+		processExists = origProcessExists
+	})
+}
+
+func requireLockPhase(t *testing.T, err error, phase string) *apperrors.LockError {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected LockError phase %q, got nil", phase)
+	}
+	var lockErr *apperrors.LockError
+	if !errors.As(err, &lockErr) {
+		t.Fatalf("expected LockError, got %T", err)
+	}
+	if lockErr.Phase != phase {
+		t.Fatalf("LockError phase = %q, want %q", lockErr.Phase, phase)
+	}
+	return lockErr
+}
+
 // ─── New tests ──────────────────────────────────────────────────────────────
 
 func TestNew_PathConstruction(t *testing.T) {
@@ -182,6 +217,103 @@ func TestAcquire_CreateParentFailureReturnsLockError(t *testing.T) {
 	}
 	if lockErr.Phase != "create-parent" {
 		t.Fatalf("LockError phase = %q, want create-parent", lockErr.Phase)
+	}
+}
+
+func TestAcquire_CreateDirectoryFailureWrapsCause(t *testing.T) {
+	restoreLockHooks(t)
+	lockMkdir = func(string, os.FileMode) error {
+		return os.ErrPermission
+	}
+
+	lk := New(t.TempDir(), "test-create-failure")
+	err := lk.Acquire()
+	requireLockPhase(t, err, "create")
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("Acquire() err = %v, want wrapped permission error", err)
+	}
+}
+
+func TestAcquire_StaleRemoveFailureWrapsCause(t *testing.T) {
+	restoreLockHooks(t)
+	processExists = func(int) bool { return false }
+	lockRemoveAll = func(string) error {
+		return os.ErrPermission
+	}
+
+	dir := t.TempDir()
+	lk := New(dir, "test-stale-remove-failure")
+	if err := os.MkdirAll(lk.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(lk.Path) })
+	if err := os.WriteFile(lk.PIDFile, []byte("99999999"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	err := lk.Acquire()
+	requireLockPhase(t, err, "stale-remove")
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("Acquire() err = %v, want wrapped permission error", err)
+	}
+}
+
+func TestAcquire_StaleRetryFailureWrapsCause(t *testing.T) {
+	restoreLockHooks(t)
+	processExists = func(int) bool { return false }
+	origMkdir := lockMkdir
+	attempts := 0
+	lockMkdir = func(path string, perm os.FileMode) error {
+		attempts++
+		if attempts == 2 {
+			return os.ErrPermission
+		}
+		return origMkdir(path, perm)
+	}
+
+	dir := t.TempDir()
+	lk := New(dir, "test-stale-retry-failure")
+	if err := os.MkdirAll(lk.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(lk.PIDFile, []byte("99999999"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	err := lk.Acquire()
+	requireLockPhase(t, err, "stale-retry")
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("Acquire() err = %v, want wrapped permission error", err)
+	}
+}
+
+func TestAcquire_StaleRetryRaceReportsHeldLock(t *testing.T) {
+	restoreLockHooks(t)
+	processExists = func(pid int) bool { return pid == os.Getpid() }
+	lockRemoveAll = func(path string) error {
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(path, "pid"), []byte(strconv.Itoa(os.Getpid())), 0644)
+	}
+
+	dir := t.TempDir()
+	lk := New(dir, "test-stale-race")
+	if err := os.MkdirAll(lk.Path, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(lk.Path) })
+	if err := os.WriteFile(lk.PIDFile, []byte("99999999"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	err := lk.Acquire()
+	requireLockPhase(t, err, "held")
+	if !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("Acquire() err = %v, want already running diagnostic", err)
 	}
 }
 

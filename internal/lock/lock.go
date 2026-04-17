@@ -12,6 +12,16 @@ import (
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
+var (
+	lockMkdirAll  = os.MkdirAll
+	lockMkdir     = os.Mkdir
+	lockRemoveAll = os.RemoveAll
+	lockReadFile  = os.ReadFile
+	lockWriteFile = os.WriteFile
+	lockStat      = os.Stat
+	processExists = linuxProcProcessExists
+)
+
 // Lock represents a directory-based process lock.
 type Lock struct {
 	Path    string
@@ -55,13 +65,15 @@ func newLock(lockParent, lockName string) *Lock {
 // holds it, or removes stale locks and retries.
 func (l *Lock) Acquire() error {
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(l.Path), 0755); err != nil {
+	if err := lockMkdirAll(filepath.Dir(l.Path), 0755); err != nil {
 		return apperrors.NewLockError("create-parent", fmt.Errorf("failed to create lock parent directory: %w", err), "path", filepath.Dir(l.Path))
 	}
 
 	// Try to create the lock directory atomically
-	if err := os.Mkdir(l.Path, 0755); err == nil {
+	if err := lockMkdir(l.Path, 0755); err == nil {
 		return l.writePID()
+	} else if !os.IsExist(err) {
+		return apperrors.NewLockError("create", fmt.Errorf("failed to create lock directory: %w", err), "path", l.Path)
 	}
 
 	// Lock exists - check if the holder is still running
@@ -73,10 +85,18 @@ func (l *Lock) Acquire() error {
 	}
 
 	// Stale lock - remove and retry
-	os.RemoveAll(l.Path)
+	if err := lockRemoveAll(l.Path); err != nil {
+		return apperrors.NewLockError("stale-remove", fmt.Errorf("failed to remove stale lock: %w", err), "path", l.Path)
+	}
 
-	if err := os.Mkdir(l.Path, 0755); err != nil {
-		return apperrors.NewLockError("stale-retry", fmt.Errorf("failed to acquire lock after removing stale lock"), "path", l.Path)
+	if err := lockMkdir(l.Path, 0755); err != nil {
+		if os.IsExist(err) {
+			existingPID, readErr := l.readPID()
+			if readErr == nil && existingPID > 0 && processExists(existingPID) {
+				return apperrors.NewLockError("held", fmt.Errorf("another backup is already running (PID: %d)", existingPID), "pid", strconv.Itoa(existingPID))
+			}
+		}
+		return apperrors.NewLockError("stale-retry", fmt.Errorf("failed to acquire lock after removing stale lock: %w", err), "path", l.Path)
 	}
 
 	return l.writePID()
@@ -93,23 +113,27 @@ func (l *Lock) Release() {
 		return // Not our lock
 	}
 
-	os.RemoveAll(l.Path)
+	_ = lockRemoveAll(l.Path)
 }
 
 func (l *Lock) writePID() error {
-	return os.WriteFile(l.PIDFile, []byte(strconv.Itoa(l.pid)), 0644)
+	return lockWriteFile(l.PIDFile, []byte(strconv.Itoa(l.pid)), 0644)
 }
 
 func (l *Lock) readPID() (int, error) {
-	data, err := os.ReadFile(l.PIDFile)
+	data, err := lockReadFile(l.PIDFile)
 	if err != nil {
 		return 0, err
 	}
 	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
-func processExists(pid int) bool {
-	_, err := os.Stat(fmt.Sprintf("/proc/%d", pid))
+// linuxProcProcessExists checks whether a PID exists through Linux /proc.
+// Synology DSM runs on Linux, which is the production target for runtime
+// locking. On non-Linux development hosts without /proc, arbitrary PIDs are
+// treated as absent and stale-lock tests skip active-process assertions.
+func linuxProcProcessExists(pid int) bool {
+	_, err := lockStat(fmt.Sprintf("/proc/%d", pid))
 	return err == nil
 }
 
@@ -129,7 +153,7 @@ func InspectSource(lockParent, label string) (*Status, error) {
 func inspectLock(l *Lock) (*Status, error) {
 	status := &Status{Path: l.Path}
 
-	if _, err := os.Stat(l.Path); err != nil {
+	if _, err := lockStat(l.Path); err != nil {
 		if os.IsNotExist(err) {
 			return status, nil
 		}
