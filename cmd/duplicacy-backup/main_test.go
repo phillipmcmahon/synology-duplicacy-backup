@@ -547,7 +547,7 @@ func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 				t.Fatalf("runWithArgs(health status non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Health commands must be run as root") {
+		if !strings.Contains(stderr, "health commands must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -671,7 +671,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Must be run as root") {
+		if !strings.Contains(stderr, "must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -688,13 +688,13 @@ func TestRunWithArgs_NonRootPruneJSONFailureDoesNotRequireLogger(t *testing.T) {
 				t.Fatalf("runWithArgs(non-root prune json) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Must be run as root") {
+		if !strings.Contains(stderr, "must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, `"result": "failed"`) || !strings.Contains(stdout, `"failure_message": "Must be run as root"`) {
+		if !strings.Contains(stdout, `"result": "failed"`) || !strings.Contains(stdout, `"failure_message": "must be run as root"`) {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})

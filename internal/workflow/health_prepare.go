@@ -9,10 +9,10 @@ import (
 
 func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Secrets, error) {
 	if h.rt.Geteuid() != 0 {
-		return nil, nil, nil, NewMessageError("Health commands must be run as root")
+		return nil, nil, nil, NewMessageError("health commands must be run as root")
 	}
 	if _, err := h.rt.LookPath("duplicacy"); err != nil {
-		return nil, nil, nil, NewMessageError("Required command 'duplicacy' not found")
+		return nil, nil, nil, NewMessageError("required command 'duplicacy' not found")
 	}
 
 	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)

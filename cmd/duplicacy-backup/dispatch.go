@@ -154,7 +154,7 @@ func writeHealthLoggerFailure(req *workflow.Request, rt workflow.Runtime, err er
 }
 
 func writeHealthPrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
-	message := "Health commands must be run as root"
+	message := "health commands must be run as root"
 	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
 	if req.JSONSummary {
 		report := workflow.NewFailureHealthReport(req, req.HealthCommand, message, rt.Now())
@@ -173,7 +173,7 @@ func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err e
 }
 
 func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
-	message := "Must be run as root"
+	message := "must be run as root"
 	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
 	if req.JSONSummary {
 		now := rt.Now()
