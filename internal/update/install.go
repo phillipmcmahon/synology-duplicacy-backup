@@ -57,6 +57,9 @@ func (u *Updater) install(planned *plan) (string, error) {
 	if err := verifyChecksum(tarballPath, checksumPath); err != nil {
 		return "", err
 	}
+	if err := u.verifyReleaseAssetAttestation(planned, tarballPath); err != nil {
+		return "", err
+	}
 	extractDir := filepath.Join(stageDir, "extracted")
 	if err := os.MkdirAll(extractDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create extraction directory: %w", err)

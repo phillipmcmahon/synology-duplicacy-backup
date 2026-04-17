@@ -124,6 +124,8 @@ func classifyUpdateFailureEvent(err error) string {
 	switch {
 	case strings.Contains(message, "checksum"):
 		return "update_checksum_failed"
+	case strings.Contains(message, "attestation"):
+		return "update_attestation_failed"
 	case strings.Contains(message, "download"):
 		return "update_download_failed"
 	case strings.Contains(message, "install") || strings.Contains(message, "extract") || strings.Contains(message, "staging"):
@@ -139,6 +141,8 @@ func updateFailureSummary(err error) string {
 		return "Duplicacy Backup update download failed"
 	case "update_checksum_failed":
 		return "Duplicacy Backup update checksum verification failed"
+	case "update_attestation_failed":
+		return "Duplicacy Backup update attestation verification failed"
 	case "update_install_failed":
 		return "Duplicacy Backup update install failed"
 	default:

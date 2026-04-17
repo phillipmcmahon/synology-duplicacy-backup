@@ -22,35 +22,36 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 }
 
 type Request struct {
-	ConfigCommand   string
-	HealthCommand   string
-	NotifyCommand   string
-	UpdateCommand   string
-	FixPerms        bool
-	ForcePrune      bool
-	RequestedTarget string
-	DryRun          bool
-	Verbose         bool
-	JSONSummary     bool
-	ConfigDir       string
-	SecretsDir      string
-	Source          string
-	NotifyProvider  string
-	NotifySeverity  string
-	NotifySummary   string
-	NotifyMessage   string
-	NotifyScope     string
-	NotifyEvent     string
-	UpdateVersion   string
-	UpdateKeep      int
-	UpdateCheckOnly bool
-	UpdateYes       bool
-	UpdateForce     bool
-	DoBackup        bool
-	DoPrune         bool
-	DoCleanupStore  bool
-	FixPermsOnly    bool
-	DefaultNotice   string
+	ConfigCommand      string
+	HealthCommand      string
+	NotifyCommand      string
+	UpdateCommand      string
+	FixPerms           bool
+	ForcePrune         bool
+	RequestedTarget    string
+	DryRun             bool
+	Verbose            bool
+	JSONSummary        bool
+	ConfigDir          string
+	SecretsDir         string
+	Source             string
+	NotifyProvider     string
+	NotifySeverity     string
+	NotifySummary      string
+	NotifyMessage      string
+	NotifyScope        string
+	NotifyEvent        string
+	UpdateVersion      string
+	UpdateKeep         int
+	UpdateAttestations string
+	UpdateCheckOnly    bool
+	UpdateYes          bool
+	UpdateForce        bool
+	DoBackup           bool
+	DoPrune            bool
+	DoCleanupStore     bool
+	FixPermsOnly       bool
+	DefaultNotice      string
 }
 
 func (r *Request) Target() string {

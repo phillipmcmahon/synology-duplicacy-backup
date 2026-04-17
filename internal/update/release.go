@@ -127,6 +127,9 @@ func (u *Updater) isSameCustomAPIBase(parsed *url.URL) bool {
 	if strings.EqualFold(apiBase.Hostname(), "api.github.com") {
 		return false
 	}
+	// This bypass only applies when a non-default APIBase is configured. It is
+	// intended for tests and self-hosted GitHub Enterprise mirrors, where asset
+	// URLs legitimately stay on the same custom host instead of github.com.
 	return strings.EqualFold(parsed.Scheme, apiBase.Scheme) && strings.EqualFold(parsed.Host, apiBase.Host)
 }
 

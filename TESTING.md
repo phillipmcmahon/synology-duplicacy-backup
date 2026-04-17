@@ -34,9 +34,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.3.1`
+Current public release baseline: `v4.3.6`
 
-Active release-prep target: `v4.3.2`
+Active release-prep target: none
 
 Representative Linux Go 1.26 validation for the current release baseline:
 
@@ -44,8 +44,30 @@ Representative Linux Go 1.26 validation for the current release baseline:
 - `go vet ./...`
 - `go test -cover ./...`
 
-Current Linux Go 1.26 validation snapshot for active release-prep target
-`v4.3.2`:
+Current Linux Go 1.26 development validation snapshot after #110:
+
+- `go test ./...`
+- `go vet ./...`
+- `go test -cover ./...`
+- overall coverage: `85.3%`
+- `cmd/duplicacy-backup`: `92.7%`
+- `internal/workflow`: `83.3%`
+- `internal/update`: `83.3%`
+- `internal/duplicacy`: `81.2%`
+- `internal/exec`: `93.7%`
+- `internal/secrets`: `93.3%`
+
+Additional #110 validation:
+
+- Update attestation tests cover `off`, `auto`, and `required` verifier modes,
+  including missing GitHub CLI, successful verification, and failed verification
+  before extraction/install.
+- Update failure notification classification maps attestation verification
+  failures to the dedicated `update_attestation_failed` event.
+- CLI parser, command adapter, help text, and operator documentation now cover
+  `--attestations off|auto|required`.
+
+Previous Linux Go 1.26 validation snapshot for `v4.3.2`:
 
 - overall coverage: `81.0%`
 - `cmd/duplicacy-backup`: `91.9%`

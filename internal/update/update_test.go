@@ -306,6 +306,220 @@ func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 	}
 }
 
+func TestRunInstallRequiredAttestationVerifiesBeforeInstaller(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	tarball := buildPackageTarball(t, "4.1.9")
+	sum := sha256.Sum256(tarball)
+	checksum := hex.EncodeToString(sum[:]) + "  duplicacy-backup_4.1.9_linux_amd64.tar.gz\n"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/phillipmcmahon/synology-duplicacy-backup/releases/latest":
+			_ = json.NewEncoder(w).Encode(release{
+				TagName: "v4.1.9",
+				Name:    "v4.1.9",
+				Assets: []releaseAsset{
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: server.URL + "/asset"},
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: server.URL + "/asset.sha256"},
+				},
+			})
+		case "/asset":
+			_, _ = w.Write(tarball)
+		case "/asset.sha256":
+			_, _ = w.Write([]byte(checksum))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	rt := testRuntime(executablePath)
+	rt.LookPath = func(name string) (string, error) {
+		if name != "gh" {
+			t.Fatalf("LookPath(%q), want gh", name)
+		}
+		return "/usr/bin/gh", nil
+	}
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	var verified bool
+	updater.VerifyAsset = func(tag, repo, assetPath string) ([]byte, error) {
+		verified = true
+		if tag != "v4.1.9" || repo != DefaultRepo || filepath.Base(assetPath) != "duplicacy-backup_4.1.9_linux_amd64.tar.gz" {
+			t.Fatalf("VerifyAsset(%q, %q, %q)", tag, repo, assetPath)
+		}
+		return []byte("verified"), nil
+	}
+	installerCalled := false
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		installerCalled = true
+		return []byte("Installed: attested"), nil
+	}
+
+	result, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep, Attestations: "required"})
+	if err != nil {
+		t.Fatalf("RunResult() error = %v", err)
+	}
+	if !verified || !installerCalled {
+		t.Fatalf("verified=%t installerCalled=%t", verified, installerCalled)
+	}
+	if !strings.Contains(result.Output, "Attestations         : required") ||
+		!strings.Contains(result.Output, "Attestation Result   : Verified") {
+		t.Fatalf("output = %q", result.Output)
+	}
+}
+
+func TestRunInstallRequiredAttestationRequiresGitHubCLI(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	tarball := buildPackageTarball(t, "4.1.9")
+	sum := sha256.Sum256(tarball)
+	checksum := hex.EncodeToString(sum[:]) + "  duplicacy-backup_4.1.9_linux_amd64.tar.gz\n"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/phillipmcmahon/synology-duplicacy-backup/releases/latest":
+			_ = json.NewEncoder(w).Encode(release{
+				TagName: "v4.1.9",
+				Name:    "v4.1.9",
+				Assets: []releaseAsset{
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: server.URL + "/asset"},
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: server.URL + "/asset.sha256"},
+				},
+			})
+		case "/asset":
+			_, _ = w.Write(tarball)
+		case "/asset.sha256":
+			_, _ = w.Write([]byte(checksum))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	rt := testRuntime(executablePath)
+	rt.LookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	updater.VerifyAsset = func(string, string, string) ([]byte, error) {
+		t.Fatal("VerifyAsset should not be called when gh is missing")
+		return nil, nil
+	}
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		t.Fatal("RunInstaller should not be called when required attestation verifier is missing")
+		return nil, nil
+	}
+
+	_, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep, Attestations: "required"})
+	if err == nil || !strings.Contains(err.Error(), "requires GitHub CLI (gh) on PATH") {
+		t.Fatalf("RunResult() err = %v", err)
+	}
+}
+
+func TestRunInstallAutoAttestationSkipsWhenGitHubCLIMissing(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	tarball := buildPackageTarball(t, "4.1.9")
+	sum := sha256.Sum256(tarball)
+	checksum := hex.EncodeToString(sum[:]) + "  duplicacy-backup_4.1.9_linux_amd64.tar.gz\n"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/phillipmcmahon/synology-duplicacy-backup/releases/latest":
+			_ = json.NewEncoder(w).Encode(release{
+				TagName: "v4.1.9",
+				Name:    "v4.1.9",
+				Assets: []releaseAsset{
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: server.URL + "/asset"},
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: server.URL + "/asset.sha256"},
+				},
+			})
+		case "/asset":
+			_, _ = w.Write(tarball)
+		case "/asset.sha256":
+			_, _ = w.Write([]byte(checksum))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	rt := testRuntime(executablePath)
+	rt.LookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	updater.VerifyAsset = func(string, string, string) ([]byte, error) {
+		t.Fatal("VerifyAsset should not be called when auto mode cannot find gh")
+		return nil, nil
+	}
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		return []byte("Installed: auto skip"), nil
+	}
+
+	result, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep, Attestations: "auto"})
+	if err != nil {
+		t.Fatalf("RunResult() error = %v", err)
+	}
+	if !strings.Contains(result.Output, "Attestations         : auto") ||
+		!strings.Contains(result.Output, "Attestation Result   : Skipped (GitHub CLI not found on PATH)") ||
+		!strings.Contains(result.Output, "Installed: auto skip") {
+		t.Fatalf("output = %q", result.Output)
+	}
+}
+
+func TestRunInstallAttestationFailureBlocksInstall(t *testing.T) {
+	executablePath, _ := managedExecutableLayout(t, "4.1.8")
+	tarball := buildPackageTarball(t, "4.1.9")
+	sum := sha256.Sum256(tarball)
+	checksum := hex.EncodeToString(sum[:]) + "  duplicacy-backup_4.1.9_linux_amd64.tar.gz\n"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/phillipmcmahon/synology-duplicacy-backup/releases/latest":
+			_ = json.NewEncoder(w).Encode(release{
+				TagName: "v4.1.9",
+				Name:    "v4.1.9",
+				Assets: []releaseAsset{
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz", URL: server.URL + "/asset"},
+					{Name: "duplicacy-backup_4.1.9_linux_amd64.tar.gz.sha256", URL: server.URL + "/asset.sha256"},
+				},
+			})
+		case "/asset":
+			_, _ = w.Write(tarball)
+		case "/asset.sha256":
+			_, _ = w.Write([]byte(checksum))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	rt := testRuntime(executablePath)
+	rt.LookPath = func(string) (string, error) { return "/usr/bin/gh", nil }
+	updater := New("duplicacy-backup", "4.1.8", rt)
+	updater.HTTPClient = server.Client()
+	updater.APIBase = server.URL
+	updater.VerifyAsset = func(string, string, string) ([]byte, error) {
+		return []byte("attestation mismatch"), exec.ErrNotFound
+	}
+	updater.RunInstaller = func(string, []string) ([]byte, error) {
+		t.Fatal("RunInstaller should not be called after attestation verification failure")
+		return nil, nil
+	}
+
+	_, err := updater.RunResult(Options{Yes: true, Keep: DefaultKeep, Attestations: "auto"})
+	if err == nil ||
+		!strings.Contains(err.Error(), "release attestation verification failed") ||
+		!strings.Contains(err.Error(), "attestation mismatch") {
+		t.Fatalf("RunResult() err = %v", err)
+	}
+}
+
 func TestRunAlreadyCurrentSkipsInstallWithoutForce(t *testing.T) {
 	executablePath, _ := managedExecutableLayout(t, "4.1.8")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

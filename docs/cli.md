@@ -173,6 +173,9 @@ sudo duplicacy-backup health verify --target offsite-storj homes
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
 
+# Download and install only when release-asset attestation verification succeeds
+sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
+
 # Reinstall the selected release even if it is already current
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
@@ -212,6 +215,8 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
 - `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
+- `update --attestations required` verifies the downloaded tarball with GitHub CLI before extraction/install and fails if verification is unavailable or unsuccessful
+- `update --attestations auto` verifies with GitHub CLI when `gh` is available, stops if verification fails, and otherwise continues with checksum-only verification when `gh` is missing
 - `update` uses explicit timeouts for GitHub release metadata and package downloads, and reports whether the metadata lookup or download phase timed out
 - `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
 - `update --force` reinstalls the selected release even when it is already current; it does not skip interactive confirmation unless `--yes` is also supplied

@@ -372,6 +372,17 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 				return nil, err
 			}
 			req.UpdateVersion = value
+		case "--attestations":
+			value, err := consumeRequiredValue(args, &i, "--attestations")
+			if err != nil {
+				return nil, err
+			}
+			switch value {
+			case "off", "auto", "required":
+				req.UpdateAttestations = value
+			default:
+				return nil, workflow.NewUsageRequestError("--attestations must be one of: off, auto, required")
+			}
 		case "--config-dir":
 			value, err := consumeRequiredValue(args, &i, "--config-dir")
 			if err != nil {
@@ -545,7 +556,7 @@ func validateNotifySeverity(severity string) error {
 
 func validateNotifyEvent(event string) error {
 	switch strings.TrimSpace(event) {
-	case "", "update_check_failed", "update_download_failed", "update_checksum_failed", "update_install_failed", "update_install_succeeded", "update_already_current", "update_reinstall_requested":
+	case "", "update_check_failed", "update_download_failed", "update_checksum_failed", "update_attestation_failed", "update_install_failed", "update_install_succeeded", "update_already_current", "update_reinstall_requested":
 		return nil
 	default:
 		return workflow.NewUsageRequestError("unsupported notify event %q", event)

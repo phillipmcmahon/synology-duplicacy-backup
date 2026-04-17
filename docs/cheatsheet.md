@@ -152,6 +152,19 @@ Installer behaviour:
 - Authenticated webhook and `ntfy` tokens are target-scoped in the secrets file, so repeat them under each notifying target that needs auth.
 - If notification config cannot be read, fall back to Synology scheduled-task alerts.
 
+## Updates
+
+```bash
+duplicacy-backup update --check-only
+sudo duplicacy-backup update --yes
+sudo duplicacy-backup update --attestations required --yes
+sudo duplicacy-backup update --force --yes
+```
+
+- `--attestations required` needs GitHub CLI on `PATH` and stops before extraction/install if release-asset attestation verification fails.
+- `--attestations auto` verifies when `gh` is available, stops on verification failure, and otherwise continues with checksum-only verification when `gh` is missing.
+- The default is `--attestations off`, so existing scheduled update jobs keep checksum-only behaviour unless you opt in.
+
 ## Help
 
 ```bash

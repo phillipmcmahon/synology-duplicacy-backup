@@ -207,6 +207,7 @@ func TestUpdateFailureEventMappingContract(t *testing.T) {
 		wantEvent string
 	}{
 		{name: "checksum", err: errors.New("downloaded package checksum did not match duplicacy-backup.tar.gz.sha256"), wantEvent: "update_checksum_failed"},
+		{name: "attestation", err: errors.New("release attestation verification failed for duplicacy-backup.tar.gz"), wantEvent: "update_attestation_failed"},
 		{name: "download", err: errors.New("failed to download duplicacy-backup.tar.gz: 404 Not Found"), wantEvent: "update_download_failed"},
 		{name: "install", err: errors.New("update install failed: exit status 1"), wantEvent: "update_install_failed"},
 		{name: "extract", err: errors.New("failed to extract package: unsupported file"), wantEvent: "update_install_failed"},
@@ -234,6 +235,7 @@ func TestUpdateNotifyTestEventStatusMappingContract(t *testing.T) {
 		{event: "update_check_failed", wantStatus: "failed"},
 		{event: "update_download_failed", wantStatus: "failed"},
 		{event: "update_checksum_failed", wantStatus: "failed"},
+		{event: "update_attestation_failed", wantStatus: "failed"},
 		{event: "update_install_failed", wantStatus: "failed"},
 		{event: "", wantStatus: "failed"},
 	}

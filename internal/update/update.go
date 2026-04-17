@@ -46,6 +46,8 @@ type plan struct {
 	CheckOnly      bool
 	Force          bool
 	Keep           int
+	Attestations   AttestationMode
+	Attested       string
 	AlreadyCurrent bool
 }
 
@@ -57,6 +59,7 @@ type Updater struct {
 	Runtime         Runtime
 	HTTPClient      *http.Client
 	RunInstaller    func(string, []string) ([]byte, error)
+	VerifyAsset     func(tag, repo, assetPath string) ([]byte, error)
 	ReleaseTimeout  time.Duration
 	DownloadTimeout time.Duration
 }
@@ -125,6 +128,7 @@ func New(scriptName, currentVersion string, rt Runtime) *Updater {
 		Runtime:         rt,
 		HTTPClient:      http.DefaultClient,
 		RunInstaller:    runInstallScript,
+		VerifyAsset:     runGHReleaseVerifyAsset,
 		ReleaseTimeout:  DefaultReleaseMetadataTimeout,
 		DownloadTimeout: DefaultAssetDownloadTimeout,
 	}
@@ -171,6 +175,10 @@ func (u *Updater) buildPlan(options Options) (*plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	attestations, err := normalizeAttestationMode(options.Attestations)
+	if err != nil {
+		return nil, err
+	}
 	releaseInfo, err := u.fetchRelease(options.RequestedVersion)
 	if err != nil {
 		return nil, err
@@ -214,6 +222,7 @@ func (u *Updater) buildPlan(options Options) (*plan, error) {
 		CheckOnly:      options.CheckOnly,
 		Force:          options.Force,
 		Keep:           keep,
+		Attestations:   attestations,
 		AlreadyCurrent: targetVersion == u.CurrentVersion && !options.Force,
 	}, nil
 }

@@ -36,6 +36,7 @@ func updateOptionsFromRequest(req *workflow.Request) update.Options {
 		Force:            req.UpdateForce,
 		Yes:              req.UpdateYes,
 		Keep:             req.UpdateKeep,
+		Attestations:     req.UpdateAttestations,
 	}
 }
 

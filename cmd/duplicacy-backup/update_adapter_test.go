@@ -11,14 +11,15 @@ import (
 
 func TestUpdateOptionsFromRequestMapsCommandRequest(t *testing.T) {
 	got := updateOptionsFromRequest(&workflow.Request{
-		UpdateVersion:   "v4.1.8",
-		UpdateCheckOnly: true,
-		UpdateForce:     true,
-		UpdateYes:       true,
-		UpdateKeep:      7,
+		UpdateVersion:      "v4.1.8",
+		UpdateCheckOnly:    true,
+		UpdateForce:        true,
+		UpdateYes:          true,
+		UpdateKeep:         7,
+		UpdateAttestations: "required",
 	})
 
-	if got.RequestedVersion != "v4.1.8" || !got.CheckOnly || !got.Force || !got.Yes || got.Keep != 7 {
+	if got.RequestedVersion != "v4.1.8" || !got.CheckOnly || !got.Force || !got.Yes || got.Keep != 7 || got.Attestations != "required" {
 		t.Fatalf("updateOptionsFromRequest() = %+v", got)
 	}
 }
@@ -69,7 +70,7 @@ func TestUpdateOptionsFromNilRequestUsesDefaultKeep(t *testing.T) {
 	if got.Keep != update.DefaultKeep {
 		t.Fatalf("Keep = %d, want %d", got.Keep, update.DefaultKeep)
 	}
-	if got.RequestedVersion != "" || got.CheckOnly || got.Force || got.Yes {
+	if got.RequestedVersion != "" || got.CheckOnly || got.Force || got.Yes || got.Attestations != "" {
 		t.Fatalf("updateOptionsFromRequest(nil) = %+v", got)
 	}
 }

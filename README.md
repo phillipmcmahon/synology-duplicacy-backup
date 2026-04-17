@@ -199,6 +199,9 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
 
+# Download and install only if GitHub release-asset attestation verification succeeds
+sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
+
 # Reinstall the selected release even if it is already current
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
@@ -263,6 +266,9 @@ duplicacy-backup notify test update --provider ntfy
 # Download and install the latest published release
 sudo /usr/local/bin/duplicacy-backup update --yes
 
+# Download and install only if GitHub release-asset attestation verification succeeds
+sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
+
 # Reinstall the selected release even if it is already current
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
@@ -290,8 +296,14 @@ Linux package for the current platform, verifies the checksum, and reuses the
 packaged `install.sh` to activate the new version. `update --check-only` is
 safe for routine inspection. Installing through `update` expects the standard
 managed layout under `/usr/local/lib/duplicacy-backup` and `/usr/local/bin`.
-Use `update --force` when you intentionally want to reinstall the selected
-release even though it is already current.
+Use `update --attestations required` when you want the install to fail unless
+GitHub CLI can verify the downloaded tarball against the release attestation.
+The default is `--attestations off`, so existing NAS jobs keep their current
+checksum-only behaviour unless you opt in. `--attestations auto` verifies when
+`gh` is available, stops on verification failure, and otherwise continues with
+checksum-only verification when `gh` is missing. Use `update --force` when you
+intentionally want to reinstall the selected release even though it is already
+current.
 
 Unattended update failures can notify through the global app config at
 `<config-dir>/duplicacy-backup.toml`:
@@ -414,6 +426,7 @@ inspection commands should normally be run with `sudo`. The main exception is
 - [Workflow and scheduling](docs/workflow-scheduling.md)
 - [Linux validation and packaging environment](docs/linux-environment.md)
 - [Release playbook](docs/release-playbook.md)
+- [Update trust model](docs/update-trust-model.md)
 - [Architecture](docs/architecture.md)
 - [How it works internally](docs/how-it-works.md)
 - [Operations](docs/operations.md)

@@ -393,6 +393,7 @@ Update options:
     --yes
     --keep <count>
     --version <tag>
+    --attestations <off|auto|required>
     --config-dir <path>
     --help
     --help-full
@@ -400,11 +401,13 @@ Update options:
 Examples:
     %s update --check-only
     %s update --yes
+    %s update --attestations required --yes
     %s update --version v4.1.8 --yes
     %s update --yes --config-dir /usr/local/lib/duplicacy-backup/.config
 
 Use --help-full for the detailed update reference.
 `,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -431,6 +434,7 @@ OPTIONS:
     --yes                  Skip the interactive confirmation prompt
     --keep <count>         Keep this many newest installed binaries after activation (default: 2)
     --version <tag>        Install one specific published release tag instead of the latest release
+    --attestations <mode>  Verify GitHub release attestations: off, auto, or required (default: off)
     --config-dir <path>    Override config directory for update notifications (default: <binary-dir>/.config)
     --help                 Show the concise update help message
     --help-full            Show the detailed update help message
@@ -439,6 +443,20 @@ INTERACTIVE RULES:
     Interactive runs show the detected install plan and ask for confirmation before install.
     Non-interactive runs require --yes for the install step.
     --force changes version selection behaviour only; it does not skip confirmation.
+
+ATTESTATION VERIFICATION:
+    off:
+      - default mode; keeps existing NAS update jobs unchanged
+      - verifies only the published SHA256 checksum before extraction
+    auto:
+      - verifies the downloaded tarball with gh release verify-asset when
+        GitHub CLI is available on PATH
+      - skips attestation verification if gh is not installed
+      - fails before extraction/install if gh is available but verification fails
+    required:
+      - requires GitHub CLI on PATH
+      - fails before extraction/install if attestation verification is unavailable
+        or unsuccessful
 
 SUPPORTED LAYOUT:
     update expects the standard managed install layout:
@@ -466,6 +484,7 @@ UPDATE NOTIFICATIONS:
 EXAMPLES:
     %s update --check-only
     %s update --yes
+    %s update --attestations required --yes
     %s update --force --yes
     %s update --keep 3 --yes
     %s update --version v4.1.8 --yes
@@ -473,6 +492,7 @@ EXAMPLES:
 		meta.ScriptName,
 		cfgDir,
 		config.DefaultAppConfigFile,
+		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,

@@ -83,10 +83,14 @@ check for and apply published upgrades with:
 ```bash
 /usr/local/bin/duplicacy-backup update --check-only
 sudo /usr/local/bin/duplicacy-backup update --yes
+sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
 ### Update trust model
+
+For the focused trust-model reference, see
+[Update Trust Model](update-trust-model.md).
 
 The update command uses the GitHub Releases API for this project, selects the
 asset for the NAS platform, downloads that tarball and its matching `.sha256`
@@ -99,15 +103,21 @@ release download path. Redirects are accepted only when they remain on the
 expected GitHub release or GitHub-owned asset delivery hosts.
 
 That protects against corrupted downloads, wrong assets, and modified tarballs
-that do not match the published checksum. It does not provide an independent
-publisher check during `duplicacy-backup update`: the tarball and checksum are
-both trusted because they came from the same GitHub release channel. New
-releases are immutable and publish GitHub release attestations so operators can
-manually verify releases and release assets before install. If your threat model
-includes a compromised
-GitHub release, compromised maintainer account, or malicious release asset
-replacement, treat the update command as insufficient on its own until
-updater-side attestation verification is added.
+that do not match the published checksum. New releases are immutable and
+publish GitHub release attestations. The default updater mode is
+`--attestations off`, which preserves existing NAS update behaviour and verifies
+only the checksum. Use `--attestations required` when you want the install to
+fail before extraction unless GitHub CLI can verify the downloaded tarball
+against the release attestation. Use `--attestations auto` when you want
+attestation verification if `gh` is available, while still allowing
+checksum-only installs on systems without GitHub CLI. If `gh` is available in
+`auto` mode and verification fails, the updater stops before extraction/install.
+
+Attestation verification strengthens the normal update path, but it still
+trusts GitHub as the release and attestation authority. If your threat model
+includes a compromised GitHub release, compromised maintainer account, or
+compromised GitHub attestation service, use an out-of-band review before
+installing.
 
 Unattended update failures can use the same notification providers as the rest
 of the tool, but the config is global rather than label-specific. Put update

@@ -265,7 +265,7 @@ func TestParseRequest_HealthStatus(t *testing.T) {
 
 func TestParseRequest_Update(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"update", "--check-only", "--force", "--keep", "3", "--version", "v4.1.8", "--yes", "--config-dir", "/cfg"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"update", "--check-only", "--force", "--keep", "3", "--version", "v4.1.8", "--attestations", "required", "--yes", "--config-dir", "/cfg"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -275,8 +275,24 @@ func TestParseRequest_Update(t *testing.T) {
 		!result.Request.UpdateYes ||
 		result.Request.UpdateKeep != 3 ||
 		result.Request.UpdateVersion != "v4.1.8" ||
+		result.Request.UpdateAttestations != "required" ||
 		result.Request.ConfigDir != "/cfg" {
 		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_UpdateRejectsInvalidAttestationMode(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"update", "--attestations", "maybe"}, meta, workflow.DefaultRuntime())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	reqErr, ok := err.(*workflow.RequestError)
+	if !ok || !reqErr.ShowUsage {
+		t.Fatalf("error = %#v", err)
+	}
+	if got := err.Error(); got != "--attestations must be one of: off, auto, required" {
+		t.Fatalf("error = %q", got)
 	}
 }
 

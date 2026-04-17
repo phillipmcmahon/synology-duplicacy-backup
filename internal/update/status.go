@@ -18,4 +18,38 @@ type Options struct {
 	Force            bool
 	Yes              bool
 	Keep             int
+	Attestations     string
+}
+
+type AttestationMode string
+
+const (
+	AttestationOff      AttestationMode = "off"
+	AttestationAuto     AttestationMode = "auto"
+	AttestationRequired AttestationMode = "required"
+)
+
+func normalizeAttestationMode(value string) (AttestationMode, error) {
+	switch value {
+	case "", string(AttestationOff):
+		return AttestationOff, nil
+	case string(AttestationAuto):
+		return AttestationAuto, nil
+	case string(AttestationRequired):
+		return AttestationRequired, nil
+	default:
+		return "", NewAttestationModeError(value)
+	}
+}
+
+type AttestationModeError struct {
+	Value string
+}
+
+func NewAttestationModeError(value string) *AttestationModeError {
+	return &AttestationModeError{Value: value}
+}
+
+func (e *AttestationModeError) Error() string {
+	return "invalid attestation mode " + e.Value + " (expected off, auto, or required)"
 }
