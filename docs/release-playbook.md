@@ -161,6 +161,8 @@ Rules for release notes:
 - Let the tag-triggered GitHub Actions workflow publish the release artefacts.
 - Do not manually upload local release tarballs to GitHub after tagging unless
   you are explicitly repairing a broken release.
+- Keep `build/release-prep/` outputs local. They are generated release working
+  notes for tagging and validation, not source artefacts to commit.
 
 Example:
 
