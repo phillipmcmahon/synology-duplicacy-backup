@@ -68,7 +68,8 @@ Suggested release-prep checklist:
 
 ### 2. Prepare version
 
-- Update the version constant in `cmd/duplicacy-backup/main.go`.
+- Leave the default version fallback in `cmd/duplicacy-backup/main.go` as
+  `dev`; release and package builds inject the real version with `-ldflags`.
 - Add the new release entry to `CHANGELOG.md`.
 - Make sure the changelog text reflects the release that will actually publish.
 
@@ -80,13 +81,15 @@ Use the standard Linux environment described in
 Default command:
 
 ```bash
-make release-prep
+make release-prep RELEASE_VERSION=4.x.y
 ```
 
 This command is the standard release-prep automation. It:
 
 - checks that the tree is clean
 - checks that you are on `main`
+- checks that the source fallback version is still `dev`
+- checks that `CHANGELOG.md` contains the requested release entry
 - runs Linux Go 1.26 validation
 - captures coverage
 - writes a draft release-notes file under `build/release-prep/`

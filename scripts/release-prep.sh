@@ -14,7 +14,7 @@ Linux Go 1.26 validation outputs, and generate a draft GitHub release-notes
 file with the measured coverage numbers.
 
 Options:
-  --version <value>   Release version without leading v (for example 2.1.7)
+  --version <value>   Required release version without leading v (for example 2.1.7)
   --help              Show this help text
 EOF
 }
@@ -68,15 +68,13 @@ BRANCH="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)"
 STATUS="$(git -C "$ROOT" status --porcelain)"
 [ -z "$STATUS" ] || fail "release prep requires a clean git tree"
 
-if [ -z "$VERSION" ]; then
-    VERSION="$(sed -n 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$ROOT/cmd/duplicacy-backup/main.go" | head -n 1)"
-fi
+[ -n "$VERSION" ] || fail "release prep requires --version <value>; use make release-prep RELEASE_VERSION=x.y.z"
 [ "${VERSION#v}" != "$VERSION" ] && VERSION="${VERSION#v}"
 [ -n "$VERSION" ] || fail "could not determine release version"
 
 CHANGELOG_TAG="## [v$VERSION]"
 grep -F "$CHANGELOG_TAG" "$ROOT/CHANGELOG.md" >/dev/null || fail "CHANGELOG.md does not contain $CHANGELOG_TAG"
-grep -F "version   = \"$VERSION\"" "$ROOT/cmd/duplicacy-backup/main.go" >/dev/null || fail "main.go version constant does not match $VERSION"
+grep -F 'version   = "dev"' "$ROOT/cmd/duplicacy-backup/main.go" >/dev/null || fail "main.go version fallback must remain dev; release builds inject main.version via ldflags"
 
 PREP_DIR="$ROOT/build/release-prep/v$VERSION"
 mkdir -p "$PREP_DIR"

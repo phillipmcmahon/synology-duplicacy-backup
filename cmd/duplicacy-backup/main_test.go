@@ -608,6 +608,12 @@ func TestRunWithArgs_VersionReturnsZero(t *testing.T) {
 	}
 }
 
+func TestDefaultVersionFallbackIsDev(t *testing.T) {
+	if version != "dev" {
+		t.Fatalf("version fallback = %q, want dev; release builds must inject main.version via ldflags", version)
+	}
+}
+
 func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		_, stderr := captureOutput(t, func() {

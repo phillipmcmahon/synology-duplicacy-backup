@@ -22,11 +22,11 @@ Treat this as the standard Linux environment for the project.
 For normal release work, prefer:
 
 ```bash
-make release-prep
+make release-prep RELEASE_VERSION=4.x.y
 ```
 
-That command wraps the standard Linux validation flow and writes the release
-prep outputs into `build/release-prep/`.
+That command wraps the standard Linux validation flow for the requested release
+version and writes the release prep outputs into `build/release-prep/`.
 
 ## Rules
 
