@@ -35,7 +35,9 @@ Use the project board and release issues in a lightweight, repeatable way:
 - Close each release child with a short comment that includes:
   - landed commit
   - validation run
-  - any live smoke or real-world verification
+  - published release URL
+  - NAS mirror result
+  - full release verification result
 - Do not create a separate publish issue by default. Treat tag-and-publish as
   the operational completion of the prepared release unless a failed release or
   repair path is substantial enough to justify its own issue.
@@ -70,6 +72,10 @@ Suggested release-prep checklist:
 - [ ] Linux Go 1.26 validation passed
 - [ ] release-prep notes generated
 - [ ] prep commit pushed to `main`
+- [ ] release tag pushed from the validated commit
+- [ ] GitHub release workflow passed
+- [ ] published artefacts mirrored to homestorage
+- [ ] full release verification passed with `scripts/verify-release.sh`
 
 ### 2. Prepare version
 
@@ -186,17 +192,8 @@ After the release workflow finishes:
 - confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story
-
-Supported command:
-
-```bash
-sh ./scripts/verify-release.sh --tag vX.Y.Z
-```
-
-The script verifies the published GitHub release, required release-note
-headings, expected packaged assets, GitHub release attestations,
-local-versus-remote tag commit alignment, and the mirrored artefact set on
-`homestorage`.
+- do not close the release-prep issue yet; full verification runs after the NAS
+  mirror step
 
 For a historical release published before release attestations were enabled,
 use `--skip-attestations`. Do not use that option for new releases.
@@ -250,6 +247,20 @@ and mirrors the files with a `tar`-over-SSH transfer (`tar -cf - . | ssh ...`).
 This avoids the filename
 and wildcard edge cases we saw from plain `scp` when copying files such as
 `Source code (zip)` to Synology.
+
+### 8. Verify the complete release
+
+After mirroring, run the full release verifier before closing the release-prep
+issue:
+
+```bash
+sh ./scripts/verify-release.sh --tag vX.Y.Z
+```
+
+The script verifies the published GitHub release, required release-note
+headings, expected packaged assets, GitHub release attestations, individual
+asset attestations, local-versus-remote tag commit alignment, and the mirrored
+artefact set on `homestorage`.
 
 ## Release Failure Rule
 
