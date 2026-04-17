@@ -194,6 +194,64 @@ func TestParseRequest_NotifyTestUpdateRejectsTarget(t *testing.T) {
 	}
 }
 
+func TestParseFailureContext_HealthUsesSharedFlags(t *testing.T) {
+	ctx := ParseFailureContext([]string{
+		"health", "verify",
+		"--target", "offsite-storj",
+		"--json-summary",
+		"--verbose",
+		"--config-dir", "/cfg",
+		"--secrets-dir", "/sec",
+		"homes",
+	})
+	if ctx.Kind != FailureRequestHealth || !ctx.JSONSummary {
+		t.Fatalf("ctx = %+v", ctx)
+	}
+	if ctx.Request.HealthCommand != "verify" ||
+		ctx.Request.RequestedTarget != "offsite-storj" ||
+		ctx.Request.ConfigDir != "/cfg" ||
+		ctx.Request.SecretsDir != "/sec" ||
+		ctx.Request.Source != "homes" ||
+		!ctx.Request.JSONSummary ||
+		!ctx.Request.Verbose {
+		t.Fatalf("request = %+v", ctx.Request)
+	}
+}
+
+func TestParseFailureContext_NotifyUsesSharedFlags(t *testing.T) {
+	ctx := ParseFailureContext([]string{
+		"notify", "test",
+		"--target", "offsite-storj",
+		"--provider", "ntfy",
+		"--severity", "critical",
+		"--summary", "Synthetic summary",
+		"--message", "Synthetic message",
+		"--event", "notification_test",
+		"--dry-run",
+		"--json-summary",
+		"--config-dir", "/cfg",
+		"--secrets-dir", "/sec",
+		"homes",
+	})
+	if ctx.Kind != FailureRequestNotify || !ctx.JSONSummary {
+		t.Fatalf("ctx = %+v", ctx)
+	}
+	if ctx.Request.NotifyCommand != "test" ||
+		ctx.Request.RequestedTarget != "offsite-storj" ||
+		ctx.Request.NotifyProvider != "ntfy" ||
+		ctx.Request.NotifySeverity != "critical" ||
+		ctx.Request.NotifySummary != "Synthetic summary" ||
+		ctx.Request.NotifyMessage != "Synthetic message" ||
+		ctx.Request.NotifyEvent != "notification_test" ||
+		ctx.Request.ConfigDir != "/cfg" ||
+		ctx.Request.SecretsDir != "/sec" ||
+		ctx.Request.Source != "homes" ||
+		!ctx.Request.DryRun ||
+		!ctx.Request.JSONSummary {
+		t.Fatalf("request = %+v", ctx.Request)
+	}
+}
+
 func TestParseRequest_HealthStatus(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"health", "status", "--target", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultRuntime())

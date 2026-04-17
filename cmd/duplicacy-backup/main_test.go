@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
@@ -1350,11 +1351,15 @@ func TestRunWithArgs_CleanupStorageUsesFixedExecutionOrder(t *testing.T) {
 	})
 }
 
-func TestInferHealthFailureRequest(t *testing.T) {
-	req := inferHealthFailureRequest([]string{
+func TestParseFailureContext_HealthRequest(t *testing.T) {
+	ctx := command.ParseFailureContext([]string{
 		"health", "verify", "--target", "offsite-storj", "--json-summary", "--verbose",
 		"--config-dir", "/cfg", "--secrets-dir", "/sec", "homes", "ignored",
 	})
+	if ctx.Kind != command.FailureRequestHealth || !ctx.JSONSummary {
+		t.Fatalf("ctx = %+v", ctx)
+	}
+	req := ctx.Request
 	if req.HealthCommand != "verify" {
 		t.Fatalf("HealthCommand = %q", req.HealthCommand)
 	}
@@ -1369,10 +1374,11 @@ func TestInferHealthFailureRequest(t *testing.T) {
 	}
 }
 
-func TestInferHealthFailureRequest_NonHealthCommandReturnsEmptyRequest(t *testing.T) {
-	req := inferHealthFailureRequest([]string{"--target", "onsite-usb", "homes"})
-	if req.HealthCommand != "" || req.RequestedTarget != "" || req.Source != "" || req.JSONSummary || req.Verbose {
-		t.Fatalf("req = %+v", req)
+func TestParseFailureContext_NonSpecialCommandReturnsEmptyRequest(t *testing.T) {
+	ctx := command.ParseFailureContext([]string{"--target", "onsite-usb", "homes"})
+	if ctx.Kind != command.FailureRequestNone || ctx.JSONSummary || ctx.Request.HealthCommand != "" ||
+		ctx.Request.RequestedTarget != "" || ctx.Request.Source != "" || ctx.Request.Verbose {
+		t.Fatalf("ctx = %+v", ctx)
 	}
 }
 
@@ -1512,8 +1518,8 @@ func TestBuildRequest_JSONSummaryNotifyUpdateFailureInfersScope(t *testing.T) {
 	}
 }
 
-func TestInferNotifyFailureRequest(t *testing.T) {
-	req := inferNotifyFailureRequest([]string{
+func TestParseFailureContext_NotifyRequest(t *testing.T) {
+	ctx := command.ParseFailureContext([]string{
 		"notify", "test",
 		"--target", "offsite-storj",
 		"--provider", "ntfy",
@@ -1526,6 +1532,10 @@ func TestInferNotifyFailureRequest(t *testing.T) {
 		"--secrets-dir", "/sec",
 		"homes", "ignored",
 	})
+	if ctx.Kind != command.FailureRequestNotify || !ctx.JSONSummary {
+		t.Fatalf("ctx = %+v", ctx)
+	}
+	req := ctx.Request
 	if req.NotifyCommand != "test" {
 		t.Fatalf("NotifyCommand = %q", req.NotifyCommand)
 	}
@@ -1546,14 +1556,18 @@ func TestInferNotifyFailureRequest(t *testing.T) {
 	}
 }
 
-func TestInferNotifyFailureRequest_UpdateScope(t *testing.T) {
-	req := inferNotifyFailureRequest([]string{
+func TestParseFailureContext_NotifyUpdateScope(t *testing.T) {
+	ctx := command.ParseFailureContext([]string{
 		"notify", "test", "update",
 		"--provider", "ntfy",
 		"--event", "update_install_failed",
 		"--dry-run",
 		"--json-summary",
 	})
+	if ctx.Kind != command.FailureRequestNotify || !ctx.JSONSummary {
+		t.Fatalf("ctx = %+v", ctx)
+	}
+	req := ctx.Request
 	if req.NotifyCommand != "test" || req.NotifyScope != "update" || req.Source != "" || req.Target() != "" {
 		t.Fatalf("req = %+v", req)
 	}
@@ -1565,13 +1579,12 @@ func TestInferNotifyFailureRequest_UpdateScope(t *testing.T) {
 	}
 }
 
-func TestInferNotifyFailureRequest_NonNotifyCommandReturnsDefaults(t *testing.T) {
-	req := inferNotifyFailureRequest([]string{"--target", "onsite-usb1", "homes"})
-	if req.NotifyCommand != "" || req.RequestedTarget != "" || req.Source != "" || req.DryRun || req.JSONSummary {
-		t.Fatalf("req = %+v", req)
-	}
-	if req.NotifyProvider != "all" || req.NotifySeverity != "warning" {
-		t.Fatalf("req = %+v", req)
+func TestParseFailureContext_NonNotifyCommandDoesNotApplyNotifyDefaults(t *testing.T) {
+	ctx := command.ParseFailureContext([]string{"--target", "onsite-usb1", "homes"})
+	if ctx.Kind != command.FailureRequestNone || ctx.Request.NotifyCommand != "" ||
+		ctx.Request.RequestedTarget != "" || ctx.Request.Source != "" || ctx.Request.DryRun ||
+		ctx.Request.JSONSummary || ctx.Request.NotifyProvider != "" || ctx.Request.NotifySeverity != "" {
+		t.Fatalf("ctx = %+v", ctx)
 	}
 }
 
