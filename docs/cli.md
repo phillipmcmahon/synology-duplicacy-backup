@@ -239,6 +239,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - notification auth tokens are target-scoped in the secrets file, so authenticated delivery must be configured under each notifying `[targets.<name>]` section
 - update notification settings are global under `[update.notify]`; they are intentionally separate from label and target notification settings
 - notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
+- health notification payloads also carry `failure_code`, `failure_codes`, and `recommended_action_codes` in `details` when the health report has structured remediation metadata
 - native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
 - default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
 - installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths`, `update --check-only`, and dry-run update notification tests are common normal-user exceptions

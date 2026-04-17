@@ -110,11 +110,11 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 			fmt.Sprintf("Verify found failed revisions for %s/%s", report.Label, report.Target),
 			report.Label, report.Target, report.StorageType, report.Location,
 			"", report.CheckType, report.Status,
-			map[string]any{
+			healthNotificationDetails(report, map[string]any{
 				"failed_revision_count": report.FailedRevisionCount,
 				"failed_revisions":      append([]int(nil), report.FailedRevisions...),
 				"message":               healthCheckMessage(report, "Integrity check"),
-			},
+			}),
 		)
 	}
 
@@ -123,10 +123,10 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 			fmt.Sprintf("Freshness failure for %s/%s", report.Label, report.Target),
 			report.Label, report.Target, report.StorageType, report.Location,
 			"", report.CheckType, report.Status,
-			map[string]any{
+			healthNotificationDetails(report, map[string]any{
 				"message":   message,
 				"freshness": message,
-			},
+			}),
 		)
 	}
 
@@ -136,22 +136,41 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 			fmt.Sprintf("Health degraded for %s/%s", report.Label, report.Target),
 			report.Label, report.Target, report.StorageType, report.Location,
 			"", report.CheckType, report.Status,
-			map[string]any{
+			healthNotificationDetails(report, map[string]any{
 				"message": firstHealthIssueMessage(report),
-			},
+			}),
 		)
 	case "unhealthy":
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", "health_unhealthy",
 			fmt.Sprintf("Health unhealthy for %s/%s", report.Label, report.Target),
 			report.Label, report.Target, report.StorageType, report.Location,
 			"", report.CheckType, report.Status,
-			map[string]any{
+			healthNotificationDetails(report, map[string]any{
 				"message": firstHealthIssueMessage(report),
-			},
+			}),
 		)
 	default:
 		return nil
 	}
+}
+
+func healthNotificationDetails(report *HealthReport, details map[string]any) map[string]any {
+	if details == nil {
+		details = make(map[string]any)
+	}
+	if report == nil {
+		return details
+	}
+	if report.FailureCode != "" {
+		details["failure_code"] = report.FailureCode
+	}
+	if len(report.FailureCodes) > 0 {
+		details["failure_codes"] = append([]string(nil), report.FailureCodes...)
+	}
+	if len(report.RecommendedActions) > 0 {
+		details["recommended_action_codes"] = append([]string(nil), report.RecommendedActions...)
+	}
+	return details
 }
 
 func lastFailedPhaseName(report *RunReport) string {

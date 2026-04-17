@@ -168,6 +168,9 @@ func TestBuildHealthNotificationPayload_VerifyFailedRevisions(t *testing.T) {
 		Location:            locationLocal,
 		FailedRevisionCount: 2,
 		FailedRevisions:     []int{41, 39},
+		FailureCode:         verifyFailureIntegrityFailed,
+		FailureCodes:        []string{verifyFailureIntegrityFailed, verifyFailureResultMissing},
+		RecommendedActions:  []string{"check_storage_access", "rerun_verify"},
 		Checks: []HealthCheck{
 			{Name: "Integrity check", Result: "fail", Message: "Integrity verification found failed revisions"},
 		},
@@ -182,6 +185,50 @@ func TestBuildHealthNotificationPayload_VerifyFailedRevisions(t *testing.T) {
 	}
 	if got := payload.Details["failed_revision_count"]; got != 2 {
 		t.Fatalf("failed_revision_count = %#v", got)
+	}
+	if got := payload.Details["failure_code"]; got != verifyFailureIntegrityFailed {
+		t.Fatalf("failure_code = %#v", got)
+	}
+	if got, ok := payload.Details["failure_codes"].([]string); !ok || len(got) != 2 || got[0] != verifyFailureIntegrityFailed || got[1] != verifyFailureResultMissing {
+		t.Fatalf("failure_codes = %#v", payload.Details["failure_codes"])
+	}
+	if got, ok := payload.Details["recommended_action_codes"].([]string); !ok || len(got) != 2 || got[0] != "check_storage_access" || got[1] != "rerun_verify" {
+		t.Fatalf("recommended_action_codes = %#v", payload.Details["recommended_action_codes"])
+	}
+}
+
+func TestBuildHealthNotificationPayload_VerifyMetadataWithoutFailedRevisions(t *testing.T) {
+	rt := testRuntime()
+	report := &HealthReport{
+		Status:             "unhealthy",
+		CheckType:          "verify",
+		Label:              "homes",
+		Target:             "offsite-storj",
+		StorageType:        storageTypeObject,
+		Location:           locationRemote,
+		FailureCode:        verifyFailureNoRevisionsFound,
+		FailureCodes:       []string{verifyFailureNoRevisionsFound},
+		RecommendedActions: []string{verifyActionRunBackup},
+		Issues: []HealthIssue{
+			{Severity: "error", Message: "No revisions were found"},
+		},
+	}
+
+	payload := buildHealthNotificationPayload(rt, report)
+	if payload == nil {
+		t.Fatal("buildHealthNotificationPayload() = nil")
+	}
+	if payload.Event != "health_unhealthy" || payload.Check != "verify" || payload.Severity != "critical" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if got := payload.Details["failure_code"]; got != verifyFailureNoRevisionsFound {
+		t.Fatalf("failure_code = %#v", got)
+	}
+	if got, ok := payload.Details["failure_codes"].([]string); !ok || len(got) != 1 || got[0] != verifyFailureNoRevisionsFound {
+		t.Fatalf("failure_codes = %#v", payload.Details["failure_codes"])
+	}
+	if got, ok := payload.Details["recommended_action_codes"].([]string); !ok || len(got) != 1 || got[0] != verifyActionRunBackup {
+		t.Fatalf("recommended_action_codes = %#v", payload.Details["recommended_action_codes"])
 	}
 }
 

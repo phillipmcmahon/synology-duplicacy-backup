@@ -234,6 +234,11 @@ Unhealthy verify runs also emit machine-focused classification fields:
 - `failure_codes`
 - `recommended_action_codes`
 
+Health notifications include those same remediation fields in the payload
+`details` whenever the health report contains them. Webhook consumers can use
+those fields directly, and `ntfy` still keeps the visible message focused on
+the operator-readable summary.
+
 `--target <name>` selects one named target from the label config. Runtime,
 `config`, `health`, and label-scoped `notify test` commands require an
 explicit target. Global update commands and `notify test update` do not.
