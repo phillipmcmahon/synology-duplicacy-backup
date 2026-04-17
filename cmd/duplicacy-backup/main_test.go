@@ -988,7 +988,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml") {
+		if !strings.Contains(stderr, "configuration file not found:") || !strings.Contains(stderr, "homes-backup.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureFooter(t, stderr)
@@ -1106,11 +1106,11 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(json failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Configuration file not found:") {
+		if !strings.Contains(stderr, "configuration file not found:") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stdout, "\"result\": \"failed\"") ||
-			!strings.Contains(stdout, "\"failure_message\": \"Configuration file not found:") {
+			!strings.Contains(stdout, "\"failure_message\": \"configuration file not found:") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -1153,7 +1153,7 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 				t.Fatalf("runWithArgs(pre-run notification failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Required command 'duplicacy' not found") {
+		if !strings.Contains(stderr, "required command 'duplicacy' not found") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 

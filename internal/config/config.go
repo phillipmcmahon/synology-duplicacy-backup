@@ -551,42 +551,6 @@ func mergeCommon(dst map[string]string, src *tableCommon) {
 	}
 }
 
-func mergeLocal(dst map[string]string, src *tableLocal) {
-	if src == nil {
-		return
-	}
-	if src.Destination != nil {
-		dst["DESTINATION"] = *src.Destination
-	}
-	if src.Filter != nil {
-		dst["FILTER"] = *src.Filter
-	}
-	if src.LocalOwner != nil {
-		dst["LOCAL_OWNER"] = *src.LocalOwner
-	}
-	if src.LocalGroup != nil {
-		dst["LOCAL_GROUP"] = *src.LocalGroup
-	}
-	if src.LogRetentionDays != nil {
-		dst["LOG_RETENTION_DAYS"] = fmt.Sprintf("%d", *src.LogRetentionDays)
-	}
-	if src.Prune != nil {
-		dst["PRUNE"] = *src.Prune
-	}
-	if src.Threads != nil {
-		dst["THREADS"] = fmt.Sprintf("%d", *src.Threads)
-	}
-	if src.SafePruneMaxDeletePercent != nil {
-		dst["SAFE_PRUNE_MAX_DELETE_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeletePercent)
-	}
-	if src.SafePruneMaxDeleteCount != nil {
-		dst["SAFE_PRUNE_MAX_DELETE_COUNT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeleteCount)
-	}
-	if src.SafePruneMinTotalForPercent != nil {
-		dst["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMinTotalForPercent)
-	}
-}
-
 func mergeCapture(dst map[string]string, src *tableCapture) {
 	if src == nil {
 		return

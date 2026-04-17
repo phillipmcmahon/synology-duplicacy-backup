@@ -201,6 +201,7 @@ func isSensitiveArgKey(value string) bool {
 		"secret-key",
 		"api-key",
 		"bearer-token",
+		"webhook-url",
 		"storj-s3-id",
 		"storj-s3-secret",
 	} {

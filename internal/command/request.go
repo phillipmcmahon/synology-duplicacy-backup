@@ -531,7 +531,7 @@ func validateTargetAndLabel(req *workflow.Request) error {
 
 func validateLabel(source string) error {
 	if err := workflow.ValidateLabel(source); err != nil {
-		return fmt.Errorf("Invalid source label: %w", err)
+		return fmt.Errorf("invalid source label: %w", err)
 	}
 	return nil
 }

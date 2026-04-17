@@ -495,6 +495,39 @@ func TestFormatCommand_TrailingSensitiveArgKeyHasNoPhantomValue(t *testing.T) {
 	}
 }
 
+func TestFormatCommand_RedactsEnvStyleSensitiveArgs(t *testing.T) {
+	got := formatCommand("env", []string{
+		"NTFY_TOKEN=super-secret-token",
+		"AWS_SECRET_ACCESS_KEY=super-secret-key",
+		"DUPLICACY_WEBHOOK_URL=https://hooks.example.com/private-token",
+		"PATH=/usr/local/bin:/usr/bin",
+		"duplicacy",
+		"backup",
+	})
+
+	for _, secret := range []string{
+		"super-secret-token",
+		"super-secret-key",
+		"https://hooks.example.com/private-token",
+	} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("formatCommand leaked %q in %q", secret, got)
+		}
+	}
+
+	for _, token := range []string{
+		"NTFY_TOKEN=[REDACTED]",
+		"AWS_SECRET_ACCESS_KEY=[REDACTED]",
+		"DUPLICACY_WEBHOOK_URL=[REDACTED]",
+		"PATH=/usr/local/bin:/usr/bin",
+		"duplicacy backup",
+	} {
+		if !strings.Contains(got, token) {
+			t.Fatalf("formatCommand = %q, want token %q", got, token)
+		}
+	}
+}
+
 func TestCommandRunner_DebugLogRedactsSensitiveArgs(t *testing.T) {
 	oldStderr := os.Stderr
 	pipeR, pipeW, err := os.Pipe()

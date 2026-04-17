@@ -97,16 +97,16 @@ func (p *Planner) FailureContext(req *Request) *Plan {
 
 func (p *Planner) validateEnvironment(req *Request) error {
 	if p.rt.Geteuid() != 0 {
-		return fmt.Errorf("Must be run as root")
+		return fmt.Errorf("must be run as root")
 	}
 	if req.DoBackup || req.DoPrune || req.DoCleanupStore {
 		if _, err := p.rt.LookPath("duplicacy"); err != nil {
-			return fmt.Errorf("Required command 'duplicacy' not found")
+			return fmt.Errorf("required command 'duplicacy' not found")
 		}
 	}
 	if req.DoBackup {
 		if _, err := p.rt.LookPath("btrfs"); err != nil {
-			return fmt.Errorf("Required command 'btrfs' not found (needed for backup snapshots)")
+			return fmt.Errorf("required command 'btrfs' not found (needed for backup snapshots)")
 		}
 	}
 	return nil
@@ -169,7 +169,7 @@ func (p *Planner) loadConfigForValidation(plan *Plan) (*config.Config, error) {
 
 func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, validateSemantics bool) (*config.Config, error) {
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Configuration file not found: %s", plan.ConfigFile)
+		return nil, fmt.Errorf("configuration file not found: %s", plan.ConfigFile)
 	}
 
 	cfg := config.NewDefaults()

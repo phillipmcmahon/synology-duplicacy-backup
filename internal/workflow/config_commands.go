@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
@@ -124,9 +123,9 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	if sourceAccessible && destinationErr == nil {
 		switch {
 		case cfg.UsesFilesystem():
-			repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
 		case cfg.UsesObjectStorage() && secretsChecked && secretsErr == nil:
-			repoStatus, repoErr, repoHint = validateConfigRepository(plan, cfg, planner.runner, sec)
+			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
 		}
 		if repoStatus == "Not initialized" && repoErr == nil {
 			repoFailureMessage = "Repository is reachable but not initialized"
@@ -293,20 +292,8 @@ func formatConfigValidationOutput(title string, resolved, validation []SummaryLi
 	return presentation.FormatValidationReport(title, resolved, validation, result, enableColour)
 }
 
-func writeConfigSection(b *strings.Builder, name string, lines []SummaryLine, semanticValues bool, enableColour bool) {
-	_ = b
-	_ = name
-	_ = lines
-	_ = semanticValues
-	_ = enableColour
-}
-
 func colourizeConfigValidationValue(value string, enableColour bool) string {
 	return presentation.ColourizeValidationValue(value, enableColour)
-}
-
-func colourizeConfigValidationResult(value string, enableColour bool) string {
-	return presentation.ColourizeValidationResult(value, enableColour)
 }
 
 type configValidationCollector struct {
@@ -401,52 +388,52 @@ func validateConfigDestination(cfg *config.Config) (string, error) {
 	}
 }
 
-func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Runner, sec *secrets.Secrets) (string, error, string) {
+func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Runner, sec *secrets.Secrets) (string, string, error) {
 	if cfg.UsesFilesystem() {
-		if status, err, hint := validateLocalRepositoryReadiness(plan.BackupTarget); err != nil || status == "Not initialized" {
-			return status, err, hint
+		if status, hint, err := validateLocalRepositoryReadiness(plan.BackupTarget); err != nil || status == "Not initialized" {
+			return status, hint, err
 		}
 	}
 
 	dup, err := prepareConfigValidationProbe(plan, runner, sec)
 	if err != nil {
-		return "", err, ""
+		return "", "", err
 	}
 	defer dup.Cleanup()
 
 	state, _, err := dup.ProbeRepository()
 	switch state {
 	case duplicacy.RepositoryAccessible:
-		return "Valid", nil, ""
+		return "Valid", "", nil
 	case duplicacy.RepositoryUninitialized:
-		return "Not initialized", nil, "initialize the repository before running backups"
+		return "Not initialized", "initialize the repository before running backups", nil
 	default:
-		return "", err, ""
+		return "", "", err
 	}
 }
 
-func validateLocalRepositoryReadiness(repoPath string) (string, error, string) {
+func validateLocalRepositoryReadiness(repoPath string) (string, string, error) {
 	if repoPath == "" {
-		return "", configPathError("repository path must not be empty"), ""
+		return "", "", configPathError("repository path must not be empty")
 	}
 	info, err := os.Stat(repoPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "Not initialized", nil, "initialize the repository before running backups"
+			return "Not initialized", "initialize the repository before running backups", nil
 		}
-		return "", configPathError(fmt.Sprintf("local repository path is not accessible: %v", err)), ""
+		return "", "", configPathError(fmt.Sprintf("local repository path is not accessible: %v", err))
 	}
 	if !info.IsDir() {
-		return "", configPathError(fmt.Sprintf("local repository path must be a directory: %s", repoPath)), ""
+		return "", "", configPathError(fmt.Sprintf("local repository path must be a directory: %s", repoPath))
 	}
 	snapshotsDir := filepath.Join(repoPath, "snapshots")
 	if snapshotInfo, statErr := os.Stat(snapshotsDir); statErr != nil || !snapshotInfo.IsDir() {
 		if statErr != nil && !os.IsNotExist(statErr) {
-			return "", configPathError(fmt.Sprintf("local repository snapshots directory is not accessible: %v", statErr)), ""
+			return "", "", configPathError(fmt.Sprintf("local repository snapshots directory is not accessible: %v", statErr))
 		}
-		return "Not initialized", nil, "initialize the repository before running backups"
+		return "Not initialized", "initialize the repository before running backups", nil
 	}
-	return "Valid", nil, ""
+	return "Valid", "", nil
 }
 
 func prepareConfigValidationProbe(plan *Plan, runner execpkg.Runner, sec *secrets.Secrets) (*duplicacy.Setup, error) {
@@ -514,17 +501,6 @@ func validateObjectDestination(destination string) (string, error) {
 		return "", configPathError(fmt.Sprintf("object destination host resolved without any addresses: %s", host))
 	}
 	return "Resolved", nil
-}
-
-func configDestinationHost(destination, storageType string) string {
-	if storageType != storageTypeObject {
-		return ""
-	}
-	parsed, err := url.Parse(destination)
-	if err != nil {
-		return ""
-	}
-	return parsed.Hostname()
 }
 
 func configPathError(message string) error {

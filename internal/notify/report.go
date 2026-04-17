@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 type CommandError struct {
@@ -159,7 +161,7 @@ func formatTestText(report *TestReport) string {
 
 	var providerLines []reportLine
 	for _, provider := range report.Providers {
-		label := strings.Title(provider.Provider)
+		label := presentation.Title(provider.Provider)
 		value := provider.Result
 		if provider.Message != "" {
 			value = fmt.Sprintf("%s (%s)", value, provider.Message)
@@ -195,7 +197,7 @@ func formatTestText(report *TestReport) string {
 	if result == "" {
 		result = "unknown"
 	}
-	fmt.Fprintf(&b, "  %-20s : %s\n", "Result", strings.Title(result))
+	fmt.Fprintf(&b, "  %-20s : %s\n", "Result", presentation.Title(result))
 	return b.String()
 }
 

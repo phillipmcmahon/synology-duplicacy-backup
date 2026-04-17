@@ -8,6 +8,8 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Release from a clean `main` tree only.
 - Validate from the actual release tree, not from an older commit.
 - Run release validation in Linux Go 1.26 only.
+- Run Staticcheck as part of release validation; CI pins
+  `honnef.co/go/tools/cmd/staticcheck@v0.7.0`.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
 - If one or more release attempts were superseded, fold their user-facing

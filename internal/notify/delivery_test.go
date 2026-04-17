@@ -115,13 +115,13 @@ func TestConfiguredDestinationsAndHasDestination(t *testing.T) {
 		t.Fatalf("destinations = %+v", destinations)
 	}
 
-	if _, err := ConfiguredDestinationsForScope(empty, ProviderNtfy, "homes label"); err == nil || !strings.Contains(err.Error(), "No ntfy notification destination") {
+	if _, err := ConfiguredDestinationsForScope(empty, ProviderNtfy, "homes label"); err == nil || !strings.Contains(err.Error(), "no ntfy notification destination") {
 		t.Fatalf("ConfiguredDestinationsForScope(missing ntfy) err = %v", err)
 	}
-	if _, err := ConfiguredDestinationsForScope(empty, ProviderWebhook, "homes label"); err == nil || !strings.Contains(err.Error(), "No webhook notification destination") {
+	if _, err := ConfiguredDestinationsForScope(empty, ProviderWebhook, "homes label"); err == nil || !strings.Contains(err.Error(), "no webhook notification destination") {
 		t.Fatalf("ConfiguredDestinationsForScope(missing webhook) err = %v", err)
 	}
-	if _, err := ConfiguredDestinationsForScope(empty, "discord", "homes label"); err == nil || !strings.Contains(err.Error(), "Unsupported notify provider") {
+	if _, err := ConfiguredDestinationsForScope(empty, "discord", "homes label"); err == nil || !strings.Contains(err.Error(), "unsupported notify provider") {
 		t.Fatalf("ConfiguredDestinationsForScope(unsupported) err = %v", err)
 	}
 }

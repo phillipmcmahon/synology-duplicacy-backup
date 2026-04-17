@@ -159,21 +159,21 @@ func ConfiguredDestinationsForScope(cfg config.HealthNotifyConfig, provider stri
 			destinations = append(destinations, Destination{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)})
 		}
 		if len(destinations) == 0 {
-			return nil, fmt.Errorf("No notification destinations are configured for the %s", scope)
+			return nil, fmt.Errorf("no notification destinations are configured for the %s", scope)
 		}
 		return destinations, nil
 	case ProviderWebhook:
 		if !webhookConfigured {
-			return nil, fmt.Errorf("No webhook notification destination is configured for the %s", scope)
+			return nil, fmt.Errorf("no webhook notification destination is configured for the %s", scope)
 		}
 		return []Destination{{Provider: ProviderWebhook, Destination: cfg.WebhookURL}}, nil
 	case ProviderNtfy:
 		if !ntfyConfigured {
-			return nil, fmt.Errorf("No ntfy notification destination is configured for the %s", scope)
+			return nil, fmt.Errorf("no ntfy notification destination is configured for the %s", scope)
 		}
 		return []Destination{{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)}}, nil
 	default:
-		return nil, fmt.Errorf("Unsupported notify provider %q", provider)
+		return nil, fmt.Errorf("unsupported notify provider %q", provider)
 	}
 }
 
@@ -184,7 +184,7 @@ func sendToProvider(provider string, cfg config.HealthNotifyConfig, secretsFile,
 	case ProviderNtfy:
 		return sendNtfyNotification(cfg, secretsFile, target, payload, opts)
 	default:
-		return fmt.Errorf("Unsupported notify provider %q", provider)
+		return fmt.Errorf("unsupported notify provider %q", provider)
 	}
 }
 

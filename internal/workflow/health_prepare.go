@@ -1,10 +1,9 @@
 package workflow
 
 import (
-	"strings"
-
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -35,7 +34,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
 	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
-	plan.OperationMode = "Health " + strings.Title(req.HealthCommand)
+	plan.OperationMode = "Health " + presentation.Title(req.HealthCommand)
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
 	plan.LogRetentionDays = cfg.LogRetentionDays

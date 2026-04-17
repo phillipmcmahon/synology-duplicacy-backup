@@ -2,10 +2,10 @@ package health
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 type Presenter struct {
@@ -23,7 +23,7 @@ func (p *Presenter) PrintHeader(report *Report) {
 	}
 	p.log.PrintSeparator()
 	p.log.Info("%s", statusLinef("Health check started - %s", report.StartedAt.Format("2006-01-02 15:04:05")))
-	p.log.PrintLine("Check", strings.Title(report.CheckType))
+	p.log.PrintLine("Check", presentation.Title(report.CheckType))
 	p.log.PrintLine("Label", report.Label)
 	p.log.PrintLine("Target", report.Target)
 	if report.StorageType != "" {
@@ -50,7 +50,7 @@ func (p *Presenter) PrintReport(report *Report) {
 		p.printCheck(check)
 	}
 	p.log.PrintSeparator()
-	p.log.Info("  %s : %s", p.log.FormatLabel("Result"), p.log.FormatResult(strings.Title(report.Status)))
+	p.log.Info("  %s : %s", p.log.FormatLabel("Result"), p.log.FormatResult(presentation.Title(report.Status)))
 	p.log.PrintLine("Code", fmt.Sprintf("%d", ExitCode(report.Status)))
 	p.log.PrintLine("Duration", FormatClockDuration(report.CompletedAt.Sub(report.StartedAt)))
 	p.log.Info("%s", statusLinef("Health check completed - %s", report.CompletedAt.Format("2006-01-02 15:04:05")))

@@ -180,7 +180,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 		rt := testRuntime()
 		rt.Geteuid = func() int { return 1000 }
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || err.Error() != "Must be run as root" {
+		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || err.Error() != "must be run as root" {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -194,7 +194,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 			return "/usr/bin/true", nil
 		}
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoPrune: true}); err == nil || !strings.Contains(err.Error(), "Required command 'duplicacy' not found") {
+		if err := planner.validateEnvironment(&Request{DoPrune: true}); err == nil || !strings.Contains(err.Error(), "required command 'duplicacy' not found") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -208,7 +208,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 			return "/usr/bin/true", nil
 		}
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || !strings.Contains(err.Error(), "Required command 'btrfs' not found") {
+		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || !strings.Contains(err.Error(), "required command 'btrfs' not found") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -259,7 +259,7 @@ func TestPlannerLoadConfig_FixPermsRequiresOwnerGroup(t *testing.T) {
 func TestPlannerLoadConfig_MissingFile(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{ConfigFile: filepath.Join(t.TempDir(), "missing.toml")})
-	if err == nil || !strings.Contains(err.Error(), "Configuration file not found") {
+	if err == nil || !strings.Contains(err.Error(), "configuration file not found") {
 		t.Fatalf("loadConfig() error = %v", err)
 	}
 }

@@ -16,7 +16,7 @@ All external commands are still mocked through `internal/exec.Runner`.
 ```bash
 # Representative Linux Go 1.26 validation
 docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
-  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./... && /usr/local/go/bin/go vet ./...'
+  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./... && /usr/local/go/bin/go vet ./... && /usr/local/go/bin/go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...'
 
 # Full coverage pass in the same environment
 docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
@@ -42,20 +42,32 @@ Representative Linux Go 1.26 validation for the current release baseline:
 
 - `go test ./...`
 - `go vet ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
 - `go test -cover ./...`
 
-Current Linux Go 1.26 development validation snapshot after #110:
+Current Linux Go 1.26 development validation snapshot:
 
 - `go test ./...`
 - `go vet ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
 - `go test -cover ./...`
-- overall coverage: `85.3%`
+- overall coverage: `85.7%`
 - `cmd/duplicacy-backup`: `92.7%`
-- `internal/workflow`: `83.3%`
+- `internal/workflow`: `83.9%`
 - `internal/update`: `83.3%`
 - `internal/duplicacy`: `81.2%`
-- `internal/exec`: `93.7%`
+- `internal/exec`: `95.2%`
 - `internal/secrets`: `93.3%`
+- `internal/config`: `88.1%`
+
+Additional #114 and #115 validation:
+
+- CI now runs pinned Staticcheck validation with
+  `honnef.co/go/tools/cmd/staticcheck@v0.7.0`.
+- Staticcheck findings are resolved rather than suppressed, including unused
+  helpers, deprecated title casing, error style, and one unused test assignment.
+- Command redaction tests now cover env-style `KEY=value` wrappers for token,
+  secret access key, and webhook URL values.
 
 Additional #110 validation:
 

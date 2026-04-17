@@ -58,7 +58,7 @@ func TestIntegration_BackupCommandSimulation(t *testing.T) {
 	}
 
 	// Simulate CreateSnapshot
-	stdout, _, err = mock.Run(ctx, "btrfs", "subvolume", "snapshot", "-r", "/volume1/homes", "/volume1/homes-snap")
+	_, _, err = mock.Run(ctx, "btrfs", "subvolume", "snapshot", "-r", "/volume1/homes", "/volume1/homes-snap")
 	if err != nil {
 		t.Fatalf("snapshot failed: %v", err)
 	}
