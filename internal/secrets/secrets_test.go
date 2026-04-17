@@ -132,6 +132,22 @@ func TestParseSecrets_UnknownKeyRejected(t *testing.T) {
 	}
 }
 
+func TestParseSecrets_ReportsAllUppercaseKeys(t *testing.T) {
+	body := "[targets.offsite-storj]\nSTORJ_S3_ID = \"abc\"\nSTORJ_S3_SECRET = \"def\"\nSTORJ_S3_ID = \"duplicate\"\n"
+	_, err := ParseSecrets(strings.NewReader(body), "test", "offsite-storj")
+	if err == nil {
+		t.Fatal("expected uppercase-key error")
+	}
+	for _, want := range []string{"STORJ_S3_ID", "STORJ_S3_SECRET", "lower snake case"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %v, want %q", err, want)
+		}
+	}
+	if strings.Count(err.Error(), "STORJ_S3_ID") != 1 {
+		t.Fatalf("duplicate key should only be reported once: %v", err)
+	}
+}
+
 func TestParseSecrets_MalformedTOMLRejected(t *testing.T) {
 	_, err := ParseSecrets(strings.NewReader("[targets.offsite-storj]\nstorj_s3_id = \"abc\"\nstorj_s3_secret = [\n"), "test", "offsite-storj")
 	if err == nil {
@@ -237,10 +253,10 @@ func TestParseSecrets_MissingTargetTable(t *testing.T) {
 }
 
 func TestMaskedHelpers(t *testing.T) {
-	if (&Secrets{StorjS3ID: "ABCDEFGHIJ"}).MaskedID() != "****GHIJ" {
+	if (&Secrets{StorjS3ID: "ABCDEFGHIJ"}).MaskedID() != "****" {
 		t.Fatal("unexpected masked ID")
 	}
-	if (&Secrets{StorjS3Secret: "ABCDEFGHIJ"}).MaskedSecret() != "****GHIJ" {
+	if (&Secrets{StorjS3Secret: "ABCDEFGHIJ"}).MaskedSecret() != "****" {
 		t.Fatal("unexpected masked secret")
 	}
 	if (&Secrets{StorjS3ID: "AB"}).MaskedID() != "****" {
@@ -290,9 +306,14 @@ func TestParseOptionalTargetToken(t *testing.T) {
 	})
 
 	t.Run("rejects uppercase keys", func(t *testing.T) {
-		_, err := parseOptionalTargetToken("[targets.offsite-storj]\nHEALTH_NTFY_TOKEN = \"secret-token\"\n", "test.toml", "offsite-storj", ntfySelector)
+		_, err := parseOptionalTargetToken("[targets.offsite-storj]\nHEALTH_NTFY_TOKEN = \"secret-token\"\nHEALTH_WEBHOOK_BEARER_TOKEN = \"secret-token\"\n", "test.toml", "offsite-storj", ntfySelector)
 		if err == nil || !strings.Contains(err.Error(), "lower snake case") {
 			t.Fatalf("err = %v", err)
+		}
+		for _, want := range []string{"HEALTH_NTFY_TOKEN", "HEALTH_WEBHOOK_BEARER_TOKEN"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("err = %v, want %q", err, want)
+			}
 		}
 	})
 

@@ -41,6 +41,8 @@ type fileSecrets struct {
 
 var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
 
+const maskedSecretPlaceholder = "****"
+
 // GetSecretsFilePath returns the expected secrets file path for a label.
 func GetSecretsFilePath(secretsDir, label string) string {
 	return filepath.Join(secretsDir, fmt.Sprintf("%s-secrets.toml", label))
@@ -77,9 +79,8 @@ func ParseSecrets(r io.Reader, source, target string) (*Secrets, error) {
 		return nil, apperrors.NewSecretsError("read", fmt.Errorf("error reading secrets file: %w", err), "source", source)
 	}
 	text := string(body)
-	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
-		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
-		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", source)
+	if err := validateSecretsKeysUseLowerSnakeCase(text, source); err != nil {
+		return nil, err
 	}
 
 	var raw fileSecrets
@@ -162,9 +163,8 @@ func loadOptionalTargetToken(path, target string, selectToken func(fileTargetSec
 }
 
 func parseOptionalTargetToken(text, source, target string, selectToken func(fileTargetSecrets) *string) (string, error) {
-	if match := upperCaseSecretsKeyPattern.FindString(text); match != "" {
-		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
-		return "", apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", key), "source", source)
+	if err := validateSecretsKeysUseLowerSnakeCase(text, source); err != nil {
+		return "", err
 	}
 
 	var raw fileSecrets
@@ -199,18 +199,50 @@ func (s *Secrets) Validate() error {
 	return nil
 }
 
-// MaskedID returns the last 4 characters of the S3 ID, prefixed with ****.
-func (s *Secrets) MaskedID() string {
-	if len(s.StorjS3ID) < 4 {
-		return "****"
+func validateSecretsKeysUseLowerSnakeCase(text, source string) error {
+	keys := upperCaseSecretsKeys(text)
+	if len(keys) == 0 {
+		return nil
 	}
-	return "****" + s.StorjS3ID[len(s.StorjS3ID)-4:]
+	if len(keys) == 1 {
+		return apperrors.NewSecretsError("parse", fmt.Errorf("secrets key %q must use lower snake case in TOML files", keys[0]), "source", source)
+	}
+	return apperrors.NewSecretsError("parse", fmt.Errorf("secrets keys %s must use lower snake case in TOML files", quoteKeys(keys)), "source", source)
 }
 
-// MaskedSecret returns the last 4 characters of the S3 secret, prefixed with ****.
-func (s *Secrets) MaskedSecret() string {
-	if len(s.StorjS3Secret) < 4 {
-		return "****"
+func upperCaseSecretsKeys(text string) []string {
+	matches := upperCaseSecretsKeyPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return nil
 	}
-	return "****" + s.StorjS3Secret[len(s.StorjS3Secret)-4:]
+
+	keys := make([]string, 0, len(matches))
+	seen := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
+		key := strings.TrimSpace(strings.TrimSuffix(match, "="))
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func quoteKeys(keys []string) string {
+	quoted := make([]string, len(keys))
+	for i, key := range keys {
+		quoted[i] = fmt.Sprintf("%q", key)
+	}
+	return strings.Join(quoted, ", ")
+}
+
+// MaskedID returns an opaque placeholder for the S3 ID.
+func (s *Secrets) MaskedID() string {
+	return maskedSecretPlaceholder
+}
+
+// MaskedSecret returns an opaque placeholder for the S3 secret.
+func (s *Secrets) MaskedSecret() string {
+	return maskedSecretPlaceholder
 }
