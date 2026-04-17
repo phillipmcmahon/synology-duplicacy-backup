@@ -6,6 +6,7 @@ REPO="phillipmcmahon/synology-duplicacy-backup"
 HOST="homestorage"
 REMOTE_ROOT="/volume1/homes/phillipmcmahon/code/duplicacy-backup"
 TAG=""
+VERIFY_ATTESTATIONS=1
 
 usage() {
     cat <<'EOF'
@@ -18,6 +19,7 @@ Checks:
   - release name and tag match the requested tag
   - release notes include Highlights, Validation, and Coverage sections
   - expected packaged assets are present on GitHub
+  - release assets have GitHub artifact attestations
   - the remote tag commit matches the local tag commit
   - the mirrored artefact set exists under homestorage
 
@@ -28,6 +30,8 @@ Options:
   --host <value>        SSH host used for the mirror check (default: homestorage)
   --remote-root <path>  Remote base directory
                         (default: /volume1/homes/phillipmcmahon/code/duplicacy-backup)
+  --skip-attestations   Skip GitHub release asset attestation checks
+                        (only for historical releases)
   --help                Show this help text
 EOF
 }
@@ -62,6 +66,10 @@ while [ "$#" -gt 0 ]; do
             [ "$#" -ge 2 ] || fail "--remote-root requires a value"
             REMOTE_ROOT="$2"
             shift 2
+            ;;
+        --skip-attestations)
+            VERIFY_ATTESTATIONS=0
+            shift
             ;;
         --help)
             usage
@@ -115,8 +123,10 @@ release_assets_tmp="$(mktemp)"
 mirror_assets_tmp="$(mktemp)"
 expected_release_tmp="$(mktemp)"
 expected_mirror_tmp="$(mktemp)"
+attestation_dir="$(mktemp -d)"
 cleanup() {
     rm -f "$release_json_file" "$release_assets_tmp" "$mirror_assets_tmp" "$expected_release_tmp" "$expected_mirror_tmp"
+    rm -rf "$attestation_dir"
 }
 trap cleanup EXIT INT TERM
 
@@ -133,6 +143,14 @@ jq -r '.assets[].name' "$release_json_file" | sort >"$release_assets_tmp"
 printf '%s\n' "$EXPECTED_RELEASE_ASSETS" | sort >"$expected_release_tmp"
 diff -u "$expected_release_tmp" "$release_assets_tmp" >/dev/null || fail "release asset set does not match expected names"
 
+if [ "$VERIFY_ATTESTATIONS" -eq 1 ]; then
+    printf '%s\n' "$EXPECTED_RELEASE_ASSETS" | while IFS= read -r asset; do
+        [ -n "$asset" ] || continue
+        gh release download "$TAG" --repo "$REPO" --pattern "$asset" --dir "$attestation_dir" >/dev/null
+        gh release verify-asset "$TAG" "$attestation_dir/$asset" --repo "$REPO" >/dev/null || fail "release asset attestation verification failed for $asset"
+    done
+fi
+
 local_commit="$(git -C "$(git rev-parse --show-toplevel)" rev-list -n 1 "$TAG")"
 remote_commit="$(git ls-remote "https://github.com/$REPO.git" "refs/tags/$TAG^{}" | awk '{print $1}')"
 [ -n "$remote_commit" ] || fail "could not resolve remote tag commit for $TAG"
@@ -146,3 +164,8 @@ diff -u "$expected_mirror_tmp" "$mirror_assets_tmp" >/dev/null || fail "mirrored
 echo "Verified $TAG"
 echo "Release URL: $(jq -r '.url' "$release_json_file")"
 echo "Remote mirror: $HOST:$REMOTE_DIR"
+if [ "$VERIFY_ATTESTATIONS" -eq 1 ]; then
+    echo "Release asset attestations: verified"
+else
+    echo "Release asset attestations: skipped"
+fi

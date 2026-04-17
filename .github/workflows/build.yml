@@ -135,6 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - uses: actions/checkout@v6
@@ -161,6 +163,11 @@ jobs:
           cd release
 
           sha256sum *.tar.gz > SHA256SUMS.txt
+
+      - name: Generate release asset attestations
+        uses: actions/attest@v4
+        with:
+          subject-path: release/*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

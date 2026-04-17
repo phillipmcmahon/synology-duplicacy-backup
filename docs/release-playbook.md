@@ -173,6 +173,7 @@ After the release workflow finishes:
 - confirm there is one canonical asset set only, with filenames like
   `duplicacy-backup_3.1.0_linux_amd64.tar.gz` and no duplicate `v3.1.0`
   variants
+- confirm each release asset has a GitHub artifact attestation
 - confirm the artefacts were built from the tagged release commit
 - if needed, edit the GitHub release body so it matches the validated release
   story
@@ -184,8 +185,19 @@ sh ./scripts/verify-release.sh --tag vX.Y.Z
 ```
 
 The script verifies the published GitHub release, required release-note
-headings, expected packaged assets, local-versus-remote tag commit alignment,
-and the mirrored artefact set on `homestorage`.
+headings, expected packaged assets, GitHub artifact attestations,
+local-versus-remote tag commit alignment, and the mirrored artefact set on
+`homestorage`.
+
+For a historical release published before artifact attestations were enabled,
+use `--skip-attestations`. Do not use that option for new releases.
+
+To manually verify one downloaded asset:
+
+```bash
+gh release verify-asset vX.Y.Z ./duplicacy-backup_X.Y.Z_linux_amd64.tar.gz \
+  --repo phillipmcmahon/synology-duplicacy-backup
+```
 
 ### 7. Mirror the published artefacts to homestorage
 
