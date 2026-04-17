@@ -30,4 +30,3 @@ go.work.sum
 # Secrets (never commit)
 *.env
 .secrets/
-MESSAGE_STYLE_GUIDE.pdf
