@@ -327,7 +327,9 @@ func TestRelease_RemovesOwnedLock(t *testing.T) {
 		t.Fatalf("Acquire failed: %v", err)
 	}
 
-	lk.Release()
+	if !lk.Release() {
+		t.Fatal("Release() = false, want true for owned lock")
+	}
 
 	if _, err := os.Stat(lk.Path); !os.IsNotExist(err) {
 		t.Error("lock directory should be removed after Release")
@@ -342,7 +344,9 @@ func TestRelease_IgnoresForeignLock(t *testing.T) {
 	os.MkdirAll(lk.Path, 0755)
 	os.WriteFile(lk.PIDFile, []byte("1"), 0644) // PID 1 (init, always running)
 
-	lk.Release()
+	if lk.Release() {
+		t.Fatal("Release() = true, want false for foreign lock")
+	}
 
 	// Lock should still exist (not ours)
 	if _, err := os.Stat(lk.Path); err != nil {
@@ -356,7 +360,9 @@ func TestRelease_IgnoresForeignLock(t *testing.T) {
 func TestRelease_EmptyPath(t *testing.T) {
 	lk := &Lock{Path: ""}
 	// Should be a no-op, not panic
-	lk.Release()
+	if lk.Release() {
+		t.Fatal("Release() = true, want false for empty path")
+	}
 }
 
 func TestRelease_Idempotent(t *testing.T) {
@@ -367,9 +373,13 @@ func TestRelease_Idempotent(t *testing.T) {
 		t.Fatalf("Acquire failed: %v", err)
 	}
 
-	lk.Release()
+	if !lk.Release() {
+		t.Fatal("first Release() = false, want true")
+	}
 	// Second release should be safe
-	lk.Release()
+	if !lk.Release() {
+		t.Fatal("second Release() = false, want true for idempotent cleanup")
+	}
 }
 
 func TestInspect_NoLockPresent(t *testing.T) {

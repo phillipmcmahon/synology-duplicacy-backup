@@ -62,7 +62,7 @@ func (e *Executor) cleanupSnapshot() {
 		if err := e.sourceLock.Acquire(); err != nil {
 			e.log.Warn("%s", statusLinef("Failed to acquire source lock for snapshot cleanup: %v", err))
 		} else {
-			releaseSource = e.sourceLock.Release
+			releaseSource = func() { _ = e.sourceLock.Release() }
 		}
 	}
 	defer releaseSource()

@@ -103,17 +103,19 @@ func (l *Lock) Acquire() error {
 }
 
 // Release removes the lock directory if owned by this process.
-func (l *Lock) Release() {
+// It returns true when cleanup succeeds for this process's lock or an already
+// absent lock, and false when the lock belongs to another PID.
+func (l *Lock) Release() bool {
 	if l.Path == "" {
-		return
+		return false
 	}
 
 	existingPID, err := l.readPID()
 	if err == nil && existingPID != l.pid {
-		return // Not our lock
+		return false // Not our lock
 	}
 
-	_ = lockRemoveAll(l.Path)
+	return lockRemoveAll(l.Path) == nil
 }
 
 func (l *Lock) writePID() error {

@@ -59,10 +59,7 @@ func CreateSnapshot(runner execpkg.Runner, source, target string, dryRun bool) e
 		return nil
 	}
 
-	stdout, stderr, err := runner.Run(context.Background(), "btrfs", "subvolume", "snapshot", "-r", source, target)
-	_ = stdout
-	_ = stderr
-	if err != nil {
+	if _, _, err := runner.Run(context.Background(), "btrfs", "subvolume", "snapshot", "-r", source, target); err != nil {
 		return apperrors.NewSnapshotError("create", fmt.Errorf("failed to create snapshot: %w", err), "source", source, "target", target)
 	}
 
@@ -79,10 +76,7 @@ func DeleteSnapshot(runner execpkg.Runner, target string, dryRun bool) error {
 		return nil
 	}
 
-	stdout, stderr, err := runner.Run(context.Background(), "btrfs", "subvolume", "delete", target)
-	_ = stdout
-	_ = stderr
-	if err != nil {
+	if _, _, err := runner.Run(context.Background(), "btrfs", "subvolume", "delete", target); err != nil {
 		return apperrors.NewSnapshotError("delete", fmt.Errorf("failed to delete subvolume: %w", err), "target", target)
 	}
 
