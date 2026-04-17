@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.4.0] - 2026-04-17
+
+### Added
+- **Self-update can verify release-asset attestations before install**:
+  `duplicacy-backup update --attestations required` now fails before
+  extraction or install unless GitHub CLI can verify the downloaded tarball
+  against the release attestation. `--attestations auto` verifies when `gh` is
+  available and otherwise continues with checksum-only verification, while the
+  default `off` mode preserves existing scheduled NAS update jobs.
+- **A focused update trust-model guide is now available**:
+  `docs/update-trust-model.md` explains what the updater verifies, which
+  authorities it still trusts, and when operators should perform an
+  out-of-band review.
+
+### Changed
+- **Update failure notifications now classify attestation failures explicitly**:
+  update notification events can distinguish attestation verification failures
+  from checksum, download, and install failures.
+- **CI now runs Staticcheck**: the lint workflow and release validation guidance
+  pin `honnef.co/go/tools/cmd/staticcheck@v0.7.0` so static analysis findings
+  are caught before release.
+- **Staticcheck findings are resolved rather than suppressed**: unused helpers
+  were removed, deprecated title-casing calls were replaced, error strings were
+  normalized, and one unused test assignment was cleaned up.
+- **Command logging redaction is safer for future wrappers**: env-style
+  `KEY=value` arguments now have explicit coverage for token, secret access
+  key, and webhook URL values.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **GitHub Actions**: Build and Release workflow passed for commits `0aa68d0`,
+  `37ee1a1`, and `8480912`.
+- **Coverage snapshot**:
+  - overall coverage: `85.7%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `83.9%`
+  - `internal/update`: `83.3%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `93.3%`
+  - `internal/config`: `88.1%`
+
 ## [v4.3.6] - 2026-04-17
 
 ### Changed
