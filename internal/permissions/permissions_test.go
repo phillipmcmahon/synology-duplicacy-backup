@@ -110,6 +110,31 @@ func TestFix_NestedStructure(t *testing.T) {
 	}
 }
 
+func TestFix_SkipsSymlinkChmodTarget(t *testing.T) {
+	mock := execpkg.NewMockRunner(execpkg.MockResult{})
+	target := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outside, []byte("outside"), 0600); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	link := filepath.Join(target, "outside-link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	if err := Fix(mock, target, "testuser", "testgroup", false); err != nil {
+		t.Fatalf("Fix failed: %v", err)
+	}
+
+	info, err := os.Stat(outside)
+	if err != nil {
+		t.Fatalf("stat outside file: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("symlink target perm = %04o, want unchanged 0600", info.Mode().Perm())
+	}
+}
+
 // ─── Error handling tests ───────────────────────────────────────────────────
 
 func TestFix_ChownFailure(t *testing.T) {
@@ -154,11 +179,25 @@ func TestFix_ChownArgs(t *testing.T) {
 	if inv.Cmd != "chown" {
 		t.Errorf("cmd = %q, want chown", inv.Cmd)
 	}
-	wantArgs := []string{"-R", "myuser:mygroup", target}
+	wantArgs := []string{"-h", "-R", "myuser:mygroup", target}
 	for i, a := range wantArgs {
 		if i >= len(inv.Args) || inv.Args[i] != a {
 			t.Errorf("args[%d] = %q, want %q", i, inv.Args[i], a)
 		}
+	}
+}
+
+func TestFix_ChownDoesNotFollowSymlinks(t *testing.T) {
+	mock := execpkg.NewMockRunner(execpkg.MockResult{})
+	target := t.TempDir()
+
+	if err := Fix(mock, target, "myuser", "mygroup", false); err != nil {
+		t.Fatalf("Fix failed: %v", err)
+	}
+
+	inv := mock.Invocations[0]
+	if len(inv.Args) < 2 || inv.Args[0] != "-h" || inv.Args[1] != "-R" {
+		t.Fatalf("chown args = %v, want no-follow recursive flag first", inv.Args)
 	}
 }
 
