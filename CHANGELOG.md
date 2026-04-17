@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Coverage snapshot**:
   - overall coverage: `85.7%`
   - `cmd/duplicacy-backup`: `92.7%`
-  - `internal/workflow`: `83.9%`
+  - `internal/workflow`: `83.8%`
   - `internal/update`: `83.3%`
   - `internal/exec`: `95.2%`
   - `internal/secrets`: `93.3%`

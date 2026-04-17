@@ -36,7 +36,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 Current public release baseline: `v4.3.6`
 
-Active release-prep target: none
+Active release-prep target: `v4.4.0`
 
 Representative Linux Go 1.26 validation for the current release baseline:
 
@@ -53,7 +53,7 @@ Current Linux Go 1.26 development validation snapshot:
 - `go test -cover ./...`
 - overall coverage: `85.7%`
 - `cmd/duplicacy-backup`: `92.7%`
-- `internal/workflow`: `83.9%`
+- `internal/workflow`: `83.8%`
 - `internal/update`: `83.3%`
 - `internal/duplicacy`: `81.2%`
 - `internal/exec`: `95.2%`
