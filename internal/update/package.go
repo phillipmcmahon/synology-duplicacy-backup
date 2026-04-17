@@ -90,6 +90,10 @@ func extractTarball(tarballPath, destination string) error {
 		return fmt.Errorf("failed to read package gzip stream: %w", err)
 	}
 	defer gz.Close()
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return fmt.Errorf("failed to resolve package extraction directory %s: %w", destination, err)
+	}
 	reader := tar.NewReader(gz)
 	for {
 		header, err := reader.Next()
@@ -106,14 +110,14 @@ func extractTarball(tarballPath, destination string) error {
 		target := filepath.Join(destination, name)
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+			if err := os.MkdirAll(target, archivePerm(header.Mode)); err != nil {
 				return fmt.Errorf("failed to create package directory %s: %w", target, err)
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return fmt.Errorf("failed to create package parent directory %s: %w", filepath.Dir(target), err)
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, archivePerm(header.Mode))
 			if err != nil {
 				return fmt.Errorf("failed to create extracted file %s: %w", target, err)
 			}
@@ -128,6 +132,9 @@ func extractTarball(tarballPath, destination string) error {
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return fmt.Errorf("failed to create package parent directory %s: %w", filepath.Dir(target), err)
 			}
+			if err := validatePackageSymlinkTarget(destination, target, header.Linkname); err != nil {
+				return err
+			}
 			if err := os.Symlink(header.Linkname, target); err != nil {
 				return fmt.Errorf("failed to create extracted symlink %s: %w", target, err)
 			}
@@ -135,6 +142,29 @@ func extractTarball(tarballPath, destination string) error {
 			return fmt.Errorf("unsupported file in update package: %s", header.Name)
 		}
 	}
+}
+
+func archivePerm(mode int64) os.FileMode {
+	return os.FileMode(mode) & os.ModePerm
+}
+
+func validatePackageSymlinkTarget(destination, target, linkname string) error {
+	if filepath.IsAbs(linkname) {
+		return fmt.Errorf("unsupported symlink target in update package: %s -> %s", target, linkname)
+	}
+	resolved := filepath.Clean(filepath.Join(filepath.Dir(target), linkname))
+	if !pathWithin(destination, resolved) {
+		return fmt.Errorf("unsupported symlink target in update package: %s -> %s", target, linkname)
+	}
+	return nil
+}
+
+func pathWithin(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func findVersionedBinary(dir string) (string, error) {

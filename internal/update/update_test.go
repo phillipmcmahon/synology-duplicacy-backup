@@ -664,6 +664,49 @@ func TestExtractTarballHandlesDirsFilesAndSymlinks(t *testing.T) {
 	}
 }
 
+func TestExtractTarballMasksArchiveModeBits(t *testing.T) {
+	dir := t.TempDir()
+	tarballPath := filepath.Join(dir, "package.tar.gz")
+	writeTarGz(t, tarballPath, []tarEntry{
+		{name: "package/", typ: tar.TypeDir, mode: 04777},
+		{name: "package/bin", typ: tar.TypeReg, mode: 04755, body: "#!/bin/sh\n"},
+	})
+
+	destination := filepath.Join(dir, "out")
+	if err := extractTarball(tarballPath, destination); err != nil {
+		t.Fatalf("extractTarball() error = %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(destination, "package"),
+		filepath.Join(destination, "package/bin"),
+	} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("Stat(%s) failed: %v", path, err)
+		}
+		if info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+			t.Fatalf("%s mode = %v, want no special permission bits", path, info.Mode())
+		}
+	}
+}
+
+func TestArchivePermMasksSpecialBits(t *testing.T) {
+	tests := []struct {
+		mode int64
+		want os.FileMode
+	}{
+		{mode: 04755, want: 0755},
+		{mode: 02770, want: 0770},
+		{mode: 01777, want: 0777},
+	}
+
+	for _, tt := range tests {
+		if got := archivePerm(tt.mode); got != tt.want {
+			t.Fatalf("archivePerm(%#o) = %#o, want %#o", tt.mode, got, tt.want)
+		}
+	}
+}
+
 func TestExtractTarballRejectsUnsafeAndUnsupportedEntries(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -684,6 +727,16 @@ func TestExtractTarballRejectsUnsafeAndUnsupportedEntries(t *testing.T) {
 			name:    "hard link",
 			entries: []tarEntry{{name: "package/link", typ: tar.TypeLink, mode: 0644, linkname: "target"}},
 			wantErr: "unsupported file",
+		},
+		{
+			name:    "symlink parent escape",
+			entries: []tarEntry{{name: "package/current", typ: tar.TypeSymlink, mode: 0777, linkname: "../../etc/passwd"}},
+			wantErr: "unsupported symlink target",
+		},
+		{
+			name:    "symlink absolute escape",
+			entries: []tarEntry{{name: "package/current", typ: tar.TypeSymlink, mode: 0777, linkname: "/etc/passwd"}},
+			wantErr: "unsupported symlink target",
 		},
 	}
 
