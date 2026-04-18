@@ -34,9 +34,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.3.6`
+Current public release baseline: `v4.4.0`
 
-Active release-prep target: `v4.4.0`
+Active release-prep target: `v4.4.1`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -54,14 +54,24 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
 - `go test -cover ./...`
-- overall coverage: `85.7%`
+- overall coverage: `85.8%`
 - `cmd/duplicacy-backup`: `92.7%`
 - `internal/workflow`: `83.8%`
-- `internal/update`: `83.3%`
+- `internal/update`: `83.5%`
 - `internal/duplicacy`: `81.2%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `93.3%`
 - `internal/config`: `88.1%`
+
+Additional v4.4.1 validation:
+
+- Operator documentation now includes a lightweight troubleshooting entry point
+  for common scheduled-task, repository-readiness, health, notification,
+  update, and privilege-related support cases.
+- Release process guidance now treats NAS mirroring and full verifier output as
+  standard release closure evidence.
+- Concise update help now shows the default retention, version-selection, and
+  attestation settings operators need before scheduling updates.
 
 Additional #114 and #115 validation:
 

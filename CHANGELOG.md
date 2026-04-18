@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.4.1] - 2026-04-18
+
+### Added
+- **A lightweight operator troubleshooting guide is now available**:
+  `docs/troubleshooting.md` gives operators a direct symptom-to-next-action
+  entry point for scheduled task failures, repository readiness surprises,
+  health verify failures, notification mismatches, attestation failures,
+  privilege-limited validation, logger permission errors, and update layout
+  issues.
+
+### Changed
+- **Documentation discovery is clearer**: the README task map and documentation
+  list now include the troubleshooting guide, and the broader documentation set
+  has been tightened around flow, readability, ownership, and source-of-truth
+  boundaries.
+- **Concise help now surfaces defaults more consistently**: update help now
+  calls out defaults such as `--keep 2`, latest-version selection, and
+  attestation mode without requiring `--help-full`.
+- **Release process checks are harder to miss**: release guidance now treats
+  NAS mirroring and full verification as standard closure gates, and the
+  finalization helper captures the release URL, mirror path, verification
+  result, and attestation result for the release issue.
+- **Update attestation reporting uses structured result state internally**:
+  attestation outcomes remain human-readable in reports while being represented
+  by stable status values for future machine-readable output.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.8%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `83.8%`
+  - `internal/update`: `83.5%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `93.3%`
+  - `internal/config`: `88.1%`
+
 ## [v4.4.0] - 2026-04-17
 
 ### Added
