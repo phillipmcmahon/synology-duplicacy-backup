@@ -46,8 +46,8 @@ sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
 # Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup --target onsite-usb --fix-perms homes
 
-# Fix permissions for homes on target offsite-usb
-sudo duplicacy-backup --target offsite-usb --fix-perms homes
+# Backup then fix permissions in a single run
+sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
 ```
 
 ## Health Checks

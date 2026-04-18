@@ -39,6 +39,6 @@ includes a compromised GitHub release, compromised maintainer account, or
 compromised GitHub attestation service, perform an out-of-band review before
 installing.
 
-For operator procedures, see [Operations](operations.md#update-trust-model).
+For update and rollback commands, see [Operations](operations.md#upgrade-and-rollback).
 For release publishing and verification rules, see
 [Release Playbook](release-playbook.md).

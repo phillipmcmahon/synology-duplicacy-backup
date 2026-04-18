@@ -124,6 +124,8 @@ The optional `[health]` table controls read-only health checks:
 | `doctor_warn_after_hours` | No | Warn when `health doctor` has not been run recently |
 | `verify_warn_after_hours` | No | Warn when `health verify` has not been run recently |
 
+## Notifications
+
 The optional `[health.notify]` table controls notifications for
 non-interactive health runs and selected runtime failures. It can deliver to a
 generic webhook destination, native `ntfy`, or both. Targets can override
@@ -256,9 +258,19 @@ It does not prove that:
 Provider-specific expectations:
 
 - native `ntfy` sends a real message to the configured topic using the same
-  token handling as live notifications
+  target-scoped token handling as live notifications; public topics can be
+  tested without reading the label secrets file, but token-protected topics
+  still need readable token access
 - generic webhook sends the same generic JSON payload shape used by live
   notifications, leaving rendering and translation to the receiver
+
+Recommended operator flow:
+
+1. Confirm the selected target has the provider configured.
+2. Start with `notify test --dry-run` if you want to inspect the resolved
+   destinations and synthetic payload details without sending anything.
+3. Run `notify test` without `--dry-run` to send the real synthetic message.
+4. Confirm the message arrives in the receiving system.
 
 ## Example Config
 

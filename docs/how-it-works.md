@@ -13,6 +13,29 @@ It answers questions like:
 If you want the short version, start with [architecture.md](architecture.md).
 This is the longer walkthrough.
 
+## Contents
+
+- [Mental Model](#mental-model)
+- [Top-Level Runtime Flow](#top-level-runtime-flow)
+- [Architecture Overview](#architecture-overview)
+- [Main Packages](#main-packages)
+- [Request Phase](#request-phase)
+- [Runtime and Metadata Seams](#runtime-and-metadata-seams)
+- [Label-Target Model](#label-target-model)
+- [Plan Phase](#plan-phase)
+- [Execute Phase](#execute-phase)
+- [Presentation Layer](#presentation-layer)
+- [Error Translation](#error-translation)
+- [Backup Flow](#backup-flow)
+- [Prune Flow](#prune-flow)
+- [Fix-Perms Flow](#fix-perms-flow)
+- [Cleanup Lifecycle](#cleanup-lifecycle)
+- [Logging and Output](#logging-and-output)
+- [Testing Strategy](#testing-strategy)
+- [Where To Change Things](#where-to-change-things)
+- [Practical Reading Order](#practical-reading-order)
+- [Short Summary](#short-summary)
+
 ## Mental Model
 
 The application now follows an explicit:

@@ -38,6 +38,9 @@ Current public release baseline: `v4.3.6`
 
 Active release-prep target: `v4.4.0`
 
+The baseline block is refreshed during release prep; `make release-prep`
+should be the reminder to update it before publishing.
+
 Representative Linux Go 1.26 validation for the current release baseline:
 
 - `go test ./...`
