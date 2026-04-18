@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.5.0] - 2026-04-18
+
+### Added
+- **Local object-storage targets are now supported**: targets can use
+  `type = "object"` with `location = "local"` for local S3-compatible object
+  stores such as RustFS or MinIO while still preserving object-storage URL and
+  credential semantics.
+
+### Changed
+- **Target documentation now separates storage mechanics from operational
+  location more clearly**: README, configuration, CLI, cheat sheet,
+  operations, scheduling, and how-it-works guidance all list `object/local` as
+  a supported combination and explain that `type`, not `location`, controls
+  storage credential loading.
+- **Object-storage summaries use neutral credential labels**: verbose runtime
+  and config output now refer to storage access and secret keys rather than
+  remote-specific key names, which keeps local object-storage reporting
+  accurate.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.8%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `83.8%`
+  - `internal/update`: `83.5%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `93.3%`
+  - `internal/config`: `88.1%`
+
 ## [v4.4.1] - 2026-04-18
 
 ### Added

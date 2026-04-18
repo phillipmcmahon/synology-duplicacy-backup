@@ -34,9 +34,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.4.0`
+Current public release baseline: `v4.4.1`
 
-Active release-prep target: `v4.4.1`
+Active release-prep target: `v4.5.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -72,6 +72,16 @@ Additional v4.4.1 validation:
   standard release closure evidence.
 - Concise update help now shows the default retention, version-selection, and
   attestation settings operators need before scheduling updates.
+
+Additional v4.5.0 validation:
+
+- Config semantics now allow `type = "object"` with `location = "local"` while
+  still requiring URL-style object destinations.
+- Planner tests confirm local object-storage targets load object-storage
+  secrets while remaining operationally local.
+- Runtime failure, config command, summary, and notification tests confirm
+  local object-storage targets preserve `Type: object` and `Location: local`
+  in operator-facing output and webhook payloads.
 
 Additional #114 and #115 validation:
 
