@@ -181,6 +181,7 @@ Use the documentation by task:
 |---|---|
 | Install or upgrade the binary | [Operations](docs/operations.md) |
 | Run common commands | [Desk cheat sheet](docs/cheatsheet.md) |
+| Diagnose failed runs or confusing status output | [Troubleshooting](docs/troubleshooting.md) |
 | Check exact CLI syntax | [CLI reference](docs/cli.md) |
 | Configure labels, targets, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
 | Plan Synology Task Scheduler jobs | [Workflow and scheduling](docs/workflow-scheduling.md) |
@@ -210,6 +211,7 @@ Core operating rules:
 ## Documentation
 
 - [Desk cheat sheet](docs/cheatsheet.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)
 - [Configuration and secrets](docs/configuration.md)
 - [Workflow and scheduling](docs/workflow-scheduling.md)
