@@ -50,7 +50,7 @@ Recommended project support:
 
 ## Checklist
 
-### 1. Confirm scope
+### 1. Confirm Scope
 
 - Decide exactly which user-visible changes are shipping.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
@@ -77,14 +77,14 @@ Suggested release-prep checklist:
 - [ ] release finalized with `scripts/finalize-release.sh`
 - [ ] closure summary pasted into the release issue
 
-### 2. Prepare version
+### 2. Prepare Version
 
 - Leave the default version fallback in `cmd/duplicacy-backup/main.go` as
   `dev`; release and package builds inject the real version with `-ldflags`.
 - Add the new release entry to `CHANGELOG.md`.
 - Make sure the changelog text reflects the release that will actually publish.
 
-### 3. Validate the release tree in Linux
+### 3. Validate the Release Tree in Linux
 
 Use the standard Linux environment described in
 [`linux-environment.md`](linux-environment.md).
@@ -131,7 +131,7 @@ only, not as the source of truth for public release artefacts. Any local test
 package must be written under `build/test-packages`; do not create ad-hoc
 package directories elsewhere under `build/`.
 
-### 4. Write release notes
+### 4. Write Release Notes
 
 The public GitHub release body must use this format:
 
@@ -157,7 +157,7 @@ Rules for release notes:
 - Do not publish thin auto-generated notes if a richer hand-written summary is
   needed.
 
-### 5. Commit and tag
+### 5. Commit and Tag
 
 - Commit the release prep changes.
 - Push `main`.
@@ -178,7 +178,7 @@ git tag -a vX.Y.Z --cleanup=verbatim -F build/release-prep/vX.Y.Z/release-notes.
 git push origin vX.Y.Z
 ```
 
-### 6. Check the published release
+### 6. Check the Published Release
 
 After the release workflow finishes:
 
@@ -211,7 +211,7 @@ gh release verify-asset vX.Y.Z ./duplicacy-backup_X.Y.Z_linux_amd64.tar.gz \
   --repo phillipmcmahon/synology-duplicacy-backup
 ```
 
-### 7. Finalize the release
+### 7. Finalize the Release
 
 After the release exists and the GitHub Actions asset set is complete:
 
@@ -261,7 +261,7 @@ This avoids the filename
 and wildcard edge cases we saw from plain `scp` when copying files such as
 `Source code (zip)` to Synology.
 
-### 8. Manually verify the complete release
+### 8. Manually Verify the Complete Release
 
 `scripts/finalize-release.sh` runs the full verifier automatically. If you need
 to rerun verification without re-mirroring, use:

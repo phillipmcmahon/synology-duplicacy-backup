@@ -1,6 +1,6 @@
 # Operations
 
-## Installing On Synology
+## Installing on Synology
 
 The recommended install layout keeps the real binary versioned while exposing a
 stable command path for Synology Task Scheduler.
@@ -92,26 +92,26 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 For the focused trust-model reference, see
 [Update Trust Model](update-trust-model.md).
 
-The update command uses the GitHub Releases API for this project, selects the
-asset for the NAS platform, downloads that tarball and its matching `.sha256`
-file over HTTPS, verifies the tarball against the checksum, extracts the
-package with path and symlink safety checks, and then runs the packaged
-installer.
+The update command uses this project's GitHub Releases API to select the NAS
+package for the current platform. It downloads the tarball and matching
+`.sha256` file over HTTPS, verifies the checksum, checks archive paths and
+symlink targets before extraction, and then runs the packaged installer.
 
 The asset URLs in release metadata must point at this repository's GitHub
 release download path. Redirects are accepted only when they remain on the
 expected GitHub release or GitHub-owned asset delivery hosts.
 
-That protects against corrupted downloads, wrong assets, and modified tarballs
-that do not match the published checksum. New releases are immutable and
-publish GitHub release attestations. The default updater mode is
-`--attestations off`, which preserves existing NAS update behaviour and verifies
-only the checksum. Use `--attestations required` when you want the install to
-fail before extraction unless GitHub CLI can verify the downloaded tarball
-against the release attestation. Use `--attestations auto` when you want
-attestation verification if `gh` is available, while still allowing
-checksum-only installs on systems without GitHub CLI. If `gh` is available in
-`auto` mode and verification fails, the updater stops before extraction/install.
+That protects against corrupted downloads, wrong assets, and tarballs that do
+not match the published checksum. New releases are immutable and publish GitHub
+release attestations. The default updater mode is `--attestations off`, which
+preserves existing NAS update behaviour and verifies only the checksum.
+
+Use `--attestations required` when you want the install to fail before
+extraction unless GitHub CLI can verify the downloaded tarball against the
+release attestation. Use `--attestations auto` when you want attestation
+verification if `gh` is available, while still allowing checksum-only installs
+on systems without GitHub CLI. If `gh` is available in `auto` mode and
+verification fails, the updater stops before extraction/install.
 
 Attestation verification strengthens the normal update path, but it still
 trusts GitHub as the release and attestation authority. If your threat model
@@ -139,14 +139,17 @@ Test that route without running a real update:
 /usr/local/bin/duplicacy-backup notify test update --provider ntfy
 ```
 
-Config and secrets stay in their existing directories, so upgrades do not
-require you to copy the TOML files again unless you are intentionally changing
+Config and secrets stay in their existing directories during upgrades, so you
+do not need to copy TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
 when needed, one matching secrets file.
 
 Use `update --force` only when you intentionally want to reinstall the selected
 release, for example after repairing a managed install. It still follows normal
 interactive rules, so add `--yes` for unattended scheduler or repair jobs.
+
+By default, `update` keeps the newly activated binary and one previous binary;
+use `--keep <count>` if you want a different local rollback window.
 
 Update network calls are bounded. If GitHub release metadata lookup or package
 download stalls, the command reports which phase timed out instead of waiting

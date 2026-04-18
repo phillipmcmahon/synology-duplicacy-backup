@@ -140,7 +140,7 @@ location = "remote"
 destination = "/volume1/duplicacy/duplicacy"
 repository = "homes"
 allow_local_accounts = true
-local_owner = "AJT"
+local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
@@ -277,7 +277,7 @@ When operations are combined, execution order is fixed:
 `backup -> prune -> cleanup-storage -> fix-perms`.
 
 Config commands are read-only helpers:
-- `config validate` checks the selected target from a label config, validates backup-required settings such as destination, threads, prune policy, and local-account consistency, and performs read-only Btrfs, secrets, and repository readiness checks when the current user has enough access
+- `config validate` checks one selected target from a label config, including destination, threads, prune policy, local-account settings, and any read-only Btrfs, secrets, or repository checks the current user is allowed to perform
 - `config explain` shows the resolved values for the selected target, including `Type` and `Location`, without loading object-target secrets by default
 - `config paths` shows the resolved stable config, source, log, and any applicable secrets paths, including `Type` and `Location`
 
@@ -304,6 +304,9 @@ checksum-only behaviour unless you opt in. `--attestations auto` verifies when
 checksum-only verification when `gh` is missing. Use `update --force` when you
 intentionally want to reinstall the selected release even though it is already
 current.
+
+By default, `update` keeps the newly activated binary and one previous binary;
+use `--keep <count>` if you want a different local rollback window.
 
 Unattended update failures can notify through the global app config at
 `<config-dir>/duplicacy-backup.toml`:
@@ -421,15 +424,15 @@ inspection commands should normally be run with `sudo`. The main exception is
 ## Documentation
 
 - [Desk cheat sheet](docs/cheatsheet.md)
-- [CLI reference](docs/cli.md)
+- [Operations](docs/operations.md)
 - [Configuration and secrets](docs/configuration.md)
 - [Workflow and scheduling](docs/workflow-scheduling.md)
+- [CLI reference](docs/cli.md)
+- [Update trust model](docs/update-trust-model.md)
 - [Linux validation and packaging environment](docs/linux-environment.md)
 - [Release playbook](docs/release-playbook.md)
-- [Update trust model](docs/update-trust-model.md)
 - [Architecture](docs/architecture.md)
 - [How it works internally](docs/how-it-works.md)
-- [Operations](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Testing](TESTING.md)
 

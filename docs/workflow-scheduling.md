@@ -1,4 +1,4 @@
-# Workflow And Scheduling
+# Workflow and Scheduling
 
 ## Goal
 

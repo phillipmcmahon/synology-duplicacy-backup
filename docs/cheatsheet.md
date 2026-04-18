@@ -122,7 +122,7 @@ Installer behaviour:
 - Use `--force-prune` only as an explicit operator action with `--prune`, not as a routine scheduled task.
 - See `docs/workflow-scheduling.md` for the recommended Task Scheduler naming pattern and workload cadence.
 
-### Config And Validation
+### Config and Validation
 
 - Keep `source_path` pointed at the real Btrfs volume or subvolume for the label, then use Duplicacy filters to include or exclude nested directories beneath that root.
 - Use `type` for storage behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
@@ -135,13 +135,13 @@ Installer behaviour:
 - `config explain` does not load object-target secrets by default; it stays read-only and still shows the expected secrets-file path.
 - `config paths` only includes secrets paths when the selected target is an object target.
 
-### Health And Output
+### Health and Output
 
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 
-### Notifications And Secrets
+### Notifications and Secrets
 
 - Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple targets under that label.
 - `[health.notify]` can opt runtime failure notifications in with `send_for = ["backup", "prune", "cleanup-storage"]`.
@@ -164,6 +164,7 @@ sudo duplicacy-backup update --force --yes
 - `--attestations required` needs GitHub CLI on `PATH` and stops before extraction/install if release-asset attestation verification fails.
 - `--attestations auto` verifies when `gh` is available, stops on verification failure, and otherwise continues with checksum-only verification when `gh` is missing.
 - The default is `--attestations off`, so existing scheduled update jobs keep checksum-only behaviour unless you opt in.
+- `update` keeps the newly activated binary and one previous binary by default; use `--keep <count>` to change that local rollback window.
 
 ## Help
 

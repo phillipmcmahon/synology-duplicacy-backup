@@ -145,11 +145,11 @@ configs.
 
 Initial destination patterns:
 
-- Synology scheduled-task email only
+- Synology scheduled-task email only:
   Good baseline for raw scheduled job failure with no extra services.
-- Synology scheduled-task email plus native `ntfy`
+- Synology scheduled-task email plus native `ntfy`:
   Recommended low-cost setup for near-time operator alerts.
-- Generic webhook destination
+- Generic webhook destination:
   Suitable for future providers such as Slack, Discord, Node-RED, `n8n`, or a
   custom receiver.
 
@@ -306,7 +306,7 @@ location = "remote"
 destination = "/volume1/duplicacy/duplicacy"
 repository = "homes"
 allow_local_accounts = true
-local_owner = "AJT"
+local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
@@ -460,8 +460,8 @@ reported as `Not checked` instead of failing the whole validation.
 
 ## Current File Naming
 
-The preferred operational layout is one config file per label plus
-one secrets file per label:
+The preferred operational layout is one backup config file per label and, when
+needed, one matching secrets file:
 
 ```text
 homes-backup.toml

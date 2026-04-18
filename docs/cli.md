@@ -186,7 +186,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
 - config files are TOML files named `<label>-backup.toml`
 - object-target storage credentials are read from `/root/.secrets/<label>-secrets.toml`
-- one config file and, when needed, one secrets file cover a whole label
+- a label normally has one backup config file and, when needed, one matching secrets file; both files can define multiple targets for that label
 - object-target secrets for Storj-backed S3-compatible storage use `storj_s3_id` and `storj_s3_secret`; any target may also use optional `health_webhook_bearer_token` / `health_ntfy_token`
 - `--fix-perms` is filesystem-target aware and cannot be combined with an object target
 - combined phases all run against one selected target from a label config for a single invocation
@@ -199,7 +199,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - non-interactive runs continue without confirmation so scheduled jobs are unaffected
 - standalone `--fix-perms` does not require `duplicacy`
 - `config validate` works on one selected target from a label config at a time
-- `config validate --target <name>` requires that selected target config be valid, that backup-required settings such as destination, threads, prune policy, and local-account semantics are valid, and that any Btrfs, secrets, and repository checks that the current user can perform succeed
+- `config validate --target <name>` checks one selected target from the label config, including destination, threads, prune policy, local-account settings, and any read-only Btrfs, secrets, or repository checks the current user is allowed to perform
 - `config validate` never initialises storage or changes repository state
 - non-root `config validate` remains useful, but root-only checks may be reported as `Not checked`
 - repository readiness is reported as exactly one of:
@@ -210,7 +210,7 @@ sudo /usr/local/bin/duplicacy-backup update --force --yes
 - `config explain` does not load object-target secrets by default; it stays read-only and identity-focused while still showing the expected secrets-file path
 - `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
 - `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
-- `config paths` includes secrets paths only for object targets
+- `config paths` shows a secrets path only when the selected target uses object storage
 - there is no implicit target selection; every runtime, `config`, `health`, and label-scoped `notify test` command must pass `--target <name>`
 - `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
 - `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
