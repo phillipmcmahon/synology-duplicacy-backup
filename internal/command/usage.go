@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	updatepkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -265,8 +266,8 @@ Config commands:
 
 Options:
     --target <name>
-    --config-dir <path>
-    --secrets-dir <path>
+    --config-dir <path>     (default: <binary-dir>/.config)
+    --secrets-dir <path>    (default: %s)
     --help
     --help-full
 
@@ -278,6 +279,7 @@ Examples:
 Use --help-full for the detailed config reference.
 `,
 		meta.ScriptName,
+		config.DefaultSecretsDir,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -292,15 +294,15 @@ Notify commands:
 
 Options:
     --target <name>
-    --provider <all|webhook|ntfy>
-    --severity <warning|critical|info>
+    --provider <all|webhook|ntfy>        (default: all)
+    --severity <warning|critical|info>   (default: warning)
     --event <name>
     --summary <text>
     --message <text>
     --dry-run
     --json-summary
-    --config-dir <path>
-    --secrets-dir <path>
+    --config-dir <path>                  (default: <binary-dir>/.config)
+    --secrets-dir <path>                 (default: %s)
     --help
     --help-full
 
@@ -313,6 +315,7 @@ Examples:
 Use --help-full for the detailed notify reference.
 `,
 		meta.ScriptName,
+		config.DefaultSecretsDir,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -391,10 +394,10 @@ Update options:
     --check-only
     --force
     --yes
-    --keep <count>
-    --version <tag>
-    --attestations <off|auto|required>
-    --config-dir <path>
+    --keep <count>                       (default: %d)
+    --version <tag>                      (default: latest)
+    --attestations <off|auto|required>   (default: off)
+    --config-dir <path>                  (default: <binary-dir>/.config)
     --help
     --help-full
 
@@ -408,6 +411,7 @@ Examples:
 Use --help-full for the detailed update reference.
 `,
 		meta.ScriptName,
+		updatepkg.DefaultKeep,
 		meta.ScriptName,
 		meta.ScriptName,
 		meta.ScriptName,
@@ -432,7 +436,7 @@ OPTIONS:
     --check-only           Show the planned update without downloading or installing
     --force                Reinstall even when the selected release is already current
     --yes                  Skip the interactive confirmation prompt
-    --keep <count>         Keep this many newest installed binaries after activation (default: 2)
+    --keep <count>         Keep this many newest installed binaries after activation (default: %d)
     --version <tag>        Install one specific published release tag instead of the latest release
     --attestations <mode>  Verify GitHub release attestations: off, auto, or required (default: off)
     --config-dir <path>    Override config directory for update notifications (default: <binary-dir>/.config)
@@ -490,6 +494,7 @@ EXAMPLES:
     %s update --version v4.1.8 --yes
 `,
 		meta.ScriptName,
+		updatepkg.DefaultKeep,
 		cfgDir,
 		config.DefaultAppConfigFile,
 		meta.ScriptName,

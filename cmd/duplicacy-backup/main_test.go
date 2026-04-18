@@ -319,7 +319,10 @@ func TestRunWithArgs_ConfigHelpReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "Config commands:") || !strings.Contains(stdout, "Use --help-full for the detailed config reference.") {
+	if !strings.Contains(stdout, "Config commands:") ||
+		!strings.Contains(stdout, "--config-dir <path>     (default: <binary-dir>/.config)") ||
+		!strings.Contains(stdout, "--secrets-dir <path>    (default: /root/.secrets)") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed config reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -333,7 +336,12 @@ func TestRunWithArgs_NotifyHelpReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "Notify commands:") || !strings.Contains(stdout, "Use --help-full for the detailed notify reference.") {
+	if !strings.Contains(stdout, "Notify commands:") ||
+		!strings.Contains(stdout, "--provider <all|webhook|ntfy>        (default: all)") ||
+		!strings.Contains(stdout, "--severity <warning|critical|info>   (default: warning)") ||
+		!strings.Contains(stdout, "--config-dir <path>                  (default: <binary-dir>/.config)") ||
+		!strings.Contains(stdout, "--secrets-dir <path>                 (default: /root/.secrets)") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed notify reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -347,7 +355,12 @@ func TestRunWithArgs_UpdateHelpReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "Update options:") || !strings.Contains(stdout, "Use --help-full for the detailed update reference.") {
+	if !strings.Contains(stdout, "Update options:") ||
+		!strings.Contains(stdout, "--keep <count>                       (default: 2)") ||
+		!strings.Contains(stdout, "--version <tag>                      (default: latest)") ||
+		!strings.Contains(stdout, "--attestations <off|auto|required>   (default: off)") ||
+		!strings.Contains(stdout, "--config-dir <path>                  (default: <binary-dir>/.config)") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed update reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -403,6 +416,7 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "--check-only           Show the planned update without downloading or installing") ||
 		!strings.Contains(stdout, "--force                Reinstall even when the selected release is already current") ||
+		!strings.Contains(stdout, "--keep <count>         Keep this many newest installed binaries after activation (default: 2)") ||
 		!strings.Contains(stdout, "/usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current") {
 		t.Fatalf("stdout = %q", stdout)
 	}
