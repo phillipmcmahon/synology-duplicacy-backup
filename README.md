@@ -150,276 +150,62 @@ destination = "s3://gateway.storjshare.io/my-backup-bucket"
 repository = "homes"
 ```
 
-### 4. Run
+### 4. Validate and run
 
-These examples show valid manual and ad hoc commands. For recurring Synology
+Start with validation and a dry run before scheduling anything:
+
+```bash
+# Validate the selected target from the homes config
+sudo duplicacy-backup config validate --target onsite-usb homes
+
+# Preview a backup without changing storage
+sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
+
+# Run a backup
+sudo duplicacy-backup --target onsite-usb --backup homes
+
+# Check backup freshness and repository status
+sudo duplicacy-backup health status --target onsite-usb homes
+```
+
+For day-to-day commands, use the [desk cheat sheet](docs/cheatsheet.md). For
+complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology
 Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
 and fix-perms; see [Workflow and scheduling](docs/workflow-scheduling.md).
 
-```bash
-# Backup homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup homes
+## Operator Map
 
-# Backup then safe prune homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune homes
+Use the documentation by task:
 
-# Forced prune homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
+| Task | Start here |
+|---|---|
+| Install or upgrade the binary | [Operations](docs/operations.md) |
+| Run common commands | [Desk cheat sheet](docs/cheatsheet.md) |
+| Check exact CLI syntax | [CLI reference](docs/cli.md) |
+| Configure labels, targets, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
+| Plan Synology Task Scheduler jobs | [Workflow and scheduling](docs/workflow-scheduling.md) |
+| Understand update trust and attestations | [Update trust model](docs/update-trust-model.md) |
+| Prepare or verify a release | [Release playbook](docs/release-playbook.md) |
 
-# Storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
+Core operating rules:
 
-# Backup homes to target offsite-storj
-sudo duplicacy-backup --target offsite-storj --backup homes
-
-# Preview backing up homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
-
-# Verbose backup and prune for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
-
-# JSON summary for a dry-run backup of homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
-
-# Fast health summary for homes on target onsite-usb
-sudo duplicacy-backup health status --target onsite-usb homes
-
-# JSON doctor report for homes on target onsite-usb
-sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
-
-# Send a simulated notification through the configured providers for homes on target onsite-usb
-sudo duplicacy-backup notify test --target onsite-usb homes
-
-# Preview the global update notification route
-duplicacy-backup notify test update --provider ntfy --dry-run
-
-# Check whether a newer published release is available
-/usr/local/bin/duplicacy-backup update --check-only
-
-# Download and install the latest published release
-sudo /usr/local/bin/duplicacy-backup update --yes
-
-# Download and install only if GitHub release-asset attestation verification succeeds
-sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
-
-# Reinstall the selected release even if it is already current
-sudo /usr/local/bin/duplicacy-backup update --force --yes
-```
-
-`notify test` uses the existing label and target config, sends a clearly marked
-synthetic notification, and is meant to validate provider delivery and auth. It
-does not prove that a backup, prune, or health condition has occurred, and it
-does not exercise scheduler email from DSM.
-`notify test update` validates the global update notification route without
-running a real self-update.
-
-## Common Commands
-
-These are useful operator commands, including combined manual maintenance
-runs. For recommended recurring scheduler patterns, use the dedicated guide
-instead of treating this list as a schedule template:
-[Workflow and scheduling](docs/workflow-scheduling.md).
-
-```bash
-# Backup homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup homes
-
-# Safe prune and storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --prune --cleanup-storage homes
-
-# Fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --fix-perms homes
-
-# Backup, forced prune, storage cleanup, and fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage --fix-perms homes
-
-# Backup homes to target onsite-usb using a custom config directory
-duplicacy-backup --target onsite-usb --config-dir /opt/etc --backup homes
-
-# Validate config for homes on target onsite-usb
-sudo duplicacy-backup config validate --target onsite-usb homes
-
-# Explain resolved values for homes on target offsite-storj
-sudo duplicacy-backup config explain --target offsite-storj homes
-
-# Show resolved paths for homes on target onsite-usb
-duplicacy-backup config paths --target onsite-usb homes
-
-# Fast health summary for homes on target onsite-usb
-sudo duplicacy-backup health status --target onsite-usb homes
-
-# Read-only doctor pass for homes on target onsite-usb
-sudo duplicacy-backup health doctor --target onsite-usb homes
-
-# Integrity check for homes on target onsite-usb
-sudo duplicacy-backup health verify --target onsite-usb homes
-
-# Send a simulated notification through the configured providers for homes on target onsite-usb
-sudo duplicacy-backup notify test --target onsite-usb homes
-
-# Send a simulated update notification through the global update notify config
-duplicacy-backup notify test update --provider ntfy
-
-# Check whether a newer published release is available
-/usr/local/bin/duplicacy-backup update --check-only
-
-# Download and install the latest published release
-sudo /usr/local/bin/duplicacy-backup update --yes
-
-# Download and install only if GitHub release-asset attestation verification succeeds
-sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
-
-# Reinstall the selected release even if it is already current
-sudo /usr/local/bin/duplicacy-backup update --force --yes
-```
-
-When operations are combined, execution order is fixed:
-`backup -> prune -> cleanup-storage -> fix-perms`.
-
-Config commands are read-only helpers:
-- `config validate` checks one selected target from a label config, including destination, threads, prune policy, local-account settings, and any read-only Btrfs, secrets, or repository checks the current user is allowed to perform
-- `config explain` shows the resolved values for the selected target, including `Type` and `Location`, without loading object-target secrets by default
-- `config paths` shows the resolved stable config, source, log, and any applicable secrets paths, including `Type` and `Location`
-
-`config validate` never initialises storage or changes repository state. Its
-repository readiness probe reports one of three operator-facing outcomes:
-- `Repository Access : Valid`
-- `Repository Access : Not initialized`
-- `Repository Access : Invalid (...)`
-
-When `config validate` is run without the privileges needed for root-only
-checks, those lines are reported as `Not checked` instead of failing the whole
-validation.
-
-`update` checks GitHub for the latest published release, downloads the matching
-Linux package for the current platform, verifies the checksum, and reuses the
-packaged `install.sh` to activate the new version. `update --check-only` is
-safe for routine inspection. Installing through `update` expects the standard
-managed layout under `/usr/local/lib/duplicacy-backup` and `/usr/local/bin`.
-Use `update --attestations required` when you want the install to fail unless
-GitHub CLI can verify the downloaded tarball against the release attestation.
-The default is `--attestations off`, so existing NAS jobs keep their current
-checksum-only behaviour unless you opt in. `--attestations auto` verifies when
-`gh` is available, stops on verification failure, and otherwise continues with
-checksum-only verification when `gh` is missing. Use `update --force` when you
-intentionally want to reinstall the selected release even though it is already
-current.
-
-By default, `update` keeps the newly activated binary and one previous binary;
-use `--keep <count>` if you want a different local rollback window.
-
-Unattended update failures can notify through the global app config at
-`<config-dir>/duplicacy-backup.toml`:
-
-```toml
-[update.notify]
-notify_on = ["failed"]
-interactive = false
-
-[update.notify.ntfy]
-url = "https://ntfy.sh"
-topic = "duplicacy-updates"
-```
-
-This update notification path is intentionally separate from label and target
-notification settings, and it does not read storage secrets.
-
-Runtime, `config`, `health`, and label-scoped `notify test` commands require
-an explicit `--target <name>`. Global update commands and `notify test update`
-do not use a target. Every runtime command must also include at least one
-explicit operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
-`--fix-perms`.
-
-Runtime and health headers now identify the selected work as:
-
-- `Label`
-- `Target`
-- `Type`
-- `Location`
-
-Default output is phase-oriented and intentionally concise. Use `--verbose`
-to include detailed operational logging and command details.
-
-`--json-summary` adds a machine-readable completion summary on stdout while
-keeping the human-readable phase logs on stderr.
-
-The `health` command family adds read-only confidence checks:
-- `health status` gives a fast current-state summary
-- `health doctor` checks config, secrets, paths, btrfs prerequisites, locks, and storage reachability
-- `health verify` goes further by validating the revisions found for the current backup with `duplicacy check -persist`
-
-Secrets are only loaded for object targets. Filesystem targets, whether local
-or remote, operate directly on the configured destination path and therefore do
-not require a secrets file.
-
-`source_path` must point at the Btrfs root location you intend to snapshot for
-that label. In practice, that means a Btrfs volume or subvolume such as
-`/volume1/source-homes`, not an arbitrary nested directory such as
-`/volume1/source-homes/private-user-data`. Inclusion and exclusion beneath that snapshot
-root should be handled with Duplicacy filters rather than by narrowing
-`source_path` to a non-subvolume child path.
-
-Health commands combine target-specific state stored under `/var/lib/duplicacy-backup/<label>.<target>.json`
-with live Duplicacy storage inspection. When Duplicacy exposes revision creation
-times, those storage timestamps are used as the authoritative freshness signal.
-`health verify` also records how many revisions were checked, how many
-passed, and which revisions failed integrity validation. The JSON report keeps
-summary counts on healthy runs and includes per-revision detail when failures
-need to be diagnosed. Unhealthy verify JSON also emits structured failure and
-recommended-action codes for automation. Health JSON is machine-focused: it
-emits summary fields, timestamps, and machine codes rather than the rendered
-check lines shown in the interactive UI.
-
-Health policy is configured per backup TOML in an optional top-level `[health]`
-table, with optional per-target overrides under `[targets.<name>.health]`:
-- `freshness_warn_hours`
-- `freshness_fail_hours`
-- `doctor_warn_after_hours`
-- `verify_warn_after_hours`
-
-Optional notifications can be configured in `[health.notify]`, with
-optional per-target overrides in `[targets.<name>.health.notify]`. An optional
-`health_webhook_bearer_token` or `health_ntfy_token` can be stored in the
-target secrets TOML under the matching `[targets.<name>]` table. Notification
-auth tokens are target-scoped, so if multiple targets notify to the same
-authenticated destination, repeat the token in each target section that needs
-it.
-Notifications are intended for non-interactive health runs and selected runtime
-failures; interactive TTY runs do not notify by default. Runtime events are
-opt-in through `send_for = ["backup", "prune", "cleanup-storage"]`, while the
-default remains health-only. The generic JSON payload can be forwarded to
-generic webhook destinations without baking a vendor-specific
-format into the core application.
-
-For a low-cost `email + ntfy` setup, keep Synology scheduled-task email enabled
-for raw job failures and use native `[health.notify.ntfy]` delivery for health
-and selected runtime alerts. Use global `[update.notify]` settings for
-self-update failures.
-
-In v1, notification noise control is intentionally simple: success events do
-not notify by default unless an update outcome such as `succeeded` is
-explicitly listed in `[update.notify].notify_on`, runtime alerts are opt-in,
-update failure alerts are global and opt-in, interactive runs stay quiet by
-default, and repeated scheduled failures notify on each matching run. If you need
-deduplication or escalation, handle that in the receiving system.
-
-If the environment is broken early enough that the backup TOML cannot be read,
-built-in notification delivery is not expected to work because the notification policy
-itself lives in that config. For those hard-failure cases, rely on Synology
-scheduled-task monitoring and its mail/notification integration as the primary
-fallback alert path.
-
-`--help` now shows a concise quick-reference view. Use `--help-full` for the
-detailed CLI reference, and `config --help-full` for the detailed config
-subcommand reference.
-
-Interactive terminal runs ask for confirmation before forced prune and
-storage cleanup. Non-interactive runs continue unchanged so scheduled jobs are
-not blocked.
-
-For the installed Synology layout, runtime operations and installed-config
-inspection commands should normally be run with `sudo`. The main exception is
-`config paths`, which is useful as a normal-user discovery command.
+- Runtime, `config`, `health`, and label-scoped `notify test` commands require
+  an explicit `--target <name>`.
+- Runtime commands also require at least one operation flag such as `--backup`,
+  `--prune`, `--cleanup-storage`, or `--fix-perms`.
+- When operations are combined, execution order is fixed:
+  `backup -> prune -> cleanup-storage -> fix-perms`.
+- Object targets load storage secrets; filesystem targets do not.
+- `--fix-perms` applies only to filesystem targets.
+- `--json-summary` writes machine-readable output to stdout while human logs
+  stay on stderr.
+- `health status`, `health doctor`, and `health verify` use target-specific
+  state under `/var/lib/duplicacy-backup/<label>.<target>.json`.
+- Health and selected runtime notifications are configured under
+  `[health.notify]` in the label config.
+- `update --check-only` is safe for routine inspection of published updates.
+- `update` keeps the newly activated binary and one previous binary by default;
+  use `--keep <count>` if you want a different local rollback window.
 
 ## Documentation
 

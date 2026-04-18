@@ -3,6 +3,9 @@
 Use `sudo` for most installed NAS operations. `config paths`, `update --check-only`,
 and dry-run notification tests are common normal-user exceptions.
 
+This is the primary home for copyable operator command examples. Use
+[`cli.md`](cli.md) when you need the full command surface and option reference.
+
 Runtime, `config`, `health`, and label-scoped `notify test` commands need an
 explicit `--target <name>`. Runtime commands also need at least one explicit
 operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or

@@ -95,163 +95,67 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 ## Examples
 
-These examples show valid CLI combinations for manual and ad hoc use. For
-recommended recurring Synology scheduling patterns, see
-[`workflow-scheduling.md`](workflow-scheduling.md) and keep backup, prune,
-health, and fix-perms as separate scheduled tasks by default.
+These examples show representative syntax. For a fuller operator command list,
+use the [desk cheat sheet](cheatsheet.md). For recurring Synology scheduling
+patterns, use [workflow-scheduling.md](workflow-scheduling.md).
 
 ```bash
-# Backup homes to target onsite-usb
+# Runtime command: one label, one target, one explicit operation
 sudo duplicacy-backup --target onsite-usb --backup homes
 
-# Backup then safe prune homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune homes
-
-# Forced prune for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --prune --force-prune homes
-
-# Storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
-
-# Backup, safe prune, and storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune --cleanup-storage homes
-
-# Backup, forced prune, and storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
-
-# Fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --fix-perms homes
-
-# Backup then fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
-
-# Backup homes to target offsite-usb mounted over VPN
-sudo duplicacy-backup --target offsite-usb --backup homes
-
-# Fix permissions for homes on target offsite-usb
-sudo duplicacy-backup --target offsite-usb --fix-perms homes
-
-# Backup, safe prune, and fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --prune --backup --fix-perms homes
-
-# Preview backing up homes to target offsite-storj
-sudo duplicacy-backup --target offsite-storj --dry-run --backup homes
-
-# Verbose backup and prune for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --verbose --backup --prune homes
-
-# JSON summary for a dry-run backup of homes to target onsite-usb
+# Runtime command with modifiers
 sudo duplicacy-backup --target onsite-usb --json-summary --dry-run --backup homes
 
-# Validate config for homes on target onsite-usb
+# Config command
 sudo duplicacy-backup config validate --target onsite-usb homes
 
-# Explain config for homes on target offsite-storj
-sudo duplicacy-backup config explain --target offsite-storj homes
-
-# Show paths for homes on target onsite-usb
-duplicacy-backup config paths --target onsite-usb homes
-
-# Fast health summary for homes on target onsite-usb
+# Health command
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# JSON doctor report for homes on target onsite-usb
-sudo duplicacy-backup health doctor --json-summary --target onsite-usb homes
-
-# Send a simulated notification through the configured providers for homes on target onsite-usb
+# Label-scoped notification test
 sudo duplicacy-backup notify test --target onsite-usb homes
 
-# Preview the global update notification route without running an update
-duplicacy-backup notify test update --provider ntfy --dry-run
-
-# Verify homes on target offsite-storj
-sudo duplicacy-backup health verify --target offsite-storj homes
-
-# Check whether a newer published release is available
+# Global update command
 /usr/local/bin/duplicacy-backup update --check-only
 
-# Download and install the latest published release
-sudo /usr/local/bin/duplicacy-backup update --yes
-
-# Download and install only when release-asset attestation verification succeeds
-sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
-
-# Reinstall the selected release even if it is already current
-sudo /usr/local/bin/duplicacy-backup update --force --yes
+# Global update notification test
+duplicacy-backup notify test update --provider ntfy --dry-run
 ```
 
-## Notes
+## Behaviour Notes
 
-- `--help` is intentionally concise; use `--help-full` for the detailed reference
-- `config --help` is intentionally concise; use `config --help-full` for the detailed config reference
-- config files are TOML files named `<label>-backup.toml`
-- object-target storage credentials are read from `/root/.secrets/<label>-secrets.toml`
-- a label normally has one backup config file and, when needed, one matching secrets file; both files can define multiple targets for that label
-- object-target secrets for Storj-backed S3-compatible storage use `storj_s3_id` and `storj_s3_secret`; any target may also use optional `health_webhook_bearer_token` / `health_ntfy_token`
-- `--fix-perms` is filesystem-target aware and cannot be combined with an object target
-- combined phases all run against one selected target from a label config for a single invocation
-- `--prune` is shown as `Safe prune` unless `--force-prune` is supplied, in which case it is shown as `Forced prune`
-- `--cleanup-storage` is a standalone maintenance operation and may also be combined with prune
-- `--cleanup-storage` runs `duplicacy prune -exhaustive -exclusive`, so it should be used only when no other client is actively writing to the same storage
-- `--force-prune` only affects prune threshold enforcement
-- `--force-prune` requires `--prune`
-- interactive terminal runs ask for confirmation before forced prune and cleanup-storage
-- non-interactive runs continue without confirmation so scheduled jobs are unaffected
-- standalone `--fix-perms` does not require `duplicacy`
-- `config validate` works on one selected target from a label config at a time
-- `config validate --target <name>` checks one selected target from the label config, including destination, threads, prune policy, local-account settings, and any read-only Btrfs, secrets, or repository checks the current user is allowed to perform
-- `config validate` never initialises storage or changes repository state
-- non-root `config validate` remains useful, but root-only checks may be reported as `Not checked`
-- repository readiness is reported as exactly one of:
-  - `Repository Access : Valid`
-  - `Repository Access : Not initialized`
-  - `Repository Access : Invalid (...)`
-- `config explain` and `config paths` surface `Type` and `Location` for the selected target
-- `config explain` does not load object-target secrets by default; it stays read-only and identity-focused while still showing the expected secrets-file path
-- `config validate` keeps `Resolved` identity-only and reports the target-model outcome under `Target Settings`
-- `config validate` also reports `Privileges` as `Full` or `Limited` so it is obvious when root-only checks may be skipped
-- `config paths` shows a secrets path only when the selected target uses object storage
-- there is no implicit target selection; every runtime, `config`, `health`, and label-scoped `notify test` command must pass `--target <name>`
-- `notify test` uses the existing label and target config, sends a clearly marked synthetic notification, and can target `webhook`, `ntfy`, or `all`
-- `notify test update` uses the global app config at `<config-dir>/duplicacy-backup.toml` and does not require a label, target, or storage secrets
-- `update` checks GitHub for the latest published release by default, downloads the matching Linux package for the current platform, verifies its checksum, and reuses the packaged `install.sh`
-- `update --attestations required` verifies the downloaded tarball with GitHub CLI before extraction/install and fails if verification is unavailable or unsuccessful
-- `update --attestations auto` verifies with GitHub CLI when `gh` is available, stops if verification fails, and otherwise continues with checksum-only verification when `gh` is missing
-- `update` uses explicit timeouts for GitHub release metadata and package downloads, and reports whether the metadata lookup or download phase timed out
-- `update --check-only` shows the current version, target version, asset, and managed install paths without downloading anything
-- `update --force` reinstalls the selected release even when it is already current; it does not skip interactive confirmation unless `--yes` is also supplied
-- `update` expects the standard managed layout under `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as the stable command path
-- `update` defaults to `--keep 2`, so the newly activated version and one previous version are retained unless you override that policy
-- `update` can send failure notifications from the global `[update.notify]` config without reading label storage secrets
-- default output is concise and phase-oriented; use `--verbose` for detailed operational logs
-- `--json-summary` writes a machine-readable completion summary to stdout while human-readable logs stay on stderr
-- `--json-summary` also applies to `health` commands and writes a machine-readable health report to stdout while human-readable health output stays on stderr
-- if `--json-summary` itself cannot write to stdout, an otherwise successful runtime command exits `1` and an otherwise healthy health command exits `2`; commands that were already failing keep their original non-zero exit code
-- runtime and health headers now identify `Label`, `Target`, `Type`, and `Location` before work begins
-- health commands are read-only and never prompt for confirmation
-- health commands use target-specific state under `/var/lib/duplicacy-backup/<label>.<target>.json` together with live Duplicacy storage inspection
-- when `duplicacy list` exposes revision creation times, health freshness uses those storage timestamps as the authoritative freshness signal
-- `health status` reports revision count plus the latest revision and freshness
-- `health verify` uses `duplicacy check -persist` in the current repository context to validate the revisions found for the current label
-- health JSON stays machine-focused and omits the rendered check list shown in stderr output
-- healthy `health verify` JSON includes summary fields such as `revision_count`, `latest_revision`, `latest_revision_at`, `checked_revision_count`, `passed_revision_count`, `failed_revision_count`, `failed_revisions`, `last_doctor_run_at`, and `last_verify_run_at`
-- unhealthy `health verify` JSON also emits `failure_code`, `failure_codes`, and `recommended_action_codes` so automation can classify the failure without parsing human text
-- `health verify` emits `revision_results` only when failures or incomplete integrity attribution need investigation
-- optional shared health policy lives in `[health]`, with per-target overrides under `[targets.<name>.health]`
-- optional shared notification settings live in `[health.notify]`, with per-target overrides under `[targets.<name>.health.notify]`
-- native `ntfy` delivery can be configured under `[health.notify.ntfy]` or `[targets.<name>.health.notify.ntfy]`
-- `send_for` may include `status`, `doctor`, `verify`, `backup`, `prune`, and `cleanup-storage`; runtime operations are opt-in
-- optional health webhook authentication can be provided as `health_webhook_bearer_token` in the secrets TOML; native `ntfy` can use `health_ntfy_token`
-- notification auth tokens are target-scoped in the secrets file, so authenticated delivery must be configured under each notifying `[targets.<name>]` section
-- update notification settings are global under `[update.notify]`; they are intentionally separate from label and target notification settings
-- notification payloads are generic JSON with shared identity fields such as `label`, `target`, `storage_type`, and `location`
-- health notification payloads also carry `failure_code`, `failure_codes`, and `recommended_action_codes` in `details` when the health report has structured remediation metadata
-- native `ntfy` is the recommended low-cost alert destination on Synology; generic webhook remains available for future providers and bridges
-- default health exit codes are `0` healthy, `1` degraded, `2` unhealthy
-- runtime, config, notify, and update command failures exit `1`; health commands use the health-specific `0`/`1`/`2` contract, including pre-run health failures that prevent a real check from starting
-- installed Synology runtime commands and installed-config inspection commands should normally be run with `sudo`; `config paths`, `update --check-only`, and dry-run update notification tests are common normal-user exceptions
-- if config cannot be read at all, built-in notifications are not expected to work; treat Synology scheduled-task monitoring as the fallback alert path for hard startup/environment failures
-- keep `source_path` pointed at the real Btrfs volume or subvolume for the label; use Duplicacy filters to include or exclude directories beneath that root
+- `--help` is intentionally concise; use `--help-full` for detailed command help.
+- Every runtime, `config`, `health`, and label-scoped `notify test` command
+  needs `--target <name>`.
+- Runtime commands also need at least one primary operation flag.
+- Combined runtime phases always run in this order:
+  `backup -> prune -> cleanup-storage -> fix-perms`.
+- `--force-prune` requires `--prune` and only affects prune threshold
+  enforcement.
+- `--cleanup-storage` runs exhaustive exclusive storage cleanup and should be
+  treated as operator-directed maintenance.
+- `--json-summary` writes machine-readable output to stdout while human logs
+  stay on stderr.
+- Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
+- Object-target secrets for S3-compatible storage use `storj_s3_id` and
+  `storj_s3_secret`; see [configuration.md](configuration.md) for ownership,
+  permissions, and notification-token details.
+- `update` uses the managed install layout under
+  `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as
+  the stable command path.
+- `update` defaults to `--keep 2`, so the newly activated version and one
+  previous version are retained unless you override that policy.
+
+Source-of-truth guides:
+
+- Config files, target model, health policy, notification TOML, and secrets:
+  [configuration.md](configuration.md)
+- Install, update, rollback, and release verification procedures:
+  [operations.md](operations.md)
+- Routine Synology scheduling patterns:
+  [workflow-scheduling.md](workflow-scheduling.md)
+- Update checksum and attestation trust model:
+  [update-trust-model.md](update-trust-model.md)
 
 ## Notification Test Semantics
 
