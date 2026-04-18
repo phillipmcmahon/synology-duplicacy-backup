@@ -9,7 +9,7 @@ import (
 func (u *Updater) verifyReleaseAssetAttestation(planned *plan, assetPath string) error {
 	switch planned.Attestations {
 	case AttestationOff:
-		planned.Attested = "Skipped (off)"
+		planned.Attestation = AttestationResultSkippedOff
 		return nil
 	case AttestationAuto, AttestationRequired:
 	default:
@@ -17,11 +17,10 @@ func (u *Updater) verifyReleaseAssetAttestation(planned *plan, assetPath string)
 	}
 
 	if _, err := u.Runtime.LookPath("gh"); err != nil {
-		message := "Skipped (GitHub CLI not found on PATH)"
 		if planned.Attestations == AttestationRequired {
 			return fmt.Errorf("release attestation verification requires GitHub CLI (gh) on PATH; install gh or use --attestations off: %w", err)
 		}
-		planned.Attested = message
+		planned.Attestation = AttestationResultSkippedGitHubCLIMissing
 		return nil
 	}
 
@@ -29,7 +28,7 @@ func (u *Updater) verifyReleaseAssetAttestation(planned *plan, assetPath string)
 	if err != nil {
 		return fmt.Errorf("release attestation verification failed for %s: %w%s", planned.AssetName, err, formatCommandOutput(output))
 	}
-	planned.Attested = "Verified"
+	planned.Attestation = AttestationResultVerified
 	return nil
 }
 

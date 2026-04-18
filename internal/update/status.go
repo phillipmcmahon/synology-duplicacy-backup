@@ -53,3 +53,25 @@ func NewAttestationModeError(value string) *AttestationModeError {
 func (e *AttestationModeError) Error() string {
 	return "invalid attestation mode " + e.Value + " (expected off, auto, or required)"
 }
+
+type AttestationResult string
+
+const (
+	AttestationResultUnknown                 AttestationResult = ""
+	AttestationResultVerified                AttestationResult = "verified"
+	AttestationResultSkippedOff              AttestationResult = "skipped-off"
+	AttestationResultSkippedGitHubCLIMissing AttestationResult = "skipped-github-cli-missing"
+)
+
+func (r AttestationResult) Display() string {
+	switch r {
+	case AttestationResultVerified:
+		return "Verified"
+	case AttestationResultSkippedOff:
+		return "Skipped (off)"
+	case AttestationResultSkippedGitHubCLIMissing:
+		return "Skipped (GitHub CLI not found on PATH)"
+	default:
+		return ""
+	}
+}

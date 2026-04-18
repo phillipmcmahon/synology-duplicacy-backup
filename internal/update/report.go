@@ -18,8 +18,8 @@ func renderReport(planned *plan, result string, installerOutput string) string {
 	fmt.Fprintf(&b, "  Check Only           : %t\n", planned.CheckOnly)
 	fmt.Fprintf(&b, "  Force                : %t\n", planned.Force)
 	fmt.Fprintf(&b, "  Attestations         : %s\n", planned.Attestations)
-	if planned.Attested != "" {
-		fmt.Fprintf(&b, "  Attestation Result   : %s\n", planned.Attested)
+	if attestationDisplay := planned.Attestation.Display(); attestationDisplay != "" {
+		fmt.Fprintf(&b, "  Attestation Result   : %s\n", attestationDisplay)
 	}
 	fmt.Fprintf(&b, "  Result               : %s\n", result)
 	if installerOutput != "" {

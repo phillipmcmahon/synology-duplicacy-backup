@@ -47,7 +47,7 @@ type plan struct {
 	Force          bool
 	Keep           int
 	Attestations   AttestationMode
-	Attested       string
+	Attestation    AttestationResult
 	AlreadyCurrent bool
 }
 
@@ -65,8 +65,9 @@ type Updater struct {
 }
 
 type Result struct {
-	Output string
-	Status Status
+	Output      string
+	Status      Status
+	Attestation AttestationResult
 }
 
 func DefaultRuntime() Runtime {
@@ -145,7 +146,7 @@ func (u *Updater) RunResult(options Options) (Result, error) {
 		return Result{Status: StatusFailed}, err
 	}
 	if planned.AlreadyCurrent {
-		return Result{Output: renderReport(planned, "Already up to date", ""), Status: StatusCurrent}, nil
+		return resultFromPlan(planned, "Already up to date", "", StatusCurrent), nil
 	}
 	if planned.CheckOnly {
 		result := "Update available"
@@ -154,7 +155,7 @@ func (u *Updater) RunResult(options Options) (Result, error) {
 			result = "Reinstall requested"
 			status = StatusReinstallRequested
 		}
-		return Result{Output: renderReport(planned, result, ""), Status: status}, nil
+		return resultFromPlan(planned, result, "", status), nil
 	}
 	if err := u.confirmInstall(planned, options); err != nil {
 		status := StatusFailed
@@ -167,7 +168,15 @@ func (u *Updater) RunResult(options Options) (Result, error) {
 	if err != nil {
 		return Result{Status: StatusFailed}, err
 	}
-	return Result{Output: renderReport(planned, "Installed", installerOutput), Status: StatusInstalled}, nil
+	return resultFromPlan(planned, "Installed", installerOutput, StatusInstalled), nil
+}
+
+func resultFromPlan(planned *plan, reportResult string, installerOutput string, status Status) Result {
+	return Result{
+		Output:      renderReport(planned, reportResult, installerOutput),
+		Status:      status,
+		Attestation: planned.Attestation,
+	}
 }
 
 func (u *Updater) buildPlan(options Options) (*plan, error) {

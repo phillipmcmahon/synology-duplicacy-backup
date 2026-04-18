@@ -293,6 +293,9 @@ func TestRunInstallDownloadsVerifiesAndRunsInstaller(t *testing.T) {
 	if result.Status != StatusInstalled {
 		t.Fatalf("Status = %q, want %q", result.Status, StatusInstalled)
 	}
+	if result.Attestation != AttestationResultSkippedOff {
+		t.Fatalf("Attestation = %q, want %q", result.Attestation, AttestationResultSkippedOff)
+	}
 	output := result.Output
 	if !strings.Contains(output, "Result               : Installed") ||
 		!strings.Contains(output, "Installed: ok") {
@@ -364,6 +367,9 @@ func TestRunInstallRequiredAttestationVerifiesBeforeInstaller(t *testing.T) {
 	}
 	if !verified || !installerCalled {
 		t.Fatalf("verified=%t installerCalled=%t", verified, installerCalled)
+	}
+	if result.Attestation != AttestationResultVerified {
+		t.Fatalf("Attestation = %q, want %q", result.Attestation, AttestationResultVerified)
 	}
 	if !strings.Contains(result.Output, "Attestations         : required") ||
 		!strings.Contains(result.Output, "Attestation Result   : Verified") {
@@ -464,6 +470,9 @@ func TestRunInstallAutoAttestationSkipsWhenGitHubCLIMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunResult() error = %v", err)
 	}
+	if result.Attestation != AttestationResultSkippedGitHubCLIMissing {
+		t.Fatalf("Attestation = %q, want %q", result.Attestation, AttestationResultSkippedGitHubCLIMissing)
+	}
 	if !strings.Contains(result.Output, "Attestations         : auto") ||
 		!strings.Contains(result.Output, "Attestation Result   : Skipped (GitHub CLI not found on PATH)") ||
 		!strings.Contains(result.Output, "Installed: auto skip") {
@@ -517,6 +526,24 @@ func TestRunInstallAttestationFailureBlocksInstall(t *testing.T) {
 		!strings.Contains(err.Error(), "release attestation verification failed") ||
 		!strings.Contains(err.Error(), "attestation mismatch") {
 		t.Fatalf("RunResult() err = %v", err)
+	}
+}
+
+func TestAttestationResultDisplay(t *testing.T) {
+	tests := []struct {
+		result AttestationResult
+		want   string
+	}{
+		{result: AttestationResultVerified, want: "Verified"},
+		{result: AttestationResultSkippedOff, want: "Skipped (off)"},
+		{result: AttestationResultSkippedGitHubCLIMissing, want: "Skipped (GitHub CLI not found on PATH)"},
+		{result: AttestationResultUnknown, want: ""},
+		{result: AttestationResult("future-value"), want: ""},
+	}
+	for _, tt := range tests {
+		if got := tt.result.Display(); got != tt.want {
+			t.Fatalf("Display(%q) = %q, want %q", tt.result, got, tt.want)
+		}
 	}
 }
 
