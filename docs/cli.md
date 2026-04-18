@@ -24,6 +24,7 @@ Supported combinations are:
 
 - filesystem/local
 - filesystem/remote
+- object/local
 - object/remote
 
 Primary operations may be combined. When they are, execution order is fixed:

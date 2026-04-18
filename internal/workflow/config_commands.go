@@ -484,10 +484,10 @@ func validateObjectDestination(destination string) (string, error) {
 	}
 	parsed, err := url.Parse(destination)
 	if err != nil {
-		return "", configPathError(fmt.Sprintf("remote destination is not a valid URL-like storage target: %v", err))
+		return "", configPathError(fmt.Sprintf("object destination is not a valid URL-like storage target: %v", err))
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", configPathError(fmt.Sprintf("remote destination must include a scheme and host (was %q)", destination))
+		return "", configPathError(fmt.Sprintf("object destination must include a scheme and host (was %q)", destination))
 	}
 	host := parsed.Hostname()
 	if host == "" {

@@ -216,6 +216,24 @@ func remoteConfigBody(label, destination string, threads int, prune string) stri
 	return b.String()
 }
 
+func localObjectConfigBody(label, destination string, threads int, prune string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "label = %q\n", label)
+	fmt.Fprintf(&b, "source_path = %q\n", "/volume1/"+label)
+	if threads > 0 || prune != "" {
+		b.WriteString("\n[common]\n")
+	}
+	if threads > 0 {
+		fmt.Fprintf(&b, "threads = %d\n", threads)
+	}
+	if prune != "" {
+		fmt.Fprintf(&b, "prune = %q\n", prune)
+	}
+	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-rustfs")
+	fmt.Fprintf(&b, "type = %q\nlocation = %q\ndestination = %q\nrepository = %q\n", "object", "local", destination, label)
+	return b.String()
+}
+
 func assertFailureFooter(t *testing.T, stderr string) {
 	t.Helper()
 	if !strings.Contains(stderr, "Result") || !strings.Contains(stderr, "Failed") {
@@ -1221,6 +1239,24 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_LocalObjectMissingSecretsReturnsOne(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		secretsDir := t.TempDir()
+		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localObjectConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--backup", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(local object missing secrets) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "Secrets file not found:") || !strings.Contains(stderr, "homes-secrets.toml") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		assertFailureScope(t, stderr, "Backup", "homes", "onsite-rustfs", "object", "local")
+		assertFailureFooter(t, stderr)
+	})
+}
+
 func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
@@ -1251,6 +1287,23 @@ func TestRunWithArgs_ObjectFixPermsFailureIncludesStorageIdentity(t *testing.T) 
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "object", "remote")
+		assertFailureFooter(t, stderr)
+	})
+}
+
+func TestRunWithArgs_LocalObjectFixPermsFailureIncludesStorageIdentity(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localObjectConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
+		_, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(local object fix-perms failure) = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		assertFailureScope(t, stderr, "Fix permissions", "homes", "onsite-rustfs", "object", "local")
 		assertFailureFooter(t, stderr)
 	})
 }

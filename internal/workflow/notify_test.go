@@ -39,6 +39,30 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeNotificationPayload_LocalObjectBackupCouldNotStart(t *testing.T) {
+	rt := testRuntime()
+	plan := &Plan{DoBackup: true}
+	report := &RunReport{
+		Label:       "homes",
+		Target:      "onsite-rustfs",
+		StorageType: storageTypeObject,
+		Location:    locationLocal,
+		Operation:   "Backup",
+		ExitCode:    1,
+	}
+
+	payload := buildRuntimeNotificationPayload(rt, plan, report, errors.New("boom"), false, nil)
+	if payload == nil {
+		t.Fatal("buildRuntimeNotificationPayload() = nil")
+	}
+	if payload.Event != "backup_could_not_start" || payload.Severity != "critical" || payload.Operation != "backup" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload.Label != "homes" || payload.Target != "onsite-rustfs" || payload.StorageType != storageTypeObject || payload.Location != locationLocal {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
 func TestBuildRuntimeNotificationPayload_BackupFailed(t *testing.T) {
 	rt := testRuntime()
 	plan := &Plan{DoBackup: true}

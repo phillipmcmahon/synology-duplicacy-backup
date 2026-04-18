@@ -173,6 +173,49 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	}
 }
 
+func TestPlannerBuild_LocalObjectPlanLoadsSecrets(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("object storage secrets access validation requires root-owned test file")
+	}
+
+	configDir := t.TempDir()
+	secretsDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localObjectTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, ""))
+	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "onsite-rustfs")
+
+	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{},
+	)
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
+
+	plan, err := planner.Build(req)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if !plan.UsesObjectStorage() {
+		t.Fatal("expected local object target to use object storage")
+	}
+	if plan.IsRemoteLocation() {
+		t.Fatal("expected local object target not to be reported as remote")
+	}
+	if plan.Location != locationLocal {
+		t.Fatalf("Location = %q, want %q", plan.Location, locationLocal)
+	}
+	if plan.Secrets == nil {
+		t.Fatal("expected secrets to be loaded for local object plan")
+	}
+	if plan.SecretsFile != secretsFile {
+		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
+	}
+	if len(runner.Invocations) != 4 {
+		t.Fatalf("invocations = %d, want 4", len(runner.Invocations))
+	}
+}
+
 func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 

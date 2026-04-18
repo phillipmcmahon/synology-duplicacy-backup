@@ -138,6 +138,8 @@ CONFIG STRUCTURE:
     each [targets.<name>] entry must include:
       type = "filesystem" | "object"
       location = "local" | "remote"
+    supported type/location pairs:
+      filesystem/local, filesystem/remote, object/local, object/remote
 
     TARGET SECRETS:
       Object-storage targets load credentials from:

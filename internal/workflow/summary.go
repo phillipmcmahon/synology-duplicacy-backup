@@ -128,8 +128,8 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
-			SummaryLine{Label: "Remote Access Key", Value: plan.Secrets.MaskedID()},
-			SummaryLine{Label: "Remote Secret Key", Value: plan.Secrets.MaskedSecret()},
+			SummaryLine{Label: "Storage Access Key", Value: plan.Secrets.MaskedID()},
+			SummaryLine{Label: "Storage Secret Key", Value: plan.Secrets.MaskedSecret()},
 		)
 	}
 

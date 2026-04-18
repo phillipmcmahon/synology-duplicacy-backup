@@ -876,15 +876,17 @@ func TestValidateTargetSemantics(t *testing.T) {
 	}{
 		{name: "filesystem local path okay", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups"}},
 		{name: "filesystem remote path okay", cfg: Config{Target: "offsite-usb", StorageType: "filesystem", Location: "remote", Destination: "/volume2/backups"}},
+		{name: "object local url okay", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "s3://rustfs.local/bucket"}},
 		{name: "object remote url okay", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://gateway.example.invalid/bucket"}},
 		{name: "location required", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Destination: "/volume2/backups"}, want: "target.location must be set"},
-		{name: "object local invalid", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "local", Destination: "s3://bucket"}, want: "must not be \"local\""},
 		{name: "filesystem path cannot be url", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "s3://bucket"}, want: "filesystem path"},
 		{name: "object destination must be url", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "/volume2/backups"}, want: "URL-like storage target"},
+		{name: "object local destination must be url", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "/volume2/backups"}, want: "URL-like storage target"},
 		{name: "filesystem local accounts optional", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true}},
 		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
 		{name: "owner and group together", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
 		{name: "object disallows local accounts", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://bucket", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
+		{name: "object local disallows local accounts", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "s3://bucket", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
 		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
 	}
 

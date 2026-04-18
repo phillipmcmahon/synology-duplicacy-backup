@@ -70,16 +70,19 @@ Supported combinations:
 
 - `type = "filesystem"` with `location = "local"`
 - `type = "filesystem"` with `location = "remote"`
+- `type = "object"` with `location = "local"`
 - `type = "object"` with `location = "remote"`
 
 This means a mounted filesystem path over VPN can be modelled cleanly as
-remote without forcing object-storage behaviour.
+remote without forcing object-storage behaviour. It also means a local
+S3-compatible object store can be modelled as object storage while still being
+treated as operationally local for scheduling and reporting.
 
 Operational rules:
 
 - filesystem targets use filesystem path semantics
 - object targets use URL-style storage semantics
-- only object targets load secrets
+- only object targets load storage secrets
 - only filesystem targets allow `allow_local_accounts`, `local_owner`,
   `local_group`, and `--fix-perms`
 
@@ -329,6 +332,12 @@ repository = "homes"
 
 [targets.offsite-storj.health]
 verify_warn_after_hours = 336
+
+[targets.onsite-rustfs]
+type = "object"
+location = "local"
+destination = "s3://rustfs.local/my-backup-bucket"
+repository = "homes"
 ```
 
 ## Source Path Rule

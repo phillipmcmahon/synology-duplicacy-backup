@@ -15,7 +15,7 @@ Target model:
 
 - `type = "filesystem"` or `type = "object"`
 - `location = "local"` or `location = "remote"`
-- supported combinations are `filesystem/local`, `filesystem/remote`, and `object/remote`
+- supported combinations are `filesystem/local`, `filesystem/remote`, `object/local`, and `object/remote`
 - only object targets need storage secrets
 - `--fix-perms` only works for filesystem targets
 
@@ -30,6 +30,9 @@ sudo duplicacy-backup --target onsite-usb --backup --prune homes
 
 # Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
+
+# Backup homes to a local S3-compatible object-storage target
+sudo duplicacy-backup --target onsite-rustfs --backup homes
 
 # Backup homes to target offsite-usb on a mounted remote filesystem
 sudo duplicacy-backup --target offsite-usb --backup homes

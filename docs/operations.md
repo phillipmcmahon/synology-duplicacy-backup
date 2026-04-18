@@ -259,7 +259,9 @@ the operator-readable summary.
 explicit target. Global update commands and `notify test update` do not.
 Targets now define both `type` and `location`, so mounted remote filesystems
 can be modelled as `type = "filesystem"` with `location = "remote"` without
-loading secrets.
+loading storage secrets. Local S3-compatible object storage can be modelled as
+`type = "object"` with `location = "local"`; it still uses object-storage
+credentials because storage kind, not location, controls credential loading.
 The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
 gateway-backed S3-compatible storage. It also supports optional
 `health_webhook_bearer_token` and `health_ntfy_token` values for authenticated

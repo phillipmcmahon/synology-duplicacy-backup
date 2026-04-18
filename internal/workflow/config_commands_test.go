@@ -145,6 +145,56 @@ func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootSkipsPrivilegedC
 	assertAllowedValidationOutcomes(t, out)
 }
 
+func TestHandleConfigCommand_ValidateConfiguredLocalObjectWithoutRootSkipsPrivilegedChecks(t *testing.T) {
+	stubConfigDestinationHostResolver(t, func(host string) ([]string, error) {
+		if host != "rustfs.local" {
+			t.Fatalf("resolved host = %q, want rustfs.local", host)
+		}
+		return []string{"192.0.2.50"}, nil
+	})
+
+	sourcePath := t.TempDir()
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localObjectTargetConfig("homes", sourcePath, "s3://rustfs.local/bucket", 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	if err != nil {
+		t.Fatalf("HandleConfigCommand() error = %v", err)
+	}
+
+	for _, token := range []string{
+		"Config validation succeeded for homes/onsite-rustfs",
+		"Destination Access",
+		"Resolved",
+		"Repository Access",
+		"Not checked",
+		"Target Settings",
+		"Valid",
+		"Secrets",
+		"Result",
+		"Passed",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	values := extractValidationValues(t, out)
+	if values["Privileges"] != "Limited" {
+		t.Fatalf("Privileges = %q:\n%s", values["Privileges"], out)
+	}
+	if values["Repository Access"] != "Not checked" {
+		t.Fatalf("Repository Access = %q:\n%s", values["Repository Access"], out)
+	}
+	if values["Secrets"] != "Not checked" {
+		t.Fatalf("Secrets = %q:\n%s", values["Secrets"], out)
+	}
+	assertAllowedValidationOutcomes(t, out)
+}
+
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
@@ -625,6 +675,28 @@ func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing
 	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File")
 }
 
+func TestHandleConfigCommand_ExplainLocalObjectDoesNotRequireSecretsAccess(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localObjectTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
+
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	if err != nil {
+		t.Fatalf("HandleConfigCommand() error = %v", err)
+	}
+	for _, token := range []string{"Config explanation for homes/onsite-rustfs", "Type", "object", "Location", "local", "Destination", "s3://rustfs.local/bucket/homes", "Secrets File", "homes-secrets.toml"} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	for _, token := range []string{"Storage Access Key", "Storage Secret Key", "Remote Access Key", "Remote Secret Key"} {
+		if strings.Contains(out, token) {
+			t.Fatalf("output should not include %q:\n%s", token, out)
+		}
+	}
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Prune Policy", "Secrets File")
+}
+
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
@@ -657,7 +729,7 @@ local_group = %q
 	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config File", "Source", "Destination", "Threads", "Filter", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
 }
 
-func TestHandleConfigCommand_PathsRemoteIncludesSecrets(t *testing.T) {
+func TestHandleConfigCommand_PathsObjectStorageIncludesSecrets(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
@@ -669,6 +741,23 @@ func TestHandleConfigCommand_PathsRemoteIncludesSecrets(t *testing.T) {
 	for _, token := range []string{"Resolved paths for homes", "Secrets Dir", "Secrets File", "homes-secrets.toml"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("remote paths output missing %q:\n%s", token, out)
+		}
+	}
+	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
+}
+
+func TestHandleConfigCommand_PathsLocalObjectIncludesSecrets(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localObjectTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
+
+	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	if err != nil {
+		t.Fatalf("HandleConfigCommand(paths local object) error = %v", err)
+	}
+	for _, token := range []string{"Resolved paths for homes", "Type", "object", "Location", "local", "Secrets Dir", "Secrets File", "homes-secrets.toml"} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("local object paths output missing %q:\n%s", token, out)
 		}
 	}
 	assertFlatLabels(t, out, "Label", "Target", "Type", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")

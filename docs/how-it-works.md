@@ -419,11 +419,14 @@ Supported combinations are intentionally limited to:
 
 - filesystem/local
 - filesystem/remote
+- object/local
 - object/remote
 
 This is what makes mounted remote filesystems first-class. A path reached over
 VPN or SMB can now stay a filesystem target while still being modelled as
-remote operationally.
+remote operationally. Local object-storage services, such as an S3-compatible
+store on the LAN, remain object targets while being modelled as local for
+operator scheduling and reporting.
 
 ## Plan Phase
 
@@ -521,6 +524,7 @@ It:
   - storage kind
   - deployment location
   - allowed combinations
+  - object destinations use URL-style storage targets
 - validates owner/group if `--fix-perms` is active
 
 Self-update notifications intentionally do not flow through `loadConfig`,
@@ -563,8 +567,9 @@ It:
 The resulting `Secrets` object is attached to the plan.
 
 Filesystem targets do not call `loadSecrets`, even when their `location` is
-`remote`. That is a deliberate consequence of the new model: storage kind
-drives credential requirements, not deployment location.
+`remote`. Object targets do call `loadSecrets`, even when their `location` is
+`local`. That is a deliberate consequence of the model: storage kind drives
+credential requirements, not deployment location.
 
 ### `populateCommands`
 

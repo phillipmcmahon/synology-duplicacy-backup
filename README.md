@@ -19,16 +19,18 @@ Supported combinations are:
 
 - `type = "filesystem"` with `location = "local"`
 - `type = "filesystem"` with `location = "remote"`
+- `type = "object"` with `location = "local"`
 - `type = "object"` with `location = "remote"`
 
 This lets the tool represent cases such as a mounted SMB path over VPN as a
-real remote destination without pretending it is object storage or forcing it
-into the old `local` shortcut.
+real remote filesystem destination. It also supports local S3-compatible
+object storage, such as a RustFS or MinIO deployment on your LAN, without
+pretending that object storage is a filesystem path.
 
 In practice:
 
 - filesystem targets use path semantics and do not load secrets
-- object targets use URL-style storage semantics and do load secrets
+- object targets use URL-style storage semantics and do load storage secrets
 - `--fix-perms` is only supported for filesystem targets
 - runtime, health, `config explain`, and `config paths` now surface `Type` and
   `Location` in operator-facing output
@@ -147,6 +149,12 @@ local_group = "users"
 type = "object"
 location = "remote"
 destination = "s3://gateway.storjshare.io/my-backup-bucket"
+repository = "homes"
+
+[targets.onsite-rustfs]
+type = "object"
+location = "local"
+destination = "s3://rustfs.local/my-backup-bucket"
 repository = "homes"
 ```
 

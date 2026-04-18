@@ -41,7 +41,7 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 	}
 }
 
-func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
+func TestSummaryLines_ObjectStorageIncludesSecrets(t *testing.T) {
 	plan := &Plan{
 		Verbose:                     true,
 		DoBackup:                    true,
@@ -81,15 +81,60 @@ func TestSummaryLines_RemoteIncludesSecrets(t *testing.T) {
 		if line.Label == "Secrets File" {
 			foundSecretsFile = true
 		}
-		if line.Label == "Remote Access Key" {
+		if line.Label == "Storage Access Key" {
 			foundAccessKey = true
 		}
-		if line.Label == "Remote Secret Key" {
+		if line.Label == "Storage Secret Key" {
 			foundSecretKey = true
 		}
 	}
 	if !foundSecretsDir || !foundSecretsFile || !foundAccessKey || !foundSecretKey {
 		t.Fatalf("expected secrets lines in summary, got %+v", lines)
+	}
+}
+
+func TestSummaryLines_LocalObjectStorageIncludesNeutralSecretLabels(t *testing.T) {
+	plan := &Plan{
+		Verbose:                     true,
+		DoBackup:                    true,
+		Threads:                     4,
+		LogRetentionDays:            30,
+		SafePruneMaxDeletePercent:   10,
+		SafePruneMaxDeleteCount:     25,
+		SafePruneMinTotalForPercent: 20,
+		Secrets: &secrets.Secrets{
+			StorjS3ID:     "1234567890123456789012345678",
+			StorjS3Secret: "12345678901234567890123456789012345678901234567890123",
+		},
+		BackupLabel:    "homes",
+		Target:         "onsite-rustfs",
+		StorageType:    storageTypeObject,
+		Location:       locationLocal,
+		SnapshotSource: "/volume1/homes",
+		RepositoryPath: "/volume1/homes-snap",
+		WorkRoot:       "/tmp/work",
+		BackupTarget:   "s3://rustfs.local/bucket/homes",
+		ConfigFile:     "/config/homes-backup.toml",
+		SecretsDir:     "/root/.secrets",
+		SecretsFile:    "/root/.secrets/homes-secrets.toml",
+		ModeDisplay:    "onsite-rustfs",
+		OperationMode:  "Backup",
+	}
+
+	lines := SummaryLines(plan)
+	labels := make(map[string]bool, len(lines))
+	for _, line := range lines {
+		labels[line.Label] = true
+	}
+	for _, want := range []string{"Type", "Location", "Storage Access Key", "Storage Secret Key"} {
+		if !labels[want] {
+			t.Fatalf("missing %q in summary lines: %+v", want, lines)
+		}
+	}
+	for _, old := range []string{"Remote Access Key", "Remote Secret Key"} {
+		if labels[old] {
+			t.Fatalf("summary should not use remote-specific label %q: %+v", old, lines)
+		}
 	}
 }
 

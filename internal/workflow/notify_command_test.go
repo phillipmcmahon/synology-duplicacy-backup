@@ -242,6 +242,56 @@ func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenI
 	}
 }
 
+func TestHandleNotifyCommand_LocalObjectTargetPayload(t *testing.T) {
+	configDir := t.TempDir()
+	var webhookBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("ReadAll() error = %v", err)
+		}
+		webhookBody = string(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
+		`label = "homes"`,
+		`source_path = "/volume1/homes"`,
+		`[health.notify]`,
+		`webhook_url = "` + server.URL + `"`,
+		`[targets.onsite-rustfs]`,
+		`type = "object"`,
+		`location = "local"`,
+		`destination = "s3://rustfs.local/bucket"`,
+		`repository = "homes"`,
+	}, "\n"))
+
+	req := &Request{
+		NotifyCommand:   "test",
+		RequestedTarget: "onsite-rustfs",
+		Source:          "homes",
+		ConfigDir:       configDir,
+		SecretsDir:      t.TempDir(),
+		NotifyProvider:  "webhook",
+		NotifySeverity:  "warning",
+	}
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+
+	out, err := HandleNotifyCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("HandleNotifyCommand() error = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Webhook") || !strings.Contains(out, "Success") {
+		t.Fatalf("output = %q", out)
+	}
+	if !strings.Contains(webhookBody, `"target":"onsite-rustfs"`) ||
+		!strings.Contains(webhookBody, `"storage_type":"object"`) ||
+		!strings.Contains(webhookBody, `"location":"local"`) {
+		t.Fatalf("webhookBody = %q", webhookBody)
+	}
+}
+
 func TestHandleNotifyCommand_ObjectTargetTokenParseErrorStillFails(t *testing.T) {
 	configDir := t.TempDir()
 	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{

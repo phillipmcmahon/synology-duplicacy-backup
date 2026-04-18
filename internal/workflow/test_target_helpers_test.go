@@ -40,6 +40,10 @@ func remoteTargetConfig(label, sourcePath, destination string, threads int, prun
 	return buildLabelConfig(label, "offsite-storj", storageTypeObject, locationRemote, sourcePath, destination, label, "", "", threads, prune, extraSections...)
 }
 
+func localObjectTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "onsite-rustfs", storageTypeObject, locationLocal, sourcePath, destination, label, "", "", threads, prune, extraSections...)
+}
+
 func buildTargetConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
 	return buildLabelConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group, threads, prune, extraSections...)
 }

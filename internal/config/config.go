@@ -871,8 +871,6 @@ func (c *Config) ValidateTargetSemantics() error {
 		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be set to \"filesystem\" or \"object\""))
 	case c.Location == "":
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
-	case c.UsesObjectStorage() && c.Location == "local":
-		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must not be \"local\" when target.type is \"object\""))
 	case !c.UsesFilesystem() && !c.UsesObjectStorage():
 		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"object\" (was %q)", c.StorageType))
 	}
