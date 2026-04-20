@@ -352,8 +352,9 @@ actually backed up.
 
 ## Secrets
 
-Duplicacy targets load runtime storage keys from, and authenticated
-notification delivery can optionally read target-scoped tokens from:
+Targets whose selected backend needs runtime storage keys load them from, and
+authenticated notification delivery can optionally read target-scoped tokens
+from:
 
 ```text
 /root/.secrets/<label>-secrets.toml
@@ -384,7 +385,7 @@ Requirements:
 - owned by `root:root`
 - secrets directory permissions `0700`
 - permissions `0600`
-- storage keys are only needed for duplicacy targets whose Duplicacy backend requires them
+- storage keys are only needed when the selected Duplicacy backend requires them
 - notification auth tokens may be present for any target
 - a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
 - notification auth tokens are target-scoped; repeat them under each notifying target that needs authenticated delivery
@@ -431,12 +432,12 @@ freshness signal.
 | `btrfs` binary check | backup |
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
-| target local-account consistency | `config validate`, filesystem `--fix-perms` |
+| target local-account consistency | `config validate`, path-based `--fix-perms` |
 | Btrfs `source_path` check | `config validate`, backup |
-| destination accessibility check | `config validate` |
+| storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
-| `local_owner` / `local_group` validation | filesystem `--fix-perms` |
-| target secrets loading | `duplicacy` targets |
+| `local_owner` / `local_group` validation | path-based `--fix-perms` |
+| target secrets loading | storage values whose backend needs keys |
 
 ## Output Model
 
@@ -445,7 +446,7 @@ Human-facing screens now make the selected target shape explicit:
 - runtime headers show `Label`, `Target`, and `Location`
 - health headers show `Check`, `Label`, `Target`, and `Location`
 - `config explain` and `config paths` show `Location`
-- `config explain` stays read-only by default and does not load duplicacy-target secrets
+- `config explain` stays read-only by default and does not load storage secrets
 - `config validate` includes `Privileges`, reported as `Full` or `Limited`
 
 `config validate` intentionally keeps its `Resolved` section identity-only:

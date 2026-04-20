@@ -16,15 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Staticcheck is now module-pinned**: CI and release validation run
   `honnef.co/go/tools/cmd/staticcheck` from Go module metadata so Dependabot
   can update the Staticcheck toolchain through normal Go dependency PRs.
-- **Duplicacy backend configuration is now provider-neutral**: backend targets
-  use `type = "duplicacy"` with a direct `storage` URL, and target secrets now
-  use generic `[targets.<name>.keys]` entries that are passed through to
-  Duplicacy preferences.
+- **Duplicacy backend configuration is now provider-neutral**: backup targets
+  use a direct `storage` value, and target secrets now use generic
+  `[targets.<name>.keys]` entries that are passed through to Duplicacy
+  preferences.
 
 ### Removed
 - **The Storj/S3-specific object target schema has been removed**:
   `type = "object"` plus `storj_s3_id` / `storj_s3_secret` is replaced by the
-  standardised `type = "duplicacy"` plus generic storage keys model.
+  standardised `storage` plus generic storage keys model.
+- **The target `type` key has been retired**: every target delegates storage
+  handling to Duplicacy, so operator config now uses only `location` and
+  `storage` for target identity.
 
 ## [v4.5.0] - 2026-04-18
 

@@ -258,11 +258,11 @@ the operator-readable summary.
 `--target <name>` selects one named target from the label config. Runtime,
 `config`, `health`, and label-scoped `notify test` commands require an
 explicit target. Global update commands and `notify test update` do not.
-Targets define both `type` and `location`. `type` is always `duplicacy`; the
-configured `storage` value is passed directly through to Duplicacy. Use
-`location = "local"` or `location = "remote"` to describe where the target lives
-operationally, and add `[targets.<name>.keys]` only when the selected Duplicacy
-backend needs runtime keys.
+Targets define both `storage` and `location`. The configured `storage` value is
+passed directly through to Duplicacy. Use `location = "local"` or
+`location = "remote"` to describe where the target lives operationally, and add
+`[targets.<name>.keys]` only when the selected Duplicacy backend needs runtime
+keys.
 
 The secrets schema also supports optional
 `health_webhook_bearer_token` and `health_ntfy_token` values for authenticated

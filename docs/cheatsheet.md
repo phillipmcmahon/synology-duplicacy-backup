@@ -30,7 +30,7 @@ sudo duplicacy-backup --target onsite-usb --backup --prune homes
 # Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
 
-# Backup homes to a local S3-compatible Duplicacy target
+# Backup homes to a local S3-compatible service
 sudo duplicacy-backup --target onsite-rustfs --backup homes
 
 # Backup homes to target offsite-usb on a mounted remote filesystem
@@ -130,15 +130,15 @@ Installer behaviour:
 ### Config and Validation
 
 - Keep `source_path` pointed at the real Btrfs volume or subvolume for the label, then use Duplicacy filters to include or exclude nested directories beneath that root.
-- Use `type` for storage behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
+- Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - Non-root `config validate` is still useful, but checks that require root may show `Not checked`.
 - `Repository Access : Valid` means the selected repository is ready to use.
-- `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
+- `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
 - `config explain` and `config paths` show `Location` for the selected target.
-- `config explain` does not load duplicacy-target secrets by default; it stays read-only and still shows the expected secrets-file path.
-- `config paths` only includes secrets paths when the selected target is a duplicacy target.
+- `config explain` does not load storage secrets; it stays read-only and still shows the expected secrets-file path when the selected backend needs one.
+- `config paths` only includes secrets paths when the selected backend needs secrets.
 
 ### Health and Output
 

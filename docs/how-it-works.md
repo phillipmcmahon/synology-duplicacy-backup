@@ -470,7 +470,7 @@ That is an important design rule.
 1. `validateEnvironment(req)`
 2. `derivePlan(req)`
 3. `loadConfig(plan)`
-4. `loadSecrets(plan)` when the selected target uses Duplicacy storage
+4. `loadSecrets(plan)` when the selected storage value needs secrets
 5. `populateCommands(plan)`
 6. `SummaryLines(plan)`
 
@@ -542,7 +542,7 @@ After this step, the plan is populated with things the executor can use directly
 - `LogRetentionDays`
 - safe-prune thresholds
 - operation mode string
-- storage type
+- storage value
 - location
 
 Operationally, `source_path` is expected to be the real Btrfs volume or
@@ -552,7 +552,7 @@ arbitrary nested child directory.
 
 ### `loadSecrets`
 
-This only runs for Duplicacy targets.
+This runs only when the selected storage value needs secrets.
 
 It:
 

@@ -76,13 +76,14 @@ Additional v4.4.1 validation:
 
 Additional v4.5.x validation:
 
-- Config semantics now use `type = "duplicacy"` with direct Duplicacy storage
-  URLs and generic storage keys.
-- Planner tests confirm local Duplicacy targets load storage keys while
-  remaining operationally local.
+- Config semantics now use direct Duplicacy `storage` values and generic
+  storage keys.
+- Planner tests confirm URL-like storage values load storage keys when the
+  selected backend needs them while remaining operationally local or remote
+  according to `location`.
 - Runtime failure, config command, summary, and notification tests confirm
-  local Duplicacy targets preserve `Type: duplicacy` and `Location: local`
-  in operator-facing output and webhook payloads.
+  targets preserve `Location` in operator-facing output and webhook payloads
+  without exposing a redundant target type.
 
 Additional #114, #115, and #128 validation:
 
@@ -247,7 +248,7 @@ Planner tests cover:
 
 - path derivation
 - config loading
-- target-model resolution (`type` + `location`)
+- target-model resolution (`storage` + `location`)
 - operation-mode derivation
 - backup-target derivation
 - summary precomputation
@@ -265,17 +266,18 @@ Executor tests cover:
 
 Acceptance coverage for the current target model should always include:
 
-- `filesystem/local`
-- `filesystem/remote`
-- `duplicacy/remote`
+- path-based storage with `location = "local"`
+- path-based storage with `location = "remote"`
+- URL-like storage with `location = "local"`
+- URL-like storage with `location = "remote"`
 
 That includes both behaviour and output:
 
-- filesystem/remote targets do not load secrets
-- duplicacy/remote targets do load secrets
-- `--fix-perms` is accepted for filesystem targets and rejected for duplicacy targets
-- runtime and health headers include `Type` and `Location`
-- `config validate` keeps `Resolved` identity-only and checks the new model
+- path-based storage targets do not load storage keys
+- URL-like storage targets load storage keys only when the selected backend requires them
+- `--fix-perms` is accepted for path-based storage targets and rejected for URL-like storage targets
+- runtime and health headers include `Location`
+- `config validate` keeps `Resolved` identity-only and checks target settings
   under `Target Settings`
 
 Workflow tests also cover:

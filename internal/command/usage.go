@@ -84,7 +84,7 @@ OPERATIONS:
     --cleanup-storage        Request storage maintenance:
                              duplicacy prune -exhaustive -exclusive
                              Use only when no other client is writing to the same storage
-    --fix-perms              Normalise filesystem repository ownership and permissions
+    --fix-perms              Normalise path-based storage ownership and permissions
     At least one operation flag is required for runtime commands
 
 MODIFIERS:

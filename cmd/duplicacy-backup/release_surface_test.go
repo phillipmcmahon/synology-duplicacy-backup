@@ -207,7 +207,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"health doctor",
 			"health verify",
 			"0` healthy, `1` degraded, `2` unhealthy",
-			"Duplicacy-target storage keys",
+			"Storage keys",
 			"[targets.<name>.keys]",
 			"s3_secret",
 			"--target <name>",
@@ -298,7 +298,7 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"health_ntfy_token",
 		"Use [targets.<name>.keys] tables with Duplicacy key names such as:",
 		"--cleanup-storage        Request storage maintenance:",
-		"--fix-perms              Normalise filesystem repository ownership and permissions",
+		"--fix-perms              Normalise path-based storage ownership and permissions",
 	}
 	for _, token := range expected {
 		if !strings.Contains(usage, token) {

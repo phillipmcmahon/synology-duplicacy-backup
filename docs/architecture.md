@@ -86,10 +86,9 @@ The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
 locks, create work directories, create snapshots, or change permissions.
 
-That is also where the storage semantics are decided. The planner uses
-`type`, not `location`, to decide whether a target uses filesystem paths or
-Duplicacy storage URLs, whether secrets should be loaded, and whether
-`--fix-perms` is allowed.
+That is also where the storage semantics are decided. The planner uses the
+`storage` value, not `location`, to decide whether storage keys should be
+loaded and whether `--fix-perms` is allowed.
 
 ## Execute
 

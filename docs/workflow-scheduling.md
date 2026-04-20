@@ -93,10 +93,10 @@ This is the main routine workload.
 Recommended pattern:
 
 - fast onsite targets more frequently
-- slower offsite or higher-latency Duplicacy backend targets less frequently
+- slower offsite or higher-latency storage targets less frequently
 
-`location` is the scheduling signal: a local Duplicacy backend on your LAN can
-use an onsite cadence if it is fast and reliable enough, while a remote
+`location` is the scheduling signal: a local S3-compatible service on your LAN
+can use an onsite cadence if it is fast and reliable enough, while a remote
 filesystem mount should still be treated like offsite work.
 
 Examples:
@@ -144,7 +144,8 @@ Recommended pattern:
 - weekly
 - or after manual restore or repository maintenance activity
 
-Do not schedule it for Duplicacy backend targets.
+Do not schedule it for URL-like storage targets such as S3, Storj, B2, RustFS,
+or MinIO.
 
 ## What Not To Schedule Routinely
 

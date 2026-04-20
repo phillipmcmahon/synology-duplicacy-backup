@@ -43,15 +43,15 @@ See also:
 
 ## Repository Access Is Not Initialized
 
-`Repository Access : Not initialized` means the destination was reachable, but
-the selected repository does not yet exist there for that label and target.
-This is different from `Invalid`, which means access is broken or the storage
-cannot be read correctly.
+`Repository Access : Not initialized` means the selected storage value was
+reachable, but the repository does not yet exist there for that label and
+target. This is different from `Invalid`, which means access is broken or the
+storage cannot be read correctly.
 
-Confirm the target name, destination, and repository name in the label config.
-Do not expect `config validate` to initialise storage; it is read-only. Once
-the repository has been intentionally initialised, validation should move from
-`Not initialized` to `Valid`.
+Confirm the target name and full `storage` value in the label config. Do not
+expect `config validate` to initialise storage; it is read-only. Once the
+repository has been intentionally initialised, validation should move from `Not
+initialized` to `Valid`.
 
 See also:
 

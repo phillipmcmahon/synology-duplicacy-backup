@@ -39,7 +39,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | `--backup` | Request the backup phase |
 | `--prune` | Request the threshold-guarded prune phase |
 | `--cleanup-storage` | Run exhaustive exclusive storage cleanup |
-| `--fix-perms` | Normalise filesystem repository ownership and permissions; can run alone or after backup/prune |
+| `--fix-perms` | Normalise path-based storage ownership and permissions; can run alone or after backup/prune |
 
 ## Modifiers
 
@@ -60,7 +60,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate the selected target from that label config and any required duplicacy-target secrets |
+| `config validate --target <target> <label>` | Validate the selected target from that label config and any required storage secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -136,10 +136,11 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
-- Duplicacy-target storage keys live under `[targets.<name>.keys]` in the
-  label secrets file. For S3-compatible storage this usually means `s3_id`
-  and `s3_secret`; see [configuration.md](configuration.md) for ownership,
-  permissions, and notification-token details.
+- Storage keys live under `[targets.<name>.keys]` in the label secrets file
+  when the selected backend requires them. For S3-compatible storage this
+  usually means `s3_id` and `s3_secret`; see
+  [configuration.md](configuration.md) for ownership, permissions, and
+  notification-token details.
 - `update` uses the managed install layout under
   `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as
   the stable command path.
