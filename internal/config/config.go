@@ -40,6 +40,7 @@ type Config struct {
 	Location                    string
 	SourcePath                  string
 	Destination                 string
+	Storage                     string
 	Repository                  string
 	Filter                      string
 	LocalOwner                  string
@@ -129,6 +130,7 @@ type tableTarget struct {
 	Type                        *string      `toml:"type"`
 	Location                    *string      `toml:"location"`
 	Destination                 *string      `toml:"destination"`
+	Storage                     *string      `toml:"storage"`
 	Repository                  *string      `toml:"repository"`
 	Filter                      *string      `toml:"filter"`
 	Threads                     *int         `toml:"threads"`
@@ -145,6 +147,7 @@ type tableTarget struct {
 
 type tableStorage struct {
 	Destination *string `toml:"destination"`
+	Storage     *string `toml:"storage"`
 	Repository  *string `toml:"repository"`
 }
 
@@ -335,18 +338,34 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	if err != nil {
 		return nil, err
 	}
-	if target.Destination == nil || strings.TrimSpace(*target.Destination) == "" {
-		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required targets.%s.destination value", path, selected), "path", path, "target", selected)
-	}
 
 	values["TARGET"] = selected
+	targetType := ""
 	if target.Type != nil {
-		values["STORAGE_TYPE"] = strings.TrimSpace(*target.Type)
+		targetType = strings.TrimSpace(*target.Type)
+		values["STORAGE_TYPE"] = targetType
 	}
 	if target.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*target.Location)
 	}
-	values["DESTINATION"] = strings.TrimSpace(*target.Destination)
+	switch targetType {
+	case "duplicacy":
+		if target.Destination != nil {
+			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses targets.%s.destination for a duplicacy target; use targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
+		}
+		if target.Storage == nil || strings.TrimSpace(*target.Storage) == "" {
+			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required targets.%s.storage value", path, selected), "path", path, "target", selected)
+		}
+		values["STORAGE"] = strings.TrimSpace(*target.Storage)
+	default:
+		if target.Storage != nil {
+			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s uses targets.%s.storage for a filesystem target; use targets.%s.destination instead", path, selected, selected), "path", path, "target", selected)
+		}
+		if target.Destination == nil || strings.TrimSpace(*target.Destination) == "" {
+			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required targets.%s.destination value", path, selected), "path", path, "target", selected)
+		}
+		values["DESTINATION"] = strings.TrimSpace(*target.Destination)
+	}
 	if target.Repository != nil && strings.TrimSpace(*target.Repository) != "" {
 		values["REPOSITORY"] = strings.TrimSpace(*target.Repository)
 	}
@@ -397,7 +416,7 @@ func (f *File) selectTarget(targetName, path string) (string, tableTarget, error
 func (f *File) resolveLegacyValues(targetName, path string) (map[string]string, error) {
 	return nil, apperrors.NewConfigError(
 		"legacy-layout",
-		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using type = \"filesystem\"|\"object\" and location = \"local\"|\"remote\"", path),
+		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using type = \"filesystem\"|\"duplicacy\" and location = \"local\"|\"remote\"", path),
 		"path", path,
 	)
 }
@@ -420,16 +439,15 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if f.SourcePath == nil || strings.TrimSpace(*f.SourcePath) == "" {
 		return nil, apperrors.NewConfigError("source-path", fmt.Errorf("config file %s is missing required source_path value", path), "path", path)
 	}
-	if f.Storage.Destination == nil || strings.TrimSpace(*f.Storage.Destination) == "" {
-		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required storage.destination value", path), "path", path)
-	}
 	values["TARGET"] = resolvedTarget
 	values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
 	}
+	targetType := ""
 	if f.TargetMeta.Type != nil {
-		values["STORAGE_TYPE"] = strings.TrimSpace(*f.TargetMeta.Type)
+		targetType = strings.TrimSpace(*f.TargetMeta.Type)
+		values["STORAGE_TYPE"] = targetType
 	}
 	if f.TargetMeta.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
@@ -443,7 +461,24 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if f.TargetMeta.LocalGroup != nil {
 		values["LOCAL_GROUP"] = *f.TargetMeta.LocalGroup
 	}
-	values["DESTINATION"] = strings.TrimSpace(*f.Storage.Destination)
+	switch targetType {
+	case "duplicacy":
+		if f.Storage.Destination != nil {
+			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses storage.destination for a duplicacy target; use storage.storage instead", path), "path", path)
+		}
+		if f.Storage.Storage == nil || strings.TrimSpace(*f.Storage.Storage) == "" {
+			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required storage.storage value", path), "path", path)
+		}
+		values["STORAGE"] = strings.TrimSpace(*f.Storage.Storage)
+	default:
+		if f.Storage.Storage != nil {
+			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s uses storage.storage for a filesystem target; use storage.destination instead", path), "path", path)
+		}
+		if f.Storage.Destination == nil || strings.TrimSpace(*f.Storage.Destination) == "" {
+			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required storage.destination value", path), "path", path)
+		}
+		values["DESTINATION"] = strings.TrimSpace(*f.Storage.Destination)
+	}
 	if f.Storage.Repository != nil && strings.TrimSpace(*f.Storage.Repository) != "" {
 		values["REPOSITORY"] = strings.TrimSpace(*f.Storage.Repository)
 	}
@@ -638,6 +673,9 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["DESTINATION"]; ok {
 		c.Destination = v
 	}
+	if v, ok := values["STORAGE"]; ok {
+		c.Storage = v
+	}
 	if v, ok := values["REPOSITORY"]; ok {
 		c.Repository = v
 	}
@@ -698,8 +736,19 @@ func (c *Config) Apply(values map[string]string) error {
 func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 	var missing []string
 
-	if c.Destination == "" {
-		missing = append(missing, "storage.destination")
+	switch c.StorageType {
+	case "filesystem":
+		if c.Destination == "" {
+			missing = append(missing, "targets.<name>.destination")
+		}
+	case "duplicacy":
+		if c.Storage == "" {
+			missing = append(missing, "targets.<name>.storage")
+		}
+	default:
+		if c.Destination == "" && c.Storage == "" {
+			missing = append(missing, "targets.<name>.destination/storage")
+		}
 	}
 	if doBackup && c.Threads == 0 {
 		missing = append(missing, "capture.threads")
@@ -755,11 +804,11 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
-	if c.StorageType == "local" || c.StorageType == "remote" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"object\"; old values \"local\" and \"remote\" are no longer supported (was %q)", c.StorageType))
+	if c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"duplicacy\"; old values \"local\", \"remote\", and \"object\" are no longer supported (was %q)", c.StorageType))
 	}
-	if c.StorageType != "" && c.StorageType != "filesystem" && c.StorageType != "object" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"object\" (was %q)", c.StorageType))
+	if c.StorageType != "" && c.StorageType != "filesystem" && c.StorageType != "duplicacy" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"duplicacy\" (was %q)", c.StorageType))
 	}
 	if c.Location != "" && c.Location != "local" && c.Location != "remote" {
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be either \"local\" or \"remote\" (was %q)", c.Location))
@@ -813,8 +862,8 @@ func (c *Config) UsesFilesystem() bool {
 	return c != nil && c.StorageType == "filesystem"
 }
 
-func (c *Config) UsesObjectStorage() bool {
-	return c != nil && c.StorageType == "object"
+func (c *Config) UsesDuplicacyStorage() bool {
+	return c != nil && c.StorageType == "duplicacy"
 }
 
 func (c *Config) IsRemoteLocation() bool {
@@ -868,21 +917,29 @@ func (c *Config) ValidatePrunePolicy() error {
 func (c *Config) ValidateTargetSemantics() error {
 	switch {
 	case c.StorageType == "":
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be set to \"filesystem\" or \"object\""))
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be set to \"filesystem\" or \"duplicacy\""))
 	case c.Location == "":
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
-	case !c.UsesFilesystem() && !c.UsesObjectStorage():
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"object\" (was %q)", c.StorageType))
+	case c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object":
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"duplicacy\"; old values \"local\", \"remote\", and \"object\" are no longer supported (was %q)", c.StorageType))
+	case !c.UsesFilesystem() && !c.UsesDuplicacyStorage():
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"duplicacy\" (was %q)", c.StorageType))
 	}
 
 	switch {
 	case c.UsesFilesystem():
+		if c.Storage != "" {
+			return apperrors.NewConfigError("storage", fmt.Errorf("filesystem target must use destination, not storage"))
+		}
 		if strings.Contains(c.Destination, "://") {
 			return apperrors.NewConfigError("destination", fmt.Errorf("filesystem target destination must be a filesystem path, not %q", c.Destination))
 		}
-	case c.UsesObjectStorage():
-		if !strings.Contains(c.Destination, "://") {
-			return apperrors.NewConfigError("destination", fmt.Errorf("object target destination must be a URL-like storage target, not %q", c.Destination))
+	case c.UsesDuplicacyStorage():
+		if c.Destination != "" {
+			return apperrors.NewConfigError("destination", fmt.Errorf("duplicacy target must use storage, not destination"))
+		}
+		if !strings.Contains(c.Storage, "://") {
+			return apperrors.NewConfigError("storage", fmt.Errorf("duplicacy target storage must be a URL-like Duplicacy storage target, not %q", c.Storage))
 		}
 	}
 

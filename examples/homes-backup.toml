@@ -48,10 +48,9 @@ local_owner = "AJT"
 local_group = "users"
 
 [targets.offsite-storj]
-type = "object"
+type = "duplicacy"
 location = "remote"
-destination = "s3://gateway.storjshare.io/my-backup-bucket"
-repository = "homes"
+storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
 [targets.offsite-storj.health]
 verify_warn_after_hours = 336

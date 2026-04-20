@@ -69,7 +69,7 @@ It is responsible for:
 - config loading and validation
 - secrets loading and validation
 - target-model resolution:
-  - `type = filesystem | object`
+  - `type = filesystem | duplicacy`
   - `location = local | remote`
 - backup-target derivation
 - backup-mode btrfs validation
@@ -88,7 +88,7 @@ locks, create work directories, create snapshots, or change permissions.
 
 That is also where the storage semantics are decided. The planner uses
 `type`, not `location`, to decide whether a target uses filesystem paths or
-object-storage URLs, whether secrets should be loaded, and whether
+Duplicacy storage URLs, whether secrets should be loaded, and whether
 `--fix-perms` is allowed.
 
 ## Execute

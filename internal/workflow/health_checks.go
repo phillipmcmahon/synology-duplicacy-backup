@@ -14,7 +14,7 @@ import (
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	report.AddCheck("Config file", "pass", plan.ConfigFile)
 	defer func() {
-		if plan.UsesObjectStorage() {
+		if plan.UsesDuplicacyStorage() {
 			report.AddCheck("Secrets", "pass", plan.SecretsFile)
 		}
 	}()

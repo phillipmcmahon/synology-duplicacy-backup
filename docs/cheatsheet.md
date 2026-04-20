@@ -13,10 +13,10 @@ operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
 
 Target model:
 
-- `type = "filesystem"` or `type = "object"`
+- `type = "filesystem"` or `type = "duplicacy"`
 - `location = "local"` or `location = "remote"`
-- supported combinations are `filesystem/local`, `filesystem/remote`, `object/local`, and `object/remote`
-- only object targets need storage secrets
+- supported combinations are `filesystem/local`, `filesystem/remote`, `duplicacy/local`, and `duplicacy/remote`
+- duplicacy targets load storage keys when the selected Duplicacy backend needs them
 - `--fix-perms` only works for filesystem targets
 
 ## Common Runs
@@ -31,7 +31,7 @@ sudo duplicacy-backup --target onsite-usb --backup --prune homes
 # Backup homes to target offsite-storj
 sudo duplicacy-backup --target offsite-storj --backup homes
 
-# Backup homes to a local S3-compatible object-storage target
+# Backup homes to a local S3-compatible Duplicacy target
 sudo duplicacy-backup --target onsite-rustfs --backup homes
 
 # Backup homes to target offsite-usb on a mounted remote filesystem
@@ -102,7 +102,7 @@ duplicacy-backup config paths --target offsite-storj homes
 ```text
 /usr/local/bin/duplicacy-backup
 /usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
-/root/.secrets/<label>-secrets.toml  # object credentials and notification auth tokens when needed
+/root/.secrets/<label>-secrets.toml  # Duplicacy storage keys and notification auth tokens when needed
 /var/lib/duplicacy-backup/<label>.<target>.json
 ```
 
@@ -138,8 +138,8 @@ Installer behaviour:
 - `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
 - `config explain` and `config paths` show `Type` and `Location` for the selected target.
-- `config explain` does not load object-target secrets by default; it stays read-only and still shows the expected secrets-file path.
-- `config paths` only includes secrets paths when the selected target is an object target.
+- `config explain` does not load duplicacy-target secrets by default; it stays read-only and still shows the expected secrets-file path.
+- `config paths` only includes secrets paths when the selected target is a duplicacy target.
 
 ### Health and Output
 

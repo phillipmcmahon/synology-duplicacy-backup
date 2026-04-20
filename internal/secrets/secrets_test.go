@@ -33,7 +33,11 @@ func validSecretContent() string {
 }
 
 func validSecretContentForTarget(target string) string {
-	return "[targets." + target + "]\nstorj_s3_id = \"" + validID() + "\"\nstorj_s3_secret = \"" + validSecret() + "\"\n"
+	return "[targets." + target + ".keys]\ns3_id = \"" + validID() + "\"\ns3_secret = \"" + validSecret() + "\"\n"
+}
+
+func validSecretContentWithTargetValue(target, line string) string {
+	return "[targets." + target + "]\n" + line + "\n\n[targets." + target + ".keys]\ns3_id = \"" + validID() + "\"\ns3_secret = \"" + validSecret() + "\"\n"
 }
 
 func isRoot() bool {
@@ -95,23 +99,33 @@ func TestParseSecrets_ValidContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sec.StorjS3ID != validID() || sec.StorjS3Secret != validSecret() {
+	if sec.Keys["s3_id"] != validID() || sec.Keys["s3_secret"] != validSecret() {
 		t.Fatalf("sec = %+v", sec)
 	}
 }
 
-func TestParseSecrets_MissingRequiredKeys(t *testing.T) {
+func TestParseSecrets_AllowsTargetWithoutStorageKeys(t *testing.T) {
+	sec, err := ParseSecrets(strings.NewReader("[targets.offsite-storj]\nhealth_ntfy_token = \"optional\"\n"), "test", "offsite-storj")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sec.Keys) != 0 {
+		t.Fatalf("keys = %+v", sec.Keys)
+	}
+}
+
+func TestValidate_RejectsEmptyStorageKeyValues(t *testing.T) {
 	cases := []struct {
 		name string
-		body string
+		sec  Secrets
 		want string
 	}{
-		{"missing id", "[targets.offsite-storj]\nstorj_s3_secret = \"" + validSecret() + "\"\n", "storj_s3_id"},
-		{"missing secret", "[targets.offsite-storj]\nstorj_s3_id = \"" + validID() + "\"\n", "storj_s3_secret"},
+		{"empty value", Secrets{Keys: map[string]string{"s3_secret": ""}}, "s3_secret"},
+		{"blank value", Secrets{Keys: map[string]string{"s3_secret": "   "}}, "s3_secret"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseSecrets(strings.NewReader(tc.body), "test", "offsite-storj")
+			err := tc.sec.Validate()
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -123,7 +137,7 @@ func TestParseSecrets_MissingRequiredKeys(t *testing.T) {
 }
 
 func TestParseSecrets_UnknownKeyRejected(t *testing.T) {
-	_, err := ParseSecrets(strings.NewReader(validSecretContent()+"extra = \"nope\"\n"), "test", "offsite-storj")
+	_, err := ParseSecrets(strings.NewReader("[targets.offsite-storj]\nextra = \"nope\"\n"), "test", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected unknown-key error")
 	}
@@ -133,23 +147,23 @@ func TestParseSecrets_UnknownKeyRejected(t *testing.T) {
 }
 
 func TestParseSecrets_ReportsAllUppercaseKeys(t *testing.T) {
-	body := "[targets.offsite-storj]\nSTORJ_S3_ID = \"abc\"\nSTORJ_S3_SECRET = \"def\"\nSTORJ_S3_ID = \"duplicate\"\n"
+	body := "[targets.offsite-storj.keys]\nS3_ID = \"abc\"\nS3_SECRET = \"def\"\nS3_ID = \"duplicate\"\n"
 	_, err := ParseSecrets(strings.NewReader(body), "test", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected uppercase-key error")
 	}
-	for _, want := range []string{"STORJ_S3_ID", "STORJ_S3_SECRET", "lower snake case"} {
+	for _, want := range []string{"S3_ID", "S3_SECRET", "lower snake case"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %v, want %q", err, want)
 		}
 	}
-	if strings.Count(err.Error(), "STORJ_S3_ID") != 1 {
+	if strings.Count(err.Error(), "S3_ID") != 1 {
 		t.Fatalf("duplicate key should only be reported once: %v", err)
 	}
 }
 
 func TestParseSecrets_MalformedTOMLRejected(t *testing.T) {
-	_, err := ParseSecrets(strings.NewReader("[targets.offsite-storj]\nstorj_s3_id = \"abc\"\nstorj_s3_secret = [\n"), "test", "offsite-storj")
+	_, err := ParseSecrets(strings.NewReader("[targets.offsite-storj.keys]\ns3_id = \"abc\"\ns3_secret = [\n"), "test", "offsite-storj")
 	if err == nil {
 		t.Fatal("expected invalid TOML error")
 	}
@@ -183,26 +197,18 @@ func TestValidateFileAccess(t *testing.T) {
 		t.Fatal("expected missing-file error")
 	}
 
-	p := writeTempSecrets(t, "storj_s3_id = \"x\"\n", 0644)
+	p := writeTempSecrets(t, "s3_id = \"x\"\n", 0644)
 	if err := ValidateFileAccess(p); err == nil {
 		t.Fatal("expected permissions error")
 	}
 }
 
 func TestValidate(t *testing.T) {
-	if err := (&Secrets{StorjS3ID: validID(), StorjS3Secret: validSecret()}).Validate(); err != nil {
+	if err := (&Secrets{Keys: map[string]string{"s3_id": validID(), "s3_secret": validSecret()}}).Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	cases := []Secrets{
-		{StorjS3ID: "short", StorjS3Secret: validSecret()},
-		{StorjS3ID: validID(), StorjS3Secret: "short"},
-		{StorjS3ID: "", StorjS3Secret: ""},
-	}
-	for _, s := range cases {
-		if err := s.Validate(); err == nil {
-			t.Fatalf("expected validation error for %+v", s)
-		}
+	if err := (&Secrets{}).Validate(); err != nil {
+		t.Fatalf("empty key set should be allowed: %v", err)
 	}
 }
 
@@ -214,7 +220,7 @@ func TestLoadOptionalHealthWebhookToken(t *testing.T) {
 		t.Fatalf("missing token = %q, err = %v", token, err)
 	}
 
-	p := writeTempSecrets(t, validSecretContent()+"health_webhook_bearer_token = \"secret-token\"\n", 0600)
+	p := writeTempSecrets(t, validSecretContentWithTargetValue("offsite-storj", "health_webhook_bearer_token = \"secret-token\""), 0600)
 	token, err := LoadOptionalHealthWebhookToken(p, "offsite-storj")
 	if isRoot() && err != nil {
 		t.Fatalf("LoadOptionalHealthWebhookToken() error = %v", err)
@@ -232,7 +238,7 @@ func TestLoadOptionalHealthNtfyToken(t *testing.T) {
 		t.Fatalf("missing token = %q, err = %v", token, err)
 	}
 
-	p := writeTempSecrets(t, validSecretContent()+"health_ntfy_token = \"ntfy-token\"\n", 0600)
+	p := writeTempSecrets(t, validSecretContentWithTargetValue("offsite-storj", "health_ntfy_token = \"ntfy-token\""), 0600)
 	token, err := LoadOptionalHealthNtfyToken(p, "offsite-storj")
 	if isRoot() && err != nil {
 		t.Fatalf("LoadOptionalHealthNtfyToken() error = %v", err)
@@ -253,17 +259,14 @@ func TestParseSecrets_MissingTargetTable(t *testing.T) {
 }
 
 func TestMaskedHelpers(t *testing.T) {
-	if (&Secrets{StorjS3ID: "ABCDEFGHIJ"}).MaskedID() != "****" {
-		t.Fatal("unexpected masked ID")
+	if (&Secrets{Keys: map[string]string{"s3_id": "ABCDEFGHIJ"}}).MaskedKeys() != "**** (1 key)" {
+		t.Fatal("unexpected masked key summary")
 	}
-	if (&Secrets{StorjS3Secret: "ABCDEFGHIJ"}).MaskedSecret() != "****" {
-		t.Fatal("unexpected masked secret")
+	if (&Secrets{Keys: map[string]string{"s3_id": "ABCDEFGHIJ", "s3_secret": "secret"}}).MaskedKeys() != "**** (2 keys)" {
+		t.Fatal("unexpected masked keys summary")
 	}
-	if (&Secrets{StorjS3ID: "AB"}).MaskedID() != "****" {
-		t.Fatal("short masked ID should collapse")
-	}
-	if (&Secrets{StorjS3Secret: "AB"}).MaskedSecret() != "****" {
-		t.Fatal("short masked secret should collapse")
+	if (&Secrets{}).MaskedKeys() != "<none>" {
+		t.Fatal("empty masked keys should be explicit")
 	}
 }
 

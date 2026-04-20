@@ -51,9 +51,9 @@ func TestObservabilityHelpers(t *testing.T) {
 }
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
-	plan := &Plan{StorageType: storageTypeObject, Location: locationRemote, ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
-	if !plan.UsesObjectStorage() {
-		t.Fatal("UsesObjectStorage() = false, want true")
+	plan := &Plan{StorageType: storageTypeDuplicacy, Location: locationRemote, ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
+	if !plan.UsesDuplicacyStorage() {
+		t.Fatal("UsesDuplicacyStorage() = false, want true")
 	}
 	if !plan.IsRemoteLocation() {
 		t.Fatal("IsRemoteLocation() = false, want true")

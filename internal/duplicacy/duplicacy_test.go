@@ -104,8 +104,10 @@ func TestWritePreferences_WithSecrets(t *testing.T) {
 	}
 
 	sec := &secrets.Secrets{
-		StorjS3ID:     "test-id-1234567890abcdefghij",
-		StorjS3Secret: "test-secret-abcdefghijklmnopqrstuvwxyz0123456789abcdef",
+		Keys: map[string]string{
+			"s3_id":     "test-id-1234567890abcdefghij",
+			"s3_secret": "test-secret-abcdefghijklmnopqrstuvwxyz0123456789abcdef",
+		},
 	}
 
 	if err := s.WritePreferences(sec); err != nil {
@@ -135,8 +137,8 @@ func TestWritePreferences_WithSecrets(t *testing.T) {
 	if !ok {
 		t.Fatal("keys should be an object when secrets provided")
 	}
-	if keys["storj_s3_id"] != sec.StorjS3ID {
-		t.Errorf("storj_s3_id = %v", keys["storj_s3_id"])
+	if keys["s3_id"] != sec.Keys["s3_id"] {
+		t.Errorf("s3_id = %v", keys["s3_id"])
 	}
 }
 
@@ -895,22 +897,22 @@ func TestPrunePreview_RevisionCountFailed(t *testing.T) {
 func TestRedactSecrets_RedactsCredentials(t *testing.T) {
 	input := `{
     "keys": {
-        "storj_s3_id": "AKIAIOSFODNN7EXAMPLE",
-        "storj_s3_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        "s3_id": "AKIAIOSFODNN7EXAMPLE",
+        "s3_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     }
 }`
 	result := redactSecrets(input)
 
 	if strings.Contains(result, "AKIAIOSFODNN7EXAMPLE") {
-		t.Error("storj_s3_id should be redacted")
+		t.Error("s3_id should be redacted")
 	}
 	if strings.Contains(result, "wJalrXUtnFEMI") {
-		t.Error("storj_s3_secret should be redacted")
+		t.Error("s3_secret should be redacted")
 	}
-	if !strings.Contains(result, `"storj_s3_id": "REDACTED"`) {
+	if !strings.Contains(result, `"s3_id": "REDACTED"`) {
 		t.Errorf("expected redacted s3_id placeholder, got:\n%s", result)
 	}
-	if !strings.Contains(result, `"storj_s3_secret": "REDACTED"`) {
+	if !strings.Contains(result, `"s3_secret": "REDACTED"`) {
 		t.Errorf("expected redacted s3_secret placeholder, got:\n%s", result)
 	}
 }
@@ -921,8 +923,8 @@ func TestRedactSecrets_PreservesNonSecretFields(t *testing.T) {
     "storage": "s3://bucket",
     "encrypted": false,
     "keys": {
-        "storj_s3_id": "my-id",
-        "storj_s3_secret": "my-secret"
+        "s3_id": "my-id",
+        "s3_secret": "my-secret"
     }
 }`
 	result := redactSecrets(input)
@@ -947,8 +949,10 @@ func TestWritePreferences_DryRun_DoesNotWriteFile(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 
 	sec := &secrets.Secrets{
-		StorjS3ID:     "AKIAIOSFODNN7EXAMPLE",
-		StorjS3Secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		Keys: map[string]string{
+			"s3_id":     "AKIAIOSFODNN7EXAMPLE",
+			"s3_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		},
 	}
 
 	if err := s.WritePreferences(sec); err != nil {

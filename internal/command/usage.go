@@ -136,20 +136,21 @@ CONFIG STRUCTURE:
       optional [targets.<name>.health]
       optional [targets.<name>.health.notify]
     each [targets.<name>] entry must include:
-      type = "filesystem" | "object"
+      type = "filesystem" | "duplicacy"
       location = "local" | "remote"
     supported type/location pairs:
-      filesystem/local, filesystem/remote, object/local, object/remote
+      filesystem/local, filesystem/remote, duplicacy/local, duplicacy/remote
 
     TARGET SECRETS:
-      Object-storage targets load credentials from:
+      Duplicacy storage targets load runtime preference keys from:
         %s/<label>-secrets.toml
       Filesystem targets do not use storage credentials, even when location = "remote"
       Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
       Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-      Use [targets.<name>] tables with:
-        storj_s3_id
-        storj_s3_secret
+      Use [targets.<name>.keys] tables with Duplicacy key names such as:
+        s3_id
+        s3_secret
+      Use [targets.<name>] for:
         optional health_webhook_bearer_token
         optional health_ntfy_token
 

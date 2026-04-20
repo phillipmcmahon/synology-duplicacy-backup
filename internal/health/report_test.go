@@ -204,7 +204,7 @@ func TestPresenterPrintsStructuredHealthReport(t *testing.T) {
 		CheckType:   "verify",
 		Label:       "homes",
 		Target:      "offsite-storj",
-		StorageType: "object",
+		StorageType: "duplicacy",
 		Location:    "remote",
 		StartedAt:   time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC),
 		Checks: []Check{

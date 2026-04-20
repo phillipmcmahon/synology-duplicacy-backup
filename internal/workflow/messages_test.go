@@ -67,8 +67,8 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "secrets validate",
-			err:  apperrors.NewSecretsError("validate", errors.New("storj_s3_id must be at least 28 characters (was 5)")),
-			want: "storj_s3_id must be at least 28 characters (was 5)",
+			err:  apperrors.NewSecretsError("validate", errors.New("storage key \"s3_secret\" must not be empty")),
+			want: "storage key \"s3_secret\" must not be empty",
 		},
 		{
 			name: "secrets permissions",
@@ -78,7 +78,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "secrets stat includes creation hint",
 			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml"),
-			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table; object targets also use this file for storage credentials even when the notification provider is ntfy, so run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
+			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys; run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
 		},
 		{
 			name: "permissions chown includes target hint",

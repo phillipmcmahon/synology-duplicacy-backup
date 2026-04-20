@@ -19,18 +19,18 @@ Supported combinations are:
 
 - `type = "filesystem"` with `location = "local"`
 - `type = "filesystem"` with `location = "remote"`
-- `type = "object"` with `location = "local"`
-- `type = "object"` with `location = "remote"`
+- `type = "duplicacy"` with `location = "local"`
+- `type = "duplicacy"` with `location = "remote"`
 
 This lets the tool represent cases such as a mounted SMB path over VPN as a
-real remote filesystem destination. It also supports local S3-compatible
-object storage, such as a RustFS or MinIO deployment on your LAN, without
-pretending that object storage is a filesystem path.
+real remote filesystem destination. It also supports any Duplicacy storage URL,
+including local S3-compatible services such as RustFS or MinIO, without
+pretending backend storage is a filesystem path.
 
 In practice:
 
 - filesystem targets use path semantics and do not load secrets
-- object targets use URL-style storage semantics and do load storage secrets
+- duplicacy targets pass a storage URL and optional runtime keys through to Duplicacy
 - `--fix-perms` is only supported for filesystem targets
 - runtime, health, `config explain`, and `config paths` now surface `Type` and
   `Location` in operator-facing output
@@ -106,7 +106,7 @@ Use `./install.sh --config-group <name>` if you want a different trusted
 operator group for config access. The installer never creates or rewrites
 individual secrets files.
 
-For labels with object-storage targets, or for any target that needs
+For labels with Duplicacy storage targets, or for any target that needs
 authenticated notification delivery, create a matching label secrets file under
 `/root/.secrets` and add target-specific entries inside it:
 
@@ -119,9 +119,9 @@ chown root:root /root/.secrets/homes-secrets.toml
 chmod 600 /root/.secrets/homes-secrets.toml
 ```
 
-The current secrets TOML schema uses `storj_s3_id` and `storj_s3_secret`
-because those values are passed through to Duplicacy for gateway-backed
-S3-compatible storage.
+Duplicacy storage keys live under `[targets.<name>.keys]` and are written to
+the generated Duplicacy preferences file using the exact key names Duplicacy
+expects, such as `s3_id` and `s3_secret` for S3-compatible storage.
 
 The matching backup TOML now models targets explicitly with `type` and
 `location`. For example:
@@ -146,16 +146,14 @@ local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
-type = "object"
+type = "duplicacy"
 location = "remote"
-destination = "s3://gateway.storjshare.io/my-backup-bucket"
-repository = "homes"
+storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
 [targets.onsite-rustfs]
-type = "object"
+type = "duplicacy"
 location = "local"
-destination = "s3://rustfs.local/my-backup-bucket"
-repository = "homes"
+storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
 
 ### 4. Validate and run
@@ -204,7 +202,7 @@ Core operating rules:
   `--prune`, `--cleanup-storage`, or `--fix-perms`.
 - When operations are combined, execution order is fixed:
   `backup -> prune -> cleanup-storage -> fix-perms`.
-- Object targets load storage secrets; filesystem targets do not.
+- Duplicacy targets load storage keys; filesystem targets do not.
 - `--fix-perms` applies only to filesystem targets.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.

@@ -12,6 +12,7 @@ package duplicacy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,6 +67,21 @@ type Setup struct {
 	Runner         execpkg.Runner // Command runner for external process execution
 }
 
+type preferenceEntry struct {
+	Name               string            `json:"name"`
+	ID                 string            `json:"id"`
+	Repository         string            `json:"repository"`
+	Storage            string            `json:"storage"`
+	Encrypted          bool              `json:"encrypted"`
+	NoBackup           bool              `json:"no_backup"`
+	NoRestore          bool              `json:"no_restore"`
+	NoSavePassword     bool              `json:"no_save_password"`
+	NobackupFile       string            `json:"nobackup_file"`
+	Keys               map[string]string `json:"keys"`
+	Filters            string            `json:"filters"`
+	ExcludeByAttribute bool              `json:"exclude_by_attribute"`
+}
+
 // NewSetup creates a new duplicacy working environment.
 // The runner parameter is used for all external command execution (duplicacy CLI).
 func NewSetup(workRoot, repositoryPath, backupTarget string, dryRun bool, runner execpkg.Runner) *Setup {
@@ -99,45 +115,44 @@ func (s *Setup) CreateDirs() error {
 
 // WritePreferences writes the duplicacy preferences JSON file.
 func (s *Setup) WritePreferences(sec *secrets.Secrets) error {
-	keysContent := "null"
+	var keys map[string]string
 	if sec != nil {
-		keysContent = fmt.Sprintf(`{
-            "storj_s3_id": "%s",
-            "storj_s3_secret": "%s"
-}`, sec.StorjS3ID, sec.StorjS3Secret)
+		keys = sec.Keys
 	}
 
-	json := fmt.Sprintf(`[
-    {
-        "name": "storj",
-        "id": "data",
-        "repository": "%s",
-        "storage": "%s",
-        "encrypted": false,
-        "no_backup": false,
-        "no_restore": false,
-        "no_save_password": false,
-        "nobackup_file": "",
-        "keys": %s,
-        "filters": "",
-        "exclude_by_attribute": false
-    }
-]
-`, s.RepositoryPath, s.BackupTarget, keysContent)
+	prefs := []preferenceEntry{{
+		Name:               "default",
+		ID:                 "data",
+		Repository:         s.RepositoryPath,
+		Storage:            s.BackupTarget,
+		Encrypted:          false,
+		NoBackup:           false,
+		NoRestore:          false,
+		NoSavePassword:     false,
+		NobackupFile:       "",
+		Keys:               keys,
+		Filters:            "",
+		ExcludeByAttribute: false,
+	}}
+	data, err := json.MarshalIndent(prefs, "", "    ")
+	if err != nil {
+		return apperrors.NewBackupError("write-preferences", fmt.Errorf("failed to encode preferences file: %w", err), "path", s.PrefsFile)
+	}
+	data = append(data, '\n')
 
 	if s.DryRun {
 		return nil
 	}
 
-	if err := os.WriteFile(s.PrefsFile, []byte(json), 0660); err != nil {
+	if err := os.WriteFile(s.PrefsFile, data, 0660); err != nil {
 		return apperrors.NewBackupError("write-preferences", fmt.Errorf("failed to write preferences file: %w", err), "path", s.PrefsFile)
 	}
 	return nil
 }
 
-// secretPattern matches JSON key-value pairs whose keys contain "secret", "id",
-// "password", or "key" (case-insensitive) and replaces the value with "REDACTED".
-var secretPattern = regexp.MustCompile(`(?i)("(?:storj_s3_id|storj_s3_secret|password|key)":\s*)"[^"]*"`)
+// secretPattern matches JSON key-value pairs whose keys look credential-like
+// and replaces the value with "REDACTED".
+var secretPattern = regexp.MustCompile(`(?i)("[^"]*(?:secret|password|key|token|_id)[^"]*":\s*)"[^"]*"`)
 
 // redactSecrets replaces sensitive credential values in a JSON-like string
 // with "REDACTED" so they are not leaked in log output.

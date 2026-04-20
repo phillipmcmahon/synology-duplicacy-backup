@@ -304,12 +304,11 @@ source_path = "/volume1/homes"
 
 [target]
 name = "offsite-storj"
-type = "object"
+type = "duplicacy"
 location = "remote"
 
 [storage]
-destination = "s3://bucket/homes"
-repository = "homes"
+storage = "s3://bucket/homes"
 
 [retention]
 prune = "-keep 1:365 -keep 30:90"
@@ -328,7 +327,7 @@ keep = ["0:30", "7:14"]
 	if values["PRUNE"] != "-keep 1:365 -keep 30:90" {
 		t.Fatalf("PRUNE = %q", values["PRUNE"])
 	}
-	if values["STORAGE_TYPE"] != "object" {
+	if values["STORAGE_TYPE"] != "duplicacy" {
 		t.Fatalf("STORAGE_TYPE = %q", values["STORAGE_TYPE"])
 	}
 	if values["LOCATION"] != "remote" {
@@ -376,10 +375,9 @@ notify_on = ["degraded"]
 send_for = ["doctor"]
 
 [targets.offsite-storj]
-type = "object"
+type = "duplicacy"
 location = "remote"
-destination = "s3://bucket/homes"
-repository = "homes"
+storage = "s3://bucket/homes"
 
 [targets.offsite-storj.health]
 freshness_warn_hours = 10
@@ -785,7 +783,7 @@ func TestValidateOwnerGroup(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{"object target disallowed", Config{Target: "offsite-storj", StorageType: "object", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
+		{"duplicacy target disallowed", Config{Target: "offsite-storj", StorageType: "duplicacy", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
 		{"missing owner", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalGroup: group}, "local_owner is mandatory"},
 		{"missing group", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: owner}, "local_group is mandatory"},
 		{"invalid owner", Config{Target: "onsite-usb", StorageType: "filesystem", AllowLocalAccounts: true, LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
@@ -876,17 +874,18 @@ func TestValidateTargetSemantics(t *testing.T) {
 	}{
 		{name: "filesystem local path okay", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups"}},
 		{name: "filesystem remote path okay", cfg: Config{Target: "offsite-usb", StorageType: "filesystem", Location: "remote", Destination: "/volume2/backups"}},
-		{name: "object local url okay", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "s3://rustfs.local/bucket"}},
-		{name: "object remote url okay", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://gateway.example.invalid/bucket"}},
+		{name: "duplicacy local storage okay", cfg: Config{Target: "onsite-rustfs", StorageType: "duplicacy", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
+		{name: "duplicacy remote storage okay", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
 		{name: "location required", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Destination: "/volume2/backups"}, want: "target.location must be set"},
 		{name: "filesystem path cannot be url", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "s3://bucket"}, want: "filesystem path"},
-		{name: "object destination must be url", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "/volume2/backups"}, want: "URL-like storage target"},
-		{name: "object local destination must be url", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "/volume2/backups"}, want: "URL-like storage target"},
+		{name: "duplicacy storage must be url", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "/volume2/backups"}, want: "URL-like Duplicacy storage target"},
+		{name: "duplicacy must not use destination", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Destination: "s3://bucket/homes"}, want: "must use storage"},
+		{name: "old object type rejected", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://bucket"}, want: "old values"},
 		{name: "filesystem local accounts optional", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true}},
 		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
 		{name: "owner and group together", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
-		{name: "object disallows local accounts", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://bucket", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
-		{name: "object local disallows local accounts", cfg: Config{Target: "onsite-rustfs", StorageType: "object", Location: "local", Destination: "s3://bucket", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
+		{name: "duplicacy disallows local accounts", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
+		{name: "duplicacy local disallows local accounts", cfg: Config{Target: "onsite-rustfs", StorageType: "duplicacy", Location: "local", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for filesystem targets"},
 		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
 	}
 

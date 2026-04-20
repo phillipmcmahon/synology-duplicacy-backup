@@ -212,11 +212,11 @@ func remoteConfigBody(label, destination string, threads int, prune string) stri
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "offsite-storj")
-	fmt.Fprintf(&b, "type = %q\nlocation = %q\ndestination = %q\nrepository = %q\n", "object", "remote", destination, label)
+	fmt.Fprintf(&b, "type = %q\nlocation = %q\nstorage = %q\n", "duplicacy", "remote", destination)
 	return b.String()
 }
 
-func localObjectConfigBody(label, destination string, threads int, prune string) string {
+func localDuplicacyConfigBody(label, storage string, threads int, prune string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
 	fmt.Fprintf(&b, "source_path = %q\n", "/volume1/"+label)
@@ -230,7 +230,7 @@ func localObjectConfigBody(label, destination string, threads int, prune string)
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-rustfs")
-	fmt.Fprintf(&b, "type = %q\nlocation = %q\ndestination = %q\nrepository = %q\n", "object", "local", destination, label)
+	fmt.Fprintf(&b, "type = %q\nlocation = %q\nstorage = %q\n", "duplicacy", "local", storage)
 	return b.String()
 }
 
@@ -287,7 +287,8 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "--json-summary") {
 		t.Fatalf("stdout = %q", stdout)
 	}
-	if strings.Contains(stdout, "Current TOML keys: storj_s3_id and storj_s3_secret") ||
+	if strings.Contains(stdout, "storj_s3_id") ||
+		strings.Contains(stdout, "storj_s3_secret") ||
 		strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -392,11 +393,11 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "Use [targets.<name>] tables with:") ||
+	if !strings.Contains(stdout, "Use [targets.<name>.keys] tables with Duplicacy key names such as:") ||
 		!strings.Contains(stdout, "notify test             Send a clearly marked simulated notification through the configured providers") ||
 		!strings.Contains(stdout, "update                  Check GitHub for a newer published release and install it through the packaged installer") ||
-		!strings.Contains(stdout, "storj_s3_id") ||
-		!strings.Contains(stdout, "storj_s3_secret") ||
+		!strings.Contains(stdout, "s3_id") ||
+		!strings.Contains(stdout, "s3_secret") ||
 		!strings.Contains(stdout, "health_webhook_bearer_token") ||
 		!strings.Contains(stdout, "health_ntfy_token") ||
 		!strings.Contains(stdout, "health status            Fast read-only health summary for operators and schedulers") ||
@@ -1234,25 +1235,25 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 		if !strings.Contains(stderr, "Secrets file not found:") || !strings.Contains(stderr, "homes-secrets.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Backup", "homes", "offsite-storj", "object", "remote")
+		assertFailureScope(t, stderr, "Backup", "homes", "offsite-storj", "duplicacy", "remote")
 		assertFailureFooter(t, stderr)
 	})
 }
 
-func TestRunWithArgs_LocalObjectMissingSecretsReturnsOne(t *testing.T) {
+func TestRunWithArgs_LocalDuplicacyMissingSecretsReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		secretsDir := t.TempDir()
-		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localObjectConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
+		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--backup", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(local object missing secrets) = %d", code)
+				t.Fatalf("runWithArgs(local duplicacy missing secrets) = %d", code)
 			}
 		})
 		if !strings.Contains(stderr, "Secrets file not found:") || !strings.Contains(stderr, "homes-secrets.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Backup", "homes", "onsite-rustfs", "object", "local")
+		assertFailureScope(t, stderr, "Backup", "homes", "onsite-rustfs", "duplicacy", "local")
 		assertFailureFooter(t, stderr)
 	})
 }
@@ -1274,36 +1275,36 @@ func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 	})
 }
 
-func TestRunWithArgs_ObjectFixPermsFailureIncludesStorageIdentity(t *testing.T) {
+func TestRunWithArgs_DuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		writeTargetConfig(t, configDir, "homes", "offsite-storj", remoteConfigBody("homes", "s3://bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--target", "offsite-storj", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(object fix-perms failure) = %d", code)
+				t.Fatalf("runWithArgs(duplicacy fix-perms failure) = %d", code)
 			}
 		})
 		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "object", "remote")
+		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "duplicacy", "remote")
 		assertFailureFooter(t, stderr)
 	})
 }
 
-func TestRunWithArgs_LocalObjectFixPermsFailureIncludesStorageIdentity(t *testing.T) {
+func TestRunWithArgs_LocalDuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localObjectConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
+		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(local object fix-perms failure) = %d", code)
+				t.Fatalf("runWithArgs(local duplicacy fix-perms failure) = %d", code)
 			}
 		})
 		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		assertFailureScope(t, stderr, "Fix permissions", "homes", "onsite-rustfs", "object", "local")
+		assertFailureScope(t, stderr, "Fix permissions", "homes", "onsite-rustfs", "duplicacy", "local")
 		assertFailureFooter(t, stderr)
 	})
 }

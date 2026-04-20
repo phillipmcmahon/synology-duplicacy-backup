@@ -14,7 +14,7 @@ func TestNewTestReportFormatsTextAndJSON(t *testing.T) {
 		Scope:       "homes/offsite-storj",
 		Label:       "homes",
 		Target:      "offsite-storj",
-		StorageType: "object",
+		StorageType: "duplicacy",
 		Location:    "remote",
 		Provider:    ProviderAll,
 		Severity:    "warning",

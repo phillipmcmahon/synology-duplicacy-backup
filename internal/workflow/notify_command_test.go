@@ -194,7 +194,7 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 	}
 }
 
-func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenIsOptional(t *testing.T) {
+func TestHandleNotifyCommand_DuplicacyTargetCanSendWithoutReadableSecretsWhenTokenIsOptional(t *testing.T) {
 	configDir := t.TempDir()
 	var ntfyTitle string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,10 +210,9 @@ func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenI
 		`url = "` + server.URL + `"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.offsite-storj]`,
-		`type = "object"`,
+		`type = "duplicacy"`,
 		`location = "remote"`,
-		`destination = "s3://EU@gateway.storjshare.io/bucket"`,
-		`repository = "homes"`,
+		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -242,7 +241,7 @@ func TestHandleNotifyCommand_ObjectTargetCanSendWithoutReadableSecretsWhenTokenI
 	}
 }
 
-func TestHandleNotifyCommand_LocalObjectTargetPayload(t *testing.T) {
+func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 	configDir := t.TempDir()
 	var webhookBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -261,10 +260,9 @@ func TestHandleNotifyCommand_LocalObjectTargetPayload(t *testing.T) {
 		`[health.notify]`,
 		`webhook_url = "` + server.URL + `"`,
 		`[targets.onsite-rustfs]`,
-		`type = "object"`,
+		`type = "duplicacy"`,
 		`location = "local"`,
-		`destination = "s3://rustfs.local/bucket"`,
-		`repository = "homes"`,
+		`storage = "s3://rustfs.local/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -286,13 +284,13 @@ func TestHandleNotifyCommand_LocalObjectTargetPayload(t *testing.T) {
 		t.Fatalf("output = %q", out)
 	}
 	if !strings.Contains(webhookBody, `"target":"onsite-rustfs"`) ||
-		!strings.Contains(webhookBody, `"storage_type":"object"`) ||
+		!strings.Contains(webhookBody, `"storage_type":"duplicacy"`) ||
 		!strings.Contains(webhookBody, `"location":"local"`) {
 		t.Fatalf("webhookBody = %q", webhookBody)
 	}
 }
 
-func TestHandleNotifyCommand_ObjectTargetTokenParseErrorStillFails(t *testing.T) {
+func TestHandleNotifyCommand_DuplicacyTargetTokenParseErrorStillFails(t *testing.T) {
 	configDir := t.TempDir()
 	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
 		`label = "homes"`,
@@ -301,10 +299,9 @@ func TestHandleNotifyCommand_ObjectTargetTokenParseErrorStillFails(t *testing.T)
 		`url = "https://ntfy.sh"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.offsite-storj]`,
-		`type = "object"`,
+		`type = "duplicacy"`,
 		`location = "remote"`,
-		`destination = "s3://EU@gateway.storjshare.io/bucket"`,
-		`repository = "homes"`,
+		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{

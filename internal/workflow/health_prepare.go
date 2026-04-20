@@ -30,7 +30,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Location = cfg.Location
 	plan.ConfigFile = cfgPlan.ConfigFile
 	plan.SecretsFile = cfgPlan.SecretsFile
-	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
+	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
 	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
@@ -44,7 +44,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
-	if cfg.UsesObjectStorage() {
+	if cfg.UsesDuplicacyStorage() {
 		sec, err = planner.loadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err

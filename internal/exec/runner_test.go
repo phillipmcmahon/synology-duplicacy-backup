@@ -467,7 +467,7 @@ func TestFormatCommand_RedactsSensitiveArgs(t *testing.T) {
 		"backup",
 		"--password", "hunter2",
 		"--token=abc123",
-		"storj_s3_secret=secret-value",
+		"s3_secret=secret-value",
 		"--config", "/safe/path",
 	})
 	for _, secret := range []string{"hunter2", "abc123", "secret-value"} {
@@ -478,7 +478,7 @@ func TestFormatCommand_RedactsSensitiveArgs(t *testing.T) {
 	for _, token := range []string{
 		"--password [REDACTED]",
 		"--token=[REDACTED]",
-		"storj_s3_secret=[REDACTED]",
+		"s3_secret=[REDACTED]",
 		"--config /safe/path",
 	} {
 		if !strings.Contains(got, token) {

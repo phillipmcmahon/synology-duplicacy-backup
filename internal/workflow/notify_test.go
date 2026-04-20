@@ -18,7 +18,7 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	report := &RunReport{
 		Label:       "homes",
 		Target:      "offsite-storj",
-		StorageType: storageTypeObject,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationRemote,
 		Operation:   "Backup",
 		ExitCode:    1,
@@ -31,7 +31,7 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	if payload.Event != "backup_could_not_start" || payload.Severity != "critical" || payload.Operation != "backup" {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload.Label != "homes" || payload.Target != "offsite-storj" || payload.StorageType != storageTypeObject || payload.Location != locationRemote {
+	if payload.Label != "homes" || payload.Target != "offsite-storj" || payload.StorageType != storageTypeDuplicacy || payload.Location != locationRemote {
 		t.Fatalf("payload = %+v", payload)
 	}
 	if payload.Timestamp == "" || payload.EventID == "" || payload.Host == "" {
@@ -39,13 +39,13 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	}
 }
 
-func TestBuildRuntimeNotificationPayload_LocalObjectBackupCouldNotStart(t *testing.T) {
+func TestBuildRuntimeNotificationPayload_LocalDuplicacyBackupCouldNotStart(t *testing.T) {
 	rt := testRuntime()
 	plan := &Plan{DoBackup: true}
 	report := &RunReport{
 		Label:       "homes",
 		Target:      "onsite-rustfs",
-		StorageType: storageTypeObject,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationLocal,
 		Operation:   "Backup",
 		ExitCode:    1,
@@ -58,7 +58,7 @@ func TestBuildRuntimeNotificationPayload_LocalObjectBackupCouldNotStart(t *testi
 	if payload.Event != "backup_could_not_start" || payload.Severity != "critical" || payload.Operation != "backup" {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload.Label != "homes" || payload.Target != "onsite-rustfs" || payload.StorageType != storageTypeObject || payload.Location != locationLocal {
+	if payload.Label != "homes" || payload.Target != "onsite-rustfs" || payload.StorageType != storageTypeDuplicacy || payload.Location != locationLocal {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
@@ -135,7 +135,7 @@ func TestBuildRuntimeNotificationPayload_PruneFailed(t *testing.T) {
 	report := &RunReport{
 		Label:       "homes",
 		Target:      "offsite-storj",
-		StorageType: storageTypeObject,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationRemote,
 		ExitCode:    1,
 		Phases: []PhaseReport{
@@ -159,7 +159,7 @@ func TestBuildHealthNotificationPayload_FreshnessFailed(t *testing.T) {
 		CheckType:   "status",
 		Label:       "homes",
 		Target:      "offsite-storj",
-		StorageType: storageTypeObject,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationRemote,
 		Issues: []HealthIssue{
 			{Severity: "error", Message: "72h old"},
@@ -228,7 +228,7 @@ func TestBuildHealthNotificationPayload_VerifyMetadataWithoutFailedRevisions(t *
 		CheckType:          "verify",
 		Label:              "homes",
 		Target:             "offsite-storj",
-		StorageType:        storageTypeObject,
+		StorageType:        storageTypeDuplicacy,
 		Location:           locationRemote,
 		FailureCode:        verifyFailureNoRevisionsFound,
 		FailureCodes:       []string{verifyFailureNoRevisionsFound},
@@ -329,7 +329,7 @@ func TestExecutorMaybeSendFailureNotification_SafePruneBlocked(t *testing.T) {
 		report: &RunReport{
 			Label:       "homes",
 			Target:      "offsite-storj",
-			StorageType: storageTypeObject,
+			StorageType: storageTypeDuplicacy,
 			Location:    locationRemote,
 			ExitCode:    1,
 			Phases:      []PhaseReport{{Name: "Prune", Result: "failed"}},

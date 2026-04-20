@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
@@ -79,7 +80,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	plan.Location = cfg.Location
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
-	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
+	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
 	requiredErr := cfg.ValidateRequired(true, false)
@@ -113,18 +114,21 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	repoHint := ""
 	var sec *secrets.Secrets
 	var secretsErr error
-	secretsChecked := !cfg.UsesObjectStorage()
+	secretsChecked := !cfg.UsesDuplicacyStorage()
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
-	if cfg.UsesObjectStorage() && privilegedValidation {
+	if cfg.UsesDuplicacyStorage() && privilegedValidation {
 		secretsChecked = true
 		sec, secretsErr = planner.loadSecrets(plan)
+		if secretsErr == nil {
+			secretsErr = validateDuplicacyStorageSecrets(cfg.Storage, sec)
+		}
 	}
 
 	if sourceAccessible && destinationErr == nil {
 		switch {
 		case cfg.UsesFilesystem():
 			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
-		case cfg.UsesObjectStorage() && secretsChecked && secretsErr == nil:
+		case cfg.UsesDuplicacyStorage() && secretsChecked && secretsErr == nil:
 			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
 		}
 		if repoStatus == "Not initialized" && repoErr == nil {
@@ -163,7 +167,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		collector.addUnchecked("Repository Access")
 	}
 	collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
-	if cfg.UsesObjectStorage() {
+	if cfg.UsesDuplicacyStorage() {
 		if secretsChecked {
 			collector.addStatus("Secrets", "Valid", secretsErr)
 		} else {
@@ -199,7 +203,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 	plan.Location = cfg.Location
 	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
 	plan.SnapshotSource = cfg.SourcePath
-	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
+	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
 	plan.PruneOptions = cfg.Prune
@@ -213,7 +217,11 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		{Label: "Location", Value: cfg.Location},
 		{Label: "Config File", Value: plan.ConfigFile},
 		{Label: "Source", Value: plan.SnapshotSource},
-		{Label: "Destination", Value: plan.BackupTarget},
+	}
+	if cfg.UsesDuplicacyStorage() {
+		lines = append(lines, SummaryLine{Label: "Storage", Value: plan.BackupTarget})
+	} else {
+		lines = append(lines, SummaryLine{Label: "Destination", Value: plan.BackupTarget})
 	}
 
 	if cfg.Threads > 0 {
@@ -226,7 +234,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
 	}
 
-	if cfg.UsesObjectStorage() {
+	if cfg.UsesDuplicacyStorage() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
 		)
@@ -260,7 +268,7 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		{Label: "Source Path", Value: plan.SnapshotSource},
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
-	if plan.UsesObjectStorage() {
+	if plan.UsesDuplicacyStorage() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
@@ -381,8 +389,8 @@ func validateConfigDestination(cfg *config.Config) (string, error) {
 	switch {
 	case cfg.UsesFilesystem():
 		return validateFilesystemDestination(cfg.Destination)
-	case cfg.UsesObjectStorage():
-		return validateObjectDestination(cfg.Destination)
+	case cfg.UsesDuplicacyStorage():
+		return validateDuplicacyStorage(cfg.Storage)
 	default:
 		return "", configPathError(fmt.Sprintf("unsupported storage type %q", cfg.StorageType))
 	}
@@ -478,29 +486,46 @@ func validateFilesystemDestination(destination string) (string, error) {
 	return "Writable", nil
 }
 
-func validateObjectDestination(destination string) (string, error) {
-	if destination == "" {
-		return "", configPathError("destination must not be empty")
+func validateDuplicacyStorage(storage string) (string, error) {
+	if storage == "" {
+		return "", configPathError("storage must not be empty")
 	}
-	parsed, err := url.Parse(destination)
+	parsed, err := url.Parse(storage)
 	if err != nil {
-		return "", configPathError(fmt.Sprintf("object destination is not a valid URL-like storage target: %v", err))
+		return "", configPathError(fmt.Sprintf("duplicacy storage is not a valid URL-like storage target: %v", err))
 	}
-	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", configPathError(fmt.Sprintf("object destination must include a scheme and host (was %q)", destination))
+	if parsed.Scheme == "" {
+		return "", configPathError(fmt.Sprintf("duplicacy storage must include a scheme (was %q)", storage))
 	}
-	host := parsed.Hostname()
-	if host == "" {
-		return "", configPathError(fmt.Sprintf("object destination host could not be determined from %q", destination))
-	}
-	addrs, err := resolveConfigDestinationHost(host)
-	if err != nil {
-		return "", configPathError(fmt.Sprintf("object destination host could not be resolved: %s", host))
-	}
-	if len(addrs) == 0 {
-		return "", configPathError(fmt.Sprintf("object destination host resolved without any addresses: %s", host))
+	if parsed.Host == "" && parsed.Path == "" {
+		return "", configPathError(fmt.Sprintf("duplicacy storage must include a target after the scheme (was %q)", storage))
 	}
 	return "Resolved", nil
+}
+
+func validateDuplicacyStorageSecrets(storage string, sec *secrets.Secrets) error {
+	parsed, err := url.Parse(storage)
+	if err != nil {
+		return nil
+	}
+	required := requiredDuplicacyStorageKeys(parsed.Scheme)
+	for _, key := range required {
+		if sec == nil || strings.TrimSpace(sec.Keys[key]) == "" {
+			return NewMessageError("storage %q requires %s in [targets.<name>.keys]", parsed.Scheme, strings.Join(required, " and "))
+		}
+	}
+	return nil
+}
+
+func requiredDuplicacyStorageKeys(scheme string) []string {
+	switch strings.ToLower(scheme) {
+	case "s3":
+		return []string{"s3_id", "s3_secret"}
+	case "storj":
+		return []string{"storj_key", "storj_passphrase"}
+	default:
+		return nil
+	}
 }
 
 func configPathError(message string) error {

@@ -20,7 +20,7 @@ func writeTargetTestConfig(t *testing.T, dir, label, target, body string) string
 func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 	t.Helper()
 	path := filepath.Join(dir, fmt.Sprintf("%s-secrets.toml", label))
-	body := fmt.Sprintf("[targets.%s]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
+	body := fmt.Sprintf("[targets.%s.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -37,11 +37,11 @@ func localTargetConfig(label, sourcePath, destination, owner, group string, thre
 }
 
 func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "offsite-storj", storageTypeObject, locationRemote, sourcePath, destination, label, "", "", threads, prune, extraSections...)
+	return buildLabelConfig(label, "offsite-storj", storageTypeDuplicacy, locationRemote, sourcePath, destination, "", "", "", threads, prune, extraSections...)
 }
 
-func localObjectTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-rustfs", storageTypeObject, locationLocal, sourcePath, destination, label, "", "", threads, prune, extraSections...)
+func localDuplicacyTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "onsite-rustfs", storageTypeDuplicacy, locationLocal, sourcePath, destination, "", "", "", threads, prune, extraSections...)
 }
 
 func buildTargetConfig(label, target, storageType, location, sourcePath, destination, repository, owner, group string, threads int, prune string, extraSections ...string) string {
@@ -66,7 +66,11 @@ func buildLabelConfig(label, target, storageType, location, sourcePath, destinat
 	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
 	fmt.Fprintf(&b, "type = %q\n", storageType)
 	fmt.Fprintf(&b, "location = %q\n", location)
-	fmt.Fprintf(&b, "destination = %q\n", destination)
+	if storageType == storageTypeDuplicacy {
+		fmt.Fprintf(&b, "storage = %q\n", destination)
+	} else {
+		fmt.Fprintf(&b, "destination = %q\n", destination)
+	}
 	if repository != "" {
 		fmt.Fprintf(&b, "repository = %q\n", repository)
 	}

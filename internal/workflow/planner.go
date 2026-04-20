@@ -50,7 +50,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
-	plan.BackupTarget = JoinDestination(cfg.StorageType, cfg.Destination, cfg.Repository)
+	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
@@ -66,7 +66,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
 	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
-	if cfg.UsesObjectStorage() {
+	if cfg.UsesDuplicacyStorage() {
 		sec, err := p.loadSecrets(plan)
 		if err != nil {
 			return nil, err

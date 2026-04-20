@@ -28,7 +28,7 @@ func TestSendConfigured_WebhookAddsBearerToken(t *testing.T) {
 
 	payload := NewPayload(time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC), 1234, "critical", "health", "health_unhealthy",
 		"Health unhealthy for homes/offsite-storj",
-		"homes", "offsite-storj", "object", "remote", "", "verify", "unhealthy", map[string]any{"message": "boom"},
+		"homes", "offsite-storj", "duplicacy", "remote", "", "verify", "unhealthy", map[string]any{"message": "boom"},
 	)
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
 	if err := SendConfigured(cfg, "/root/.secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
@@ -62,7 +62,7 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 
 	payload := NewPayload(time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC), 1234, "warning", "maintenance", "safe_prune_blocked",
 		"Safe prune blocked for homes/offsite-storj",
-		"homes", "offsite-storj", "object", "remote", "prune", "", "blocked", map[string]any{"message": "Safe prune blocked because deletion threshold would be exceeded"},
+		"homes", "offsite-storj", "duplicacy", "remote", "prune", "", "blocked", map[string]any{"message": "Safe prune blocked because deletion threshold would be exceeded"},
 	)
 	cfg := config.HealthNotifyConfig{
 		Ntfy: config.HealthNotifyNtfyConfig{
@@ -85,7 +85,7 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 	if gotAuth != "Bearer ntfy-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
-	if !strings.Contains(gotBody, "Type: object") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
+	if !strings.Contains(gotBody, "Type: duplicacy") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
 		t.Fatalf("Body = %q", gotBody)
 	}
 }
@@ -132,7 +132,7 @@ func TestSendConfiguredDetailedWrapperReportsProviderFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "object", "remote", "", "", "")
+	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "duplicacy", "remote", "", "", "")
 	results, err := SendConfiguredDetailed(config.HealthNotifyConfig{WebhookURL: server.URL}, "", "offsite-storj", payload, ProviderWebhook)
 	if err == nil {
 		t.Fatal("SendConfiguredDetailed() err = nil, want provider failure")
@@ -148,7 +148,7 @@ func TestSendConfiguredAggregatesFailedProviderMessages(t *testing.T) {
 	}))
 	defer server.Close()
 
-	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "object", "remote", "", "", "")
+	payload := BuildTestPayload(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC), 1234, "homes", "offsite-storj", "duplicacy", "remote", "", "", "")
 	err := SendConfigured(config.HealthNotifyConfig{WebhookURL: server.URL}, "", "offsite-storj", payload)
 	if err == nil || !strings.Contains(err.Error(), "webhook delivery returned 502") {
 		t.Fatalf("SendConfigured() err = %v", err)

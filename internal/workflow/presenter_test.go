@@ -66,13 +66,13 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 		OperationMode: "Fix permissions",
 		BackupLabel:   "homes",
 		Target:        "offsite-storj",
-		StorageType:   storageTypeObject,
+		StorageType:   storageTypeDuplicacy,
 		Location:      locationRemote,
 	})
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Fix permissions", "Label", "homes", "Target", "offsite-storj", "Type", storageTypeObject, "Location", locationRemote} {
+	for _, token := range []string{"Run could not start", "Operation", "Fix permissions", "Label", "homes", "Target", "offsite-storj", "Type", storageTypeDuplicacy, "Location", locationRemote} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}

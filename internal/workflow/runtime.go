@@ -19,7 +19,7 @@ var targetPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 const (
 	storageTypeFilesystem = "filesystem"
-	storageTypeObject     = "object"
+	storageTypeDuplicacy  = "duplicacy"
 	locationLocal         = "local"
 	locationRemote        = "remote"
 )
@@ -128,16 +128,18 @@ func ValidateTargetName(target string) error {
 
 func JoinDestination(storageType, destination, label string) string {
 	switch storageType {
-	case storageTypeObject:
-		if idx := strings.Index(destination, "://"); idx >= 0 {
-			scheme := destination[:idx+3]
-			rest := strings.TrimRight(destination[idx+3:], "/")
-			return scheme + rest + "/" + label
-		}
+	case storageTypeDuplicacy:
 		return destination
 	default:
 		return filepath.Join(destination, label)
 	}
+}
+
+func ResolveBackupTarget(storageType, destination, storage, repository string) string {
+	if storageType == storageTypeDuplicacy {
+		return storage
+	}
+	return JoinDestination(storageType, destination, repository)
 }
 
 func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {

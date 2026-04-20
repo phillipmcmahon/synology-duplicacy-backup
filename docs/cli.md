@@ -17,15 +17,15 @@ Every runtime command also needs at least one explicit primary operation.
 
 Targets now describe both storage kind and deployment location:
 
-- `type = "filesystem"` or `type = "object"`
+- `type = "filesystem"` or `type = "duplicacy"`
 - `location = "local"` or `location = "remote"`
 
 Supported combinations are:
 
 - filesystem/local
 - filesystem/remote
-- object/local
-- object/remote
+- duplicacy/local
+- duplicacy/remote
 
 Primary operations may be combined. When they are, execution order is fixed:
 
@@ -62,7 +62,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate the selected target from that label config and any required object-target secrets |
+| `config validate --target <target> <label>` | Validate the selected target from that label config and any required duplicacy-target secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -138,8 +138,9 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
-- Object-target secrets for S3-compatible storage use `storj_s3_id` and
-  `storj_s3_secret`; see [configuration.md](configuration.md) for ownership,
+- Duplicacy-target storage keys live under `[targets.<name>.keys]` in the
+  label secrets file. For S3-compatible storage this usually means `s3_id`
+  and `s3_secret`; see [configuration.md](configuration.md) for ownership,
   permissions, and notification-token details.
 - `update` uses the managed install layout under
   `/usr/local/lib/duplicacy-backup` with `/usr/local/bin/duplicacy-backup` as

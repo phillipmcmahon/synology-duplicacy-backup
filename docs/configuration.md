@@ -70,25 +70,25 @@ Supported combinations:
 
 - `type = "filesystem"` with `location = "local"`
 - `type = "filesystem"` with `location = "remote"`
-- `type = "object"` with `location = "local"`
-- `type = "object"` with `location = "remote"`
+- `type = "duplicacy"` with `location = "local"`
+- `type = "duplicacy"` with `location = "remote"`
 
 This means a mounted filesystem path over VPN can be modelled cleanly as
-remote without forcing object-storage behaviour. It also means a local
-S3-compatible object store can be modelled as object storage while still being
-treated as operationally local for scheduling and reporting.
+remote without forcing Duplicacy backend behaviour. It also means a local
+Duplicacy backend such as RustFS or MinIO can be modelled as backend storage
+while still being treated as operationally local for scheduling and reporting.
 
 Operational rules:
 
 - filesystem targets use filesystem path semantics
-- object targets use URL-style storage semantics
-- only object targets load storage secrets
+- duplicacy targets pass a `storage` URL directly to Duplicacy
+- duplicacy targets load generic runtime keys when the selected storage needs them
 - only filesystem targets allow `allow_local_accounts`, `local_owner`,
   `local_group`, and `--fix-perms`
 
 Breaking change note:
 
-- old `type = "local"` and `type = "remote"` values are no longer supported
+- old `type = "local"`, `type = "remote"`, and `type = "object"` values are no longer supported
 - `requires_network` has been retired
 
 ## Config Keys
@@ -97,7 +97,7 @@ Breaking change note:
 |---|---|---|
 | `label` | Yes | Source label used on the CLI |
 | `source_path` | Yes | Btrfs source root for this label; must be a snapshot-safe volume or subvolume |
-| `common.destination` | No | Default destination for targets that do not set their own |
+| `common.destination` | No | Default filesystem destination for filesystem targets that do not set their own |
 | `common.filter` | No | Default Duplicacy filter pattern |
 | `common.threads` | Yes for backup unless set on the target | Duplicacy threads; power of 2, max 16 |
 | `common.prune` | Yes for prune unless set on the target | Duplicacy prune policy |
@@ -105,10 +105,11 @@ Breaking change note:
 | `common.safe_prune_max_delete_percent` | No | Default `10` |
 | `common.safe_prune_max_delete_count` | No | Default `25` |
 | `common.safe_prune_min_total_for_percent` | No | Default `20` |
-| `targets.<name>.type` | Yes | Storage kind: `filesystem` or `object` |
+| `targets.<name>.type` | Yes | Storage kind: `filesystem` or `duplicacy` |
 | `targets.<name>.location` | Yes | Deployment location: `local` or `remote` |
-| `targets.<name>.destination` | Yes unless inherited from `common` | Filesystem path for `filesystem` targets, or S3-compatible gateway URL for `object` targets |
-| `targets.<name>.repository` | No | Repository name; defaults to `label` |
+| `targets.<name>.destination` | Yes for filesystem targets unless inherited from `common` | Filesystem path for `filesystem` targets |
+| `targets.<name>.storage` | Yes for duplicacy targets | Complete Duplicacy storage URL, including the repository/path component you want Duplicacy to use |
+| `targets.<name>.repository` | No | Filesystem repository directory name; defaults to `label` |
 | `targets.<name>.filter` | No | Target-specific filter override |
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
@@ -325,19 +326,17 @@ local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
-type = "object"
+type = "duplicacy"
 location = "remote"
-destination = "s3://gateway.storjshare.io/my-backup-bucket"
-repository = "homes"
+storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
 [targets.offsite-storj.health]
 verify_warn_after_hours = 336
 
 [targets.onsite-rustfs]
-type = "object"
+type = "duplicacy"
 location = "local"
-destination = "s3://rustfs.local/my-backup-bucket"
-repository = "homes"
+storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
 
 ## Source Path Rule
@@ -364,8 +363,8 @@ actually backed up.
 
 ## Secrets
 
-Object targets load credentials from, and authenticated notification delivery
-can optionally read target-scoped tokens from:
+Duplicacy targets load runtime storage keys from, and authenticated
+notification delivery can optionally read target-scoped tokens from:
 
 ```text
 /root/.secrets/<label>-secrets.toml
@@ -380,10 +379,12 @@ Example:
 
 ```toml
 [targets.offsite-storj]
-storj_s3_id = "your-access-key-id"
-storj_s3_secret = "your-secret-access-key"
 health_webhook_bearer_token = "optional-webhook-bearer-token"
 health_ntfy_token = "optional-ntfy-bearer-token"
+
+[targets.offsite-storj.keys]
+s3_id = "your-access-key-id"
+s3_secret = "your-secret-access-key"
 
 [targets.onsite-usb]
 health_ntfy_token = "optional-ntfy-bearer-token"
@@ -394,20 +395,19 @@ Requirements:
 - owned by `root:root`
 - secrets directory permissions `0700`
 - permissions `0600`
-- storage credentials are only needed for object targets
+- storage keys are only needed for duplicacy targets whose Duplicacy backend requires them
 - notification auth tokens may be present for any target
 - a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
 - notification auth tokens are target-scoped; repeat them under each notifying target that needs authenticated delivery
-- `storj_s3_id` must be at least 28 characters
-- `storj_s3_secret` must be at least 53 characters
 
-The current schema uses `storj_s3_id` and `storj_s3_secret` because those
-values are passed through to Duplicacy for gateway-backed target storage.
+Storage keys under `[targets.<name>.keys]` are passed through to Duplicacy as
+runtime preference keys. Use the key names Duplicacy expects for the selected
+storage URL, such as `s3_id` and `s3_secret` for S3-compatible storage.
 
 When run as `root`, the bundled installer ensures `/root/.secrets` exists with
 mode `700`, but it does not create or rewrite any individual secrets files.
 
-Filesystem targets, whether local or remote, do not load storage credentials.
+Filesystem targets, whether local or remote, do not load storage keys.
 They only need a matching secrets file if a notifying target uses
 `health_webhook_bearer_token` and/or `health_ntfy_token`.
 
@@ -447,7 +447,7 @@ freshness signal.
 | destination accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | filesystem `--fix-perms` |
-| target secrets loading | `object` targets |
+| target secrets loading | `duplicacy` targets |
 
 ## Output Model
 
@@ -456,7 +456,7 @@ Human-facing screens now make the selected target shape explicit:
 - runtime headers show `Label`, `Target`, `Type`, and `Location`
 - health headers show `Check`, `Label`, `Target`, `Type`, and `Location`
 - `config explain` and `config paths` show `Type` and `Location`
-- `config explain` stays read-only by default and does not load object-target secrets
+- `config explain` stays read-only by default and does not load duplicacy-target secrets
 - `config validate` includes `Privileges`, reported as `Full` or `Limited`
 
 `config validate` intentionally keeps its `Resolved` section identity-only:

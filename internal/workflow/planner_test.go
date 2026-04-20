@@ -173,14 +173,14 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	}
 }
 
-func TestPlannerBuild_LocalObjectPlanLoadsSecrets(t *testing.T) {
+func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	if os.Getuid() != 0 {
-		t.Skip("object storage secrets access validation requires root-owned test file")
+		t.Skip("duplicacy storage secrets access validation requires root-owned test file")
 	}
 
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localObjectTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, ""))
 	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "onsite-rustfs")
 
 	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
@@ -196,17 +196,17 @@ func TestPlannerBuild_LocalObjectPlanLoadsSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if !plan.UsesObjectStorage() {
-		t.Fatal("expected local object target to use object storage")
+	if !plan.UsesDuplicacyStorage() {
+		t.Fatal("expected local duplicacy target to use duplicacy storage")
 	}
 	if plan.IsRemoteLocation() {
-		t.Fatal("expected local object target not to be reported as remote")
+		t.Fatal("expected local duplicacy target not to be reported as remote")
 	}
 	if plan.Location != locationLocal {
 		t.Fatalf("Location = %q, want %q", plan.Location, locationLocal)
 	}
 	if plan.Secrets == nil {
-		t.Fatal("expected secrets to be loaded for local object plan")
+		t.Fatal("expected secrets to be loaded for local duplicacy plan")
 	}
 	if plan.SecretsFile != secretsFile {
 		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
@@ -264,7 +264,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -277,7 +277,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
-	if sec.MaskedID() == "" || sec.MaskedSecret() == "" {
+	if sec.MaskedKeys() == "" {
 		t.Fatalf("unexpected masked secrets: %#v", sec)
 	}
 }
@@ -348,7 +348,7 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj]\nstorj_s3_id = \"short\"\nstorj_s3_secret = \"also-short\"\n"
+	body := "[targets.offsite-storj.keys]\ns3_id = \"\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -358,7 +358,7 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile, Target: "offsite-storj"})
-	if err == nil || !strings.Contains(err.Error(), "storj_s3_id must be at least 28 characters") {
+	if err == nil || !strings.Contains(err.Error(), "s3_id") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
 }
@@ -370,7 +370,7 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 
 	secretsDir := t.TempDir()
 	legacyFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	body := "storj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(legacyFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}

@@ -1,5 +1,5 @@
 // Package secrets handles loading and validating per-label secret files
-// for target-specific remote backup operations (e.g., Storj S3 credentials).
+// for target-specific Duplicacy storage keys and notification credentials.
 package secrets
 
 import (
@@ -16,23 +16,15 @@ import (
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
-// MinStorjS3IDLen is the minimum length for storj_s3_id.
-const MinStorjS3IDLen = 28
-
-// MinStorjS3SecretLen is the minimum length for storj_s3_secret.
-const MinStorjS3SecretLen = 53
-
 // Secrets holds loaded secret values.
 type Secrets struct {
-	StorjS3ID     string
-	StorjS3Secret string
+	Keys map[string]string
 }
 
 type fileTargetSecrets struct {
-	StorjS3ID                *string `toml:"storj_s3_id"`
-	StorjS3Secret            *string `toml:"storj_s3_secret"`
-	HealthWebhookBearerToken *string `toml:"health_webhook_bearer_token"`
-	HealthNtfyToken          *string `toml:"health_ntfy_token"`
+	Keys                     map[string]string `toml:"keys"`
+	HealthWebhookBearerToken *string           `toml:"health_webhook_bearer_token"`
+	HealthNtfyToken          *string           `toml:"health_ntfy_token"`
 }
 
 type fileSecrets struct {
@@ -98,17 +90,7 @@ func ParseSecrets(r io.Reader, source, target string) (*Secrets, error) {
 	if !ok {
 		return nil, apperrors.NewSecretsError("required", fmt.Errorf("secrets file %s is missing required [targets.%s] table", source, target), "source", source, "target", target)
 	}
-	if section.StorjS3ID == nil {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_id' is missing under [targets.%s] in %s", target, source), "source", source, "target", target)
-	}
-	if section.StorjS3Secret == nil {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("required secret 'storj_s3_secret' is missing under [targets.%s] in %s", target, source), "source", source, "target", target)
-	}
-
-	return &Secrets{
-		StorjS3ID:     *section.StorjS3ID,
-		StorjS3Secret: *section.StorjS3Secret,
-	}, nil
+	return &Secrets{Keys: copyStringMap(section.Keys)}, nil
 }
 
 // LoadSecretsFile loads and validates a secrets TOML file for a specific target.
@@ -188,13 +170,18 @@ func parseOptionalTargetToken(text, source, target string, selectToken func(file
 	return *token, nil
 }
 
-// Validate checks minimum length requirements for secrets.
+// Validate checks generic Duplicacy storage key values.
 func (s *Secrets) Validate() error {
-	if len(s.StorjS3ID) < MinStorjS3IDLen {
-		return apperrors.NewSecretsError("validate", fmt.Errorf("storj_s3_id must be at least %d characters (was %d)", MinStorjS3IDLen, len(s.StorjS3ID)))
+	if s == nil {
+		return nil
 	}
-	if len(s.StorjS3Secret) < MinStorjS3SecretLen {
-		return apperrors.NewSecretsError("validate", fmt.Errorf("storj_s3_secret must be at least %d characters (was %d)", MinStorjS3SecretLen, len(s.StorjS3Secret)))
+	for key, value := range s.Keys {
+		if strings.TrimSpace(key) == "" {
+			return apperrors.NewSecretsError("validate", fmt.Errorf("storage key names must not be empty"))
+		}
+		if strings.TrimSpace(value) == "" {
+			return apperrors.NewSecretsError("validate", fmt.Errorf("storage key %q must not be empty", key))
+		}
 	}
 	return nil
 }
@@ -237,12 +224,24 @@ func quoteKeys(keys []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-// MaskedID returns an opaque placeholder for the S3 ID.
-func (s *Secrets) MaskedID() string {
-	return maskedSecretPlaceholder
+func copyStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
 }
 
-// MaskedSecret returns an opaque placeholder for the S3 secret.
-func (s *Secrets) MaskedSecret() string {
-	return maskedSecretPlaceholder
+// MaskedKeys returns an opaque summary of loaded storage keys.
+func (s *Secrets) MaskedKeys() string {
+	if s == nil || len(s.Keys) == 0 {
+		return "<none>"
+	}
+	if len(s.Keys) == 1 {
+		return maskedSecretPlaceholder + " (1 key)"
+	}
+	return fmt.Sprintf("%s (%d keys)", maskedSecretPlaceholder, len(s.Keys))
 }

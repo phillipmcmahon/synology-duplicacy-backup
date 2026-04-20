@@ -83,8 +83,8 @@ func (p *Plan) UsesFilesystem() bool {
 	return p != nil && p.StorageType == storageTypeFilesystem
 }
 
-func (p *Plan) UsesObjectStorage() bool {
-	return p != nil && p.StorageType == storageTypeObject
+func (p *Plan) UsesDuplicacyStorage() bool {
+	return p != nil && p.StorageType == storageTypeDuplicacy
 }
 
 func (p *Plan) IsRemoteLocation() bool {

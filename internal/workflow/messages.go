@@ -255,7 +255,7 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		if path := err.Context["path"]; path != "" {
 			return withHint(
 				fmt.Sprintf("Secrets file not found: %s", path),
-				"create <label>-secrets.toml under /root/.secrets and add a [targets.<name>] table; object targets also use this file for storage credentials even when the notification provider is ntfy, so run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
+				"create <label>-secrets.toml under /root/.secrets and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys; run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
 			)
 		}
 	case "permissions":

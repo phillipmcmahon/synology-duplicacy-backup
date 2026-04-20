@@ -74,14 +74,14 @@ Additional v4.4.1 validation:
 - Concise update help now shows the default retention, version-selection, and
   attestation settings operators need before scheduling updates.
 
-Additional v4.5.0 validation:
+Additional v4.5.x validation:
 
-- Config semantics now allow `type = "object"` with `location = "local"` while
-  still requiring URL-style object destinations.
-- Planner tests confirm local object-storage targets load object-storage
-  secrets while remaining operationally local.
+- Config semantics now use `type = "duplicacy"` with direct Duplicacy storage
+  URLs and generic storage keys.
+- Planner tests confirm local Duplicacy targets load storage keys while
+  remaining operationally local.
 - Runtime failure, config command, summary, and notification tests confirm
-  local object-storage targets preserve `Type: object` and `Location: local`
+  local Duplicacy targets preserve `Type: duplicacy` and `Location: local`
   in operator-facing output and webhook payloads.
 
 Additional #114, #115, and #128 validation:
@@ -267,13 +267,13 @@ Acceptance coverage for the current target model should always include:
 
 - `filesystem/local`
 - `filesystem/remote`
-- `object/remote`
+- `duplicacy/remote`
 
 That includes both behaviour and output:
 
 - filesystem/remote targets do not load secrets
-- object/remote targets do load secrets
-- `--fix-perms` is accepted for filesystem targets and rejected for object targets
+- duplicacy/remote targets do load secrets
+- `--fix-perms` is accepted for filesystem targets and rejected for duplicacy targets
 - runtime and health headers include `Type` and `Location`
 - `config validate` keeps `Resolved` identity-only and checks the new model
   under `Target Settings`

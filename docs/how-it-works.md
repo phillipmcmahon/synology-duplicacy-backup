@@ -412,21 +412,21 @@ Each target also resolves into a separate two-axis model:
 type + location
 ```
 
-- `type` is the storage kind: `filesystem` or `object`
+- `type` is the storage kind: `filesystem` or `duplicacy`
 - `location` is the deployment location: `local` or `remote`
 
 Supported combinations are intentionally limited to:
 
 - filesystem/local
 - filesystem/remote
-- object/local
-- object/remote
+- duplicacy/local
+- duplicacy/remote
 
 This is what makes mounted remote filesystems first-class. A path reached over
 VPN or SMB can now stay a filesystem target while still being modelled as
-remote operationally. Local object-storage services, such as an S3-compatible
-store on the LAN, remain object targets while being modelled as local for
-operator scheduling and reporting.
+remote operationally. Local Duplicacy backend services, such as an
+S3-compatible store on the LAN, remain Duplicacy targets while being modelled
+as local for operator scheduling and reporting.
 
 ## Plan Phase
 
@@ -471,7 +471,7 @@ That is an important design rule.
 1. `validateEnvironment(req)`
 2. `derivePlan(req)`
 3. `loadConfig(plan)`
-4. `loadSecrets(plan)` when the selected target uses object storage
+4. `loadSecrets(plan)` when the selected target uses Duplicacy storage
 5. `populateCommands(plan)`
 6. `SummaryLines(plan)`
 
@@ -524,7 +524,7 @@ It:
   - storage kind
   - deployment location
   - allowed combinations
-  - object destinations use URL-style storage targets
+  - duplicacy targets use direct Duplicacy storage URLs
 - validates owner/group if `--fix-perms` is active
 
 Self-update notifications intentionally do not flow through `loadConfig`,
@@ -555,20 +555,20 @@ arbitrary nested child directory.
 
 ### `loadSecrets`
 
-This only runs for object targets.
+This only runs for Duplicacy targets.
 
 It:
 
 - resolves the exact secrets path
 - loads the file
 - validates ownership/permissions
-- validates required secret values
+- validates generic storage key values
 
 The resulting `Secrets` object is attached to the plan.
 
 Filesystem targets do not call `loadSecrets`, even when their `location` is
-`remote`. Object targets do call `loadSecrets`, even when their `location` is
-`local`. That is a deliberate consequence of the model: storage kind drives
+`remote`. Duplicacy targets do call `loadSecrets`, even when their `location`
+is `local`. That is a deliberate consequence of the model: storage kind drives
 credential requirements, not deployment location.
 
 ### `populateCommands`

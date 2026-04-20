@@ -134,9 +134,10 @@ Update network calls are bounded. If GitHub release metadata lookup or package
 download stalls, the command reports which phase timed out instead of waiting
 indefinitely.
 
-Under the current target model, only `type = "object"` targets need a secrets
-file for storage credentials. Filesystem targets, whether local or remote, only
-need one if a notifying target uses authenticated webhook or `ntfy` delivery.
+Under the current target model, only `type = "duplicacy"` targets need a
+secrets file for storage keys. Filesystem targets, whether local or remote,
+only need one if a notifying target uses authenticated webhook or `ntfy`
+delivery.
 
 To install a new binary without switching immediately:
 
@@ -259,11 +260,12 @@ the operator-readable summary.
 explicit target. Global update commands and `notify test update` do not.
 Targets now define both `type` and `location`, so mounted remote filesystems
 can be modelled as `type = "filesystem"` with `location = "remote"` without
-loading storage secrets. Local S3-compatible object storage can be modelled as
-`type = "object"` with `location = "local"`; it still uses object-storage
-credentials because storage kind, not location, controls credential loading.
-The current secrets schema uses `storj_s3_id` and `storj_s3_secret` for
-gateway-backed S3-compatible storage. It also supports optional
+loading storage secrets. Duplicacy storage backends can be modelled as
+`type = "duplicacy"` with either `location = "local"` or `location = "remote"`;
+they pass the configured `storage` URL and any `[targets.<name>.keys]` values
+through to Duplicacy.
+
+The secrets schema also supports optional
 `health_webhook_bearer_token` and `health_ntfy_token` values for authenticated
 notifications. Those notification auth tokens are target-scoped in the secrets
 file, so repeat them under each notifying target that needs authenticated
