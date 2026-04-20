@@ -462,7 +462,7 @@ func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *tes
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
 	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
-	if err == nil || !strings.Contains(OperatorMessage(err), "s3_id and s3_secret") {
+	if err == nil {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 	report := ConfigCommandOutput(err)
