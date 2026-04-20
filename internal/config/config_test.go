@@ -740,9 +740,13 @@ func TestValidateRequired(t *testing.T) {
 	}
 	if err := (&Config{Storage: "/vol/homes", Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing threads")
+	} else if !strings.Contains(err.Error(), "common.threads or targets.<name>.threads") {
+		t.Fatalf("missing threads error = %v", err)
 	}
 	if err := (&Config{Storage: "/vol/homes", Threads: 4}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing prune")
+	} else if !strings.Contains(err.Error(), "common.prune or targets.<name>.prune") {
+		t.Fatalf("missing prune error = %v", err)
 	}
 }
 

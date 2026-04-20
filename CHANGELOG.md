@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use a direct `storage` value, and target secrets now use generic
   `[targets.<name>.keys]` entries that are passed through to Duplicacy
   preferences.
+- **Config parsing and operator guidance now use current schema terms**:
+  single-target fallback detection is named explicitly, target health override
+  resolution is simpler, and missing required value errors point to
+  `common.*` / `targets.<name>.*` keys.
 
 ### Removed
 - **The Storj/S3-specific object target schema has been removed**:

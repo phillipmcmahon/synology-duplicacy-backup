@@ -301,13 +301,13 @@ func LoadAppConfig(path string) (*AppConfig, error) {
 }
 
 // ResolveValues merges the decoded file into the existing key/value shape used
-// by Config.Apply. It supports both the legacy local/remote table layout and
-// the current target-aware layouts.
+// by Config.Apply. It supports the current [targets.<name>] layout, the
+// transitional single-target layout, and clear rejection of retired layouts.
 func (f *File) ResolveValues(targetName, path string) (map[string]string, error) {
 	if f.usesTargetsLayout() {
 		return f.resolveTargetsValues(targetName, path)
 	}
-	if f.usesTargetLayout() {
+	if f.usesSingleTargetLayout() {
 		return f.resolveTargetValues(targetName, path)
 	}
 	return f.resolveLegacyValues(targetName, path)
@@ -317,7 +317,10 @@ func (f *File) usesTargetsLayout() bool {
 	return len(f.Targets) > 0
 }
 
-func (f *File) usesTargetLayout() bool {
+func (f *File) usesSingleTargetLayout() bool {
+	// This deliberately includes top-level label/source_path because the
+	// transitional single-target layout uses them. Call this only after
+	// usesTargetsLayout, because modern multi-target files use them too.
 	return f.Label != nil || f.SourcePath != nil || f.TargetMeta != nil || f.Storage != nil || f.Capture != nil || f.Retention != nil || f.Notify != nil
 }
 
@@ -495,14 +498,8 @@ func (f *File) ResolveHealth(targetName string) HealthConfig {
 	if f.Notify != nil {
 		applyNotify(&cfg.Notify, f.Notify)
 	}
-	if len(f.Targets) > 0 {
-		if selected, target, err := f.selectTarget(targetName, "<label>-backup.toml"); err == nil && selected != "" {
-			applyHealth(target.Health)
-		}
-	} else if targetName != "" {
-		if target, ok := f.Targets[targetName]; ok {
-			applyHealth(target.Health)
-		}
+	if selected, target, err := f.selectTarget(targetName, "<label>-backup.toml"); err == nil && selected != "" {
+		applyHealth(target.Health)
 	}
 	return cfg
 }
@@ -717,10 +714,10 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 		missing = append(missing, "targets.<name>.storage")
 	}
 	if doBackup && c.Threads == 0 {
-		missing = append(missing, "capture.threads")
+		missing = append(missing, "common.threads or targets.<name>.threads")
 	}
 	if doPrune && c.Prune == "" {
-		missing = append(missing, "retention.keep/prune")
+		missing = append(missing, "common.prune or targets.<name>.prune")
 	}
 
 	if len(missing) > 0 {

@@ -81,7 +81,7 @@ Operational rules:
 
 - every target passes `storage` directly to Duplicacy
 - do not split storage into `destination` and `repository`; include the full backend path in `storage`
-- targets load generic runtime keys only when the selected Duplicacy backend needs them
+- runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
 - `allow_local_accounts`, `local_owner`, `local_group`, and `--fix-perms` are only for path-based Duplicacy storage targets
 
 Breaking change note:
@@ -89,6 +89,43 @@ Breaking change note:
 - the `type` key has been retired because every target delegates storage to Duplicacy
 - target-level `destination` and `repository` keys have been retired; use `storage`
 - `requires_network` has been retired
+
+## Migrating From The Old Target Schema
+
+Older configs split storage into `type`, `destination`, and `repository`, and
+Storj-over-S3 secrets used Storj-specific key names. The current schema gives
+Duplicacy the complete storage value directly and stores backend keys under a
+generic `[targets.<name>.keys]` table.
+
+Before:
+
+```toml
+[targets.offsite-storj]
+type = "object"
+location = "remote"
+destination = "s3://EU@gateway.storjshare.io/bucket-id"
+repository = "homes"
+```
+
+```toml
+[targets.offsite-storj]
+storj_s3_id = "..."
+storj_s3_secret = "..."
+```
+
+After:
+
+```toml
+[targets.offsite-storj]
+location = "remote"
+storage = "s3://EU@gateway.storjshare.io/bucket-id/homes"
+```
+
+```toml
+[targets.offsite-storj.keys]
+s3_id = "..."
+s3_secret = "..."
+```
 
 ## Config Keys
 
@@ -352,7 +389,7 @@ actually backed up.
 
 ## Secrets
 
-Targets whose selected backend needs runtime storage keys load them from, and
+Known Duplicacy backends that require runtime storage keys load them from, and
 authenticated notification delivery can optionally read target-scoped tokens
 from:
 
@@ -385,7 +422,7 @@ Requirements:
 - owned by `root:root`
 - secrets directory permissions `0700`
 - permissions `0600`
-- storage keys are only needed when the selected Duplicacy backend requires them
+- storage keys live under `[targets.<name>.keys]` and are loaded for known Duplicacy backends that require them
 - notification auth tokens may be present for any target
 - a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
 - notification auth tokens are target-scoped; repeat them under each notifying target that needs authenticated delivery
@@ -437,7 +474,7 @@ freshness signal.
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | path-based `--fix-perms` |
-| target secrets loading | storage values whose backend needs keys |
+| target secrets loading | known Duplicacy storage backends that require `[targets.<name>.keys]` |
 
 ## Output Model
 

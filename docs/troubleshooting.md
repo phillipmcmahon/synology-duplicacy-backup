@@ -79,6 +79,29 @@ See also:
 - [Configuration and secrets](configuration.md#health-state)
 - [Desk cheat sheet](cheatsheet.md#health-checks)
 
+## Storage Credentials Fail During Validation Or Backup
+
+Storage keys are passed through to Duplicacy using the names under
+`[targets.<name>.keys]` in the secrets file. The wrapper checks that required
+keys are present for known backends such as S3-compatible storage, but it does
+not enforce provider-specific credential lengths. If a credential value is the
+wrong length, expired, or belongs to the wrong backend, use Duplicacy's own
+error output as the source of truth.
+
+For S3-compatible storage, including Storj gateway, use generic Duplicacy key
+names:
+
+```toml
+[targets.offsite-storj.keys]
+s3_id = "..."
+s3_secret = "..."
+```
+
+See also:
+
+- [Configuration and secrets](configuration.md#secrets)
+- [Duplicacy storage backends](https://github.com/gilbertchen/duplicacy/wiki/Storage-Backends)
+
 ## Update Attestation Fails on an Expected Release
 
 If you use `--attestations required`, the updater must be able to run GitHub
