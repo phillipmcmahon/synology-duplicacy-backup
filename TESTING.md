@@ -15,11 +15,12 @@ All external commands are still mocked through `internal/exec.Runner`.
 
 ```bash
 # Representative Linux Go 1.26 validation
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
-  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./... && /usr/local/go/bin/go vet ./... && /usr/local/go/bin/go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...'
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' tools/release-validation/Dockerfile)"
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
+  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./... && /usr/local/go/bin/go vet ./... && /usr/local/go/bin/go run honnef.co/go/tools/cmd/staticcheck ./...'
 
 # Full coverage pass in the same environment
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test -cover ./...'
 ```
 
@@ -45,14 +46,14 @@ Representative Linux Go 1.26 validation for the current release baseline:
 
 - `go test ./...`
 - `go vet ./...`
-- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 
 Current Linux Go 1.26 development validation snapshot:
 
 - `go test ./...`
 - `go vet ./...`
-- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 - overall coverage: `85.8%`
 - `cmd/duplicacy-backup`: `92.7%`
@@ -83,10 +84,13 @@ Additional v4.5.0 validation:
   local object-storage targets preserve `Type: object` and `Location: local`
   in operator-facing output and webhook payloads.
 
-Additional #114 and #115 validation:
+Additional #114, #115, and #128 validation:
 
-- CI now runs pinned Staticcheck validation with
-  `honnef.co/go/tools/cmd/staticcheck@v0.7.0`.
+- CI now runs module-pinned Staticcheck validation with
+  `honnef.co/go/tools/cmd/staticcheck`; Dependabot updates the tool version
+  through Go module metadata.
+- Dependabot now monitors Go modules, GitHub Actions, and the release
+  validation Go container image.
 - Staticcheck findings are resolved rather than suppressed, including unused
   helpers, deprecated title casing, error style, and one unused test assignment.
 - Command redaction tests now cover env-style `KEY=value` wrappers for token,

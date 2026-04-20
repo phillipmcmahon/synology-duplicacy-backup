@@ -85,12 +85,14 @@ STATICCHECK_OUT="$PREP_DIR/staticcheck.txt"
 COVER_OUT="$PREP_DIR/go-cover.txt"
 SUMMARY_OUT="$PREP_DIR/coverage-summary.txt"
 NOTES_OUT="$PREP_DIR/release-notes.md"
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$ROOT/tools/release-validation/Dockerfile")"
+[ -n "$GO_CONTAINER_IMAGE" ] || fail "could not read Go container image from tools/release-validation/Dockerfile"
 
 run_in_linux() {
     "$DOCKER_BIN" run --rm \
         -v "$ROOT":/work \
         -w /work \
-        golang:1.26 \
+        "$GO_CONTAINER_IMAGE" \
         /bin/sh -lc "$1"
 }
 
@@ -98,7 +100,7 @@ COMMON_EXPORTS='set -eu; export PATH=/usr/local/go/bin:$PATH; export GOCACHE=/tm
 
 run_in_linux "$COMMON_EXPORTS go test ./..." >"$TEST_OUT" 2>&1
 run_in_linux "$COMMON_EXPORTS go vet ./..." >"$VET_OUT" 2>&1
-run_in_linux "$COMMON_EXPORTS go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..." >"$STATICCHECK_OUT" 2>&1
+run_in_linux "$COMMON_EXPORTS go run honnef.co/go/tools/cmd/staticcheck ./..." >"$STATICCHECK_OUT" 2>&1
 run_in_linux "$COMMON_EXPORTS go test -cover ./..." >"$COVER_OUT" 2>&1
 run_in_linux "$COMMON_EXPORTS go test -coverprofile=/tmp/cover.out ./... >/tmp/cover.txt 2>/dev/null; go tool cover -func=/tmp/cover.out | tail -n 1" >"$SUMMARY_OUT" 2>&1
 grep '^total:' "$SUMMARY_OUT" >"$SUMMARY_OUT.tmp"
@@ -129,7 +131,7 @@ cat >"$NOTES_OUT" <<EOF
 ## Validation
 - Linux Go 1.26: \`go test ./...\`
 - Linux Go 1.26: \`go vet ./...\`
-- Linux Go 1.26: \`go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...\`
+- Linux Go 1.26: \`go run honnef.co/go/tools/cmd/staticcheck ./...\`
 - Linux Go 1.26: \`go test -cover ./...\`
 
 ## Coverage

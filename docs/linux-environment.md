@@ -13,11 +13,14 @@ This repo does **not** treat the macOS host as release-representative.
 Use:
 
 - Docker
-- the official `golang:1.26` container image
+- the Go container image declared in
+  [`tools/release-validation/Dockerfile`](../tools/release-validation/Dockerfile)
 - the repo mounted at `/work`
 - a temporary Go build cache inside the container
 
 Treat this as the standard Linux environment for the project.
+Dependabot monitors the Dockerfile so routine Go container image updates arrive
+as normal dependency PRs.
 
 For normal release work, prefer:
 
@@ -68,24 +71,30 @@ Run these from the repo root.
 ### Representative release validation
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' tools/release-validation/Dockerfile)"
+
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./...'
 
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go vet ./...'
 ```
 
 ### Coverage run
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' tools/release-validation/Dockerfile)"
+
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test -cover ./...'
 ```
 
 ### Aggregate coverage
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' tools/release-validation/Dockerfile)"
+
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && \
    /usr/local/go/bin/go test -coverprofile=/tmp/cover.out ./... >/tmp/cover.txt && \
    /usr/local/go/bin/go tool cover -func=/tmp/cover.out | tail -n 1'

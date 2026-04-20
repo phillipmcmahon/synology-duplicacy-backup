@@ -8,8 +8,12 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Release from a clean `main` tree only.
 - Validate from the actual release tree, not from an older commit.
 - Run release validation in Linux Go 1.26 only.
-- Run Staticcheck as part of release validation; CI pins
-  `honnef.co/go/tools/cmd/staticcheck@v0.7.0`.
+- Run Staticcheck as part of release validation; CI uses
+  `honnef.co/go/tools/cmd/staticcheck` and the version is pinned in Go module
+  metadata so Dependabot can update it.
+- Use the Go container image declared in
+  [`tools/release-validation/Dockerfile`](../tools/release-validation/Dockerfile);
+  Dependabot monitors that Dockerfile for image updates.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
 - If one or more release attempts were superseded, fold their user-facing
@@ -108,13 +112,15 @@ This command is the standard release-prep automation. It:
 Run these from the release candidate tree:
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' tools/release-validation/Dockerfile)"
+
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test ./...'
 
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go vet ./...'
 
-docker run --rm -v "$PWD":/work -w /work golang:1.26 /bin/sh -lc \
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go test -cover ./...'
 ```
 

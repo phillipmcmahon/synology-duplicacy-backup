@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Dependabot now monitors routine dependency and toolchain updates**:
+  weekly grouped PRs cover Go modules, GitHub Actions, and the release
+  validation Go container image.
+
+### Changed
+- **Staticcheck is now module-pinned**: CI and release validation run
+  `honnef.co/go/tools/cmd/staticcheck` from Go module metadata so Dependabot
+  can update the Staticcheck toolchain through normal Go dependency PRs.
+
 ## [v4.5.0] - 2026-04-18
 
 ### Added

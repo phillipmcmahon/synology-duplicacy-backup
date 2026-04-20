@@ -19,11 +19,16 @@ require_command() {
 
 ROOT="$(repo_root)"
 require_command docker
+GO_CONTAINER_IMAGE="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$ROOT/tools/release-validation/Dockerfile")"
+[ -n "$GO_CONTAINER_IMAGE" ] || {
+    echo "Error: could not read Go container image from tools/release-validation/Dockerfile" >&2
+    exit 1
+}
 
 docker run --rm \
     -v "$ROOT":/work \
     -w /work \
-    golang:1.26 \
+    "$GO_CONTAINER_IMAGE" \
     /bin/sh -lc '
         set -eu
         export DEBIAN_FRONTEND=noninteractive
