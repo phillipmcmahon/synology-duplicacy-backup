@@ -127,7 +127,7 @@ jobs:
           echo "basename=${BASENAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: tarball_${{ steps.package.outputs.basename }}
           path: |
@@ -149,7 +149,7 @@ jobs:
           fetch-tags: true
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
