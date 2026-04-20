@@ -84,6 +84,8 @@ Additional unreleased validation:
 - Duplicacy storage scheme handling is covered by focused `StorageSpec` tests.
 - Runtime JSON, health reports, and notification payload tests assert the
   retired `storage_type` field is no longer emitted.
+- Plan section views have a focused regression test to ensure request, config,
+  path, and display data remain available as distinct reviewable groups.
 - Planner tests confirm URL-like storage values load storage keys when the
   selected backend needs them while remaining operationally local or remote
   according to `location`.

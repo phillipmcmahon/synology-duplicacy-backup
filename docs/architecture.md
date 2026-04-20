@@ -62,6 +62,13 @@ the workflow so CLI flag order never changes runtime sequencing.
 For runtime operations, `internal/workflow/planner.go` turns a `Request` into a
 validated `Plan`.
 
+The `Plan` exposes smaller section views for review and tests:
+
+- `PlanRequest` carries the resolved operator intent and mode flags
+- `PlanConfig` carries values resolved from the selected label/target config
+- `PlanPaths` carries derived filesystem and config/secrets paths
+- `PlanDisplay` carries operator-facing command and summary strings
+
 It is responsible for:
 
 - root and binary dependency checks
@@ -86,8 +93,8 @@ The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
 locks, create work directories, create snapshots, or change permissions.
 
-That is also where the storage semantics are decided. The planner uses the
-`storage` value, not `location`, to decide whether storage keys should be
+Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
+planner uses that domain helper to decide whether storage keys should be
 loaded and whether `--fix-perms` is allowed.
 
 ## Execute

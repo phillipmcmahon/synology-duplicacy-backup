@@ -37,34 +37,10 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.Notify = cfg.Health.Notify
-	plan.ModeDisplay = modeDisplay(plan.TargetName())
-	plan.SnapshotSource = cfg.SourcePath
-	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
-	plan.RepositoryPath = cfg.SourcePath
-	if req.DoBackup {
-		plan.RepositoryPath = plan.SnapshotTarget
-	}
+	plan.applyConfig(cfg, p.rt)
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
-	plan.BackupTarget = cfg.Storage
-	plan.OperationMode = OperationMode(req)
-	plan.Threads = cfg.Threads
-	plan.Filter = cfg.Filter
-	plan.FilterLines = splitNonEmptyLines(cfg.Filter)
-	plan.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
-	plan.PruneOptions = cfg.Prune
-	plan.PruneArgs = append([]string(nil), cfg.PruneArgs...)
-	plan.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
-	plan.LocalOwner = cfg.LocalOwner
-	plan.LocalGroup = cfg.LocalGroup
-	plan.LogRetentionDays = cfg.LogRetentionDays
-	plan.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
-	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
-	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		sec, err := p.loadSecrets(plan)
@@ -160,14 +136,19 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 }
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
-	return p.loadConfigWithOptions(plan, true, true)
+	return p.loadConfigWithOptions(plan, loadConfigOptions{validateThresholds: true, validateSemantics: true})
 }
 
 func (p *Planner) loadConfigForValidation(plan *Plan) (*config.Config, error) {
-	return p.loadConfigWithOptions(plan, false, false)
+	return p.loadConfigWithOptions(plan, loadConfigOptions{})
 }
 
-func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, validateSemantics bool) (*config.Config, error) {
+type loadConfigOptions struct {
+	validateThresholds bool
+	validateSemantics  bool
+}
+
+func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*config.Config, error) {
 	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("configuration file not found: %s", plan.ConfigFile)
 	}
@@ -197,21 +178,18 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 	if cfg.SourcePath == "" {
 		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
 	}
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.Notify = cfg.Health.Notify
+	plan.applyConfigIdentity(cfg)
 	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
-	plan.ModeDisplay = modeDisplay(cfg.Target)
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
 	}
-	if validateThresholds {
+	if opts.validateThresholds {
 		if err := cfg.ValidateThresholds(); err != nil {
 			return nil, err
 		}
 	}
-	if validateSemantics {
+	if opts.validateSemantics {
 		if err := cfg.ValidateTargetSemantics(); err != nil {
 			return nil, err
 		}
@@ -232,6 +210,43 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 	}
 
 	return cfg, nil
+}
+
+func (p *Plan) applyConfigIdentity(cfg *config.Config) {
+	if p == nil || cfg == nil {
+		return
+	}
+	p.Target = cfg.Target
+	p.Location = cfg.Location
+	p.Notify = cfg.Health.Notify
+	p.ModeDisplay = modeDisplay(cfg.Target)
+}
+
+func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
+	if p == nil || cfg == nil {
+		return
+	}
+	p.applyConfigIdentity(cfg)
+	p.SnapshotSource = cfg.SourcePath
+	p.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", p.BackupLabel, p.TargetName(), p.RunTimestamp, rt.Getpid()))
+	p.RepositoryPath = cfg.SourcePath
+	if p.DoBackup {
+		p.RepositoryPath = p.SnapshotTarget
+	}
+	p.BackupTarget = cfg.Storage
+	p.Threads = cfg.Threads
+	p.Filter = cfg.Filter
+	p.FilterLines = splitNonEmptyLines(cfg.Filter)
+	p.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
+	p.PruneOptions = cfg.Prune
+	p.PruneArgs = append([]string(nil), cfg.PruneArgs...)
+	p.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
+	p.LocalOwner = cfg.LocalOwner
+	p.LocalGroup = cfg.LocalGroup
+	p.LogRetentionDays = cfg.LogRetentionDays
+	p.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
+	p.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
+	p.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 }
 
 func (p *Planner) validateBackupFilesystem(plan *Plan) error {

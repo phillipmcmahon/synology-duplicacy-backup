@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backend scheme detection, local-path handling, storage-secret requirements,
   and config validation now use a focused `StorageSpec` type instead of
   workflow-owned switches.
+- **Runtime plans now expose focused section views**: request, config, path,
+  and display data can be inspected as distinct groups, and planner config
+  application now flows through focused helper methods rather than a long
+  assignment block.
 
 ### Removed
 - **Redundant `storage_type` output has been removed**: runtime JSON summaries,
@@ -21,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Validation
 - **macOS Go 1.26**: `go test ./...`
+- **macOS Go 1.26**: `go vet ./...`
+- **macOS Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **macOS**: `git diff --check`
 
 ## [v5.0.0] - 2026-04-20
 

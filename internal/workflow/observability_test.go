@@ -70,3 +70,30 @@ func TestPlanHelpersAndVersionText(t *testing.T) {
 	}
 
 }
+
+func TestPlanSectionsExposeFocusedViews(t *testing.T) {
+	plan := &Plan{
+		DoBackup:      true,
+		OperationMode: "Backup",
+		BackupLabel:   "homes",
+		Target:        "onsite-usb",
+		Location:      locationLocal,
+		BackupTarget:  "/backups/homes",
+		WorkRoot:      "/tmp/work",
+		ModeDisplay:   "onsite-usb",
+	}
+	sections := plan.Sections()
+
+	if !sections.Request.DoBackup || sections.Request.OperationMode != "Backup" {
+		t.Fatalf("request section = %+v", sections.Request)
+	}
+	if sections.Config.Target != "onsite-usb" || sections.Config.Location != locationLocal {
+		t.Fatalf("config section = %+v", sections.Config)
+	}
+	if sections.Paths.BackupTarget != "/backups/homes" || sections.Paths.WorkRoot != "/tmp/work" {
+		t.Fatalf("paths section = %+v", sections.Paths)
+	}
+	if sections.Display.ModeDisplay != "onsite-usb" {
+		t.Fatalf("display section = %+v", sections.Display)
+	}
+}

@@ -470,9 +470,10 @@ That is an important design rule.
 1. `validateEnvironment(req)`
 2. `derivePlan(req)`
 3. `loadConfig(plan)`
-4. `loadSecrets(plan)` when the selected storage value needs secrets
-5. `populateCommands(plan)`
-6. `SummaryLines(plan)`
+4. `plan.applyConfig(cfg, runtime)`
+5. `loadSecrets(plan)` when the selected storage value needs secrets
+6. `populateCommands(plan)`
+7. `SummaryLines(plan)`
 
 ### `validateEnvironment`
 
@@ -599,14 +600,18 @@ The `Plan` is no longer just “resolved config plus some flags.”
 
 It is the execution contract.
 
-It contains:
+It exposes named section views so future changes can be discussed in the right
+shape:
 
-- mode decisions
-- resolved paths
+- `PlanRequest` for mode decisions and resolved operator intent
+- `PlanConfig` for label, target, health notify, ownership, prune, and threshold values
+- `PlanPaths` for resolved filesystem, config, secrets, snapshot, and storage paths
+- `PlanDisplay` for operator-facing command descriptions
+
+Together, those sections contain:
+
 - loaded secrets
 - summary-ready values
-- ownership and prune thresholds
-- execution-ready command descriptions
 - cleanup-relevant paths
 
 The more complete the plan is, the less the executor has to know about request parsing or config internals.
