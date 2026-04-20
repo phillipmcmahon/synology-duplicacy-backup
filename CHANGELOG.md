@@ -42,14 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - **Linux Go 1.26**: `go test -cover ./...`
 - **Coverage snapshot**:
-  - overall coverage: `85.8%`
+  - overall coverage: `85.7%`
   - `cmd/duplicacy-backup`: `92.7%`
-  - `internal/workflow`: `83.8%`
+  - `internal/workflow`: `84.1%`
   - `internal/update`: `83.5%`
-  - `internal/duplicacy`: `81.2%`
+  - `internal/duplicacy`: `81.1%`
   - `internal/exec`: `95.2%`
-  - `internal/secrets`: `93.3%`
-  - `internal/config`: `88.1%`
+  - `internal/secrets`: `92.0%`
+  - `internal/config`: `87.3%`
 
 ## [v4.5.0] - 2026-04-18
 
