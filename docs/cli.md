@@ -15,17 +15,15 @@ explicit `--target <name>`. `notify test update` and `update` are global
 application commands and do not use a target.
 Every runtime command also needs at least one explicit primary operation.
 
-Targets now describe both storage kind and deployment location:
+Targets describe both storage and deployment location:
 
-- `type = "filesystem"` or `type = "duplicacy"`
 - `location = "local"` or `location = "remote"`
+- `storage = "..."` is passed directly to Duplicacy
 
-Supported combinations are:
+Supported locations are:
 
-- filesystem/local
-- filesystem/remote
-- duplicacy/local
-- duplicacy/remote
+- local
+- remote
 
 Primary operations may be combined. When they are, execution order is fixed:
 

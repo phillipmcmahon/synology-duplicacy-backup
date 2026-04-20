@@ -33,7 +33,7 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 }
 
 func localTargetConfig(label, sourcePath, destination, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-usb", storageTypeFilesystem, locationLocal, sourcePath, destination, label, owner, group, threads, prune, extraSections...)
+	return buildLabelConfig(label, "onsite-usb", storageTypeDuplicacy, locationLocal, sourcePath, filepath.Join(destination, label), "", owner, group, threads, prune, extraSections...)
 }
 
 func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
@@ -64,28 +64,19 @@ func buildLabelConfig(label, target, storageType, location, sourcePath, destinat
 	}
 
 	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
-	fmt.Fprintf(&b, "type = %q\n", storageType)
 	fmt.Fprintf(&b, "location = %q\n", location)
-	if storageType == storageTypeDuplicacy {
-		fmt.Fprintf(&b, "storage = %q\n", destination)
-	} else {
-		fmt.Fprintf(&b, "destination = %q\n", destination)
-	}
+	fmt.Fprintf(&b, "storage = %q\n", destination)
 	if repository != "" {
 		fmt.Fprintf(&b, "repository = %q\n", repository)
 	}
-	if storageType == storageTypeFilesystem {
-		if owner != "" || group != "" {
-			b.WriteString("allow_local_accounts = true\n")
-		} else {
-			b.WriteString("allow_local_accounts = false\n")
-		}
-		if owner != "" {
-			fmt.Fprintf(&b, "local_owner = %q\n", owner)
-		}
-		if group != "" {
-			fmt.Fprintf(&b, "local_group = %q\n", group)
-		}
+	if owner != "" || group != "" {
+		b.WriteString("allow_local_accounts = true\n")
+	}
+	if owner != "" {
+		fmt.Fprintf(&b, "local_owner = %q\n", owner)
+	}
+	if group != "" {
+		fmt.Fprintf(&b, "local_group = %q\n", group)
 	}
 
 	for _, extra := range extraSections {

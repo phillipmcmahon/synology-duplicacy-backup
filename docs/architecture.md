@@ -69,7 +69,7 @@ It is responsible for:
 - config loading and validation
 - secrets loading and validation
 - target-model resolution:
-  - `type = filesystem | duplicacy`
+  - `storage = "..."`
   - `location = local | remote`
 - backup-target derivation
 - backup-mode btrfs validation

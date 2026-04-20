@@ -11,9 +11,9 @@ func TestObservabilityHelpers(t *testing.T) {
 	start := time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC)
 	end := time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC)
 
-	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", StorageType: storageTypeFilesystem, Location: locationLocal, DryRun: true}
+	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", StorageType: storageTypeDuplicacy, Location: locationLocal, DryRun: true}
 	report := NewRunReport(plan, start)
-	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || report.StorageType != storageTypeFilesystem || report.Location != locationLocal || !report.DryRun {
+	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || report.StorageType != storageTypeDuplicacy || report.Location != locationLocal || !report.DryRun {
 		t.Fatalf("report = %+v", report)
 	}
 	report.ResetStart(start)
@@ -29,16 +29,16 @@ func TestObservabilityHelpers(t *testing.T) {
 	if err := WriteRunReport(&buf, report); err != nil {
 		t.Fatalf("WriteRunReport() error = %v", err)
 	}
-	for _, token := range []string{`"label": "homes"`, `"storage_type": "filesystem"`, `"location": "local"`, `"name": "Backup"`, `"duration_seconds": 4`} {
+	for _, token := range []string{`"label": "homes"`, `"storage_type": "duplicacy"`, `"location": "local"`, `"name": "Backup"`, `"duration_seconds": 4`} {
 		if !strings.Contains(buf.String(), token) {
 			t.Fatalf("json output missing %q:\n%s", token, buf.String())
 		}
 	}
 
 	req := &Request{Source: "homes", FixPerms: true, RequestedTarget: "onsite-usb"}
-	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Fix permissions", StorageType: storageTypeFilesystem, Location: locationLocal}
+	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Fix permissions", StorageType: storageTypeDuplicacy, Location: locationLocal}
 	failure := NewFailureRunReport(req, failurePlan, start, end, 1, "boom")
-	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.StorageType != storageTypeFilesystem || failure.Location != locationLocal {
+	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.StorageType != storageTypeDuplicacy || failure.Location != locationLocal {
 		t.Fatalf("failure = %+v", failure)
 	}
 

@@ -22,7 +22,7 @@ Recommended approach:
 - schedule `--backup` as its own task
 - schedule `--prune` as its own task
 - schedule health commands separately from backup jobs
-- schedule `--fix-perms` only for filesystem targets that need it
+- schedule `--fix-perms` only for path-based Duplicacy storage targets that need it
 - treat `--cleanup-storage` as manual or exceptional maintenance
 
 Why this works well:
@@ -137,7 +137,7 @@ output easier to interpret.
 
 ### Fix Permissions
 
-Only schedule this for filesystem targets.
+Only schedule this for path-based Duplicacy storage targets.
 
 Recommended pattern:
 

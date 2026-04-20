@@ -134,10 +134,10 @@ Update network calls are bounded. If GitHub release metadata lookup or package
 download stalls, the command reports which phase timed out instead of waiting
 indefinitely.
 
-Under the current target model, only `type = "duplicacy"` targets need a
-secrets file for storage keys. Filesystem targets, whether local or remote,
-only need one if a notifying target uses authenticated webhook or `ntfy`
-delivery.
+Under the current target model, every backup target delegates storage to
+Duplicacy; storage keys are needed only when the selected backend requires them.
+Path-based storage targets only need a secrets file if a notifying target uses
+authenticated webhook or `ntfy` delivery.
 
 To install a new binary without switching immediately:
 
@@ -258,12 +258,11 @@ the operator-readable summary.
 `--target <name>` selects one named target from the label config. Runtime,
 `config`, `health`, and label-scoped `notify test` commands require an
 explicit target. Global update commands and `notify test update` do not.
-Targets now define both `type` and `location`, so mounted remote filesystems
-can be modelled as `type = "filesystem"` with `location = "remote"` without
-loading storage secrets. Duplicacy storage backends can be modelled as
-`type = "duplicacy"` with either `location = "local"` or `location = "remote"`;
-they pass the configured `storage` URL and any `[targets.<name>.keys]` values
-through to Duplicacy.
+Targets define both `type` and `location`. `type` is always `duplicacy`; the
+configured `storage` value is passed directly through to Duplicacy. Use
+`location = "local"` or `location = "remote"` to describe where the target lives
+operationally, and add `[targets.<name>.keys]` only when the selected Duplicacy
+backend needs runtime keys.
 
 The secrets schema also supports optional
 `health_webhook_bearer_token` and `health_ntfy_token` values for authenticated

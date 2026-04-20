@@ -85,7 +85,7 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 	if gotAuth != "Bearer ntfy-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
-	if !strings.Contains(gotBody, "Type: duplicacy") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
+	if !strings.Contains(gotBody, "Location: remote") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
 		t.Fatalf("Body = %q", gotBody)
 	}
 }

@@ -23,10 +23,8 @@ func TestHandleNotifyCommand_DryRun(t *testing.T) {
 		`[health.notify]`,
 		`webhook_url = "https://example.invalid/duplicacy"`,
 		`[targets.onsite-usb]`,
-		`type = "filesystem"`,
 		`location = "local"`,
-		`destination = "/backups"`,
-		`repository = "homes"`,
+		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -85,10 +83,8 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 		`url = "` + ntfyServer.URL + `"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.onsite-usb]`,
-		`type = "filesystem"`,
 		`location = "local"`,
-		`destination = "/backups"`,
-		`repository = "homes"`,
+		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -129,10 +125,8 @@ func TestHandleNotifyCommand_JSONSummary(t *testing.T) {
 		`url = "https://ntfy.sh"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.onsite-usb]`,
-		`type = "filesystem"`,
 		`location = "local"`,
-		`destination = "/backups"`,
-		`repository = "homes"`,
+		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -166,10 +160,8 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 		`label = "homes"`,
 		`source_path = "/volume1/homes"`,
 		`[targets.onsite-usb]`,
-		`type = "filesystem"`,
 		`location = "local"`,
-		`destination = "/backups"`,
-		`repository = "homes"`,
+		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
@@ -210,7 +202,6 @@ func TestHandleNotifyCommand_DuplicacyTargetCanSendWithoutReadableSecretsWhenTok
 		`url = "` + server.URL + `"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.offsite-storj]`,
-		`type = "duplicacy"`,
 		`location = "remote"`,
 		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))
@@ -260,7 +251,6 @@ func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 		`[health.notify]`,
 		`webhook_url = "` + server.URL + `"`,
 		`[targets.onsite-rustfs]`,
-		`type = "duplicacy"`,
 		`location = "local"`,
 		`storage = "s3://rustfs.local/bucket/homes"`,
 	}, "\n"))
@@ -299,7 +289,6 @@ func TestHandleNotifyCommand_DuplicacyTargetTokenParseErrorStillFails(t *testing
 		`url = "https://ntfy.sh"`,
 		`topic = "duplicacy-alerts"`,
 		`[targets.offsite-storj]`,
-		`type = "duplicacy"`,
 		`location = "remote"`,
 		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))

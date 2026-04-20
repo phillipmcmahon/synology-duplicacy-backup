@@ -146,7 +146,6 @@ func formatTestText(report *TestReport) string {
 		{Label: "Scope", Value: report.Scope},
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
-		{Label: "Type", Value: report.StorageType},
 		{Label: "Location", Value: report.Location},
 		{Label: "Provider", Value: report.Provider},
 		{Label: "Severity", Value: report.Severity},

@@ -69,7 +69,7 @@ func TestBuildRuntimeNotificationPayload_BackupFailed(t *testing.T) {
 	report := &RunReport{
 		Label:          "homes",
 		Target:         "onsite-usb",
-		StorageType:    storageTypeFilesystem,
+		StorageType:    storageTypeDuplicacy,
 		Location:       locationLocal,
 		ExitCode:       1,
 		DurationSecond: 38,
@@ -100,7 +100,7 @@ func TestBuildRuntimeNotificationPayload_SafePruneBlocked(t *testing.T) {
 	report := &RunReport{
 		Label:       "homes",
 		Target:      "onsite-usb",
-		StorageType: storageTypeFilesystem,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationLocal,
 		ExitCode:    1,
 		Phases: []PhaseReport{
@@ -188,7 +188,7 @@ func TestBuildHealthNotificationPayload_VerifyFailedRevisions(t *testing.T) {
 		CheckType:           "verify",
 		Label:               "homes",
 		Target:              "onsite-usb",
-		StorageType:         storageTypeFilesystem,
+		StorageType:         storageTypeDuplicacy,
 		Location:            locationLocal,
 		FailedRevisionCount: 2,
 		FailedRevisions:     []int{41, 39},
@@ -263,7 +263,7 @@ func TestBuildHealthNotificationPayload_Degraded(t *testing.T) {
 		CheckType:   "doctor",
 		Label:       "homes",
 		Target:      "onsite-usb",
-		StorageType: storageTypeFilesystem,
+		StorageType: storageTypeDuplicacy,
 		Location:    locationLocal,
 		Issues: []HealthIssue{
 			{Severity: "warning", Message: "Last doctor run is overdue"},
@@ -297,7 +297,7 @@ func TestExecutorMaybeSendFailureNotification_BackupFailed(t *testing.T) {
 		rt:                rt,
 		log:               log,
 		plan:              &Plan{Notify: configHealthNotifyForTest(server.URL)},
-		report:            &RunReport{Label: "homes", Target: "onsite-usb", StorageType: storageTypeFilesystem, Location: locationLocal, ExitCode: 1, Phases: []PhaseReport{{Name: "Backup", Result: "failed"}}},
+		report:            &RunReport{Label: "homes", Target: "onsite-usb", StorageType: storageTypeDuplicacy, Location: locationLocal, ExitCode: 1, Phases: []PhaseReport{{Name: "Backup", Result: "failed"}}},
 		lastErr:           errors.New("boom"),
 		visibleRunStarted: true,
 	}

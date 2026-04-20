@@ -178,8 +178,24 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 			groupLine = line
 		}
 	}
-	if !containsConfigKey(storageLines, "repository") {
-		storageLines = append(storageLines, fmt.Sprintf("repository = %s", strconv.Quote(label)))
+	destination := "/backups"
+	repository := label
+	for _, line := range storageLines {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.Trim(strings.TrimSpace(value), `"`)
+		switch key {
+		case "destination":
+			destination = value
+		case "repository":
+			repository = value
+		case "storage":
+			destination = strings.TrimSuffix(value, "/"+label)
+			repository = label
+		}
 	}
 
 	var b strings.Builder
@@ -196,11 +212,8 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 	}
 
 	b.WriteString("\n[targets.onsite-usb]\n")
-	b.WriteString("type = \"filesystem\"\n")
 	b.WriteString("location = \"local\"\n")
-	for _, line := range storageLines {
-		b.WriteString(line + "\n")
-	}
+	fmt.Fprintf(&b, "storage = %s\n", strconv.Quote(filepath.Join(destination, repository)))
 	if ownerLine != "" || groupLine != "" {
 		b.WriteString("allow_local_accounts = true\n")
 		if ownerLine != "" {
@@ -225,15 +238,6 @@ func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
 		}
 	}
 	return b.String()
-}
-
-func containsConfigKey(lines []string, key string) bool {
-	for _, line := range lines {
-		if strings.HasPrefix(line, key+" ") || strings.HasPrefix(line, key+"=") {
-			return true
-		}
-	}
-	return false
 }
 
 func assertOrderedTokens(t *testing.T, text string, tokens ...string) {
@@ -310,7 +314,7 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 	t.Cleanup(log.Close)
 
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeFilesystem, locationLocal, "/volume1/homes", "/backups", "homes", "", "", 0, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeDuplicacy, locationLocal, "/volume1/homes", "/backups/homes", "", "", "", 0, ""))
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),

@@ -26,9 +26,6 @@ func (p *Presenter) PrintHeader(report *Report) {
 	p.log.PrintLine("Check", presentation.Title(report.CheckType))
 	p.log.PrintLine("Label", report.Label)
 	p.log.PrintLine("Target", report.Target)
-	if report.StorageType != "" {
-		p.log.PrintLine("Type", report.StorageType)
-	}
 	if report.Location != "" {
 		p.log.PrintLine("Location", report.Location)
 	}

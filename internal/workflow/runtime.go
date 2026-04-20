@@ -18,10 +18,9 @@ var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 var targetPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 const (
-	storageTypeFilesystem = "filesystem"
-	storageTypeDuplicacy  = "duplicacy"
-	locationLocal         = "local"
-	locationRemote        = "remote"
+	storageTypeDuplicacy = "duplicacy"
+	locationLocal        = "local"
+	locationRemote       = "remote"
 )
 
 // Runtime provides the environment-facing functions used by request parsing,

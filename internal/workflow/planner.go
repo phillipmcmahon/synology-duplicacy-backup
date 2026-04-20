@@ -66,7 +66,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
 	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
-	if cfg.UsesDuplicacyStorage() {
+	if cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage) {
 		sec, err := p.loadSecrets(plan)
 		if err != nil {
 			return nil, err
@@ -197,7 +197,7 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 	if cfg.SourcePath == "" {
 		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
 	}
-	if cfg.Repository == "" {
+	if cfg.Repository == "" && cfg.StorageType != storageTypeDuplicacy {
 		cfg.Repository = plan.BackupLabel
 	}
 	plan.Target = cfg.Target
@@ -219,8 +219,8 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 		if err := cfg.ValidateTargetSemantics(); err != nil {
 			return nil, err
 		}
-		if plan.FixPerms && !cfg.UsesFilesystem() {
-			return nil, apperrors.NewConfigError("fix-perms", fmt.Errorf("fix-perms is only supported for filesystem targets"))
+		if plan.FixPerms && !duplicacyStorageSupportsFixPerms(cfg) {
+			return nil, apperrors.NewConfigError("fix-perms", fmt.Errorf("fix-perms is only supported for path-based Duplicacy storage targets"))
 		}
 	}
 	if plan.FixPerms {

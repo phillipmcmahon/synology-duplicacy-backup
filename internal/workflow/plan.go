@@ -79,10 +79,6 @@ type Plan struct {
 	WorkDirRemoveCommand     string
 }
 
-func (p *Plan) UsesFilesystem() bool {
-	return p != nil && p.StorageType == storageTypeFilesystem
-}
-
 func (p *Plan) UsesDuplicacyStorage() bool {
 	return p != nil && p.StorageType == storageTypeDuplicacy
 }

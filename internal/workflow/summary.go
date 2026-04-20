@@ -42,9 +42,8 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		return []SummaryLine{
 			{Label: "Operation Mode", Value: plan.OperationMode},
 			{Label: "Target", Value: plan.TargetName()},
-			{Label: "Type", Value: plan.StorageType},
 			{Label: "Location", Value: plan.Location},
-			SummaryLine{Label: "Destination", Value: plan.BackupTarget},
+			SummaryLine{Label: "Storage", Value: plan.BackupTarget},
 			SummaryLine{Label: "Local Owner", Value: plan.LocalOwner},
 			SummaryLine{Label: "Local Group", Value: plan.LocalGroup},
 			SummaryLine{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
@@ -54,7 +53,6 @@ func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{
 		{Label: "Operation Mode", Value: plan.OperationMode},
 		SummaryLine{Label: "Target", Value: plan.TargetName()},
-		SummaryLine{Label: "Type", Value: plan.StorageType},
 		SummaryLine{Label: "Location", Value: plan.Location},
 		SummaryLine{Label: "Config File", Value: plan.ConfigFile},
 		SummaryLine{Label: "Source", Value: plan.SnapshotSource},
@@ -62,7 +60,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 	if plan.DoBackup {
 		lines = append(lines, SummaryLine{Label: "Snapshot", Value: plan.RepositoryPath})
 	}
-	lines = append(lines, SummaryLine{Label: "Destination", Value: plan.BackupTarget})
+	lines = append(lines, SummaryLine{Label: "Storage", Value: plan.BackupTarget})
 
 	if !plan.Verbose {
 		if plan.DryRun {

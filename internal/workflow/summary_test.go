@@ -11,7 +11,7 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 		FixPermsOnly:  true,
 		DryRun:        true,
 		Target:        "onsite-usb",
-		StorageType:   storageTypeFilesystem,
+		StorageType:   storageTypeDuplicacy,
 		Location:      locationLocal,
 		LocalOwner:    "backupuser",
 		LocalGroup:    "users",
@@ -20,16 +20,15 @@ func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
 	}
 
 	lines := SummaryLines(plan)
-	if len(lines) != 8 {
-		t.Fatalf("len(lines) = %d, want 8", len(lines))
+	if len(lines) != 7 {
+		t.Fatalf("len(lines) = %d, want 7", len(lines))
 	}
 
 	expected := []string{
 		"Operation Mode",
 		"Target",
-		"Type",
 		"Location",
-		"Destination",
+		"Storage",
 		"Local Owner",
 		"Local Group",
 		"Dry Run",
@@ -126,7 +125,7 @@ func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testin
 	for _, line := range lines {
 		labels[line.Label] = true
 	}
-	for _, want := range []string{"Type", "Location", "Storage Keys"} {
+	for _, want := range []string{"Location", "Storage Keys"} {
 		if !labels[want] {
 			t.Fatalf("missing %q in summary lines: %+v", want, lines)
 		}
@@ -146,7 +145,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 		ForcePrune:     true,
 		BackupLabel:    "homes",
 		Target:         "onsite-usb",
-		StorageType:    storageTypeFilesystem,
+		StorageType:    storageTypeDuplicacy,
 		Location:       locationLocal,
 		SnapshotSource: "/volume1/homes",
 		RepositoryPath: "/volume1/homes-snap",
@@ -170,10 +169,10 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if labels["Work Dir"] || labels["Threads"] || labels["Filter"] || labels["Prune Options"] {
 		t.Fatalf("expected compact default summary, got %+v", lines)
 	}
-	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Destination"] || !labels["Local Owner"] {
+	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Storage"] || !labels["Local Owner"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
-	wantOrder := []string{"Operation Mode", "Target", "Type", "Location", "Config File", "Source", "Snapshot", "Destination", "Force Prune", "Local Owner", "Local Group"}
+	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source", "Snapshot", "Storage", "Force Prune", "Local Owner", "Local Group"}
 	got := make([]string, 0, len(lines))
 	for _, line := range lines {
 		got = append(got, line.Label)

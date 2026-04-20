@@ -136,15 +136,13 @@ CONFIG STRUCTURE:
       optional [targets.<name>.health]
       optional [targets.<name>.health.notify]
     each [targets.<name>] entry must include:
-      type = "filesystem" | "duplicacy"
       location = "local" | "remote"
-    supported type/location pairs:
-      filesystem/local, filesystem/remote, duplicacy/local, duplicacy/remote
+      storage = "<duplicacy storage value>"
 
     TARGET SECRETS:
       Duplicacy storage targets load runtime preference keys from:
         %s/<label>-secrets.toml
-      Filesystem targets do not use storage credentials, even when location = "remote"
+      Path-based Duplicacy storage targets do not use storage credentials
       Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
       Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
       Use [targets.<name>.keys] tables with Duplicacy key names such as:

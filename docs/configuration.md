@@ -61,34 +61,33 @@ The expected layout is:
 
 ## Target Model
 
-Targets now use two explicit axes:
+Targets use two explicit fields:
 
-- `type` describes the storage mechanics
+- `storage` is the complete Duplicacy storage value
 - `location` describes where the storage lives operationally
 
-Supported combinations:
+Supported locations:
 
-- `type = "filesystem"` with `location = "local"`
-- `type = "filesystem"` with `location = "remote"`
-- `type = "duplicacy"` with `location = "local"`
-- `type = "duplicacy"` with `location = "remote"`
+- `location = "local"`
+- `location = "remote"`
 
-This means a mounted filesystem path over VPN can be modelled cleanly as
-remote without forcing Duplicacy backend behaviour. It also means a local
-Duplicacy backend such as RustFS or MinIO can be modelled as backend storage
-while still being treated as operationally local for scheduling and reporting.
+This means local disk paths, remote S3-compatible storage, native Duplicacy
+backends, and local S3-compatible services such as RustFS or MinIO all use the
+same `storage = "..."` shape. `location` is still important because it tells
+operators where the target lives for scheduling, reporting, and permission
+management decisions.
 
 Operational rules:
 
-- filesystem targets use filesystem path semantics
-- duplicacy targets pass a `storage` URL directly to Duplicacy
-- duplicacy targets load generic runtime keys when the selected storage needs them
-- only filesystem targets allow `allow_local_accounts`, `local_owner`,
-  `local_group`, and `--fix-perms`
+- every target passes `storage` directly to Duplicacy
+- do not split storage into `destination` and `repository`; include the full backend path in `storage`
+- targets load generic runtime keys only when the selected Duplicacy backend needs them
+- `allow_local_accounts`, `local_owner`, `local_group`, and `--fix-perms` are only for path-based Duplicacy storage targets
 
 Breaking change note:
 
-- old `type = "local"`, `type = "remote"`, and `type = "object"` values are no longer supported
+- the `type` key has been retired because every target delegates storage to Duplicacy
+- target-level `destination` and `repository` keys have been retired; use `storage`
 - `requires_network` has been retired
 
 ## Config Keys
@@ -97,7 +96,6 @@ Breaking change note:
 |---|---|---|
 | `label` | Yes | Source label used on the CLI |
 | `source_path` | Yes | Btrfs source root for this label; must be a snapshot-safe volume or subvolume |
-| `common.destination` | No | Default filesystem destination for filesystem targets that do not set their own |
 | `common.filter` | No | Default Duplicacy filter pattern |
 | `common.threads` | Yes for backup unless set on the target | Duplicacy threads; power of 2, max 16 |
 | `common.prune` | Yes for prune unless set on the target | Duplicacy prune policy |
@@ -105,17 +103,14 @@ Breaking change note:
 | `common.safe_prune_max_delete_percent` | No | Default `10` |
 | `common.safe_prune_max_delete_count` | No | Default `25` |
 | `common.safe_prune_min_total_for_percent` | No | Default `20` |
-| `targets.<name>.type` | Yes | Storage kind: `filesystem` or `duplicacy` |
 | `targets.<name>.location` | Yes | Deployment location: `local` or `remote` |
-| `targets.<name>.destination` | Yes for filesystem targets unless inherited from `common` | Filesystem path for `filesystem` targets |
-| `targets.<name>.storage` | Yes for duplicacy targets | Complete Duplicacy storage URL, including the repository/path component you want Duplicacy to use |
-| `targets.<name>.repository` | No | Filesystem repository directory name; defaults to `label` |
+| `targets.<name>.storage` | Yes | Complete Duplicacy storage value, including the repository/path component you want Duplicacy to use |
 | `targets.<name>.filter` | No | Target-specific filter override |
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
-| `targets.<name>.allow_local_accounts` | Needed for filesystem owner/group operations | Explicitly allows local owner/group management |
-| `targets.<name>.local_owner` | Needed for filesystem `--fix-perms` | Non-root owner to apply |
-| `targets.<name>.local_group` | Needed for filesystem `--fix-perms` | Non-root group to apply |
+| `targets.<name>.allow_local_accounts` | Needed for path-based owner/group operations | Explicitly allows local owner/group management |
+| `targets.<name>.local_owner` | Needed for path-based `--fix-perms` | Non-root owner to apply |
+| `targets.<name>.local_group` | Needed for path-based `--fix-perms` | Non-root group to apply |
 
 ## Health Policy
 
@@ -308,25 +303,20 @@ url = "https://ntfy.sh"
 topic = "duplicacy-backup-alerts"
 
 [targets.onsite-usb]
-type = "filesystem"
 location = "local"
-destination = "/volume2/backups"
-repository = "homes"
+storage = "/volume2/backups/homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-usb]
-type = "filesystem"
 location = "remote"
-destination = "/volume1/duplicacy/duplicacy"
-repository = "homes"
+storage = "/volume1/duplicacy/duplicacy/homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
-type = "duplicacy"
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
@@ -334,7 +324,6 @@ storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 verify_warn_after_hours = 336
 
 [targets.onsite-rustfs]
-type = "duplicacy"
 location = "local"
 storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
@@ -402,12 +391,12 @@ Requirements:
 
 Storage keys under `[targets.<name>.keys]` are passed through to Duplicacy as
 runtime preference keys. Use the key names Duplicacy expects for the selected
-storage URL, such as `s3_id` and `s3_secret` for S3-compatible storage.
+storage value, such as `s3_id` and `s3_secret` for S3-compatible storage.
 
 When run as `root`, the bundled installer ensures `/root/.secrets` exists with
 mode `700`, but it does not create or rewrite any individual secrets files.
 
-Filesystem targets, whether local or remote, do not load storage keys.
+Path-based storage targets do not load storage keys.
 They only need a matching secrets file if a notifying target uses
 `health_webhook_bearer_token` and/or `health_ntfy_token`.
 
@@ -453,9 +442,9 @@ freshness signal.
 
 Human-facing screens now make the selected target shape explicit:
 
-- runtime headers show `Label`, `Target`, `Type`, and `Location`
-- health headers show `Check`, `Label`, `Target`, `Type`, and `Location`
-- `config explain` and `config paths` show `Type` and `Location`
+- runtime headers show `Label`, `Target`, and `Location`
+- health headers show `Check`, `Label`, `Target`, and `Location`
+- `config explain` and `config paths` show `Location`
 - `config explain` stays read-only by default and does not load duplicacy-target secrets
 - `config validate` includes `Privileges`, reported as `Full` or `Limited`
 

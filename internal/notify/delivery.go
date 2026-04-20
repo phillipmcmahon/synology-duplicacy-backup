@@ -406,9 +406,6 @@ func ntfyMessageBody(payload *Payload) string {
 	if payload.Target != "" {
 		lines = append(lines, fmt.Sprintf("Target: %s", payload.Target))
 	}
-	if payload.StorageType != "" {
-		lines = append(lines, fmt.Sprintf("Type: %s", payload.StorageType))
-	}
 	if payload.Location != "" {
 		lines = append(lines, fmt.Sprintf("Location: %s", payload.Location))
 	}

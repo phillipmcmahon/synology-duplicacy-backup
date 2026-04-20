@@ -10,30 +10,29 @@ The project builds as a single static binary for Synology-targeted Linux archite
 
 ## Target Model
 
-Each named target now describes two separate things:
+Each named target describes two things:
 
-- `type`: the storage mechanics
+- `storage`: the complete Duplicacy storage value
 - `location`: where that storage lives operationally
 
-Supported combinations are:
+Supported locations are:
 
-- `type = "filesystem"` with `location = "local"`
-- `type = "filesystem"` with `location = "remote"`
-- `type = "duplicacy"` with `location = "local"`
-- `type = "duplicacy"` with `location = "remote"`
+- `location = "local"`
+- `location = "remote"`
 
-This lets the tool represent cases such as a mounted SMB path over VPN as a
-real remote filesystem destination. It also supports any Duplicacy storage URL,
-including local S3-compatible services such as RustFS or MinIO, without
-pretending backend storage is a filesystem path.
+This lets the tool pass every storage backend directly to Duplicacy, including
+local disk paths, S3-compatible services such as Storj gateway, and local
+S3-compatible services such as RustFS or MinIO. `location` remains useful for
+operator scheduling, reporting, and deciding whether local permission-management
+operations are appropriate.
 
 In practice:
 
-- filesystem targets use path semantics and do not load secrets
-- duplicacy targets pass a storage URL and optional runtime keys through to Duplicacy
-- `--fix-perms` is only supported for filesystem targets
-- runtime, health, `config explain`, and `config paths` now surface `Type` and
-  `Location` in operator-facing output
+- targets use `storage = "..."`; do not split storage into `destination` and `repository`
+- runtime keys are loaded only when the selected Duplicacy backend needs them
+- `--fix-perms` is only supported for path-based Duplicacy storage targets
+- runtime, health, `config explain`, and `config paths` surface target
+  location in operator-facing output
 
 ## Highlights
 
@@ -123,35 +122,29 @@ Duplicacy storage keys live under `[targets.<name>.keys]` and are written to
 the generated Duplicacy preferences file using the exact key names Duplicacy
 expects, such as `s3_id` and `s3_secret` for S3-compatible storage.
 
-The matching backup TOML now models targets explicitly with `type` and
-`location`. For example:
+The matching backup TOML models targets explicitly with `location` and
+`storage`. For example:
 
 ```toml
 [targets.onsite-usb]
-type = "filesystem"
 location = "local"
-destination = "/volumeUSB1/usbshare/duplicacy"
-repository = "homes"
+storage = "/volumeUSB1/usbshare/duplicacy/homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-usb]
-type = "filesystem"
 location = "remote"
-destination = "/volume1/duplicacy/duplicacy"
-repository = "homes"
+storage = "/volume1/duplicacy/duplicacy/homes"
 allow_local_accounts = true
 local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]
-type = "duplicacy"
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
 [targets.onsite-rustfs]
-type = "duplicacy"
 location = "local"
 storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
@@ -202,8 +195,8 @@ Core operating rules:
   `--prune`, `--cleanup-storage`, or `--fix-perms`.
 - When operations are combined, execution order is fixed:
   `backup -> prune -> cleanup-storage -> fix-perms`.
-- Duplicacy targets load storage keys; filesystem targets do not.
-- `--fix-perms` applies only to filesystem targets.
+- Storage keys are loaded only when the selected Duplicacy backend needs them.
+- `--fix-perms` applies only to path-based Duplicacy storage targets.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific

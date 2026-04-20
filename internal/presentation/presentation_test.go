@@ -70,7 +70,7 @@ func TestRuntimePresenterPrintsHeaderAndBackupSummary(t *testing.T) {
 		Operation:   "Backup",
 		Label:       "homes",
 		Target:      "onsite-usb1",
-		StorageType: "filesystem",
+		StorageType: "duplicacy",
 		Location:    "local",
 	})
 	p.PrintSummary([]Line{{Label: "Config File", Value: "/tmp/homes-backup.toml"}})
@@ -125,7 +125,7 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 		Operation:   "Backup",
 		Label:       "homes",
 		Target:      "onsite-usb1",
-		StorageType: "filesystem",
+		StorageType: "duplicacy",
 		Location:    "local",
 	})
 	p.PrintPhase("Permissions")

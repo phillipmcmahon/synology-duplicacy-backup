@@ -13,11 +13,10 @@ operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
 
 Target model:
 
-- `type = "filesystem"` or `type = "duplicacy"`
 - `location = "local"` or `location = "remote"`
-- supported combinations are `filesystem/local`, `filesystem/remote`, `duplicacy/local`, and `duplicacy/remote`
-- duplicacy targets load storage keys when the selected Duplicacy backend needs them
-- `--fix-perms` only works for filesystem targets
+- targets use `storage = "..."`; include the full Duplicacy backend path there
+- storage keys are loaded only when the selected Duplicacy backend needs them
+- `--fix-perms` only works for path-based Duplicacy storage targets
 
 ## Common Runs
 
@@ -137,7 +136,7 @@ Installer behaviour:
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the destination is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
-- `config explain` and `config paths` show `Type` and `Location` for the selected target.
+- `config explain` and `config paths` show `Location` for the selected target.
 - `config explain` does not load duplicacy-target secrets by default; it stays read-only and still shows the expected secrets-file path.
 - `config paths` only includes secrets paths when the selected target is a duplicacy target.
 

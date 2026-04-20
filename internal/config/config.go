@@ -203,10 +203,11 @@ type tableHealthNotifyNtfy struct {
 }
 
 // NewDefaults returns a Config with all default values.
-// Note: LocalOwner and LocalGroup are mandatory only for filesystem targets
-// that opt into local account ownership / permission management.
+// Note: LocalOwner and LocalGroup are mandatory only for path-based Duplicacy
+// targets that opt into local account ownership / permission management.
 func NewDefaults() *Config {
 	return &Config{
+		StorageType:                 "duplicacy",
 		LogRetentionDays:            DefaultLogRetentionDays,
 		SafePruneMaxDeletePercent:   DefaultSafePruneMaxDeletePercent,
 		SafePruneMaxDeleteCount:     DefaultSafePruneMaxDeleteCount,
@@ -340,35 +341,23 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	}
 
 	values["TARGET"] = selected
-	targetType := ""
 	if target.Type != nil {
-		targetType = strings.TrimSpace(*target.Type)
-		values["STORAGE_TYPE"] = targetType
+		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses targets.%s.type; remove this key because storage is always delegated to Duplicacy", path, selected), "path", path, "target", selected)
 	}
+	values["STORAGE_TYPE"] = "duplicacy"
 	if target.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*target.Location)
 	}
-	switch targetType {
-	case "duplicacy":
-		if target.Destination != nil {
-			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses targets.%s.destination for a duplicacy target; use targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
-		}
-		if target.Storage == nil || strings.TrimSpace(*target.Storage) == "" {
-			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required targets.%s.storage value", path, selected), "path", path, "target", selected)
-		}
-		values["STORAGE"] = strings.TrimSpace(*target.Storage)
-	default:
-		if target.Storage != nil {
-			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s uses targets.%s.storage for a filesystem target; use targets.%s.destination instead", path, selected, selected), "path", path, "target", selected)
-		}
-		if target.Destination == nil || strings.TrimSpace(*target.Destination) == "" {
-			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required targets.%s.destination value", path, selected), "path", path, "target", selected)
-		}
-		values["DESTINATION"] = strings.TrimSpace(*target.Destination)
+	if target.Destination != nil {
+		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses targets.%s.destination; use targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
+	}
+	if target.Storage == nil || strings.TrimSpace(*target.Storage) == "" {
+		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required targets.%s.storage value", path, selected), "path", path, "target", selected)
 	}
 	if target.Repository != nil && strings.TrimSpace(*target.Repository) != "" {
-		values["REPOSITORY"] = strings.TrimSpace(*target.Repository)
+		return nil, apperrors.NewConfigError("repository", fmt.Errorf("config file %s uses targets.%s.repository; include the repository/path component in targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
 	}
+	values["STORAGE"] = strings.TrimSpace(*target.Storage)
 	if target.Filter != nil {
 		values["FILTER"] = *target.Filter
 	}
@@ -416,7 +405,7 @@ func (f *File) selectTarget(targetName, path string) (string, tableTarget, error
 func (f *File) resolveLegacyValues(targetName, path string) (map[string]string, error) {
 	return nil, apperrors.NewConfigError(
 		"legacy-layout",
-		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using type = \"filesystem\"|\"duplicacy\" and location = \"local\"|\"remote\"", path),
+		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using location = \"local\"|\"remote\" and a Duplicacy storage string", path),
 		"path", path,
 	)
 }
@@ -444,11 +433,10 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
 	}
-	targetType := ""
 	if f.TargetMeta.Type != nil {
-		targetType = strings.TrimSpace(*f.TargetMeta.Type)
-		values["STORAGE_TYPE"] = targetType
+		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses target.type; remove this key because storage is always delegated to Duplicacy", path), "path", path)
 	}
+	values["STORAGE_TYPE"] = "duplicacy"
 	if f.TargetMeta.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
 	}
@@ -461,27 +449,16 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if f.TargetMeta.LocalGroup != nil {
 		values["LOCAL_GROUP"] = *f.TargetMeta.LocalGroup
 	}
-	switch targetType {
-	case "duplicacy":
-		if f.Storage.Destination != nil {
-			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses storage.destination for a duplicacy target; use storage.storage instead", path), "path", path)
-		}
-		if f.Storage.Storage == nil || strings.TrimSpace(*f.Storage.Storage) == "" {
-			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required storage.storage value", path), "path", path)
-		}
-		values["STORAGE"] = strings.TrimSpace(*f.Storage.Storage)
-	default:
-		if f.Storage.Storage != nil {
-			return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s uses storage.storage for a filesystem target; use storage.destination instead", path), "path", path)
-		}
-		if f.Storage.Destination == nil || strings.TrimSpace(*f.Storage.Destination) == "" {
-			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s is missing required storage.destination value", path), "path", path)
-		}
-		values["DESTINATION"] = strings.TrimSpace(*f.Storage.Destination)
+	if f.Storage.Destination != nil {
+		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses storage.destination; use storage.storage instead", path), "path", path)
+	}
+	if f.Storage.Storage == nil || strings.TrimSpace(*f.Storage.Storage) == "" {
+		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required storage.storage value", path), "path", path)
 	}
 	if f.Storage.Repository != nil && strings.TrimSpace(*f.Storage.Repository) != "" {
-		values["REPOSITORY"] = strings.TrimSpace(*f.Storage.Repository)
+		return nil, apperrors.NewConfigError("repository", fmt.Errorf("config file %s uses storage.repository; include the repository/path component in storage.storage instead", path), "path", path)
 	}
+	values["STORAGE"] = strings.TrimSpace(*f.Storage.Storage)
 	mergeCapture(values, f.Capture)
 	mergeRetention(values, f.Retention)
 	return values, nil
@@ -736,19 +713,8 @@ func (c *Config) Apply(values map[string]string) error {
 func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 	var missing []string
 
-	switch c.StorageType {
-	case "filesystem":
-		if c.Destination == "" {
-			missing = append(missing, "targets.<name>.destination")
-		}
-	case "duplicacy":
-		if c.Storage == "" {
-			missing = append(missing, "targets.<name>.storage")
-		}
-	default:
-		if c.Destination == "" && c.Storage == "" {
-			missing = append(missing, "targets.<name>.destination/storage")
-		}
+	if c.Storage == "" {
+		missing = append(missing, "targets.<name>.storage")
 	}
 	if doBackup && c.Threads == 0 {
 		missing = append(missing, "capture.threads")
@@ -804,11 +770,8 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
-	if c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"duplicacy\"; old values \"local\", \"remote\", and \"object\" are no longer supported (was %q)", c.StorageType))
-	}
-	if c.StorageType != "" && c.StorageType != "filesystem" && c.StorageType != "duplicacy" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"duplicacy\" (was %q)", c.StorageType))
+	if c.StorageType != "" && c.StorageType != "duplicacy" {
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
 	}
 	if c.Location != "" && c.Location != "local" && c.Location != "remote" {
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be either \"local\" or \"remote\" (was %q)", c.Location))
@@ -821,12 +784,11 @@ func (c *Config) ValidateThresholds() error {
 
 // ValidateOwnerGroup validates that local owner and group are specified and
 // contain valid Unix username characters. These fields are mandatory for local
-// permission-management operations only and must be set on the selected target
-// entry in the label config. This method should NOT be called for targets that
-// do not allow local account ownership.
+// permission-management operations only and must be set on path-based Duplicacy
+// targets that opt into local account ownership.
 func (c *Config) ValidateOwnerGroup() error {
-	if !c.UsesFilesystem() {
-		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it uses %s storage", c.Target, c.StorageType))
+	if !c.UsesLocalDiskStorage() {
+		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it does not use path-based Duplicacy storage", c.Target))
 	}
 	if (c.Target != "" || c.StorageType != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not allow local account ownership or permission management", c.Target))
@@ -858,12 +820,12 @@ func (c *Config) ValidateOwnerGroup() error {
 	return nil
 }
 
-func (c *Config) UsesFilesystem() bool {
-	return c != nil && c.StorageType == "filesystem"
+func (c *Config) UsesDuplicacyStorage() bool {
+	return c != nil && (c.StorageType == "" || c.StorageType == "duplicacy")
 }
 
-func (c *Config) UsesDuplicacyStorage() bool {
-	return c != nil && c.StorageType == "duplicacy"
+func (c *Config) UsesLocalDiskStorage() bool {
+	return c != nil && c.UsesDuplicacyStorage() && isLocalDuplicacyStorage(c.Storage)
 }
 
 func (c *Config) IsRemoteLocation() bool {
@@ -916,45 +878,26 @@ func (c *Config) ValidatePrunePolicy() error {
 // are internally inconsistent even before any operation-specific planning.
 func (c *Config) ValidateTargetSemantics() error {
 	switch {
-	case c.StorageType == "":
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be set to \"filesystem\" or \"duplicacy\""))
 	case c.Location == "":
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
-	case c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object":
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must use \"filesystem\" or \"duplicacy\"; old values \"local\", \"remote\", and \"object\" are no longer supported (was %q)", c.StorageType))
-	case !c.UsesFilesystem() && !c.UsesDuplicacyStorage():
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type must be either \"filesystem\" or \"duplicacy\" (was %q)", c.StorageType))
+	case c.StorageType == "filesystem" || c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object":
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
+	case !c.UsesDuplicacyStorage():
+		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
 	}
 
-	switch {
-	case c.UsesFilesystem():
-		if c.Storage != "" {
-			return apperrors.NewConfigError("storage", fmt.Errorf("filesystem target must use destination, not storage"))
-		}
-		if strings.Contains(c.Destination, "://") {
-			return apperrors.NewConfigError("destination", fmt.Errorf("filesystem target destination must be a filesystem path, not %q", c.Destination))
-		}
-	case c.UsesDuplicacyStorage():
-		if c.Destination != "" {
-			return apperrors.NewConfigError("destination", fmt.Errorf("duplicacy target must use storage, not destination"))
-		}
-		if !strings.Contains(c.Storage, "://") {
-			return apperrors.NewConfigError("storage", fmt.Errorf("duplicacy target storage must be a URL-like Duplicacy storage target, not %q", c.Storage))
-		}
+	if c.Destination != "" {
+		return apperrors.NewConfigError("destination", fmt.Errorf("duplicacy target must use storage, not destination"))
 	}
-
-	if !c.UsesFilesystem() {
-		if c.AllowLocalAccounts || c.LocalOwner != "" || c.LocalGroup != "" {
-			return apperrors.NewConfigError("local-accounts", fmt.Errorf("allow_local_accounts, local_owner, and local_group are only supported for filesystem targets"))
-		}
-		return nil
-	}
-
 	if !c.AllowLocalAccounts {
-		if c.LocalOwner != "" || c.LocalGroup != "" {
+		if c.AllowLocalAccounts || c.LocalOwner != "" || c.LocalGroup != "" {
 			return apperrors.NewConfigError("local-accounts", fmt.Errorf("local_owner and local_group require allow_local_accounts = true for target %q", c.Target))
 		}
 		return nil
+	}
+
+	if !c.UsesLocalDiskStorage() {
+		return apperrors.NewConfigError("local-accounts", fmt.Errorf("allow_local_accounts, local_owner, and local_group are only supported for path-based Duplicacy storage targets"))
 	}
 
 	if (c.LocalOwner == "") != (c.LocalGroup == "") {
@@ -966,6 +909,10 @@ func (c *Config) ValidateTargetSemantics() error {
 	}
 
 	return c.ValidateOwnerGroup()
+}
+
+func isLocalDuplicacyStorage(storage string) bool {
+	return strings.TrimSpace(storage) != "" && !strings.Contains(storage, "://")
 }
 
 // BuildPruneArgs splits the prune string into individual arguments.

@@ -48,9 +48,6 @@ func (p *RuntimePresenter) PrintHeader(data HeaderData) {
 	p.log.PrintLine("Operation", data.Operation)
 	p.log.PrintLine("Label", data.Label)
 	p.log.PrintLine("Target", data.Target)
-	if data.StorageType != "" {
-		p.log.PrintLine("Type", data.StorageType)
-	}
 	if data.Location != "" {
 		p.log.PrintLine("Location", data.Location)
 	}
@@ -78,9 +75,6 @@ func (p *RuntimePresenter) PrintPreRunFailure(data PreRunFailureData) {
 	}
 	if data.Target != "" {
 		p.log.PrintLine("Target", data.Target)
-	}
-	if data.StorageType != "" {
-		p.log.PrintLine("Type", data.StorageType)
 	}
 	if data.Location != "" {
 		p.log.PrintLine("Location", data.Location)

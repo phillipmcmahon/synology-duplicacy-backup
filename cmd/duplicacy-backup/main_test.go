@@ -182,7 +182,7 @@ func localConfigBody(label, destination, owner, group string, threads int, prune
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-usb")
-	fmt.Fprintf(&b, "type = %q\nlocation = %q\n", "filesystem", "local")
+	fmt.Fprintf(&b, "location = %q\n", "local")
 	if owner != "" || group != "" {
 		b.WriteString("allow_local_accounts = true\n")
 	} else {
@@ -194,7 +194,7 @@ func localConfigBody(label, destination, owner, group string, threads int, prune
 	if group != "" {
 		fmt.Fprintf(&b, "local_group = %q\n", group)
 	}
-	fmt.Fprintf(&b, "destination = %q\nrepository = %q\n", destination, label)
+	fmt.Fprintf(&b, "storage = %q\n", filepath.Join(destination, label))
 	return b.String()
 }
 
@@ -212,7 +212,7 @@ func remoteConfigBody(label, destination string, threads int, prune string) stri
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "offsite-storj")
-	fmt.Fprintf(&b, "type = %q\nlocation = %q\nstorage = %q\n", "duplicacy", "remote", destination)
+	fmt.Fprintf(&b, "location = %q\nstorage = %q\n", "remote", destination)
 	return b.String()
 }
 
@@ -230,7 +230,7 @@ func localDuplicacyConfigBody(label, storage string, threads int, prune string) 
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-rustfs")
-	fmt.Fprintf(&b, "type = %q\nlocation = %q\nstorage = %q\n", "duplicacy", "local", storage)
+	fmt.Fprintf(&b, "location = %q\nstorage = %q\n", "local", storage)
 	return b.String()
 }
 
@@ -259,9 +259,6 @@ func assertFailureScope(t *testing.T, stderr string, operation string, label str
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if target != "" && (!strings.Contains(stderr, "Target") || !strings.Contains(stderr, target)) {
-		t.Fatalf("stderr = %q", stderr)
-	}
-	if storageType != "" && (!strings.Contains(stderr, "Type") || !strings.Contains(stderr, storageType)) {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if location != "" && (!strings.Contains(stderr, "Location") || !strings.Contains(stderr, location)) {
@@ -737,7 +734,7 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
-			return "Config validation succeeded for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Writable\n    Repository Access  : Valid\n  Result               : Passed\n", nil
+			return "Config validation succeeded for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Writable\n    Repository Access  : Valid\n  Result               : Passed\n", nil
 		}
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"config", "validate", "--target", "onsite-usb", "--config-dir", t.TempDir(), "homes"}); code != 0 {
@@ -813,7 +810,7 @@ func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/onsite-usb",
-				Output:  "Config validation failed for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Invalid (source_path does not exist: /volume1/homes/nested)\n    Btrfs Source       : Not checked\n    Required Settings  : Valid\n    Destination Access : Writable\n    Repository Access  : Not checked\n  Result               : Failed\n",
+				Output:  "Config validation failed for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Invalid (source_path does not exist: /volume1/homes/nested)\n    Btrfs Source       : Not checked\n    Required Settings  : Valid\n    Storage Access     : Writable\n    Repository Access  : Not checked\n  Result               : Failed\n",
 			}
 		}
 		stdout, stderr := captureOutput(t, func() {
@@ -868,7 +865,7 @@ func TestRunWithArgs_ConfigValidateUninitializedRepositoryPrintsHint(t *testing.
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/offsite-storj; initialize the repository before running backups",
-				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Resolved\n    Secrets            : Valid\n    Repository Access  : Not initialized\n  Result               : Failed\n",
+				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Resolved\n    Secrets            : Valid\n    Repository Access  : Not initialized\n  Result               : Failed\n",
 			}
 		}
 		stdout, stderr := captureOutput(t, func() {
@@ -891,7 +888,7 @@ func TestRunWithArgs_ConfigValidateInaccessibleRepositoryDoesNotPrintInitHint(t 
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/offsite-storj",
-				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Destination Access : Resolved\n    Secrets            : Valid\n    Repository Access  : Invalid (Repository is not ready)\n  Result               : Failed\n",
+				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Resolved\n    Secrets            : Valid\n    Repository Access  : Invalid (Repository is not ready)\n  Result               : Failed\n",
 			}
 		}
 		t.Cleanup(func() { handleConfigCommand = oldHandle })
@@ -924,7 +921,7 @@ func TestRunWithArgs_ConfigExplainReturnsZero(t *testing.T) {
 		if stderr != "" {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, "Config explanation for homes/onsite-usb") || !strings.Contains(stdout, "Destination") || !strings.Contains(stdout, "Local Owner") {
+		if !strings.Contains(stdout, "Config explanation for homes/onsite-usb") || !strings.Contains(stdout, "Storage") || !strings.Contains(stdout, "Local Owner") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -962,10 +959,8 @@ func TestRunWithArgs_NotifyTestDryRunReturnsZero(t *testing.T) {
 			`url = "https://ntfy.sh"`,
 			`topic = "duplicacy-alerts"`,
 			`[targets.onsite-usb]`,
-			`type = "filesystem"`,
 			`location = "local"`,
-			`destination = "/backups"`,
-			`repository = "homes"`,
+			`storage = "/backups/homes"`,
 		}, "\n"))
 
 		stdout, stderr := captureOutput(t, func() {
@@ -991,10 +986,8 @@ func TestRunWithArgs_NotifyTestFailurePrintsReportAndReturnsOne(t *testing.T) {
 			`label = "homes"`,
 			`source_path = "/volume1/homes"`,
 			`[targets.onsite-usb]`,
-			`type = "filesystem"`,
 			`location = "local"`,
-			`destination = "/backups"`,
-			`repository = "homes"`,
+			`storage = "/backups/homes"`,
 		}, "\n"))
 
 		stdout, stderr := captureOutput(t, func() {
@@ -1157,10 +1150,8 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 			`source_path = "/volume1/homes"`,
 			``,
 			`[targets.onsite-usb]`,
-			`type = "filesystem"`,
 			`location = "local"`,
-			`destination = "/backups"`,
-			`repository = "homes"`,
+			`storage = "/backups/homes"`,
 			``,
 			`[health.notify]`,
 			`webhook_url = "http://127.0.0.1/unused"`,
@@ -1261,7 +1252,7 @@ func TestRunWithArgs_LocalDuplicacyMissingSecretsReturnsOne(t *testing.T) {
 func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[targets.onsite-usb]\ntype = \"local\"\nallow_local_accounts = false\ndestination = \"/backups\"\nrepository = \"homes\"\nthreads =\n")
+		writeConfig(t, configDir, "homes", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[targets.onsite-usb]\nlocation = \"local\"\nstorage = \"/backups/homes\"\nthreads =\n")
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(invalid toml) = %d", code)
@@ -1284,7 +1275,7 @@ func TestRunWithArgs_DuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.
 				t.Fatalf("runWithArgs(duplicacy fix-perms failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
+		if !strings.Contains(stderr, "fix-perms is only supported for path-based Duplicacy storage targets") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "duplicacy", "remote")
@@ -1301,7 +1292,7 @@ func TestRunWithArgs_LocalDuplicacyFixPermsFailureIncludesStorageIdentity(t *tes
 				t.Fatalf("runWithArgs(local duplicacy fix-perms failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "fix-perms is only supported for filesystem targets") {
+		if !strings.Contains(stderr, "fix-perms is only supported for path-based Duplicacy storage targets") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureScope(t, stderr, "Fix permissions", "homes", "onsite-rustfs", "duplicacy", "local")
@@ -1463,8 +1454,8 @@ func TestEmitJSONFailureSummary(t *testing.T) {
 	emitJSONFailureSummary(nil, nil, nil, startedAt, completedAt, "ignored")
 
 	var buf bytes.Buffer
-	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{StorageType: "filesystem", Location: "local"}, startedAt, completedAt, "boom")
-	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"storage_type": "filesystem"`) || !strings.Contains(buf.String(), `"location": "local"`) {
+	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{StorageType: "duplicacy", Location: "local"}, startedAt, completedAt, "boom")
+	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"storage_type": "duplicacy"`) || !strings.Contains(buf.String(), `"location": "local"`) {
 		t.Fatalf("summary = %q", buf.String())
 	}
 }

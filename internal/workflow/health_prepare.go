@@ -44,7 +44,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
-	if cfg.UsesDuplicacyStorage() {
+	if cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage) {
 		sec, err = planner.loadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err
