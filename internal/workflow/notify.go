@@ -22,13 +22,12 @@ func shouldSendConfiguredNotification(rt Runtime, interactive bool, cfg config.H
 	return containsString(cfg.SendFor, sendFor)
 }
 
-func buildTestNotificationPayload(rt Runtime, label, target, storageType, location string, req *Request) *notify.Payload {
+func buildTestNotificationPayload(rt Runtime, label, target, location string, req *Request) *notify.Payload {
 	return notify.BuildTestPayload(
 		rt.Now(),
 		rt.Getpid(),
 		label,
 		target,
-		storageType,
 		location,
 		req.NotifySeverity,
 		req.NotifySummary,
@@ -55,7 +54,7 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 	if !visibleRunStarted && plan.DoBackup {
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "backup", "backup_could_not_start",
 			fmt.Sprintf("Backup could not start for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"backup", "", "failed", details,
 		)
 	}
@@ -64,7 +63,7 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 	case "Backup":
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "backup", "backup_failed",
 			fmt.Sprintf("Backup failed for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"backup", "", "failed", details,
 		)
 	case "Prune":
@@ -80,19 +79,19 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 			}
 			return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "maintenance", "safe_prune_blocked",
 				fmt.Sprintf("Safe prune blocked for %s/%s", report.Label, report.Target),
-				report.Label, report.Target, report.StorageType, report.Location,
+				report.Label, report.Target, report.Location,
 				"prune", "", "blocked", details,
 			)
 		}
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "maintenance", "prune_failed",
 			fmt.Sprintf("Prune failed for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"prune", "", "failed", details,
 		)
 	case "Storage cleanup":
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "maintenance", "cleanup_failed",
 			fmt.Sprintf("Storage cleanup failed for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"cleanup_storage", "", "failed", details,
 		)
 	default:
@@ -108,7 +107,7 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 	if report.CheckType == "verify" && report.FailedRevisionCount > 0 {
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", "verify_failed_revisions",
 			fmt.Sprintf("Verify found failed revisions for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
 				"failed_revision_count": report.FailedRevisionCount,
@@ -121,7 +120,7 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 	if result, message, ok := healthCheckResult(report, "Backup freshness"); ok && result == "fail" {
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", "freshness_failed",
 			fmt.Sprintf("Freshness failure for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
 				"message":   message,
@@ -134,7 +133,7 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 	case "degraded":
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "health", "health_degraded",
 			fmt.Sprintf("Health degraded for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
 				"message": firstHealthIssueMessage(report),
@@ -143,7 +142,7 @@ func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Pa
 	case "unhealthy":
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", "health_unhealthy",
 			fmt.Sprintf("Health unhealthy for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.StorageType, report.Location,
+			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
 				"message": firstHealthIssueMessage(report),

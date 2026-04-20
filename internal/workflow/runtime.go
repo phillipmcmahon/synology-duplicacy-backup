@@ -18,9 +18,8 @@ var labelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 var targetPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 const (
-	storageTypeDuplicacy = "duplicacy"
-	locationLocal        = "local"
-	locationRemote       = "remote"
+	locationLocal  = "local"
+	locationRemote = "remote"
 )
 
 // Runtime provides the environment-facing functions used by request parsing,
@@ -123,22 +122,6 @@ func ValidateTargetName(target string) error {
 		)
 	}
 	return nil
-}
-
-func JoinDestination(storageType, destination, label string) string {
-	switch storageType {
-	case storageTypeDuplicacy:
-		return destination
-	default:
-		return filepath.Join(destination, label)
-	}
-}
-
-func ResolveBackupTarget(storageType, destination, storage, repository string) string {
-	if storageType == storageTypeDuplicacy {
-		return storage
-	}
-	return JoinDestination(storageType, destination, repository)
 }
 
 func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {

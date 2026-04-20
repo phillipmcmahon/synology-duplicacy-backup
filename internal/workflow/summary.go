@@ -122,7 +122,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		)
 	}
 
-	if plan.UsesDuplicacyStorage() && plan.Secrets != nil {
+	if plan.Secrets != nil {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},

@@ -11,7 +11,6 @@ type RunReport struct {
 	Target         string        `json:"target,omitempty"`
 	Operation      string        `json:"operation,omitempty"`
 	Mode           string        `json:"mode,omitempty"`
-	StorageType    string        `json:"storage_type,omitempty"`
 	Location       string        `json:"location,omitempty"`
 	Result         string        `json:"result"`
 	ExitCode       int           `json:"exit_code"`
@@ -49,7 +48,6 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 	if report.Mode == "" {
 		report.Mode = plan.ModeDisplay
 	}
-	report.StorageType = plan.StorageType
 	report.Location = plan.Location
 	report.DryRun = plan.DryRun
 	report.Remote = plan.IsRemoteLocation()
@@ -81,7 +79,7 @@ func NewFailureRunReport(req *Request, plan *Plan, startedAt time.Time, complete
 		report.Operation = OperationMode(req)
 		report.Mode = req.Target()
 		if report.Mode == "" {
-			report.Mode = modeDisplay(req.Target(), "")
+			report.Mode = modeDisplay(req.Target())
 		}
 	}
 	if plan != nil {
@@ -100,7 +98,6 @@ func NewFailureRunReport(req *Request, plan *Plan, startedAt time.Time, complete
 				report.Mode = plan.ModeDisplay
 			}
 		}
-		report.StorageType = plan.StorageType
 		report.Location = plan.Location
 		report.Remote = plan.IsRemoteLocation()
 	}

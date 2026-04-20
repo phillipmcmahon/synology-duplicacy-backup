@@ -1454,8 +1454,8 @@ func TestEmitJSONFailureSummary(t *testing.T) {
 	emitJSONFailureSummary(nil, nil, nil, startedAt, completedAt, "ignored")
 
 	var buf bytes.Buffer
-	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{StorageType: "duplicacy", Location: "local"}, startedAt, completedAt, "boom")
-	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"storage_type": "duplicacy"`) || !strings.Contains(buf.String(), `"location": "local"`) {
+	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{Location: "local"}, startedAt, completedAt, "boom")
+	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"location": "local"`) || strings.Contains(buf.String(), `"storage_type"`) {
 		t.Fatalf("summary = %q", buf.String())
 	}
 }

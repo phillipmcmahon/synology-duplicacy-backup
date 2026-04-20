@@ -25,7 +25,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 	rt.Now = func() time.Time { return time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC) }
 	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
 
-	presenter.PrintHeader(&Plan{OperationMode: "Backup", BackupLabel: "homes", Target: "onsite-usb", StorageType: storageTypeDuplicacy, Location: locationLocal}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
+	presenter.PrintHeader(&Plan{OperationMode: "Backup", BackupLabel: "homes", Target: "onsite-usb", Location: locationLocal}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
 	presenter.PrintSummary(&Plan{Summary: []SummaryLine{{Label: "Config File", Value: "/tmp/homes-backup.toml"}}})
 	presenter.PrintBackupResult("Backup for /volume1/homes at revision 2361 completed\nFiles: 10 total, 42 bytes; 1 new, 10 bytes\nTotal running time: 00:00:03\n", "", false)
 	presenter.PrintDuration(time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC))
@@ -66,7 +66,6 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 		OperationMode: "Fix permissions",
 		BackupLabel:   "homes",
 		Target:        "offsite-storj",
-		StorageType:   storageTypeDuplicacy,
 		Location:      locationRemote,
 	})
 	log.Close()

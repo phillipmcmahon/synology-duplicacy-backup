@@ -66,12 +66,11 @@ func TestRuntimePresenterPrintsHeaderAndBackupSummary(t *testing.T) {
 	}, log, false)
 
 	p.PrintHeader(HeaderData{
-		StartedAt:   time.Date(2026, 4, 15, 10, 1, 0, 0, time.UTC),
-		Operation:   "Backup",
-		Label:       "homes",
-		Target:      "onsite-usb1",
-		StorageType: "duplicacy",
-		Location:    "local",
+		StartedAt: time.Date(2026, 4, 15, 10, 1, 0, 0, time.UTC),
+		Operation: "Backup",
+		Label:     "homes",
+		Target:    "onsite-usb1",
+		Location:  "local",
 	})
 	p.PrintSummary([]Line{{Label: "Config File", Value: "/tmp/homes-backup.toml"}})
 	p.PrintBackupResult("Backup for /volume1/homes at revision 2361 completed\nFiles: 10 total, 42 bytes; 1 new, 10 bytes\nTotal running time: 00:00:03\n", "", false)
@@ -122,11 +121,10 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 	}, log, false)
 
 	p.PrintPreRunFailure(PreRunFailureData{
-		Operation:   "Backup",
-		Label:       "homes",
-		Target:      "onsite-usb1",
-		StorageType: "duplicacy",
-		Location:    "local",
+		Operation: "Backup",
+		Label:     "homes",
+		Target:    "onsite-usb1",
+		Location:  "local",
 	})
 	p.PrintPhase("Permissions")
 	stop := p.StartStatusActivity("Checking permissions")

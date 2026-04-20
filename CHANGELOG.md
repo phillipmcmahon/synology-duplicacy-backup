@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Duplicacy storage semantics now live in the Duplicacy integration layer**:
+  backend scheme detection, local-path handling, storage-secret requirements,
+  and config validation now use a focused `StorageSpec` type instead of
+  workflow-owned switches.
+
+### Removed
+- **Redundant `storage_type` output has been removed**: runtime JSON summaries,
+  health reports, and notification payloads now report target identity through
+  `target`, `location`, and configured `storage` rather than repeating the
+  retired type model.
+
+### Validation
+- **macOS Go 1.26**: `go test ./...`
+
 ## [v5.0.0] - 2026-04-20
 
 ### Added

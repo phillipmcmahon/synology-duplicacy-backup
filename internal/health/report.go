@@ -32,7 +32,6 @@ type Report struct {
 	Label                string           `json:"label"`
 	Target               string           `json:"target"`
 	Mode                 string           `json:"mode"`
-	StorageType          string           `json:"storage_type,omitempty"`
 	Location             string           `json:"location,omitempty"`
 	CheckedAt            string           `json:"checked_at"`
 	LastSuccessAt        string           `json:"last_success_at,omitempty"`

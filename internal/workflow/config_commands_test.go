@@ -174,7 +174,7 @@ func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootSkipsPri
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", storageTypeDuplicacy, locationLocal, "/volume1/homes", "/backups/homes", "", owner, group, 4, "-keep 0:365", `
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", owner, group, 4, "-keep 0:365", `
 [targets.offsite-storj]
 location = "remote"
 storage = "s3://bucket/homes"
@@ -237,7 +237,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeDuplicacy, locationLocal, sourcePath, filepath.Join(destinationRoot, "homes"), "", "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(destinationRoot, "homes"), "", "", 4, ""))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -313,7 +313,7 @@ func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T
 	destination := t.TempDir()
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", storageTypeDuplicacy, locationLocal, sourcePath, filepath.Join(destination, "homes"), "", owner, group, 4, "-keep 0:365", `
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(destination, "homes"), owner, group, 4, "-keep 0:365", `
 [health]
 doctor_warn_after_hours = 48000000
 `))
@@ -810,7 +810,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	}
 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, localDestination, owner, group, 4, "-keep 0:365"))
-	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", storageTypeDuplicacy, locationLocal, sourcePath, filepath.Join(localDestination, "readmedia"), "", "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", locationLocal, sourcePath, filepath.Join(localDestination, "readmedia"), "", "", 4, ""))
 	writeTargetTestConfig(t, configDir, "archives", "offsite-storj", remoteTargetConfig("archives", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "archives", "offsite-storj")
 

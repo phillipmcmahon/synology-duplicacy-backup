@@ -314,7 +314,7 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 	t.Cleanup(log.Close)
 
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", storageTypeDuplicacy, locationLocal, "/volume1/homes", "/backups/homes", "", "", "", 0, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", "", "", 0, ""))
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),

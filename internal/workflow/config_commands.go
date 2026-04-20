@@ -3,10 +3,8 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
@@ -70,11 +68,10 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 	resolved[2].Value = plan.ConfigFile
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
-	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
+	plan.BackupTarget = cfg.Storage
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
 	requiredErr := cfg.ValidateRequired(true, false)
@@ -108,20 +105,21 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	repoHint := ""
 	var sec *secrets.Secrets
 	var secretsErr error
-	secretsNeeded := cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage)
-	secretsChecked := !cfg.UsesDuplicacyStorage() || !secretsNeeded
+	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
+	secretsNeeded := storageSpec.NeedsSecrets()
+	secretsChecked := !secretsNeeded
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
 	if secretsNeeded && privilegedValidation {
 		secretsChecked = true
 		sec, secretsErr = planner.loadSecrets(plan)
 		if secretsErr == nil {
-			secretsErr = validateDuplicacyStorageSecrets(cfg.Storage, sec)
+			secretsErr = storageSpec.ValidateSecrets(sec)
 		}
 	}
 
 	if sourceAccessible && destinationErr == nil {
 		switch {
-		case cfg.UsesDuplicacyStorage() && secretsChecked && secretsErr == nil:
+		case secretsChecked && secretsErr == nil:
 			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
 		}
 		if repoStatus == "Not initialized" && repoErr == nil {
@@ -160,14 +158,12 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		collector.addUnchecked("Repository Access")
 	}
 	collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
-	if cfg.UsesDuplicacyStorage() {
-		if !secretsNeeded {
-			collector.addStatic("Secrets", "Not required")
-		} else if secretsChecked {
-			collector.addStatus("Secrets", "Valid", secretsErr)
-		} else {
-			collector.addUnchecked("Secrets")
-		}
+	if !secretsNeeded {
+		collector.addStatic("Secrets", "Not required")
+	} else if secretsChecked {
+		collector.addStatus("Secrets", "Valid", secretsErr)
+	} else {
+		collector.addUnchecked("Secrets")
 	}
 
 	if collector.failed() {
@@ -194,11 +190,10 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		return "", err
 	}
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
+	plan.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.SnapshotSource = cfg.SourcePath
-	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
+	plan.BackupTarget = cfg.Storage
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
 	plan.PruneOptions = cfg.Prune
@@ -224,7 +219,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
 	}
 
-	if cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage) {
+	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
 		)
@@ -244,11 +239,10 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req)
 	if cfg, err := planner.loadConfig(plan); err == nil {
 		plan.Target = cfg.Target
-		plan.StorageType = cfg.StorageType
 		plan.Location = cfg.Location
-		plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
+		plan.ModeDisplay = modeDisplay(plan.TargetName())
 		plan.SnapshotSource = cfg.SourcePath
-		plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
+		plan.BackupTarget = cfg.Storage
 	}
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Source},
@@ -259,7 +253,7 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		{Label: "Source Path", Value: plan.SnapshotSource},
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
-	if plan.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(plan.BackupTarget) {
+	if duplicacy.NewStorageSpec(plan.BackupTarget).NeedsSecrets() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
 			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
@@ -377,10 +371,11 @@ func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) error {
 }
 
 func validateConfigDestination(cfg *config.Config) (string, error) {
-	if cfg.UsesDuplicacyStorage() {
-		return validateDuplicacyStorage(cfg.Storage)
+	status, err := duplicacy.NewStorageSpec(cfg.Storage).ValidateForConfig()
+	if err != nil {
+		return "", configPathError(err.Error())
 	}
-	return "", configPathError(fmt.Sprintf("unsupported storage type %q", cfg.StorageType))
+	return status, nil
 }
 
 func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Runner, sec *secrets.Secrets) (string, string, error) {
@@ -415,106 +410,6 @@ func prepareConfigValidationProbe(plan *Plan, runner execpkg.Runner, sec *secret
 		return nil, err
 	}
 	return dup, nil
-}
-
-func validateDuplicacyStorage(storage string) (string, error) {
-	if storage == "" {
-		return "", configPathError("storage must not be empty")
-	}
-	parsed, err := url.Parse(storage)
-	if err != nil {
-		return "", configPathError(fmt.Sprintf("duplicacy storage is not a valid URL-like storage target: %v", err))
-	}
-	if parsed.Scheme == "" {
-		return validateLocalDuplicacyStorage(storage)
-	}
-	if parsed.Host == "" && parsed.Path == "" {
-		return "", configPathError(fmt.Sprintf("duplicacy storage must include a target after the scheme (was %q)", storage))
-	}
-	return "Resolved", nil
-}
-
-func validateLocalDuplicacyStorage(storage string) (string, error) {
-	if !filepath.IsAbs(storage) {
-		return "", configPathError(fmt.Sprintf("duplicacy local storage must be an absolute path or a URL-like storage target (was %q)", storage))
-	}
-	info, err := os.Stat(storage)
-	if err != nil {
-		if os.IsNotExist(err) {
-			parent := filepath.Dir(storage)
-			if _, parentErr := os.Stat(parent); parentErr != nil {
-				if os.IsNotExist(parentErr) {
-					return "", configPathError(fmt.Sprintf("duplicacy local storage parent does not exist: %s", parent))
-				}
-				return "", configPathError(fmt.Sprintf("duplicacy local storage parent is not accessible: %v", parentErr))
-			}
-			return validateWritableDirectory(parent, "duplicacy local storage parent")
-		}
-		return "", configPathError(fmt.Sprintf("duplicacy local storage is not accessible: %v", err))
-	}
-	if !info.IsDir() {
-		return "", configPathError(fmt.Sprintf("duplicacy local storage must be a directory: %s", storage))
-	}
-	return validateWritableDirectory(storage, "duplicacy local storage")
-}
-
-func validateWritableDirectory(path, description string) (string, error) {
-	probe, err := os.CreateTemp(path, ".duplicacy-backup-config-validate-*")
-	if err != nil {
-		return "", configPathError(fmt.Sprintf("%s is not writable: %s", description, path))
-	}
-	_ = probe.Close()
-	_ = os.Remove(probe.Name())
-	return "Writable", nil
-}
-
-func validateDuplicacyStorageSecrets(storage string, sec *secrets.Secrets) error {
-	required := duplicacyStorageRequiredKeys(storage)
-	for _, key := range required {
-		if sec == nil || strings.TrimSpace(sec.Keys[key]) == "" {
-			return NewMessageError("storage %q requires %s in [targets.<name>.keys]", duplicacyStorageScheme(storage), strings.Join(required, " and "))
-		}
-	}
-	return nil
-}
-
-func duplicacyStorageNeedsSecrets(storage string) bool {
-	return len(duplicacyStorageRequiredKeys(storage)) > 0
-}
-
-func duplicacyStorageRequiredKeys(storage string) []string {
-	parsed, err := url.Parse(storage)
-	if err != nil {
-		return nil
-	}
-	return requiredDuplicacyStorageKeys(parsed.Scheme)
-}
-
-func duplicacyStorageScheme(storage string) string {
-	parsed, err := url.Parse(storage)
-	if err != nil || parsed.Scheme == "" {
-		return "local"
-	}
-	return parsed.Scheme
-}
-
-func duplicacyStorageSupportsFixPerms(cfg *config.Config) bool {
-	return cfg != nil && cfg.UsesDuplicacyStorage() && isLocalDuplicacyStorage(cfg.Storage)
-}
-
-func isLocalDuplicacyStorage(storage string) bool {
-	return strings.TrimSpace(storage) != "" && !strings.Contains(storage, "://")
-}
-
-func requiredDuplicacyStorageKeys(scheme string) []string {
-	switch strings.ToLower(scheme) {
-	case "s3":
-		return []string{"s3_id", "s3_secret"}
-	case "storj":
-		return []string{"storj_key", "storj_passphrase"}
-	default:
-		return nil
-	}
 }
 
 func configPathError(message string) error {

@@ -26,14 +26,13 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	}
 
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
 	plan.ConfigFile = cfgPlan.ConfigFile
 	plan.SecretsFile = cfgPlan.SecretsFile
-	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
+	plan.BackupTarget = cfg.Storage
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
+	plan.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.OperationMode = "Health " + presentation.Title(req.HealthCommand)
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
@@ -44,7 +43,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
-	if cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage) {
+	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		sec, err = planner.loadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err

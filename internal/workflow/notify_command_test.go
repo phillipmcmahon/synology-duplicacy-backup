@@ -274,8 +274,8 @@ func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 		t.Fatalf("output = %q", out)
 	}
 	if !strings.Contains(webhookBody, `"target":"onsite-rustfs"`) ||
-		!strings.Contains(webhookBody, `"storage_type":"duplicacy"`) ||
-		!strings.Contains(webhookBody, `"location":"local"`) {
+		!strings.Contains(webhookBody, `"location":"local"`) ||
+		strings.Contains(webhookBody, `"storage_type"`) {
 		t.Fatalf("webhookBody = %q", webhookBody)
 	}
 }

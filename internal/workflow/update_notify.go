@@ -78,7 +78,7 @@ func BuildUpdateTestNotificationPayload(req *Request, meta Metadata, rt Runtime)
 		message = "This is a simulated operator-initiated update notification."
 	}
 	return notify.NewPayload(rt.Now(), rt.Getpid(), req.NotifySeverity, "maintenance", event, summary,
-		"", "", "", "", "update", "", status,
+		"", "", "", "update", "", status,
 		map[string]any{
 			"message":         message,
 			"current_version": meta.Version,
@@ -96,7 +96,7 @@ func maybeSendUpdateNotification(req *Request, rt Runtime, status, event, severi
 		return nil
 	}
 	payload := notify.NewPayload(rt.Now(), rt.Getpid(), severity, "maintenance", event, summary,
-		"", "", "", "", "update", "", status, details,
+		"", "", "", "update", "", status, details,
 	)
 	return notify.SendConfigured(cfg, "", "", payload)
 }

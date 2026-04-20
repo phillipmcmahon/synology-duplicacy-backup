@@ -29,37 +29,35 @@ func CommandOutput(err error) string {
 }
 
 type TestReport struct {
-	Command     string           `json:"command"`
-	Scope       string           `json:"scope,omitempty"`
-	Label       string           `json:"label"`
-	Target      string           `json:"target"`
-	StorageType string           `json:"storage_type,omitempty"`
-	Location    string           `json:"location,omitempty"`
-	Provider    string           `json:"provider"`
-	Severity    string           `json:"severity"`
-	Category    string           `json:"category"`
-	Event       string           `json:"event"`
-	Summary     string           `json:"summary"`
-	Message     string           `json:"message,omitempty"`
-	DryRun      bool             `json:"dry_run"`
-	Result      string           `json:"result"`
-	Providers   []DeliveryResult `json:"providers,omitempty"`
+	Command   string           `json:"command"`
+	Scope     string           `json:"scope,omitempty"`
+	Label     string           `json:"label"`
+	Target    string           `json:"target"`
+	Location  string           `json:"location,omitempty"`
+	Provider  string           `json:"provider"`
+	Severity  string           `json:"severity"`
+	Category  string           `json:"category"`
+	Event     string           `json:"event"`
+	Summary   string           `json:"summary"`
+	Message   string           `json:"message,omitempty"`
+	DryRun    bool             `json:"dry_run"`
+	Result    string           `json:"result"`
+	Providers []DeliveryResult `json:"providers,omitempty"`
 }
 
 type TestReportInput struct {
-	Command     string
-	Scope       string
-	Label       string
-	Target      string
-	StorageType string
-	Location    string
-	Provider    string
-	Severity    string
-	Category    string
-	Event       string
-	Summary     string
-	Message     string
-	DryRun      bool
+	Command  string
+	Scope    string
+	Label    string
+	Target   string
+	Location string
+	Provider string
+	Severity string
+	Category string
+	Event    string
+	Summary  string
+	Message  string
+	DryRun   bool
 }
 
 func NewFailureTestReport(input TestReportInput) *TestReport {
@@ -82,20 +80,19 @@ func NewFailureTestReport(input TestReportInput) *TestReport {
 
 func NewTestReport(input TestReportInput, destinations []Destination, result string) *TestReport {
 	report := &TestReport{
-		Command:     fallbackValue(input.Command, "test"),
-		Scope:       input.Scope,
-		Label:       input.Label,
-		Target:      input.Target,
-		StorageType: input.StorageType,
-		Location:    input.Location,
-		Provider:    fallbackValue(input.Provider, ProviderAll),
-		Severity:    input.Severity,
-		Category:    input.Category,
-		Event:       input.Event,
-		Summary:     input.Summary,
-		Message:     input.Message,
-		DryRun:      input.DryRun,
-		Result:      result,
+		Command:  fallbackValue(input.Command, "test"),
+		Scope:    input.Scope,
+		Label:    input.Label,
+		Target:   input.Target,
+		Location: input.Location,
+		Provider: fallbackValue(input.Provider, ProviderAll),
+		Severity: input.Severity,
+		Category: input.Category,
+		Event:    input.Event,
+		Summary:  input.Summary,
+		Message:  input.Message,
+		DryRun:   input.DryRun,
+		Result:   result,
 	}
 	for _, destination := range destinations {
 		report.Providers = append(report.Providers, DeliveryResult{

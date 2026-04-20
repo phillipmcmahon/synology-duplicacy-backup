@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.5.0`
+Current public release baseline: `v5.0.0`
 
-Active release-prep target: `v5.0.0`
+Active release-prep target: `Unreleased`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -78,6 +78,12 @@ Additional v5.0.0 validation:
 
 - Config semantics now use direct Duplicacy `storage` values and generic
   storage keys.
+
+Additional unreleased validation:
+
+- Duplicacy storage scheme handling is covered by focused `StorageSpec` tests.
+- Runtime JSON, health reports, and notification payload tests assert the
+  retired `storage_type` field is no longer emitted.
 - Planner tests confirm URL-like storage values load storage keys when the
   selected backend needs them while remaining operationally local or remote
   according to `location`.

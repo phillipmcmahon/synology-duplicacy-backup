@@ -200,13 +200,12 @@ func TestPresenterPrintsStructuredHealthReport(t *testing.T) {
 		return time.Date(2026, 4, 15, 10, 0, 4, 0, time.UTC)
 	})
 	report := &Report{
-		Status:      "degraded",
-		CheckType:   "verify",
-		Label:       "homes",
-		Target:      "offsite-storj",
-		StorageType: "duplicacy",
-		Location:    "remote",
-		StartedAt:   time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC),
+		Status:    "degraded",
+		CheckType: "verify",
+		Label:     "homes",
+		Target:    "offsite-storj",
+		Location:  "remote",
+		StartedAt: time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC),
 		Checks: []Check{
 			{Name: "Revision count", Result: "pass", Message: "5"},
 			{Name: "Notification", Result: "warn", Message: "Delivery delayed"},

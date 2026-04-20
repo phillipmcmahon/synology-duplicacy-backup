@@ -10,19 +10,18 @@ import (
 
 func TestNewTestReportFormatsTextAndJSON(t *testing.T) {
 	report := NewTestReport(TestReportInput{
-		Command:     "notify test",
-		Scope:       "homes/offsite-storj",
-		Label:       "homes",
-		Target:      "offsite-storj",
-		StorageType: "duplicacy",
-		Location:    "remote",
-		Provider:    ProviderAll,
-		Severity:    "warning",
-		Category:    "test",
-		Event:       "notification_test",
-		Summary:     "Notification test for homes/offsite-storj",
-		Message:     "Operator initiated smoke test.",
-		DryRun:      true,
+		Command:  "notify test",
+		Scope:    "homes/offsite-storj",
+		Label:    "homes",
+		Target:   "offsite-storj",
+		Location: "remote",
+		Provider: ProviderAll,
+		Severity: "warning",
+		Category: "test",
+		Event:    "notification_test",
+		Summary:  "Notification test for homes/offsite-storj",
+		Message:  "Operator initiated smoke test.",
+		DryRun:   true,
 	}, []Destination{
 		{Provider: ProviderWebhook, Destination: "https://example.invalid/hook"},
 		{Provider: ProviderNtfy, Destination: "https://ntfy.sh/test-topic"},
@@ -101,7 +100,7 @@ func TestFirstFailedResultSkipsEmptyMessages(t *testing.T) {
 
 func TestBuildTestPayloadAppliesOperatorDefaults(t *testing.T) {
 	now := time.Date(2026, 4, 17, 12, 30, 0, 0, time.UTC)
-	payload := BuildTestPayload(now, 4321, "homes", "onsite-usb1", "filesystem", "local", "", "", "")
+	payload := BuildTestPayload(now, 4321, "homes", "onsite-usb1", "local", "", "", "")
 
 	if payload.Severity != "warning" || payload.Category != "test" || payload.Event != "notification_test" {
 		t.Fatalf("payload classification = %+v", payload)

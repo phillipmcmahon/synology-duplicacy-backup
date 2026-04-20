@@ -220,7 +220,6 @@ Every payload includes shared fields such as:
 - `summary`
 - `label`
 - `target`
-- `storage_type`
 - `location`
 - `status`
 

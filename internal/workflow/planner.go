@@ -8,6 +8,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
@@ -37,10 +38,9 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 		return nil, err
 	}
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
 	plan.Notify = cfg.Health.Notify
-	plan.ModeDisplay = modeDisplay(plan.TargetName(), plan.StorageType)
+	plan.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.SnapshotSource = cfg.SourcePath
 	plan.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", plan.BackupLabel, plan.TargetName(), plan.RunTimestamp, p.rt.Getpid()))
 	plan.RepositoryPath = cfg.SourcePath
@@ -50,7 +50,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
-	plan.BackupTarget = ResolveBackupTarget(cfg.StorageType, cfg.Destination, cfg.Storage, cfg.Repository)
+	plan.BackupTarget = cfg.Storage
 	plan.OperationMode = OperationMode(req)
 	plan.Threads = cfg.Threads
 	plan.Filter = cfg.Filter
@@ -66,7 +66,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	plan.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
 	plan.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 
-	if cfg.UsesDuplicacyStorage() && duplicacyStorageNeedsSecrets(cfg.Storage) {
+	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		sec, err := p.loadSecrets(plan)
 		if err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func (p *Planner) FailureContext(req *Request) *Plan {
 	if _, err := p.loadConfigForValidation(plan); err == nil {
 		return plan
 	}
-	if plan.StorageType != "" || plan.Location != "" {
+	if plan.Location != "" {
 		return plan
 	}
 	return nil
@@ -143,7 +143,7 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 		NeedsSnapshot:       req.DoBackup,
 		DefaultNotice:       req.DefaultNotice,
 		OperationMode:       OperationMode(req),
-		ModeDisplay:         modeDisplay(target, ""),
+		ModeDisplay:         modeDisplay(target),
 		Target:              target,
 		BackupLabel:         backupLabel,
 		RunTimestamp:        runTimestamp,
@@ -197,15 +197,11 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 	if cfg.SourcePath == "" {
 		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
 	}
-	if cfg.Repository == "" && cfg.StorageType != storageTypeDuplicacy {
-		cfg.Repository = plan.BackupLabel
-	}
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
 	plan.Notify = cfg.Health.Notify
 	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
-	plan.ModeDisplay = modeDisplay(cfg.Target, cfg.StorageType)
+	plan.ModeDisplay = modeDisplay(cfg.Target)
 
 	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
 		return nil, err
@@ -219,7 +215,7 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, validateThresholds bool, val
 		if err := cfg.ValidateTargetSemantics(); err != nil {
 			return nil, err
 		}
-		if plan.FixPerms && !duplicacyStorageSupportsFixPerms(cfg) {
+		if plan.FixPerms && !duplicacy.NewStorageSpec(cfg.Storage).SupportsFixPerms() {
 			return nil, apperrors.NewConfigError("fix-perms", fmt.Errorf("fix-perms is only supported for path-based Duplicacy storage targets"))
 		}
 	}
@@ -292,7 +288,7 @@ func splitNonEmptyLines(value string) []string {
 	return result
 }
 
-func modeDisplay(targetName, _ string) string {
+func modeDisplay(targetName string) string {
 	if targetName != "" {
 		return targetName
 	}

@@ -189,9 +189,6 @@ allow_local_accounts = true
 	if values["TARGET"] != "onsite-usb" {
 		t.Fatalf("TARGET = %q", values["TARGET"])
 	}
-	if values["STORAGE_TYPE"] != "duplicacy" {
-		t.Fatalf("STORAGE_TYPE = %q", values["STORAGE_TYPE"])
-	}
 	if values["LOCATION"] != "local" {
 		t.Fatalf("LOCATION = %q", values["LOCATION"])
 	}
@@ -247,7 +244,6 @@ interactive = true
 	expect := map[string]string{
 		"LABEL":                            "homes",
 		"TARGET":                           "onsite-usb",
-		"STORAGE_TYPE":                     "duplicacy",
 		"LOCATION":                         "local",
 		"SOURCE_PATH":                      "/volume1/homes",
 		"STORAGE":                          "/volumeUSB1/usbshare/duplicacy/homes",
@@ -314,9 +310,6 @@ keep = ["0:30", "7:14"]
 	}
 	if values["PRUNE"] != "-keep 1:365 -keep 30:90" {
 		t.Fatalf("PRUNE = %q", values["PRUNE"])
-	}
-	if values["STORAGE_TYPE"] != "duplicacy" {
-		t.Fatalf("STORAGE_TYPE = %q", values["STORAGE_TYPE"])
 	}
 	if values["LOCATION"] != "remote" {
 		t.Fatalf("LOCATION = %q", values["LOCATION"])
@@ -602,7 +595,6 @@ label = "homes"
 source_path = "/volume1/homes"
 
 [common]
-destination = "/volume1/backups"
 log_retention_days = 0
 safe_prune_max_delete_count = 0
 safe_prune_max_delete_percent = 0
@@ -628,7 +620,6 @@ label = "homes"
 source_path = "/volume1/homes"
 
 [common]
-destination = "/volume1/backups"
 filter = '''
 -exclude tmp
 -exclude .DS_Store
@@ -678,7 +669,6 @@ func TestApply_ValidNumericValues(t *testing.T) {
 func TestApply_StringValues(t *testing.T) {
 	cfg := NewDefaults()
 	vals := map[string]string{
-		"DESTINATION": "/volume1/backups",
 		"FILTER":      "-e *.tmp",
 		"LOCAL_OWNER": "admin",
 		"LOCAL_GROUP": "staff",
@@ -687,7 +677,7 @@ func TestApply_StringValues(t *testing.T) {
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Destination != "/volume1/backups" || cfg.Filter != "-e *.tmp" || cfg.LocalOwner != "admin" || cfg.LocalGroup != "staff" || cfg.Prune != "-keep 0:365 -keep 30:180" {
+	if cfg.Filter != "-e *.tmp" || cfg.LocalOwner != "admin" || cfg.LocalGroup != "staff" || cfg.Prune != "-keep 0:365 -keep 30:180" {
 		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 }
@@ -777,7 +767,7 @@ func TestValidateThresholds(t *testing.T) {
 
 func TestValidateOwnerGroup(t *testing.T) {
 	owner, group := currentUserGroup(t)
-	if err := (&Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
+	if err := (&Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -786,15 +776,15 @@ func TestValidateOwnerGroup(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{"url backend disallowed", Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
-		{"missing owner", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalGroup: group}, "local_owner is mandatory"},
-		{"missing group", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, "local_group is mandatory"},
-		{"invalid owner", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
-		{"invalid group", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
-		{"root owner", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
-		{"root group", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
-		{"missing user", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
-		{"missing group", Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
+		{"url backend disallowed", Config{Target: "offsite-storj", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
+		{"missing owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalGroup: group}, "local_owner is mandatory"},
+		{"missing group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, "local_group is mandatory"},
+		{"invalid owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
+		{"invalid group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
+		{"root owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
+		{"root group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
+		{"missing user", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
+		{"missing group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
 	}
 
 	for _, tc := range cases {
@@ -875,19 +865,16 @@ func TestValidateTargetSemantics(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{name: "duplicacy local disk okay", cfg: Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes"}},
-		{name: "duplicacy remote path okay", cfg: Config{Target: "offsite-usb", StorageType: "duplicacy", Location: "remote", Storage: "/volume1/duplicacy/duplicacy/homes"}},
-		{name: "duplicacy local storage okay", cfg: Config{Target: "onsite-rustfs", StorageType: "duplicacy", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
-		{name: "duplicacy remote storage okay", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
-		{name: "location required", cfg: Config{Target: "onsite-usb", StorageType: "duplicacy", Storage: "/volume2/backups/homes"}, want: "target.location must be set"},
-		{name: "filesystem type rejected", cfg: Config{Target: "onsite-usb", StorageType: "filesystem", Location: "local", Destination: "/volume2/backups"}, want: "no longer supported"},
-		{name: "duplicacy must not use destination", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Destination: "s3://bucket/homes"}, want: "must use storage"},
-		{name: "old object type rejected", cfg: Config{Target: "offsite-storj", StorageType: "object", Location: "remote", Destination: "s3://bucket"}, want: "no longer supported"},
-		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
-		{name: "owner and group together", cfg: Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
-		{name: "url backend disallows local accounts", cfg: Config{Target: "offsite-storj", StorageType: "duplicacy", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
-		{name: "local url backend disallows local accounts", cfg: Config{Target: "onsite-rustfs", StorageType: "duplicacy", Location: "local", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
-		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", StorageType: "duplicacy", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
+		{name: "local disk okay", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes"}},
+		{name: "remote path okay", cfg: Config{Target: "offsite-usb", Location: "remote", Storage: "/volume1/duplicacy/duplicacy/homes"}},
+		{name: "local object storage okay", cfg: Config{Target: "onsite-rustfs", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
+		{name: "remote object storage okay", cfg: Config{Target: "offsite-storj", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
+		{name: "location required", cfg: Config{Target: "onsite-usb", Storage: "/volume2/backups/homes"}, want: "target.location must be set"},
+		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
+		{name: "owner and group together", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
+		{name: "url backend disallows local accounts", cfg: Config{Target: "offsite-storj", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
+		{name: "local url backend disallows local accounts", cfg: Config{Target: "onsite-rustfs", Location: "local", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
+		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
 	}
 
 	for _, tc := range cases {

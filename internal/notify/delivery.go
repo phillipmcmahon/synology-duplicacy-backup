@@ -35,22 +35,21 @@ func SetTokenLoadersForTesting(webhookLoader, ntfyLoader func(string, string) (s
 }
 
 type Payload struct {
-	Version     string         `json:"version"`
-	EventID     string         `json:"event_id"`
-	Timestamp   string         `json:"timestamp"`
-	Host        string         `json:"host"`
-	Severity    string         `json:"severity"`
-	Category    string         `json:"category"`
-	Event       string         `json:"event"`
-	Summary     string         `json:"summary"`
-	Label       string         `json:"label"`
-	Target      string         `json:"target"`
-	StorageType string         `json:"storage_type,omitempty"`
-	Location    string         `json:"location,omitempty"`
-	Operation   string         `json:"operation,omitempty"`
-	Check       string         `json:"check,omitempty"`
-	Status      string         `json:"status"`
-	Details     map[string]any `json:"details,omitempty"`
+	Version   string         `json:"version"`
+	EventID   string         `json:"event_id"`
+	Timestamp string         `json:"timestamp"`
+	Host      string         `json:"host"`
+	Severity  string         `json:"severity"`
+	Category  string         `json:"category"`
+	Event     string         `json:"event"`
+	Summary   string         `json:"summary"`
+	Label     string         `json:"label"`
+	Target    string         `json:"target"`
+	Location  string         `json:"location,omitempty"`
+	Operation string         `json:"operation,omitempty"`
+	Check     string         `json:"check,omitempty"`
+	Status    string         `json:"status"`
+	Details   map[string]any `json:"details,omitempty"`
 }
 
 type DeliveryResult struct {
@@ -262,7 +261,7 @@ func loadOptionalNotificationToken(secretsFile, target string, loader func(strin
 	}
 }
 
-func BuildTestPayload(now time.Time, pid int, label, target, storageType, location, severity, summary, message string) *Payload {
+func BuildTestPayload(now time.Time, pid int, label, target, location, severity, summary, message string) *Payload {
 	severity = strings.TrimSpace(severity)
 	if severity == "" {
 		severity = "warning"
@@ -275,30 +274,29 @@ func BuildTestPayload(now time.Time, pid int, label, target, storageType, locati
 	if message == "" {
 		message = "This is a simulated operator-initiated test notification."
 	}
-	return NewPayload(now, pid, severity, "test", "notification_test", summary, label, target, storageType, location, "", "", "test", map[string]any{
+	return NewPayload(now, pid, severity, "test", "notification_test", summary, label, target, location, "", "", "test", map[string]any{
 		"message": message,
 	})
 }
 
-func NewPayload(now time.Time, pid int, severity, category, event, summary, label, target, storageType, location, operation, check, status string, details map[string]any) *Payload {
+func NewPayload(now time.Time, pid int, severity, category, event, summary, label, target, location, operation, check, status string, details map[string]any) *Payload {
 	now = now.UTC()
 	return &Payload{
-		Version:     "1",
-		EventID:     notificationEventID(now, pid, event, label, target),
-		Timestamp:   formatReportTime(now),
-		Host:        notificationHost(),
-		Severity:    severity,
-		Category:    category,
-		Event:       event,
-		Summary:     summary,
-		Label:       label,
-		Target:      target,
-		StorageType: storageType,
-		Location:    location,
-		Operation:   operation,
-		Check:       check,
-		Status:      status,
-		Details:     compactNotificationDetails(details),
+		Version:   "1",
+		EventID:   notificationEventID(now, pid, event, label, target),
+		Timestamp: formatReportTime(now),
+		Host:      notificationHost(),
+		Severity:  severity,
+		Category:  category,
+		Event:     event,
+		Summary:   summary,
+		Label:     label,
+		Target:    target,
+		Location:  location,
+		Operation: operation,
+		Check:     check,
+		Status:    status,
+		Details:   compactNotificationDetails(details),
 	}
 }
 

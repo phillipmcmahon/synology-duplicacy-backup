@@ -82,7 +82,6 @@ func (p *Presenter) headerData(plan *Plan, startedAt time.Time) presentation.Hea
 		Operation:     plan.OperationMode,
 		Label:         plan.BackupLabel,
 		Target:        plan.TargetName(),
-		StorageType:   plan.StorageType,
 		Location:      plan.Location,
 		DefaultNotice: plan.DefaultNotice,
 	}
@@ -98,10 +97,9 @@ func (p *Presenter) preRunFailureDataFromRequest(req *Request) presentation.PreR
 
 func (p *Presenter) preRunFailureDataFromPlan(plan *Plan) presentation.PreRunFailureData {
 	return presentation.PreRunFailureData{
-		Operation:   plan.OperationMode,
-		Label:       plan.BackupLabel,
-		Target:      plan.TargetName(),
-		StorageType: plan.StorageType,
-		Location:    plan.Location,
+		Operation: plan.OperationMode,
+		Label:     plan.BackupLabel,
+		Target:    plan.TargetName(),
+		Location:  plan.Location,
 	}
 }

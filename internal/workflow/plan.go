@@ -26,7 +26,6 @@ type Plan struct {
 	DefaultNotice string
 	ModeDisplay   string
 	Target        string
-	StorageType   string
 	Location      string
 	Notify        config.HealthNotifyConfig
 
@@ -77,10 +76,6 @@ type Plan struct {
 	FixPermsDirPermsCommand  string
 	FixPermsFilePermsCommand string
 	WorkDirRemoveCommand     string
-}
-
-func (p *Plan) UsesDuplicacyStorage() bool {
-	return p != nil && p.StorageType == storageTypeDuplicacy
 }
 
 func (p *Plan) IsRemoteLocation() bool {

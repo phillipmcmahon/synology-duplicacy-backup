@@ -196,9 +196,6 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if !plan.UsesDuplicacyStorage() {
-		t.Fatal("expected local duplicacy target to use duplicacy storage")
-	}
 	if plan.IsRemoteLocation() {
 		t.Fatal("expected local duplicacy target not to be reported as remote")
 	}
@@ -412,7 +409,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadConfig() error = %v", err)
 	}
-	if cfg.Storage != "/backups/homes" || cfg.Repository != "" || cfg.LocalOwner != owner || cfg.LocalGroup != group || len(cfg.PruneArgs) == 0 {
+	if cfg.Storage != "/backups/homes" || cfg.LocalOwner != owner || cfg.LocalGroup != group || len(cfg.PruneArgs) == 0 {
 		t.Fatalf("cfg = %+v", cfg)
 	}
 

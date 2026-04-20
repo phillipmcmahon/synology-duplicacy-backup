@@ -21,17 +21,15 @@ type HeaderData struct {
 	Operation     string
 	Label         string
 	Target        string
-	StorageType   string
 	Location      string
 	DefaultNotice string
 }
 
 type PreRunFailureData struct {
-	Operation   string
-	Label       string
-	Target      string
-	StorageType string
-	Location    string
+	Operation string
+	Label     string
+	Target    string
+	Location  string
 }
 
 func NewRuntimePresenter(now func() time.Time, log *logger.Logger, verbose bool) *RuntimePresenter {

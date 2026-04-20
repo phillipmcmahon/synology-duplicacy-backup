@@ -1,7 +1,7 @@
 // Package config handles TOML configuration file parsing and validation.
 // It supports the current single-file-per-label model with shared [common]
-// values plus [targets.<name>] sections, and retains older layouts as
-// fallback parsers where useful.
+// values plus [targets.<name>] sections, and rejects retired layouts with
+// migration-focused errors.
 package config
 
 import (
@@ -13,6 +13,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 )
 
@@ -36,12 +37,9 @@ var pruneKeepValuePattern = regexp.MustCompile(`^\d+:\d+$`)
 type Config struct {
 	Label                       string
 	Target                      string
-	StorageType                 string
 	Location                    string
 	SourcePath                  string
-	Destination                 string
 	Storage                     string
-	Repository                  string
 	Filter                      string
 	LocalOwner                  string
 	LocalGroup                  string
@@ -207,7 +205,6 @@ type tableHealthNotifyNtfy struct {
 // targets that opt into local account ownership / permission management.
 func NewDefaults() *Config {
 	return &Config{
-		StorageType:                 "duplicacy",
 		LogRetentionDays:            DefaultLogRetentionDays,
 		SafePruneMaxDeletePercent:   DefaultSafePruneMaxDeletePercent,
 		SafePruneMaxDeleteCount:     DefaultSafePruneMaxDeleteCount,
@@ -300,9 +297,9 @@ func LoadAppConfig(path string) (*AppConfig, error) {
 	return cfg, nil
 }
 
-// ResolveValues merges the decoded file into the existing key/value shape used
-// by Config.Apply. It supports the current [targets.<name>] layout, the
-// transitional single-target layout, and clear rejection of retired layouts.
+// ResolveValues merges the decoded file into the key/value shape used by
+// Config.Apply. It supports the current [targets.<name>] layout and the
+// transitional single-target layout, and rejects retired local/remote layouts.
 func (f *File) ResolveValues(targetName, path string) (map[string]string, error) {
 	if f.usesTargetsLayout() {
 		return f.resolveTargetsValues(targetName, path)
@@ -334,20 +331,22 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	}
 	values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 
-	if f.Common != nil {
-		mergeCommon(values, f.Common)
-	}
-
 	selected, target, err := f.selectTarget(targetName, path)
 	if err != nil {
 		return nil, err
+	}
+
+	if f.Common != nil {
+		if f.Common.Destination != nil {
+			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses common.destination; use targets.%s.storage instead", path, selected), "path", path, "target", selected)
+		}
+		mergeCommon(values, f.Common)
 	}
 
 	values["TARGET"] = selected
 	if target.Type != nil {
 		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses targets.%s.type; remove this key because storage is always delegated to Duplicacy", path, selected), "path", path, "target", selected)
 	}
-	values["STORAGE_TYPE"] = "duplicacy"
 	if target.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*target.Location)
 	}
@@ -439,7 +438,6 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if f.TargetMeta.Type != nil {
 		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses target.type; remove this key because storage is always delegated to Duplicacy", path), "path", path)
 	}
-	values["STORAGE_TYPE"] = "duplicacy"
 	if f.TargetMeta.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
 	}
@@ -533,9 +531,6 @@ func applyNotify(dst *HealthNotifyConfig, src *tableHealthNotify) {
 func mergeCommon(dst map[string]string, src *tableCommon) {
 	if src == nil {
 		return
-	}
-	if src.Destination != nil {
-		dst["DESTINATION"] = *src.Destination
 	}
 	if src.Filter != nil {
 		dst["FILTER"] = *src.Filter
@@ -635,23 +630,14 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["TARGET"]; ok {
 		c.Target = v
 	}
-	if v, ok := values["STORAGE_TYPE"]; ok {
-		c.StorageType = v
-	}
 	if v, ok := values["LOCATION"]; ok {
 		c.Location = v
 	}
 	if v, ok := values["SOURCE_PATH"]; ok {
 		c.SourcePath = v
 	}
-	if v, ok := values["DESTINATION"]; ok {
-		c.Destination = v
-	}
 	if v, ok := values["STORAGE"]; ok {
 		c.Storage = v
-	}
-	if v, ok := values["REPOSITORY"]; ok {
-		c.Repository = v
 	}
 	if v, ok := values["FILTER"]; ok {
 		c.Filter = v
@@ -767,9 +753,6 @@ func (c *Config) ValidateThresholds() error {
 	if c.Health.FreshnessFailHours > 0 && c.Health.FreshnessWarnHours > c.Health.FreshnessFailHours {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
-	if c.StorageType != "" && c.StorageType != "duplicacy" {
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
-	}
 	if c.Location != "" && c.Location != "local" && c.Location != "remote" {
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be either \"local\" or \"remote\" (was %q)", c.Location))
 	}
@@ -787,7 +770,7 @@ func (c *Config) ValidateOwnerGroup() error {
 	if !c.UsesLocalDiskStorage() {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it does not use path-based Duplicacy storage", c.Target))
 	}
-	if (c.Target != "" || c.StorageType != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
+	if (c.Target != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not allow local account ownership or permission management", c.Target))
 	}
 	if c.LocalOwner == "" {
@@ -817,12 +800,8 @@ func (c *Config) ValidateOwnerGroup() error {
 	return nil
 }
 
-func (c *Config) UsesDuplicacyStorage() bool {
-	return c != nil && (c.StorageType == "" || c.StorageType == "duplicacy")
-}
-
 func (c *Config) UsesLocalDiskStorage() bool {
-	return c != nil && c.UsesDuplicacyStorage() && isLocalDuplicacyStorage(c.Storage)
+	return c != nil && duplicacy.NewStorageSpec(c.Storage).IsLocalPath()
 }
 
 func (c *Config) IsRemoteLocation() bool {
@@ -877,14 +856,6 @@ func (c *Config) ValidateTargetSemantics() error {
 	switch {
 	case c.Location == "":
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
-	case c.StorageType == "filesystem" || c.StorageType == "local" || c.StorageType == "remote" || c.StorageType == "object":
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
-	case !c.UsesDuplicacyStorage():
-		return apperrors.NewConfigError("target-type", fmt.Errorf("target.type is no longer supported; remove it and use storage to describe the Duplicacy backend (was %q)", c.StorageType))
-	}
-
-	if c.Destination != "" {
-		return apperrors.NewConfigError("destination", fmt.Errorf("duplicacy target must use storage, not destination"))
 	}
 	if !c.AllowLocalAccounts {
 		if c.AllowLocalAccounts || c.LocalOwner != "" || c.LocalGroup != "" {
@@ -906,10 +877,6 @@ func (c *Config) ValidateTargetSemantics() error {
 	}
 
 	return c.ValidateOwnerGroup()
-}
-
-func isLocalDuplicacyStorage(storage string) bool {
-	return strings.TrimSpace(storage) != "" && !strings.Contains(storage, "://")
 }
 
 // BuildPruneArgs splits the prune string into individual arguments.

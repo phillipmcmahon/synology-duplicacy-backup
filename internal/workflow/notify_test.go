@@ -16,12 +16,11 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	rt := testRuntime()
 	plan := &Plan{DoBackup: true}
 	report := &RunReport{
-		Label:       "homes",
-		Target:      "offsite-storj",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationRemote,
-		Operation:   "Backup",
-		ExitCode:    1,
+		Label:     "homes",
+		Target:    "offsite-storj",
+		Location:  locationRemote,
+		Operation: "Backup",
+		ExitCode:  1,
 	}
 
 	payload := buildRuntimeNotificationPayload(rt, plan, report, errors.New("boom"), false, nil)
@@ -31,7 +30,7 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	if payload.Event != "backup_could_not_start" || payload.Severity != "critical" || payload.Operation != "backup" {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload.Label != "homes" || payload.Target != "offsite-storj" || payload.StorageType != storageTypeDuplicacy || payload.Location != locationRemote {
+	if payload.Label != "homes" || payload.Target != "offsite-storj" || payload.Location != locationRemote {
 		t.Fatalf("payload = %+v", payload)
 	}
 	if payload.Timestamp == "" || payload.EventID == "" || payload.Host == "" {
@@ -43,12 +42,11 @@ func TestBuildRuntimeNotificationPayload_LocalDuplicacyBackupCouldNotStart(t *te
 	rt := testRuntime()
 	plan := &Plan{DoBackup: true}
 	report := &RunReport{
-		Label:       "homes",
-		Target:      "onsite-rustfs",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationLocal,
-		Operation:   "Backup",
-		ExitCode:    1,
+		Label:     "homes",
+		Target:    "onsite-rustfs",
+		Location:  locationLocal,
+		Operation: "Backup",
+		ExitCode:  1,
 	}
 
 	payload := buildRuntimeNotificationPayload(rt, plan, report, errors.New("boom"), false, nil)
@@ -58,7 +56,7 @@ func TestBuildRuntimeNotificationPayload_LocalDuplicacyBackupCouldNotStart(t *te
 	if payload.Event != "backup_could_not_start" || payload.Severity != "critical" || payload.Operation != "backup" {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload.Label != "homes" || payload.Target != "onsite-rustfs" || payload.StorageType != storageTypeDuplicacy || payload.Location != locationLocal {
+	if payload.Label != "homes" || payload.Target != "onsite-rustfs" || payload.Location != locationLocal {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
@@ -69,7 +67,6 @@ func TestBuildRuntimeNotificationPayload_BackupFailed(t *testing.T) {
 	report := &RunReport{
 		Label:          "homes",
 		Target:         "onsite-usb",
-		StorageType:    storageTypeDuplicacy,
 		Location:       locationLocal,
 		ExitCode:       1,
 		DurationSecond: 38,
@@ -98,11 +95,10 @@ func TestBuildRuntimeNotificationPayload_SafePruneBlocked(t *testing.T) {
 		SafePruneMaxDeleteCount:   25,
 	}
 	report := &RunReport{
-		Label:       "homes",
-		Target:      "onsite-usb",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationLocal,
-		ExitCode:    1,
+		Label:    "homes",
+		Target:   "onsite-usb",
+		Location: locationLocal,
+		ExitCode: 1,
 		Phases: []PhaseReport{
 			{Name: "Prune", Result: "failed"},
 		},
@@ -133,11 +129,10 @@ func TestBuildRuntimeNotificationPayload_PruneFailed(t *testing.T) {
 	rt := testRuntime()
 	plan := &Plan{DoPrune: true}
 	report := &RunReport{
-		Label:       "homes",
-		Target:      "offsite-storj",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationRemote,
-		ExitCode:    1,
+		Label:    "homes",
+		Target:   "offsite-storj",
+		Location: locationRemote,
+		ExitCode: 1,
 		Phases: []PhaseReport{
 			{Name: "Prune", Result: "failed"},
 		},
@@ -155,12 +150,11 @@ func TestBuildRuntimeNotificationPayload_PruneFailed(t *testing.T) {
 func TestBuildHealthNotificationPayload_FreshnessFailed(t *testing.T) {
 	rt := testRuntime()
 	report := &HealthReport{
-		Status:      "unhealthy",
-		CheckType:   "status",
-		Label:       "homes",
-		Target:      "offsite-storj",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationRemote,
+		Status:    "unhealthy",
+		CheckType: "status",
+		Label:     "homes",
+		Target:    "offsite-storj",
+		Location:  locationRemote,
 		Issues: []HealthIssue{
 			{Severity: "error", Message: "72h old"},
 		},
@@ -188,7 +182,6 @@ func TestBuildHealthNotificationPayload_VerifyFailedRevisions(t *testing.T) {
 		CheckType:           "verify",
 		Label:               "homes",
 		Target:              "onsite-usb",
-		StorageType:         storageTypeDuplicacy,
 		Location:            locationLocal,
 		FailedRevisionCount: 2,
 		FailedRevisions:     []int{41, 39},
@@ -228,7 +221,6 @@ func TestBuildHealthNotificationPayload_VerifyMetadataWithoutFailedRevisions(t *
 		CheckType:          "verify",
 		Label:              "homes",
 		Target:             "offsite-storj",
-		StorageType:        storageTypeDuplicacy,
 		Location:           locationRemote,
 		FailureCode:        verifyFailureNoRevisionsFound,
 		FailureCodes:       []string{verifyFailureNoRevisionsFound},
@@ -259,12 +251,11 @@ func TestBuildHealthNotificationPayload_VerifyMetadataWithoutFailedRevisions(t *
 func TestBuildHealthNotificationPayload_Degraded(t *testing.T) {
 	rt := testRuntime()
 	report := &HealthReport{
-		Status:      "degraded",
-		CheckType:   "doctor",
-		Label:       "homes",
-		Target:      "onsite-usb",
-		StorageType: storageTypeDuplicacy,
-		Location:    locationLocal,
+		Status:    "degraded",
+		CheckType: "doctor",
+		Label:     "homes",
+		Target:    "onsite-usb",
+		Location:  locationLocal,
 		Issues: []HealthIssue{
 			{Severity: "warning", Message: "Last doctor run is overdue"},
 		},
@@ -297,7 +288,7 @@ func TestExecutorMaybeSendFailureNotification_BackupFailed(t *testing.T) {
 		rt:                rt,
 		log:               log,
 		plan:              &Plan{Notify: configHealthNotifyForTest(server.URL)},
-		report:            &RunReport{Label: "homes", Target: "onsite-usb", StorageType: storageTypeDuplicacy, Location: locationLocal, ExitCode: 1, Phases: []PhaseReport{{Name: "Backup", Result: "failed"}}},
+		report:            &RunReport{Label: "homes", Target: "onsite-usb", Location: locationLocal, ExitCode: 1, Phases: []PhaseReport{{Name: "Backup", Result: "failed"}}},
 		lastErr:           errors.New("boom"),
 		visibleRunStarted: true,
 	}
@@ -327,12 +318,11 @@ func TestExecutorMaybeSendFailureNotification_SafePruneBlocked(t *testing.T) {
 		log:  log,
 		plan: &Plan{Notify: configHealthNotifyForTest(server.URL), SafePruneMaxDeletePercent: 10, SafePruneMaxDeleteCount: 25},
 		report: &RunReport{
-			Label:       "homes",
-			Target:      "offsite-storj",
-			StorageType: storageTypeDuplicacy,
-			Location:    locationRemote,
-			ExitCode:    1,
-			Phases:      []PhaseReport{{Name: "Prune", Result: "failed"}},
+			Label:    "homes",
+			Target:   "offsite-storj",
+			Location: locationRemote,
+			ExitCode: 1,
+			Phases:   []PhaseReport{{Name: "Prune", Result: "failed"}},
 		},
 		lastErr:           NewMessageError("Refusing to continue because safe prune thresholds were exceeded"),
 		lastPrunePreview:  &duplicacy.PrunePreview{DeleteCount: 42, TotalRevisions: 100, DeletePercent: 42, PercentEnforced: true},

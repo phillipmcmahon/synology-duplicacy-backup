@@ -30,12 +30,11 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 	}
 
 	plan.Target = cfg.Target
-	plan.StorageType = cfg.StorageType
 	plan.Location = cfg.Location
 	plan.Notify = cfg.Health.Notify
 	plan.SecretsFile = secretsFileForPlan(plan)
 
-	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.Target, cfg.StorageType, cfg.Location, req)
+	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.Target, cfg.Location, req)
 	destinations, err := notify.ConfiguredDestinations(cfg.Health.Notify, req.NotifyProvider)
 	if err != nil {
 		report := newNotifyTestReport(req, cfg, payload, nil, "failed")
@@ -145,18 +144,17 @@ func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, er
 
 func newNotifyTestReport(req *Request, cfg *config.Config, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
 	return notify.NewTestReport(notify.TestReportInput{
-		Command:     "test",
-		Label:       cfg.Label,
-		Target:      cfg.Target,
-		StorageType: cfg.StorageType,
-		Location:    cfg.Location,
-		Provider:    req.NotifyProvider,
-		Severity:    payload.Severity,
-		Category:    payload.Category,
-		Event:       payload.Event,
-		Summary:     payload.Summary,
-		Message:     notifyDetailsMessage(payload.Details),
-		DryRun:      req.DryRun,
+		Command:  "test",
+		Label:    cfg.Label,
+		Target:   cfg.Target,
+		Location: cfg.Location,
+		Provider: req.NotifyProvider,
+		Severity: payload.Severity,
+		Category: payload.Category,
+		Event:    payload.Event,
+		Summary:  payload.Summary,
+		Message:  notifyDetailsMessage(payload.Details),
+		DryRun:   req.DryRun,
 	}, destinations, result)
 }
 

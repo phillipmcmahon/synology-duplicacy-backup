@@ -88,7 +88,6 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		h.presenter.PrintReport(report)
 		return report, healthpkg.ExitCode(report.Status)
 	}
-	report.StorageType = plan.StorageType
 	report.Location = plan.Location
 	h.presenter.PrintHeader(report)
 
