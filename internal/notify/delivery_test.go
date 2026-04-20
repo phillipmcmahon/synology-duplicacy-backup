@@ -126,6 +126,23 @@ func TestConfiguredDestinationsAndHasDestination(t *testing.T) {
 	}
 }
 
+func TestProviderRegistryBuildsDestinations(t *testing.T) {
+	cfg := config.HealthNotifyConfig{
+		WebhookURL: "https://example.invalid/hook",
+		Ntfy:       config.HealthNotifyNtfyConfig{Topic: "alerts"},
+	}
+	destinations := configuredProviderDestinations(cfg, notificationProviders)
+	if len(destinations) != 2 {
+		t.Fatalf("destinations = %+v", destinations)
+	}
+	if providerByName(ProviderWebhook) == nil || providerByName(ProviderNtfy) == nil {
+		t.Fatal("provider registry missing built-in provider")
+	}
+	if providerByName("discord") != nil {
+		t.Fatal("provider registry returned unexpected provider")
+	}
+}
+
 func TestSendConfiguredDetailedWrapperReportsProviderFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

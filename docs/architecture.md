@@ -97,6 +97,11 @@ Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
 planner uses that domain helper to decide whether storage keys should be
 loaded and whether `--fix-perms` is allowed.
 
+Notification destinations use the same pattern at a smaller scale:
+`internal/notify` owns provider lookup, destination construction, and delivery
+dispatch for webhook and ntfy. New providers should be added there first, then
+surfaced through config and command parsing.
+
 ## Execute
 
 `internal/workflow/executor.go` owns side effects.

@@ -74,8 +74,60 @@ const (
 	ProviderNtfy    = "ntfy"
 )
 
+type notificationProvider interface {
+	Name() string
+	Destination(config.HealthNotifyConfig) (string, bool)
+	Send(config.HealthNotifyConfig, string, string, *Payload, SendOptions) error
+}
+
+type webhookProvider struct{}
+type ntfyProvider struct{}
+
+var notificationProviders = []notificationProvider{
+	webhookProvider{},
+	ntfyProvider{},
+}
+
+func (webhookProvider) Name() string {
+	return ProviderWebhook
+}
+
+func (webhookProvider) Destination(cfg config.HealthNotifyConfig) (string, bool) {
+	destination := strings.TrimSpace(cfg.WebhookURL)
+	return destination, destination != ""
+}
+
+func (webhookProvider) Send(cfg config.HealthNotifyConfig, secretsFile, target string, payload *Payload, opts SendOptions) error {
+	return sendWebhookPayload(cfg, secretsFile, target, payload, opts)
+}
+
+func (ntfyProvider) Name() string {
+	return ProviderNtfy
+}
+
+func (ntfyProvider) Destination(cfg config.HealthNotifyConfig) (string, bool) {
+	topic := strings.TrimSpace(cfg.Ntfy.Topic)
+	if topic == "" {
+		return "", false
+	}
+	url := strings.TrimRight(strings.TrimSpace(cfg.Ntfy.URL), "/")
+	if url == "" {
+		url = "https://ntfy.sh"
+	}
+	return url + "/" + topic, true
+}
+
+func (ntfyProvider) Send(cfg config.HealthNotifyConfig, secretsFile, target string, payload *Payload, opts SendOptions) error {
+	return sendNtfyNotification(cfg, secretsFile, target, payload, opts)
+}
+
 func HasDestination(cfg config.HealthNotifyConfig) bool {
-	return strings.TrimSpace(cfg.WebhookURL) != "" || strings.TrimSpace(cfg.Ntfy.Topic) != ""
+	for _, provider := range notificationProviders {
+		if _, ok := provider.Destination(cfg); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func SendConfigured(cfg config.HealthNotifyConfig, secretsFile, target string, payload *Payload) error {
@@ -141,50 +193,50 @@ func ConfiguredDestinationsForScope(cfg config.HealthNotifyConfig, provider stri
 		scope = "selected notification scope"
 	}
 
-	webhookConfigured := strings.TrimSpace(cfg.WebhookURL) != ""
-	ntfyConfigured := strings.TrimSpace(cfg.Ntfy.Topic) != ""
-	ntfyURL := strings.TrimRight(strings.TrimSpace(cfg.Ntfy.URL), "/")
-	if ntfyURL == "" {
-		ntfyURL = "https://ntfy.sh"
-	}
-
-	switch provider {
-	case ProviderAll:
-		var destinations []Destination
-		if webhookConfigured {
-			destinations = append(destinations, Destination{Provider: ProviderWebhook, Destination: cfg.WebhookURL})
-		}
-		if ntfyConfigured {
-			destinations = append(destinations, Destination{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)})
-		}
+	if provider == ProviderAll {
+		destinations := configuredProviderDestinations(cfg, notificationProviders)
 		if len(destinations) == 0 {
 			return nil, fmt.Errorf("no notification destinations are configured for the %s", scope)
 		}
 		return destinations, nil
-	case ProviderWebhook:
-		if !webhookConfigured {
-			return nil, fmt.Errorf("no webhook notification destination is configured for the %s", scope)
-		}
-		return []Destination{{Provider: ProviderWebhook, Destination: cfg.WebhookURL}}, nil
-	case ProviderNtfy:
-		if !ntfyConfigured {
-			return nil, fmt.Errorf("no ntfy notification destination is configured for the %s", scope)
-		}
-		return []Destination{{Provider: ProviderNtfy, Destination: ntfyURL + "/" + strings.TrimSpace(cfg.Ntfy.Topic)}}, nil
-	default:
+	}
+
+	selected := providerByName(provider)
+	if selected == nil {
 		return nil, fmt.Errorf("unsupported notify provider %q", provider)
 	}
+	destination, ok := selected.Destination(cfg)
+	if !ok {
+		return nil, fmt.Errorf("no %s notification destination is configured for the %s", selected.Name(), scope)
+	}
+	return []Destination{{Provider: selected.Name(), Destination: destination}}, nil
 }
 
 func sendToProvider(provider string, cfg config.HealthNotifyConfig, secretsFile, target string, payload *Payload, opts SendOptions) error {
-	switch provider {
-	case ProviderWebhook:
-		return sendWebhookPayload(cfg, secretsFile, target, payload, opts)
-	case ProviderNtfy:
-		return sendNtfyNotification(cfg, secretsFile, target, payload, opts)
-	default:
+	selected := providerByName(provider)
+	if selected == nil {
 		return fmt.Errorf("unsupported notify provider %q", provider)
 	}
+	return selected.Send(cfg, secretsFile, target, payload, opts)
+}
+
+func configuredProviderDestinations(cfg config.HealthNotifyConfig, providers []notificationProvider) []Destination {
+	var destinations []Destination
+	for _, provider := range providers {
+		if destination, ok := provider.Destination(cfg); ok {
+			destinations = append(destinations, Destination{Provider: provider.Name(), Destination: destination})
+		}
+	}
+	return destinations
+}
+
+func providerByName(name string) notificationProvider {
+	for _, provider := range notificationProviders {
+		if provider.Name() == name {
+			return provider
+		}
+	}
+	return nil
 }
 
 func sendWebhookPayload(cfg config.HealthNotifyConfig, secretsFile, target string, payload *Payload, opts SendOptions) error {

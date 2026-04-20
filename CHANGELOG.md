@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Notification event IDs are now centralised**: supported runtime, health,
   test, and update event IDs live in `internal/notify` and request validation
   uses that single list.
+- **Notification providers now use a small provider abstraction**: destination
+  discovery and delivery dispatch are grouped by provider, making future
+  Discord, Slack, Node-RED, or Apprise integrations easier to add.
 - **Concise CLI help uses template replacement for the script name** to avoid
   brittle positional formatting as examples grow.
 
