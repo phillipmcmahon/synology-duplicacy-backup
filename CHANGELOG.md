@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v5.0.0] - 2026-04-20
+
 ### Added
 - **Dependabot now monitors routine dependency and toolchain updates**:
   weekly grouped PRs cover Go modules, GitHub Actions, and the release
@@ -32,6 +34,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The target `type` key has been retired**: every target delegates storage
   handling to Duplicacy, so operator config now uses only `location` and
   `storage` for target identity.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.8%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `83.8%`
+  - `internal/update`: `83.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `93.3%`
+  - `internal/config`: `88.1%`
 
 ## [v4.5.0] - 2026-04-18
 

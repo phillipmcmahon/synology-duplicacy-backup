@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v4.4.1`
+Current public release baseline: `v4.5.0`
 
-Active release-prep target: `v4.5.0`
+Active release-prep target: `v5.0.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -74,7 +74,7 @@ Additional v4.4.1 validation:
 - Concise update help now shows the default retention, version-selection, and
   attestation settings operators need before scheduling updates.
 
-Additional v4.5.x validation:
+Additional v5.0.0 validation:
 
 - Config semantics now use direct Duplicacy `storage` values and generic
   storage keys.
@@ -84,6 +84,10 @@ Additional v4.5.x validation:
 - Runtime failure, config command, summary, and notification tests confirm
   targets preserve `Location` in operator-facing output and webhook payloads
   without exposing a redundant target type.
+- Config tests confirm the retired `type`, `destination`, and `repository`
+  schema is rejected with migration-focused messages.
+- Required-value validation now points operators at modern `common.*` and
+  `targets.<name>.*` keys instead of the retired single-target key names.
 
 Additional #114, #115, and #128 validation:
 
