@@ -77,50 +77,54 @@ func updateRunState(meta Metadata, plan *Plan, report *RunReport, backupRevision
 		return nil
 	}
 
-	state := &RunState{}
-	if existing, err := loadRunState(meta, plan.BackupLabel, plan.TargetName()); err == nil {
-		state = existing
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	state.LastRunStartedAt = report.StartedAt
-	state.LastRunCompletedAt = report.CompletedAt
-	state.LastRunResult = report.Result
-	if report.Result == "success" {
-		state.LastSuccessfulRunAt = report.CompletedAt
-		state.LastSuccessfulOperation = report.Operation
-		state.LastFailureSummary = ""
-		if backupRevision > 0 {
-			state.LastSuccessfulBackupRevision = backupRevision
-			state.LastSuccessfulBackupAt = report.CompletedAt
+	return mutateRunState(meta, plan.BackupLabel, plan.TargetName(), func(state *RunState) error {
+		state.LastRunStartedAt = report.StartedAt
+		state.LastRunCompletedAt = report.CompletedAt
+		state.LastRunResult = report.Result
+		if report.Result == "success" {
+			state.LastSuccessfulRunAt = report.CompletedAt
+			state.LastSuccessfulOperation = report.Operation
+			state.LastFailureSummary = ""
+			if backupRevision > 0 {
+				state.LastSuccessfulBackupRevision = backupRevision
+				state.LastSuccessfulBackupAt = report.CompletedAt
+			}
+		} else if report.FailureMessage != "" {
+			state.LastFailureSummary = report.FailureMessage
 		}
-	} else if report.FailureMessage != "" {
-		state.LastFailureSummary = report.FailureMessage
-	}
-
-	return saveRunState(meta, plan.BackupLabel, plan.TargetName(), state)
+		return nil
+	})
 }
 
 func updateHealthCheckState(meta Metadata, label, target string, checkType string, checkedAt time.Time) error {
 	if label == "" {
 		return nil
 	}
+	return mutateRunState(meta, label, target, func(state *RunState) error {
+		formatted := formatReportTime(checkedAt)
+		switch checkType {
+		case "status":
+			state.LastStatusAt = formatted
+		case "doctor":
+			state.LastDoctorAt = formatted
+		case "verify":
+			state.LastVerifyAt = formatted
+		}
+		return nil
+	})
+}
+
+func mutateRunState(meta Metadata, label, target string, mutate func(*RunState) error) error {
 	state := &RunState{}
 	if existing, err := loadRunState(meta, label, target); err == nil {
 		state = existing
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-
-	formatted := formatReportTime(checkedAt)
-	switch checkType {
-	case "status":
-		state.LastStatusAt = formatted
-	case "doctor":
-		state.LastDoctorAt = formatted
-	case "verify":
-		state.LastVerifyAt = formatted
+	if mutate != nil {
+		if err := mutate(state); err != nil {
+			return err
+		}
 	}
 	return saveRunState(meta, label, target, state)
 }

@@ -64,3 +64,30 @@ func TestLoadRunState_DoesNotFallbackToLegacyLabelState(t *testing.T) {
 		t.Fatalf("error = %v, want IsNotExist", err)
 	}
 }
+
+func TestMutateRunStateLoadsMutatesAndSaves(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+
+	if err := mutateRunState(meta, "homes", "onsite-usb", func(state *RunState) error {
+		state.LastRunResult = "success"
+		state.LastSuccessfulOperation = "Backup"
+		return nil
+	}); err != nil {
+		t.Fatalf("mutateRunState() error = %v", err)
+	}
+	if err := mutateRunState(meta, "homes", "onsite-usb", func(state *RunState) error {
+		state.LastDoctorAt = "2026-04-20T12:00:00Z"
+		return nil
+	}); err != nil {
+		t.Fatalf("mutateRunState() second error = %v", err)
+	}
+
+	loaded, err := loadRunState(meta, "homes", "onsite-usb")
+	if err != nil {
+		t.Fatalf("loadRunState() error = %v", err)
+	}
+	if loaded.LastSuccessfulOperation != "Backup" || loaded.LastDoctorAt != "2026-04-20T12:00:00Z" {
+		t.Fatalf("loaded = %+v", loaded)
+	}
+}

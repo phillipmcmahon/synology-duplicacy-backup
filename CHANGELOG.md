@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Discord, Slack, Node-RED, or Apprise integrations easier to add.
 - **Concise CLI help uses template replacement for the script name** to avoid
   brittle positional formatting as examples grow.
+- **State persistence now uses one mutate-and-save helper** for runtime and
+  health recency updates, reducing drift between state write paths.
 
 ### Removed
 - **Redundant `storage_type` output has been removed**: runtime JSON summaries,

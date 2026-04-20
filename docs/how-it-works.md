@@ -403,6 +403,11 @@ That identity flows through:
 - machine JSON summaries: `label` plus `target`
 - repository-phase locking: one lock per label-target pair
 
+Runtime and health recency updates both use the same state mutation helper:
+load the existing `<label>.<target>.json` file when present, apply one focused
+mutation, then save the normalised state file back with the standard
+permissions.
+
 This lets one source label keep multiple independent destinations without
 forcing revision parity or schedule alignment between them.
 
