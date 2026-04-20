@@ -97,7 +97,7 @@ Storj-over-S3 secrets used Storj-specific key names. The current schema gives
 Duplicacy the complete storage value directly and stores backend keys under a
 generic `[targets.<name>.keys]` table.
 
-Before:
+Before, in `homes-backup.toml`:
 
 ```toml
 [targets.offsite-storj]
@@ -107,19 +107,23 @@ destination = "s3://EU@gateway.storjshare.io/bucket-id"
 repository = "homes"
 ```
 
+Before, in `homes-secrets.toml`:
+
 ```toml
 [targets.offsite-storj]
 storj_s3_id = "..."
 storj_s3_secret = "..."
 ```
 
-After:
+After, in `homes-backup.toml`:
 
 ```toml
 [targets.offsite-storj]
 location = "remote"
 storage = "s3://EU@gateway.storjshare.io/bucket-id/homes"
 ```
+
+After, in `homes-secrets.toml`:
 
 ```toml
 [targets.offsite-storj.keys]
