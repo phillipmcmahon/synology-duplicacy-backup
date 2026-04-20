@@ -66,7 +66,7 @@ func MaybeSendUpdateSuccessNotification(req *Request, meta Metadata, rt Runtime,
 func BuildUpdateTestNotificationPayload(req *Request, meta Metadata, rt Runtime) *notify.Payload {
 	event := strings.TrimSpace(req.NotifyEvent)
 	if event == "" {
-		event = "update_install_failed"
+		event = string(notify.EventUpdateInstallFailed)
 	}
 	status := updateStatusForEvent(event)
 	summary := strings.TrimSpace(req.NotifySummary)
@@ -123,27 +123,27 @@ func classifyUpdateFailureEvent(err error) string {
 	message := strings.ToLower(OperatorMessage(err))
 	switch {
 	case strings.Contains(message, "checksum"):
-		return "update_checksum_failed"
+		return string(notify.EventUpdateChecksumFailed)
 	case strings.Contains(message, "attestation"):
-		return "update_attestation_failed"
+		return string(notify.EventUpdateAttestationFailed)
 	case strings.Contains(message, "download"):
-		return "update_download_failed"
+		return string(notify.EventUpdateDownloadFailed)
 	case strings.Contains(message, "install") || strings.Contains(message, "extract") || strings.Contains(message, "staging"):
-		return "update_install_failed"
+		return string(notify.EventUpdateInstallFailed)
 	default:
-		return "update_check_failed"
+		return string(notify.EventUpdateCheckFailed)
 	}
 }
 
 func updateFailureSummary(err error) string {
 	switch classifyUpdateFailureEvent(err) {
-	case "update_download_failed":
+	case string(notify.EventUpdateDownloadFailed):
 		return "Duplicacy Backup update download failed"
-	case "update_checksum_failed":
+	case string(notify.EventUpdateChecksumFailed):
 		return "Duplicacy Backup update checksum verification failed"
-	case "update_attestation_failed":
+	case string(notify.EventUpdateAttestationFailed):
 		return "Duplicacy Backup update attestation verification failed"
-	case "update_install_failed":
+	case string(notify.EventUpdateInstallFailed):
 		return "Duplicacy Backup update install failed"
 	default:
 		return "Duplicacy Backup update check failed"
@@ -153,11 +153,11 @@ func updateFailureSummary(err error) string {
 func classifyUpdateSuccessStatus(updateStatus UpdateStatus) (string, string, string) {
 	switch updateStatus {
 	case UpdateStatusInstalled:
-		return "succeeded", "update_install_succeeded", "Duplicacy Backup update installed"
+		return "succeeded", string(notify.EventUpdateInstallSucceeded), "Duplicacy Backup update installed"
 	case UpdateStatusCurrent:
-		return "current", "update_already_current", "Duplicacy Backup is already up to date"
+		return "current", string(notify.EventUpdateAlreadyCurrent), "Duplicacy Backup is already up to date"
 	case UpdateStatusReinstallRequested:
-		return "reinstall-requested", "update_reinstall_requested", "Duplicacy Backup update reinstall requested"
+		return "reinstall-requested", string(notify.EventUpdateReinstallRequested), "Duplicacy Backup update reinstall requested"
 	default:
 		return "", "", ""
 	}
@@ -165,11 +165,11 @@ func classifyUpdateSuccessStatus(updateStatus UpdateStatus) (string, string, str
 
 func updateStatusForEvent(event string) string {
 	switch event {
-	case "update_install_succeeded":
+	case string(notify.EventUpdateInstallSucceeded):
 		return "succeeded"
-	case "update_already_current":
+	case string(notify.EventUpdateAlreadyCurrent):
 		return "current"
-	case "update_reinstall_requested":
+	case string(notify.EventUpdateReinstallRequested):
 		return "reinstall-requested"
 	default:
 		return "failed"

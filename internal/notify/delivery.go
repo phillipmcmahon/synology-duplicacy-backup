@@ -274,7 +274,7 @@ func BuildTestPayload(now time.Time, pid int, label, target, location, severity,
 	if message == "" {
 		message = "This is a simulated operator-initiated test notification."
 	}
-	return NewPayload(now, pid, severity, "test", "notification_test", summary, label, target, location, "", "", "test", map[string]any{
+	return NewPayload(now, pid, severity, "test", string(EventNotificationTest), summary, label, target, location, "", "", "test", map[string]any{
 		"message": message,
 	})
 }

@@ -69,7 +69,7 @@ func NewFailureTestReport(input TestReportInput) *TestReport {
 		Provider: fallbackValue(input.Provider, ProviderAll),
 		Severity: fallbackValue(input.Severity, "warning"),
 		Category: fallbackValue(input.Category, "test"),
-		Event:    fallbackValue(input.Event, "notification_test"),
+		Event:    fallbackValue(input.Event, string(EventNotificationTest)),
 		Summary:  fallbackValue(input.Summary, "Notification test failed"),
 		Message:  input.Message,
 		DryRun:   input.DryRun,

@@ -86,6 +86,8 @@ Additional unreleased validation:
   retired `storage_type` field is no longer emitted.
 - Plan section views have a focused regression test to ensure request, config,
   path, and display data remain available as distinct reviewable groups.
+- Notification event IDs have a focused contract test so request validation and
+  payload builders share the same supported event list.
 - Planner tests confirm URL-like storage values load storage keys when the
   selected backend needs them while remaining operationally local or remote
   according to `location`.

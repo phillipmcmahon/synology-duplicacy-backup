@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	updatepkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
@@ -9,11 +10,11 @@ import (
 )
 
 func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
-       %s config <validate|explain|paths> [OPTIONS] <source>
-       %s notify <test> [OPTIONS] <source|update>
-       %s update [OPTIONS]
-       %s health <status|doctor|verify> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
+       {{script}} config <validate|explain|paths> [OPTIONS] <source>
+       {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} update [OPTIONS]
+       {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
 Operations:
     --backup
@@ -37,31 +38,21 @@ Common modifiers:
     --help-full
 
 Examples:
-    %s --target onsite-usb --backup homes
-    %s --target onsite-usb --backup --prune homes
-    %s --target onsite-usb --json-summary --dry-run --backup homes
-    %s --target offsite-storj --backup homes
-    %s config validate --target onsite-usb homes
-    %s notify test --target onsite-usb homes
-    %s update --check-only
-    %s health status --target onsite-usb homes
+    {{script}} --target onsite-usb --backup homes
+    {{script}} --target onsite-usb --backup --prune homes
+    {{script}} --target onsite-usb --json-summary --dry-run --backup homes
+    {{script}} --target offsite-storj --backup homes
+    {{script}} config validate --target onsite-usb homes
+    {{script}} notify test --target onsite-usb homes
+    {{script}} update --check-only
+    {{script}} health status --target onsite-usb homes
 
 Use --help-full for the detailed reference.
-`,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-	)
+`)
+}
+
+func scriptTemplate(meta workflow.Metadata, template string) string {
+	return strings.NewReplacer("{{script}}", meta.ScriptName).Replace(template)
 }
 
 func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {

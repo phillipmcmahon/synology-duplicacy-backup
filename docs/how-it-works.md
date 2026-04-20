@@ -894,6 +894,10 @@ If you want to change a specific behaviour, start here:
 - [`internal/command/usage.go`](../internal/command/usage.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
 
+`internal/command/request.go` keeps source-label commands on a shared parser
+path. Command-specific flags are handled as small extras around common target,
+config, secrets, dry-run, verbose, and JSON-summary flags.
+
 ### Path derivation and execution contract
 
 - [`internal/workflow/planner.go`](../internal/workflow/planner.go)

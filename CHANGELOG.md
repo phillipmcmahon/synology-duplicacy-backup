@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and display data can be inspected as distinct groups, and planner config
   application now flows through focused helper methods rather than a long
   assignment block.
+- **Source-label command parsing is now shared**: runtime, config, health, and
+  notify parsing all use one common source/flag loop with command-specific
+  extras.
+- **Notification event IDs are now centralised**: supported runtime, health,
+  test, and update event IDs live in `internal/notify` and request validation
+  uses that single list.
+- **Concise CLI help uses template replacement for the script name** to avoid
+  brittle positional formatting as examples grow.
 
 ### Removed
 - **Redundant `storage_type` output has been removed**: runtime JSON summaries,

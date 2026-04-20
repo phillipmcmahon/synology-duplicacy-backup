@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -158,48 +159,34 @@ func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 
 func parseFlags(args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
-	var positional []string
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
+	err := parseSourceFlags(args, req, sharedFlagOptions{
+		target:      true,
+		dryRun:      true,
+		verbose:     true,
+		jsonSummary: true,
+		configDir:   true,
+		secretsDir:  true,
+	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+		switch args[*index] {
 		case "--backup":
 			req.DoBackup = true
+			return true, nil
 		case "--prune":
 			req.DoPrune = true
+			return true, nil
 		case "--cleanup-storage":
 			req.DoCleanupStore = true
+			return true, nil
 		case "--fix-perms":
 			req.FixPerms = true
+			return true, nil
 		case "--force-prune":
 			req.ForcePrune = true
-		default:
-			handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
-				target:      true,
-				dryRun:      true,
-				verbose:     true,
-				jsonSummary: true,
-				configDir:   true,
-				secretsDir:  true,
-			})
-			if err != nil {
-				return nil, err
-			}
-			if handled {
-				continue
-			}
-			if isOption(args[i]) {
-				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
-			}
-			positional = append(positional, args[i])
+			return true, nil
 		}
-	}
-
-	source, err := parseSourcePositional(positional)
-	if err != nil {
-		return nil, err
-	}
-	req.Source = source
-	return req, nil
+		return false, nil
+	})
+	return req, err
 }
 
 func parseNotifyFlags(args []string) (*workflow.Request, error) {
@@ -207,66 +194,55 @@ func parseNotifyFlags(args []string) (*workflow.Request, error) {
 		NotifyProvider: "all",
 		NotifySeverity: "warning",
 	}
-	var positional []string
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
+	err := parseSourceFlags(args, req, sharedFlagOptions{
+		target:      true,
+		dryRun:      true,
+		jsonSummary: true,
+		configDir:   true,
+		secretsDir:  true,
+	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+		switch args[*index] {
 		case "--provider":
-			if i+1 >= len(args) {
-				return nil, workflow.NewUsageRequestError("--provider requires a value")
-			}
-			i++
-			req.NotifyProvider = args[i]
-		case "--severity":
-			if i+1 >= len(args) {
-				return nil, workflow.NewUsageRequestError("--severity requires a value")
-			}
-			i++
-			req.NotifySeverity = args[i]
-		case "--summary":
-			if i+1 >= len(args) {
-				return nil, workflow.NewUsageRequestError("--summary requires a value")
-			}
-			i++
-			req.NotifySummary = args[i]
-		case "--message":
-			if i+1 >= len(args) {
-				return nil, workflow.NewUsageRequestError("--message requires a value")
-			}
-			i++
-			req.NotifyMessage = args[i]
-		case "--event":
-			if i+1 >= len(args) {
-				return nil, workflow.NewUsageRequestError("--event requires a value")
-			}
-			i++
-			req.NotifyEvent = args[i]
-		default:
-			handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
-				target:      true,
-				dryRun:      true,
-				jsonSummary: true,
-				configDir:   true,
-				secretsDir:  true,
-			})
+			value, err := consumeRequiredValue(args, index, "--provider")
 			if err != nil {
-				return nil, err
+				return false, err
 			}
-			if handled {
-				continue
+			req.NotifyProvider = value
+			return true, nil
+		case "--severity":
+			value, err := consumeRequiredValue(args, index, "--severity")
+			if err != nil {
+				return false, err
 			}
-			if isOption(args[i]) {
-				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+			req.NotifySeverity = value
+			return true, nil
+		case "--summary":
+			value, err := consumeRequiredValue(args, index, "--summary")
+			if err != nil {
+				return false, err
 			}
-			positional = append(positional, args[i])
+			req.NotifySummary = value
+			return true, nil
+		case "--message":
+			value, err := consumeRequiredValue(args, index, "--message")
+			if err != nil {
+				return false, err
+			}
+			req.NotifyMessage = value
+			return true, nil
+		case "--event":
+			value, err := consumeRequiredValue(args, index, "--event")
+			if err != nil {
+				return false, err
+			}
+			req.NotifyEvent = value
+			return true, nil
 		}
-	}
-
-	source, err := parseSourcePositional(positional)
+		return false, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	req.Source = source
 	if err := validateNotifyProvider(req.NotifyProvider); err != nil {
 		return nil, err
 	}
@@ -281,65 +257,66 @@ func parseNotifyFlags(args []string) (*workflow.Request, error) {
 
 func parseConfigFlags(args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
-	var positional []string
-
-	for i := 0; i < len(args); i++ {
-		handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
-			target:     true,
-			verbose:    true,
-			configDir:  true,
-			secretsDir: true,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if handled {
-			continue
-		}
-		if isOption(args[i]) {
-			return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
-		}
-		positional = append(positional, args[i])
-	}
-
-	source, err := parseSourcePositional(positional)
-	if err != nil {
-		return nil, err
-	}
-	req.Source = source
-	return req, nil
+	return req, parseSourceFlags(args, req, sharedFlagOptions{
+		target:     true,
+		verbose:    true,
+		configDir:  true,
+		secretsDir: true,
+	}, nil)
 }
 
 func parseHealthFlags(args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
+	return req, parseSourceFlags(args, req, sharedFlagOptions{
+		target:      true,
+		verbose:     true,
+		jsonSummary: true,
+		configDir:   true,
+		secretsDir:  true,
+	}, nil)
+}
+
+type extraFlagParser func(args []string, index *int, req *workflow.Request) (bool, error)
+
+func parseSourceFlags(args []string, req *workflow.Request, opts sharedFlagOptions, extra extraFlagParser) error {
 	var positional []string
 
 	for i := 0; i < len(args); i++ {
+		if extra != nil {
+			handled, err := extra(args, &i, req)
+			if err != nil {
+				return err
+			}
+			if handled {
+				continue
+			}
+		}
 		handled, err := consumeSharedFlag(args, &i, req, sharedFlagOptions{
-			target:      true,
-			verbose:     true,
-			jsonSummary: true,
-			configDir:   true,
-			secretsDir:  true,
+			target:      opts.target,
+			dryRun:      opts.dryRun,
+			verbose:     opts.verbose,
+			jsonSummary: opts.jsonSummary,
+			configDir:   opts.configDir,
+			secretsDir:  opts.secretsDir,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if handled {
 			continue
 		}
 		if isOption(args[i]) {
-			return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+			return workflow.NewUsageRequestError("unknown option %s", args[i])
 		}
 		positional = append(positional, args[i])
 	}
 
 	source, err := parseSourcePositional(positional)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Source = source
-	return req, nil
+	return nil
 }
 
 func parseUpdateFlags(args []string) (*workflow.Request, error) {
@@ -555,12 +532,10 @@ func validateNotifySeverity(severity string) error {
 }
 
 func validateNotifyEvent(event string) error {
-	switch strings.TrimSpace(event) {
-	case "", "update_check_failed", "update_download_failed", "update_checksum_failed", "update_attestation_failed", "update_install_failed", "update_install_succeeded", "update_already_current", "update_reinstall_requested":
+	if notify.IsKnownEvent(event) {
 		return nil
-	default:
-		return workflow.NewUsageRequestError("unsupported notify event %q", event)
 	}
+	return workflow.NewUsageRequestError("unsupported notify event %q", event)
 }
 
 func isOption(arg string) bool {
