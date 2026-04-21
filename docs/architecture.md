@@ -39,8 +39,8 @@ It is responsible for:
 
 - parsing flags and the source label
 - handling `--help` and `--version`
-- deriving requested operation flags
-- validating flag combinations
+- deriving requested runtime commands
+- validating command-specific modifiers
 - validating the backup label
 
 `internal/notify` owns notification payload types, provider delivery, and
@@ -95,7 +95,7 @@ locks, create work directories, create snapshots, or change permissions.
 
 Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
 planner uses that domain helper to decide whether storage keys should be
-loaded and whether `--fix-perms` is allowed.
+loaded and whether `fix-perms` is allowed.
 
 Notification destinations use the same pattern at a smaller scale:
 `internal/notify` owns provider lookup, destination construction, and delivery

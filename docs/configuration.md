@@ -82,7 +82,7 @@ Operational rules:
 - every target passes `storage` directly to Duplicacy
 - do not split storage into `destination` and `repository`; include the full backend path in `storage`
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
-- `allow_local_accounts`, `local_owner`, `local_group`, and `--fix-perms` are only for path-based Duplicacy storage targets
+- `allow_local_accounts`, `local_owner`, `local_group`, and `fix-perms` are only for path-based Duplicacy storage targets
 
 Breaking change note:
 
@@ -150,8 +150,8 @@ s3_secret = "..."
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
 | `targets.<name>.allow_local_accounts` | Needed for path-based owner/group operations | Explicitly allows local owner/group management |
-| `targets.<name>.local_owner` | Needed for path-based `--fix-perms` | Non-root owner to apply |
-| `targets.<name>.local_group` | Needed for path-based `--fix-perms` | Non-root group to apply |
+| `targets.<name>.local_owner` | Needed for path-based `fix-perms` | Non-root owner to apply |
+| `targets.<name>.local_group` | Needed for path-based `fix-perms` | Non-root group to apply |
 
 ## Health Policy
 
@@ -460,7 +460,7 @@ They only need a matching secrets file if a notifying target uses
 | Max delete percent | 10% | Maximum percentage of revisions a prune may delete |
 | Min total for % check | 20 | Percentage threshold only applies at or above this total revision count |
 
-Use `--force-prune` to override threshold enforcement.
+Use `prune --force` to override threshold enforcement.
 
 ## Health State
 
@@ -483,11 +483,11 @@ freshness signal.
 | `btrfs` binary check | backup |
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
-| target local-account consistency | `config validate`, path-based `--fix-perms` |
+| target local-account consistency | `config validate`, path-based `fix-perms` |
 | Btrfs `source_path` check | `config validate`, backup |
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
-| `local_owner` / `local_group` validation | path-based `--fix-perms` |
+| `local_owner` / `local_group` validation | path-based `fix-perms` |
 | target secrets loading | known Duplicacy storage backends that require `[targets.<name>.keys]` |
 
 ## Output Model

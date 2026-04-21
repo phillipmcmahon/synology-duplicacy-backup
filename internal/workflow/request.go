@@ -66,19 +66,3 @@ func (r *Request) Target() string {
 func (r *Request) DeriveModes() {
 	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune && !r.DoCleanupStore
 }
-
-func (r *Request) ValidateCombos() error {
-	if r.ForcePrune && !r.DoPrune {
-		return NewRequestError("--force-prune requires --prune")
-	}
-	if !r.DoBackup && !r.DoPrune && !r.DoCleanupStore && !r.FixPerms {
-		return NewUsageRequestError("at least one operation is required: specify --backup, --prune, --cleanup-storage, or --fix-perms")
-	}
-	if r.RequestedTarget == "" {
-		return NewRequestError("--target is required")
-	}
-	if err := ValidateTargetName(r.RequestedTarget); err != nil {
-		return err
-	}
-	return nil
-}

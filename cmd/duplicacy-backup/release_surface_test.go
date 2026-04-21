@@ -183,8 +183,8 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 	root := repoRoot(t)
 	expectations := map[string][]string{
 		filepath.Join(root, "README.md"): {
-			"--cleanup-storage",
-			"--fix-perms",
+			"cleanup-storage",
+			"fix-perms",
 			"--json-summary",
 			"config validate",
 			"notify test",
@@ -199,8 +199,8 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"S3-compatible",
 		},
 		filepath.Join(root, "docs", "cli.md"): {
-			"--cleanup-storage",
-			"--fix-perms",
+			"cleanup-storage",
+			"fix-perms",
 			"--json-summary",
 			"config validate",
 			"notify test",
@@ -288,6 +288,10 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 	usage := command.FullUsageText(meta, rt)
 
 	expected := []string{
+		"backup [OPTIONS] <source>",
+		"prune [OPTIONS] <source>",
+		"cleanup-storage [OPTIONS] <source>",
+		"fix-perms [OPTIONS] <source>",
 		"config <validate|explain|paths>",
 		"notify <test> [OPTIONS] <source|update>",
 		"restore <plan|prepare> [OPTIONS] <source>",
@@ -296,6 +300,10 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"--target <name>          Select the named target config where the command uses a label target",
 		"--json-summary           Write a machine-readable run summary to stdout",
 		"health status            Fast read-only health summary for operators and schedulers",
+		"backup                  Run a backup for the selected label and target",
+		"prune                   Run threshold-guarded prune for the selected label and target",
+		"cleanup-storage         Request storage maintenance:",
+		"fix-perms               Normalise path-based storage ownership and permissions",
 		"notify test             Send a clearly marked simulated notification through the configured providers",
 		"notify test update      Send a simulated update notification through the global update config",
 		"restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore",
@@ -306,8 +314,6 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"health_webhook_bearer_token",
 		"health_ntfy_token",
 		"Use [targets.<name>.keys] tables with Duplicacy key names such as:",
-		"--cleanup-storage        Request storage maintenance:",
-		"--fix-perms              Normalise path-based storage ownership and permissions",
 	}
 	for _, token := range expected {
 		if !strings.Contains(usage, token) {

@@ -268,14 +268,14 @@ It does not answer:
 
 The `Request` type contains user intent only:
 
-- requested operations such as backup, prune, and storage cleanup
-- `--fix-perms`
-- `--force-prune` as a prune-threshold override
+- selected runtime command such as `backup`, `prune`, `cleanup-storage`, or
+  `fix-perms`
+- `--force` as a prune-threshold override for `prune`
 - `--target <name>` as the explicit destination selector
 - `--dry-run`
 - config/secrets directory overrides
 - source label
-- command selectors for `config`, `notify`, `update`, and `health`
+- command selectors for `config`, `notify`, `restore`, `update`, and `health`
 
 It also derives convenience booleans such as:
 
@@ -284,22 +284,17 @@ It also derives convenience booleans such as:
 - `DoCleanupStore`
 - `FixPermsOnly`
 
-Those operation flags can be combined. The CLI order does not matter; runtime
-execution order is fixed as:
+Runtime operations are first-class CLI commands rather than combinable
+operation flags. Internally the request still uses focused booleans so the
+executor can reuse the same phase implementation:
 
-1. backup
-2. prune
-3. cleanup-storage
-4. fix-perms
-
-`--cleanup-storage` requests `duplicacy prune -exhaustive -exclusive` as a
-standalone maintenance step. `--force-prune` only affects prune threshold
+`cleanup-storage` requests `duplicacy prune -exhaustive -exclusive` as a
+standalone maintenance step. `prune --force` only affects prune threshold
 enforcement, so these are all valid and distinct intents:
 
 - safe prune
 - storage cleanup
 - forced prune
-- safe prune + storage cleanup
 - forced prune + storage cleanup
 
 Those are still request-level concepts because they describe intent, not machine state.
@@ -532,7 +527,7 @@ It:
 - validates the target model:
   - storage value
   - deployment location
-- validates owner/group if `--fix-perms` is active
+- validates owner/group if `fix-perms` is active
 
 Self-update notifications intentionally do not flow through `loadConfig`,
 because update is application maintenance rather than a label/target
@@ -787,10 +782,8 @@ This is a good boundary because threshold enforcement is application policy, not
 
 ## Fix-Perms Flow
 
-When `--fix-perms` is active, the runtime path depends on mode:
+When `fix-perms` is active, the runtime path is a standalone permission pass:
 
-- backup + fix-perms
-- prune + fix-perms
 - fix-perms only
 
 The actual permission application is delegated to:

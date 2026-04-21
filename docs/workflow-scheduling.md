@@ -19,11 +19,11 @@ understand and troubleshoot when they are separated by purpose.
 
 Recommended approach:
 
-- schedule `--backup` as its own task
-- schedule `--prune` as its own task
+- schedule `backup` as its own task
+- schedule `prune` as its own task
 - schedule health commands separately from backup jobs
-- schedule `--fix-perms` only for path-based Duplicacy storage targets that need it
-- treat `--cleanup-storage` as manual or exceptional maintenance
+- schedule `fix-perms` only for path-based Duplicacy storage targets that need it
+- treat `cleanup-storage` as manual or exceptional maintenance
 
 Why this works well:
 
@@ -151,7 +151,7 @@ or MinIO.
 
 ### Cleanup Storage
 
-Do not make `--cleanup-storage` part of the normal recurring schedule.
+Do not make `cleanup-storage` part of the normal recurring schedule.
 
 Treat it as:
 
@@ -161,7 +161,7 @@ Treat it as:
 
 ### Forced Prune
 
-Do not schedule `--force-prune` routinely.
+Do not schedule `prune --force` routinely.
 
 Use it only as an explicit operator decision when safe-prune thresholds are
 intentionally being overridden.
@@ -179,9 +179,9 @@ For each task:
 Example commands:
 
 ```bash
-/usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
-/usr/local/bin/duplicacy-backup --target offsite-storj --backup homes
-/usr/local/bin/duplicacy-backup --target onsite-usb --prune homes
+/usr/local/bin/duplicacy-backup backup --target onsite-usb homes
+/usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+/usr/local/bin/duplicacy-backup prune --target onsite-usb homes
 /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
 /usr/local/bin/duplicacy-backup health verify --json-summary --target offsite-storj homes
 ```
@@ -241,21 +241,21 @@ This is a practical scheduling model for:
 
 | Task Name | Frequency | Time | Command |
 |---|---|---|---|
-| `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `/usr/local/bin/duplicacy-backup --target onsite-usb --backup homes` |
-| `Homes Backup Offsite` | Daily | `02:30` | `/usr/local/bin/duplicacy-backup --target offsite-storj --backup homes` |
-| `Homes Prune Onsite` | Daily | `04:30` | `/usr/local/bin/duplicacy-backup --target onsite-usb --prune homes` |
-| `Homes Prune Offsite` | Weekly | `Tuesday, Friday` at `04:45` | `/usr/local/bin/duplicacy-backup --target offsite-storj --prune homes` |
-| `Homes Fix Perms Onsite` | Weekly | `Sunday` at `05:00` | `/usr/local/bin/duplicacy-backup --target onsite-usb --fix-perms homes` |
+| `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb homes` |
+| `Homes Backup Offsite` | Daily | `02:30` | `/usr/local/bin/duplicacy-backup backup --target offsite-storj homes` |
+| `Homes Prune Onsite` | Daily | `04:30` | `/usr/local/bin/duplicacy-backup prune --target onsite-usb homes` |
+| `Homes Prune Offsite` | Weekly | `Tuesday, Friday` at `04:45` | `/usr/local/bin/duplicacy-backup prune --target offsite-storj homes` |
+| `Homes Fix Perms Onsite` | Weekly | `Sunday` at `05:00` | `/usr/local/bin/duplicacy-backup fix-perms --target onsite-usb homes` |
 | `Homes Health Status Onsite` | Daily | `08:00` | `/usr/local/bin/duplicacy-backup health status --target onsite-usb homes` |
 | `Homes Health Status Offsite` | Daily | `08:10` | `/usr/local/bin/duplicacy-backup health status --target offsite-storj homes` |
 | `Homes Health Doctor Onsite` | Weekly | `Sunday` at `08:30` | `/usr/local/bin/duplicacy-backup health doctor --target onsite-usb homes` |
 | `Homes Health Doctor Offsite` | Weekly | `Sunday` at `08:45` | `/usr/local/bin/duplicacy-backup health doctor --target offsite-storj homes` |
 | `Homes Health Verify Onsite` | Monthly | `First Sunday` at `09:00` | `/usr/local/bin/duplicacy-backup health verify --target onsite-usb homes` |
 | `Homes Health Verify Offsite` | Monthly | `First Sunday` at `10:00` | `/usr/local/bin/duplicacy-backup health verify --target offsite-storj homes` |
-| `Iso Backup Onsite` | Weekly | `Saturday` at `01:30` | `/usr/local/bin/duplicacy-backup --target onsite-usb --backup iso` |
-| `Plexaudio Backup Onsite` | Daily | `03:30` | `/usr/local/bin/duplicacy-backup --target onsite-usb --backup plexaudio` |
-| `Plexaudio Backup Offsite` | Daily | `05:30` | `/usr/local/bin/duplicacy-backup --target offsite-storj --backup plexaudio` |
-| `Plexvideo Backup Onsite` | Daily | `06:30` | `/usr/local/bin/duplicacy-backup --target onsite-usb --backup plexvideo` |
+| `Iso Backup Onsite` | Weekly | `Saturday` at `01:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb iso` |
+| `Plexaudio Backup Onsite` | Daily | `03:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb plexaudio` |
+| `Plexaudio Backup Offsite` | Daily | `05:30` | `/usr/local/bin/duplicacy-backup backup --target offsite-storj plexaudio` |
+| `Plexvideo Backup Onsite` | Daily | `06:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb plexvideo` |
 
 ## Operational Notes
 

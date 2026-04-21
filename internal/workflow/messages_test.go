@@ -33,7 +33,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "prune revision count fallback cause",
 			err:  apperrors.NewPruneError("revision-count", errors.New("failed to list revisions for percentage calculation (fail-closed)")),
-			want: "failed to list revisions for percentage calculation (fail-closed); use --force-prune to override percentage-threshold enforcement if needed",
+			want: "failed to list revisions for percentage calculation (fail-closed); use prune --force to override percentage-threshold enforcement if needed",
 		},
 		{
 			name: "message error",

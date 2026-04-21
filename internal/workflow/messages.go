@@ -138,7 +138,7 @@ func operatorPruneMessage(err *apperrors.PruneError) string {
 		)
 	case "revision-count":
 		if err.Cause != nil {
-			return withHint(err.Cause.Error(), "use --force-prune to override percentage-threshold enforcement if needed")
+			return withHint(err.Cause.Error(), "use prune --force to override percentage-threshold enforcement if needed")
 		}
 		return err.Error()
 	default:

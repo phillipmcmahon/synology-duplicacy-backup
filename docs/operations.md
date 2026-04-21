@@ -218,32 +218,32 @@ example across multiple labels and targets, see
 5. Use a command such as:
 
 ```bash
-/usr/local/bin/duplicacy-backup --target onsite-usb --backup homes
+/usr/local/bin/duplicacy-backup backup --target onsite-usb homes
 ```
 
 Recommended scheduled pattern:
 
 - keep backup, prune, health, and fix-perms as separate tasks
 - use repeat scheduling for frequent onsite backups where it helps
-- avoid routine `--cleanup-storage`
-- do not schedule `--force-prune` as a normal recurring task
+- avoid routine `cleanup-storage`
+- do not schedule `prune --force` as a normal recurring task
 
 Example: scheduled backup for label `homes` on target `offsite-storj`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target offsite-storj --backup homes
+/usr/local/bin/duplicacy-backup backup --target offsite-storj homes
 ```
 
 Example: scheduled prune for label `homes` on target `offsite-storj`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target offsite-storj --prune homes
+/usr/local/bin/duplicacy-backup prune --target offsite-storj homes
 ```
 
 Example: scheduled fix-perms for label `homes` on target `onsite-usb`
 
 ```bash
-/usr/local/bin/duplicacy-backup --target onsite-usb --fix-perms homes
+/usr/local/bin/duplicacy-backup fix-perms --target onsite-usb homes
 ```
 
 Example: scheduled health summary for label `homes` on target `onsite-usb`
@@ -330,7 +330,7 @@ As an operator guideline, prefer separate scheduled tasks for backup, prune,
 health, and fix-perms rather than chaining everything together into one
 recurring job.
 
-Treat `--cleanup-storage` and `--force-prune` as explicit operator actions
+Treat `cleanup-storage` and `prune --force` as explicit operator actions
 rather than routine scheduled work.
 
 ## Release Verification

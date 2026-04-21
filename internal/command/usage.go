@@ -10,24 +10,25 @@ import (
 )
 
 func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
+       {{script}} backup [OPTIONS] <source>
+       {{script}} prune [OPTIONS] <source>
+       {{script}} cleanup-storage [OPTIONS] <source>
+       {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
-Operations:
-    --backup
-    --prune
-    --cleanup-storage
-    --fix-perms
+Runtime commands:
+    backup
+    prune
+    cleanup-storage
+    fix-perms
 
-Execution order:
-    backup -> prune -> cleanup-storage -> fix-perms
-
-Common modifiers:
-    --force-prune
+Command modifiers:
+    --force (prune only)
     --target <name>
     --dry-run
     --verbose
@@ -39,10 +40,10 @@ Common modifiers:
     --help-full
 
 Examples:
-    {{script}} --target onsite-usb --backup homes
-    {{script}} --target onsite-usb --backup --prune homes
-    {{script}} --target onsite-usb --json-summary --dry-run --backup homes
-    {{script}} --target offsite-storj --backup homes
+    {{script}} backup --target onsite-usb homes
+    {{script}} backup --target onsite-usb --json-summary --dry-run homes
+    {{script}} backup --target offsite-storj homes
+    {{script}} prune --target onsite-usb homes
     {{script}} config validate --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
@@ -62,30 +63,27 @@ func scriptTemplate(meta workflow.Metadata, template string, replacements ...str
 
 func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
+       {{script}} backup [OPTIONS] <source>
+       {{script}} prune [OPTIONS] <source>
+       {{script}} cleanup-storage [OPTIONS] <source>
+       {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
-OPERATIONS:
-    Operations may be combined. Execution order is fixed:
-      1. backup
-      2. prune
-      3. cleanup-storage
-      4. fix-perms
-
-    --backup                 Request backup
-    --prune                  Request threshold-guarded prune
-    --cleanup-storage        Request storage maintenance:
+RUNTIME COMMANDS:
+    backup                  Run a backup for the selected label and target
+    prune                   Run threshold-guarded prune for the selected label and target
+    cleanup-storage         Request storage maintenance:
                              duplicacy prune -exhaustive -exclusive
                              Use only when no other client is writing to the same storage
-    --fix-perms              Normalise path-based storage ownership and permissions
-    At least one operation flag is required for runtime commands
+    fix-perms               Normalise path-based storage ownership and permissions
 
 MODIFIERS:
-    --force-prune            Override safe prune thresholds during prune
+    --force                  Override safe prune thresholds during prune
     --target <name>          Select the named target config where the command uses a label target
     --dry-run                Simulate actions without making changes
     --verbose                Show detailed operational logging and command details
@@ -204,6 +202,11 @@ INTERACTIVE SAFETY RAILS:
       - cleanup-storage
     Non-interactive runs continue without confirmation so scheduled jobs are unaffected
 
+COMMAND MODEL:
+    Runtime operations are first-class commands. Use "backup --target ...",
+    "prune --target ...", "cleanup-storage --target ...", or
+    "fix-perms --target ..."; old top-level operation flags are not supported.
+
 JSON SUMMARY:
     --json-summary writes a machine-readable completion summary to stdout.
     Human-readable logs continue to be written to stderr.
@@ -221,24 +224,19 @@ RESTORE PREPARATION:
     workspaces. It does not run duplicacy restore or copy data back.
 
 EXAMPLES:
-    {{script}} --target onsite-usb --backup homes
-    {{script}} --target onsite-usb --backup homes
-    {{script}} --target onsite-usb --backup --prune homes
-    {{script}} --target onsite-usb --json-summary --dry-run --backup homes
+    {{script}} backup --target onsite-usb homes
+    {{script}} backup --target onsite-usb --json-summary --dry-run homes
     {{script}} health status --target onsite-usb homes
     {{script}} health doctor --json-summary --target onsite-usb homes
     {{script}} health verify --target offsite-storj homes
-    {{script}} --target onsite-usb --prune homes
-    {{script}} --target onsite-usb --cleanup-storage homes
-    {{script}} --target onsite-usb --prune --cleanup-storage homes
-    {{script}} --target onsite-usb --prune --force-prune --cleanup-storage homes
-    {{script}} --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
-    {{script}} --target onsite-usb --fix-perms homes
-    {{script}} --target onsite-usb --backup --fix-perms homes
-    {{script}} --target offsite-storj --backup homes
-    {{script}} --target onsite-usb --verbose --backup --prune homes
-    {{script}} --target onsite-usb --config-dir /opt/etc --backup homes
-    {{script}} --secrets-dir /opt/secrets --target offsite-storj --backup homes
+    {{script}} prune --target onsite-usb homes
+    {{script}} prune --target onsite-usb --force homes
+    {{script}} cleanup-storage --target onsite-usb homes
+    {{script}} fix-perms --target onsite-usb homes
+    {{script}} backup --target offsite-storj homes
+    {{script}} backup --target onsite-usb --verbose homes
+    {{script}} backup --target onsite-usb --config-dir /opt/etc homes
+    {{script}} backup --secrets-dir /opt/secrets --target offsite-storj homes
     {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes

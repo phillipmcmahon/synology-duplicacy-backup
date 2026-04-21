@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   separate drill workspace, writes Duplicacy preferences, and leaves revision
   selection, restore execution, and copy-back as explicit manual steps.
 
+### Changed
+- **Runtime operations are now first-class CLI commands**:
+  `backup`, `prune`, `cleanup-storage`, and `fix-perms` replace the old
+  top-level operation flags. For example, use
+  `duplicacy-backup backup --target onsite-usb homes` instead of
+  `duplicacy-backup --target onsite-usb --backup homes`. This is an
+  intentional breaking command-line change to keep the invocation model
+  consistent with `config`, `health`, `notify`, `restore`, and `update`.
+- **Forced prune now uses command-local syntax**:
+  use `duplicacy-backup prune --target <target> --force <label>` instead of
+  `--force-prune`.
+
 ## [v5.1.2] - 2026-04-21
 
 ### Fixed

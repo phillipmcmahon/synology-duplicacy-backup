@@ -284,7 +284,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
-		!strings.Contains(stdout, "--cleanup-storage") ||
+		!strings.Contains(stdout, "cleanup-storage") ||
 		!strings.Contains(stdout, "--json-summary") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -697,7 +697,7 @@ func TestRunWithArgs_RuntimeLoggerInitFailureJSONReturnsOne(t *testing.T) {
 		logDir = logFilePath
 
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "--json-summary", "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--json-summary", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(runtime logger init failure) = %d", code)
 			}
 		})
@@ -750,7 +750,7 @@ func TestRunWithArgs_InvalidFlagReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(--nope) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "unknown option --nope") {
+		if !strings.Contains(stderr, "unknown top-level option --nope") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -770,7 +770,7 @@ func TestRunWithArgs_InvalidFlagDoesNotRequireLogger(t *testing.T) {
 			}
 		})
 
-		if !strings.Contains(stderr, "unknown option --nope") {
+		if !strings.Contains(stderr, "unknown top-level option --nope") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -782,7 +782,7 @@ func TestRunWithArgs_InvalidFlagDoesNotRequireLogger(t *testing.T) {
 func TestRunWithArgs_ExtraPositionalArgsReturnOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "homes", "extra"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "homes", "extra"}); code != 1 {
 				t.Fatalf("runWithArgs(extra args) = %d", code)
 			}
 		})
@@ -796,7 +796,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
 			}
 		})
@@ -813,7 +813,7 @@ func TestRunWithArgs_NonRootPruneJSONFailureDoesNotRequireLogger(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--prune", "--json-summary", "homes"}); code != 1 {
+			if code := runWithArgs([]string{"prune", "--target", "onsite-usb", "--json-summary", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(non-root prune json) = %d", code)
 			}
 		})
@@ -1170,7 +1170,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
@@ -1195,7 +1195,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 		newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(blocker, label) }
 
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
@@ -1211,7 +1211,7 @@ func TestRunWithArgs_BackupDryRunReturnsZero(t *testing.T) {
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(backup dry-run) = %d", code)
 			}
 		})
@@ -1232,7 +1232,7 @@ func TestRunWithArgs_JSONSummaryDryRunReturnsZero(t *testing.T) {
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--json-summary", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--json-summary", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(json dry-run) = %d", code)
 			}
 		})
@@ -1254,7 +1254,7 @@ func TestRunWithArgs_JSONSummaryVerboseDryRunKeepsStartBlockFirst(t *testing.T) 
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--json-summary", "--dry-run", "--verbose", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--json-summary", "--dry-run", "--verbose", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(json verbose dry-run) = %d", code)
 			}
 		})
@@ -1288,7 +1288,7 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--json-summary", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--json-summary", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(json failure) = %d", code)
 			}
 		})
@@ -1333,7 +1333,7 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 		}
 
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(pre-run notification failure) = %d", code)
 			}
 		})
@@ -1360,11 +1360,11 @@ func TestRunWithArgs_JSONSummaryRequestFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(json request failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "unknown option --nope") {
+		if !strings.Contains(stderr, "unknown top-level option --json-summary") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stdout, "\"result\": \"failed\"") ||
-			!strings.Contains(stdout, "\"failure_message\": \"unknown option --nope\"") {
+			!strings.Contains(stdout, "\"failure_message\": \"unknown top-level option --json-summary") {
 			t.Fatalf("stdout = %q", stdout)
 		}
 		if strings.Contains(stdout, "Usage:") {
@@ -1379,7 +1379,7 @@ func TestRunWithArgs_RemoteMissingSecretsReturnsOne(t *testing.T) {
 		secretsDir := t.TempDir()
 		writeTargetConfig(t, configDir, "homes", "offsite-storj", remoteConfigBody("homes", "s3://bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "offsite-storj", "--backup", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "offsite-storj", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(remote missing secrets) = %d", code)
 			}
 		})
@@ -1397,7 +1397,7 @@ func TestRunWithArgs_LocalDuplicacyMissingSecretsReturnsOne(t *testing.T) {
 		secretsDir := t.TempDir()
 		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--backup", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-rustfs", "--dry-run", "--config-dir", configDir, "--secrets-dir", secretsDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(local duplicacy missing secrets) = %d", code)
 			}
 		})
@@ -1414,7 +1414,7 @@ func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[targets.onsite-usb]\nlocation = \"local\"\nstorage = \"/backups/homes\"\nthreads =\n")
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--backup", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(invalid toml) = %d", code)
 			}
 		})
@@ -1431,7 +1431,7 @@ func TestRunWithArgs_DuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.
 		configDir := t.TempDir()
 		writeTargetConfig(t, configDir, "homes", "offsite-storj", remoteConfigBody("homes", "s3://bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "offsite-storj", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "offsite-storj", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(duplicacy fix-perms failure) = %d", code)
 			}
 		})
@@ -1448,7 +1448,7 @@ func TestRunWithArgs_LocalDuplicacyFixPermsFailureIncludesStorageIdentity(t *tes
 		configDir := t.TempDir()
 		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-rustfs", "--fix-perms", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-rustfs", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(local duplicacy fix-perms failure) = %d", code)
 			}
 		})
@@ -1466,7 +1466,7 @@ func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(fix-perms dry-run) = %d", code)
 			}
 		})
@@ -1484,7 +1484,7 @@ func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
 		configDir := t.TempDir()
 		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--cleanup-storage", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
+			if code := runWithArgs([]string{"cleanup-storage", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
 				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)
 			}
 		})
@@ -1509,68 +1509,6 @@ func TestRunWithArgs_CleanupStorageOnlyDryRunReturnsZero(t *testing.T) {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if !strings.Contains(stderr, "Storage cleanup") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-	})
-}
-
-func TestRunWithArgs_CombinedOperationsUseFixedExecutionOrder(t *testing.T) {
-	withTestGlobals(t, func() {
-		owner, group := currentUserGroup(t)
-		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
-		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
-				t.Fatalf("runWithArgs(combined dry-run) = %d", code)
-			}
-		})
-
-		backupIdx := strings.Index(stderr, "Phase: Backup")
-		pruneIdx := strings.Index(stderr, "Phase: Prune")
-		fixPermsIdx := strings.Index(stderr, "Phase: Fix permissions")
-		if backupIdx < 0 || pruneIdx < 0 || fixPermsIdx < 0 {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if !(backupIdx < pruneIdx && pruneIdx < fixPermsIdx) {
-			t.Fatalf("expected fixed phase order backup -> prune -> fix-perms, stderr = %q", stderr)
-		}
-		if !strings.Contains(stderr, "Backup + Safe prune + Fix permissions") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if !strings.Contains(stderr, "Inspecting repository revisions") || !strings.Contains(stderr, "Applying ownership and permissions") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if strings.Contains(stderr, "Run Summary:") || strings.Contains(stderr, "Acquiring lock for label") || strings.Contains(stderr, "Lock acquired:") {
-			t.Fatalf("expected default output to suppress technical startup details, stderr = %q", stderr)
-		}
-		if strings.Contains(stderr, "exec: ") {
-			t.Fatalf("expected default output to suppress raw exec lines, stderr = %q", stderr)
-		}
-	})
-}
-
-func TestRunWithArgs_CleanupStorageUsesFixedExecutionOrder(t *testing.T) {
-	withTestGlobals(t, func() {
-		owner, group := currentUserGroup(t)
-		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 4, "-keep 0:365"))
-		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"--target", "onsite-usb", "--cleanup-storage", "--prune", "--backup", "--fix-perms", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
-				t.Fatalf("runWithArgs(cleanup-storage dry-run) = %d", code)
-			}
-		})
-
-		backupIdx := strings.Index(stderr, "Phase: Backup")
-		pruneIdx := strings.Index(stderr, "Phase: Prune")
-		cleanupIdx := strings.Index(stderr, "Phase: Storage cleanup")
-		fixPermsIdx := strings.Index(stderr, "Phase: Fix permissions")
-		if backupIdx < 0 || pruneIdx < 0 || cleanupIdx < 0 || fixPermsIdx < 0 {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if !(backupIdx < pruneIdx && pruneIdx < cleanupIdx && cleanupIdx < fixPermsIdx) {
-			t.Fatalf("expected fixed phase order backup -> prune -> cleanup-storage -> fix-perms, stderr = %q", stderr)
-		}
-		if !strings.Contains(stderr, "Backup + Safe prune + Storage cleanup + Fix permissions") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})
@@ -1831,7 +1769,7 @@ func TestBuildRequest_JSONSummaryParseFailureDoesNotRequireLogger(t *testing.T) 
 			t.Fatalf("buildRequest() result = %#v, want nil", result)
 		}
 	})
-	if strings.Contains(stderr, "Failed to initialise logger") || !strings.Contains(stderr, "--nope") {
+	if strings.Contains(stderr, "Failed to initialise logger") || !strings.Contains(stderr, "--json-summary") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stdout, `"result": "failed"`) {

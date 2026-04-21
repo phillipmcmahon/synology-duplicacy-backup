@@ -424,7 +424,7 @@ func TestParseRequest_HealthUnknownCommandFails(t *testing.T) {
 	}
 }
 
-func TestParseRequest_RequiresExplicitOperation(t *testing.T) {
+func TestParseRequest_RejectsOldTopLevelOperationFlags(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	_, err := ParseRequest([]string{"--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
 	if err == nil {
@@ -434,25 +434,25 @@ func TestParseRequest_RequiresExplicitOperation(t *testing.T) {
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
-	if got := err.Error(); got != "at least one operation is required: specify --backup, --prune, --cleanup-storage, or --fix-perms" {
+	if got := err.Error(); got != "unknown top-level option --target; use a command such as backup, prune, cleanup-storage, or fix-perms" {
 		t.Fatalf("error = %q", got)
 	}
 }
 
-func TestParseRequest_CombinedOperationsIgnoreFlagOrder(t *testing.T) {
+func TestParseRequest_BackupCommand(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--prune", "--backup", "--fix-perms", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
-	if !result.Request.DoBackup || !result.Request.DoPrune || !result.Request.FixPerms || result.Request.DoCleanupStore || result.Request.FixPermsOnly {
+	if !result.Request.DoBackup || result.Request.DoPrune || result.Request.FixPerms || result.Request.DoCleanupStore || result.Request.FixPermsOnly {
 		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 
-func TestParseRequest_CleanupStorageStandalone(t *testing.T) {
+func TestParseRequest_CleanupStorageCommand(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--cleanup-storage", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"cleanup-storage", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -461,28 +461,34 @@ func TestParseRequest_CleanupStorageStandalone(t *testing.T) {
 	}
 }
 
-func TestParseRequest_BackupAndCleanupStorage(t *testing.T) {
+func TestParseRequest_RuntimeCommandsRejectOldOperationFlags(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--backup", "--cleanup-storage", "homes"}, meta, workflow.DefaultRuntime())
-	if err != nil {
-		t.Fatalf("ParseRequest() error = %v", err)
-	}
-	if !result.Request.DoBackup || result.Request.DoPrune || !result.Request.DoCleanupStore {
-		t.Fatalf("result.Request = %+v", result.Request)
+	for _, args := range [][]string{
+		{"backup", "--target", "onsite-usb", "--prune", "homes"},
+		{"prune", "--target", "onsite-usb", "--backup", "homes"},
+		{"cleanup-storage", "--target", "onsite-usb", "--fix-perms", "homes"},
+	} {
+		_, err := ParseRequest(args, meta, workflow.DefaultRuntime())
+		if err == nil || !strings.Contains(err.Error(), "unknown option") {
+			t.Fatalf("args %v err = %v", args, err)
+		}
 	}
 }
 
-func TestParseRequest_ForcePruneWithoutPruneFails(t *testing.T) {
+func TestParseRequest_PruneForce(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"--target", "onsite-usb", "--backup", "--force-prune", "homes"}, meta, workflow.DefaultRuntime())
-	if err == nil || err.Error() != "--force-prune requires --prune" {
-		t.Fatalf("err = %v", err)
+	result, err := ParseRequest([]string{"prune", "--target", "onsite-usb", "--force", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Request.DoPrune || !result.Request.ForcePrune {
+		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 
 func TestParseRequest_Verbose(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--backup", "--verbose", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--verbose", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -493,7 +499,7 @@ func TestParseRequest_Verbose(t *testing.T) {
 
 func TestParseRequest_JSONSummary(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--backup", "--json-summary", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -504,7 +510,7 @@ func TestParseRequest_JSONSummary(t *testing.T) {
 
 func TestParseRequest_FixPermsOnly(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--target", "onsite-usb", "--fix-perms", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"fix-perms", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -515,7 +521,7 @@ func TestParseRequest_FixPermsOnly(t *testing.T) {
 
 func TestParseRequest_InvalidCombo(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"--fix-perms", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"fix-perms", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -526,7 +532,7 @@ func TestParseRequest_InvalidCombo(t *testing.T) {
 
 func TestParseRequest_InvalidLabel(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"--target", "onsite-usb", "../etc"}, meta, workflow.DefaultRuntime())
+	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "../etc"}, meta, workflow.DefaultRuntime())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -534,7 +540,7 @@ func TestParseRequest_InvalidLabel(t *testing.T) {
 
 func TestParseRequest_ExtraPositionalArgsFail(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"--target", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultRuntime())
+	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultRuntime())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -618,8 +624,8 @@ func TestParseRequest_ConfigUnknownCommandFails(t *testing.T) {
 func TestParseRequest_OptionValueErrors(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	cases := [][]string{
-		{"--config-dir"},
-		{"--secrets-dir"},
+		{"backup", "--config-dir"},
+		{"backup", "--secrets-dir"},
 		{"config", "validate", "--config-dir"},
 		{"config", "validate", "--secrets-dir"},
 		{"notify", "test", "--provider"},
@@ -637,7 +643,7 @@ func TestParseRequest_OptionValueErrors(t *testing.T) {
 func TestParseRequest_UnknownOptionsFail(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	cases := [][]string{
-		{"--target", "onsite-usb", "--mystery", "homes"},
+		{"backup", "--target", "onsite-usb", "--mystery", "homes"},
 		{"config", "validate", "--target", "onsite-usb", "--mystery", "homes"},
 		{"notify", "test", "--target", "onsite-usb", "--mystery", "homes"},
 	}
@@ -660,7 +666,7 @@ func TestParseRequest_ConfigExtraArgsFail(t *testing.T) {
 func TestParseRequest_TargetRequiredForRuntimeConfigAndHealth(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	for _, args := range [][]string{
-		{"--backup", "homes"},
+		{"backup", "homes"},
 		{"config", "validate", "homes"},
 		{"health", "status", "homes"},
 		{"notify", "test", "homes"},

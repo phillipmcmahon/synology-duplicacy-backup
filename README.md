@@ -33,7 +33,7 @@ In practice:
   loaded for known Duplicacy backends that require them; S3-compatible
   Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use
   `s3_id` and `s3_secret`
-- `--fix-perms` is only supported for path-based Duplicacy storage targets
+- `fix-perms` is only supported for path-based Duplicacy storage targets
 - runtime, health, `config explain`, and `config paths` surface target
   location in operator-facing output
 
@@ -161,10 +161,10 @@ Start with validation and a dry run before scheduling anything:
 sudo duplicacy-backup config validate --target onsite-usb homes
 
 # Preview a backup without changing storage
-sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
+sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 
 # Run a backup
-sudo duplicacy-backup --target onsite-usb --backup homes
+sudo duplicacy-backup backup --target onsite-usb homes
 
 # Check backup freshness and repository status
 sudo duplicacy-backup health status --target onsite-usb homes
@@ -199,14 +199,14 @@ Use the documentation by task:
 
 Core operating rules:
 
-- Runtime, `config`, `health`, `restore plan`, `restore prepare`, and
+- `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
+  `restore plan`, `restore prepare`, and
   label-scoped `notify test` commands require an explicit `--target <name>`.
-- Runtime commands also require at least one operation flag such as `--backup`,
-  `--prune`, `--cleanup-storage`, or `--fix-perms`.
-- When operations are combined, execution order is fixed:
-  `backup -> prune -> cleanup-storage -> fix-perms`.
+- Runtime operations are first-class commands. Use `backup`, `prune`,
+  `cleanup-storage`, or `fix-perms`; old top-level operation flags are not
+  supported.
 - Storage keys are loaded only when the selected Duplicacy backend needs them.
-- `--fix-perms` applies only to path-based Duplicacy storage targets.
+- `fix-perms` applies only to path-based Duplicacy storage targets.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific

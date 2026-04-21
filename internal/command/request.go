@@ -18,6 +18,10 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
 	}
+	switch args[0] {
+	case "backup", "prune", "cleanup-storage", "fix-perms":
+		return parseRuntimeCommandRequest(args[0], args[1:], meta, rt)
+	}
 	if len(args) > 0 && args[0] == "config" {
 		return parseConfigRequest(args[1:], meta, rt)
 	}
@@ -38,17 +42,34 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		return result, nil
 	}
 
-	req, err := parseFlags(args)
+	if isOption(args[0]) {
+		return nil, workflow.NewUsageRequestError("unknown top-level option %s; use a command such as backup, prune, cleanup-storage, or fix-perms", args[0])
+	}
+	return nil, workflow.NewUsageRequestError("unknown command %s", args[0])
+}
+
+func parseRuntimeCommandRequest(command string, args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+	if result := parseHelpRequest(args, UsageText(meta, rt), FullUsageText(meta, rt)); result != nil {
+		return result, nil
+	}
+	req, err := parseRuntimeCommandFlags(command, args)
 	if err != nil {
 		return nil, err
 	}
-
-	req.DeriveModes()
-
-	if err := req.ValidateCombos(); err != nil {
-		return nil, err
+	switch command {
+	case "backup":
+		req.DoBackup = true
+	case "prune":
+		req.DoPrune = true
+	case "cleanup-storage":
+		req.DoCleanupStore = true
+	case "fix-perms":
+		req.FixPerms = true
+	default:
+		return nil, workflow.NewUsageRequestError("unknown command %s", command)
 	}
-	if err := validateLabel(req.Source); err != nil {
+	req.DeriveModes()
+	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
 
@@ -187,7 +208,7 @@ func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 	return &ParseResult{Request: req}, nil
 }
 
-func parseFlags(args []string) (*workflow.Request, error) {
+func parseRuntimeCommandFlags(command string, args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
 	err := parseSourceFlags(args, req, sharedFlagOptions{
 		target:      true,
@@ -198,19 +219,10 @@ func parseFlags(args []string) (*workflow.Request, error) {
 		secretsDir:  true,
 	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
 		switch args[*index] {
-		case "--backup":
-			req.DoBackup = true
-			return true, nil
-		case "--prune":
-			req.DoPrune = true
-			return true, nil
-		case "--cleanup-storage":
-			req.DoCleanupStore = true
-			return true, nil
-		case "--fix-perms":
-			req.FixPerms = true
-			return true, nil
-		case "--force-prune":
+		case "--force":
+			if command != "prune" {
+				return false, nil
+			}
 			req.ForcePrune = true
 			return true, nil
 		}

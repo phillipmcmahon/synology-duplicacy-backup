@@ -104,9 +104,9 @@ func (e *Executor) logPrunePreviewOutput(preview *duplicacy.PrunePreview) {
 func (e *Executor) enforcePrunePreview(preview *duplicacy.PrunePreview) error {
 	if preview.RevisionCountFailed {
 		if e.plan.ForcePrune {
-			e.log.Warn("%s", statusLinef("Revision count failed; proceeding because --force-prune was supplied (percentage threshold not enforced)"))
+			e.log.Warn("%s", statusLinef("Revision count failed; proceeding because prune --force was supplied (percentage threshold not enforced)"))
 		} else {
-			return NewMessageError("Revision count is required for safe prune but failed; use --force-prune to override")
+			return NewMessageError("Revision count is required for safe prune but failed; use prune --force to override")
 		}
 	}
 
@@ -123,7 +123,7 @@ func (e *Executor) enforcePrunePreview(preview *duplicacy.PrunePreview) error {
 	}
 	if blocked {
 		if e.plan.ForcePrune {
-			e.log.Warn("%s", statusLinef("Proceeding despite safe prune threshold breach because --force-prune was supplied"))
+			e.log.Warn("%s", statusLinef("Proceeding despite safe prune threshold breach because prune --force was supplied"))
 		} else {
 			return NewMessageError("Refusing to continue because safe prune thresholds were exceeded")
 		}

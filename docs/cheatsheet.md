@@ -6,50 +6,46 @@ and dry-run notification tests are common normal-user exceptions.
 This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 
-Runtime, `config`, `health`, `restore plan`, `restore prepare`, and
-label-scoped `notify test` commands need an explicit `--target <name>`.
-Runtime commands also need at least one explicit operation flag such as
-`--backup`, `--prune`, `--cleanup-storage`, or `--fix-perms`.
+`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
+`restore plan`, `restore prepare`, and label-scoped `notify test` commands need
+an explicit `--target <name>`.
 
 Target model:
 
 - `location = "local"` or `location = "remote"`
 - targets use `storage = "..."`; include the full Duplicacy backend path there
 - storage keys are loaded only when the selected Duplicacy backend needs them
-- `--fix-perms` only works for path-based Duplicacy storage targets
+- `fix-perms` only works for path-based Duplicacy storage targets
 
 ## Common Runs
 
 ```bash
 # Backup homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup homes
+sudo duplicacy-backup backup --target onsite-usb homes
 
-# Backup then safe prune homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --backup --prune homes
+# Safe prune homes on target onsite-usb
+sudo duplicacy-backup prune --target onsite-usb homes
 
 # Backup homes to target offsite-storj
-sudo duplicacy-backup --target offsite-storj --backup homes
+sudo duplicacy-backup backup --target offsite-storj homes
 
 # Backup homes to a local S3-compatible service
-sudo duplicacy-backup --target onsite-rustfs --backup homes
+sudo duplicacy-backup backup --target onsite-rustfs homes
 
 # Backup homes to target offsite-usb on a mounted remote filesystem
-sudo duplicacy-backup --target offsite-usb --backup homes
+sudo duplicacy-backup backup --target offsite-usb homes
 
 # Preview a backup of homes to target onsite-usb
-sudo duplicacy-backup --target onsite-usb --dry-run --backup homes
+sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 
-# Preview backup and prune for homes on target onsite-usb with detailed logs
-sudo duplicacy-backup --target onsite-usb --verbose --dry-run --backup --prune homes
+# Preview prune for homes on target onsite-usb with detailed logs
+sudo duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
 
 # Run storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --cleanup-storage homes
+sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 
 # Fix permissions for homes on target onsite-usb
-sudo duplicacy-backup --target onsite-usb --fix-perms homes
-
-# Backup then fix permissions in a single run
-sudo duplicacy-backup --target onsite-usb --backup --fix-perms homes
+sudo duplicacy-backup fix-perms --target onsite-usb homes
 ```
 
 ## Health Checks
@@ -121,10 +117,10 @@ Installer behaviour:
 ### Scheduling
 
 - Start with `--dry-run` for anything destructive or unfamiliar.
-- Schedule backup, prune, health, and fix-perms as separate tasks unless you have a clear reason to combine them.
+- Schedule backup, prune, health, and fix-perms as separate tasks.
 - Use Synology repeat scheduling for frequent onsite backups instead of creating several near-identical jobs.
-- Use `--cleanup-storage` only as manual or exceptional maintenance, and only when no other client is writing to the same storage.
-- Use `--force-prune` only as an explicit operator action with `--prune`, not as a routine scheduled task.
+- Use `cleanup-storage` only as manual or exceptional maintenance, and only when no other client is writing to the same storage.
+- Use `prune --force` only as an explicit operator action, not as a routine scheduled task.
 - See `docs/workflow-scheduling.md` for the recommended Task Scheduler naming pattern and workload cadence.
 
 ### Config and Validation

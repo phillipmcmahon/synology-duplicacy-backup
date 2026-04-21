@@ -294,7 +294,7 @@ That includes both behaviour and output:
 
 - path-based storage targets do not load storage keys
 - URL-like storage targets load storage keys only when the selected backend requires them
-- `--fix-perms` is accepted for path-based storage targets and rejected for URL-like storage targets
+- `fix-perms` is accepted for path-based storage targets and rejected for URL-like storage targets
 - runtime and health headers include `Location`
 - `config validate` keeps `Resolved` identity-only and checks target settings
   under `Target Settings`
