@@ -414,6 +414,10 @@ func parseVisibleRevisions(output string) []RevisionInfo {
 	return revisions
 }
 
+// looksUninitializedRepositoryOutput is a best-effort heuristic for Duplicacy's
+// human-readable CLI output. Duplicacy does not expose a structured readiness
+// code here, so this list should be updated if future Duplicacy versions change
+// their uninitialised-storage wording.
 func looksUninitializedRepositoryOutput(output string) bool {
 	if output == "" {
 		return false

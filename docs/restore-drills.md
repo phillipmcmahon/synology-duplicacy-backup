@@ -63,6 +63,10 @@ sudo duplicacy-backup restore prepare --target onsite-usb2 homes
 cd /volume1/restore-drills/homes-onsite-usb2
 ```
 
+When run with `sudo`, `restore prepare` creates the drill workspace as a
+root-owned workspace by design. Keep restore inspection and Duplicacy commands
+under `sudo` unless you deliberately change ownership for a manual drill.
+
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the
 backup target:

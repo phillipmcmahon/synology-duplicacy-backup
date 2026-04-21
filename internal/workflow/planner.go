@@ -26,6 +26,13 @@ func NewPlanner(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Ru
 	return &Planner{meta: meta, rt: rt, log: log, runner: runner}
 }
 
+// NewConfigPlanner creates a planner for config-only command paths. Callers
+// must only use methods that derive plans or load configuration; runtime probes
+// and execution paths require NewPlanner with a logger and command runner.
+func NewConfigPlanner(meta Metadata, rt Runtime) *Planner {
+	return NewPlanner(meta, rt, nil, nil)
+}
+
 func (p *Planner) Build(req *Request) (*Plan, error) {
 	if err := p.validateEnvironment(req); err != nil {
 		return nil, err

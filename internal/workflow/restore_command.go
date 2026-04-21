@@ -24,7 +24,7 @@ func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, erro
 }
 
 func handleRestorePlan(req *Request, meta Metadata, rt Runtime) (string, error) {
-	planner := NewPlanner(meta, rt, nil, nil)
+	planner := NewConfigPlanner(meta, rt)
 	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	cfg, err := planner.loadConfig(plan)
@@ -34,12 +34,12 @@ func handleRestorePlan(req *Request, meta Metadata, rt Runtime) (string, error) 
 	plan.applyConfig(cfg, rt)
 
 	report := newRestorePlanReport(req, meta, plan, cfg.Storage)
-	report.applyState(loadRunState(meta, req.Source, req.Target()))
+	report.loadAndApplyState(meta, req.Source, req.Target())
 	return formatRestorePlan(report), nil
 }
 
 func handleRestorePrepare(req *Request, meta Metadata, rt Runtime) (string, error) {
-	planner := NewPlanner(meta, rt, nil, nil)
+	planner := NewConfigPlanner(meta, rt)
 	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	cfg, err := planner.loadConfig(plan)
@@ -60,11 +60,7 @@ func handleRestorePrepare(req *Request, meta Metadata, rt Runtime) (string, erro
 		}
 	}
 
-	workspace := req.RestoreWorkspace
-	if strings.TrimSpace(workspace) == "" {
-		workspace = recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
-	}
-	workspace = filepath.Clean(strings.TrimSpace(workspace))
+	workspace := resolvedRestoreWorkspace(req, plan)
 	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
 		return "", err
 	}
@@ -149,7 +145,7 @@ func newRestorePrepareReport(req *Request, plan *Plan, storage, workspace string
 }
 
 func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage string) *restorePlanReport {
-	workspace := recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
+	workspace := resolvedRestoreWorkspace(req, plan)
 	secretsRequired := duplicacy.NewStorageSpec(storage).NeedsSecrets()
 	report := &restorePlanReport{
 		Label:             req.Source,
@@ -178,6 +174,11 @@ func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage strin
 	return report
 }
 
+func (r *restorePlanReport) loadAndApplyState(meta Metadata, label, target string) {
+	state, err := loadRunState(meta, label, target)
+	r.applyState(state, err)
+}
+
 func (r *restorePlanReport) applyState(state *RunState, err error) {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -192,6 +193,14 @@ func (r *restorePlanReport) applyState(state *RunState, err error) {
 		r.LatestRevision = state.LastSuccessfulBackupRevision
 	}
 	r.LatestRevisionAt = state.LastSuccessfulBackupAt
+}
+
+func resolvedRestoreWorkspace(req *Request, plan *Plan) string {
+	workspace := req.RestoreWorkspace
+	if strings.TrimSpace(workspace) == "" {
+		workspace = recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
+	}
+	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
 func recommendedRestoreWorkspace(sourcePath, label, target string) string {
@@ -262,12 +271,7 @@ func formatRestorePlan(report *restorePlanReport) string {
 		{Label: "Read Only", Value: "true"},
 		{Label: "Executes Restore", Value: "false"},
 	})
-	writeRestoreSection(&b, "Resolved", []SummaryLine{
-		{Label: "Config File", Value: report.ConfigFile},
-		{Label: "Source Path", Value: report.SourcePath},
-		{Label: "Storage", Value: report.Storage},
-		{Label: "Secrets File", Value: report.SecretsFile},
-	})
+	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, report.SecretsFile)
 	writeRestoreSection(&b, "Safe Workspace", []SummaryLine{
 		{Label: "Workspace", Value: report.Workspace},
 		{Label: "Snapshot ID", Value: report.SnapshotID},
@@ -297,11 +301,7 @@ func formatRestorePlan(report *restorePlanReport) string {
 		{Label: "Selective Restore", Value: report.SelectiveRestore},
 		{Label: "Copy Back Preview", Value: report.CopyBackPreview},
 	})
-	writeRestoreSection(&b, "Safety", []SummaryLine{
-		{Label: "Restore Execution", Value: "not performed by this command"},
-		{Label: "Copy Back", Value: "inspect restored data first; use rsync --dry-run before live changes"},
-		{Label: "Guide", Value: report.DocumentationPath},
-	})
+	writeRestoreSafetySection(&b, "inspect restored data first; use rsync --dry-run before live changes", report.DocumentationPath)
 	return b.String()
 }
 
@@ -315,12 +315,7 @@ func formatRestorePrepare(report *restorePrepareReport) string {
 		{Label: "Executes Restore", Value: "false"},
 		{Label: "Copies Back", Value: "false"},
 	})
-	writeRestoreSection(&b, "Resolved", []SummaryLine{
-		{Label: "Config File", Value: report.ConfigFile},
-		{Label: "Source Path", Value: report.SourcePath},
-		{Label: "Storage", Value: report.Storage},
-		{Label: "Secrets File", Value: report.SecretsFile},
-	})
+	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, report.SecretsFile)
 	writeRestoreSection(&b, "Workspace", []SummaryLine{
 		{Label: "Path", Value: report.Workspace},
 		{Label: "Snapshot ID", Value: report.SnapshotID},
@@ -332,12 +327,25 @@ func formatRestorePrepare(report *restorePrepareReport) string {
 		{Label: "List Revisions", Value: report.ListCommand},
 		{Label: "List Files", Value: report.ListFilesCommand},
 	})
-	writeRestoreSection(&b, "Safety", []SummaryLine{
-		{Label: "Restore Execution", Value: "not performed by this command"},
-		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
-		{Label: "Guide", Value: report.Guide},
-	})
+	writeRestoreSafetySection(&b, "manual only; inspect restored data and use rsync --dry-run first", report.Guide)
 	return b.String()
+}
+
+func writeRestoreResolvedSection(b *strings.Builder, configFile, sourcePath, storage, secretsFile string) {
+	writeRestoreSection(b, "Resolved", []SummaryLine{
+		{Label: "Config File", Value: configFile},
+		{Label: "Source Path", Value: sourcePath},
+		{Label: "Storage", Value: storage},
+		{Label: "Secrets File", Value: secretsFile},
+	})
+}
+
+func writeRestoreSafetySection(b *strings.Builder, copyBack, guide string) {
+	writeRestoreSection(b, "Safety", []SummaryLine{
+		{Label: "Restore Execution", Value: "not performed by this command"},
+		{Label: "Copy Back", Value: copyBack},
+		{Label: "Guide", Value: guide},
+	})
 }
 
 func writeRestoreSection(b *strings.Builder, name string, lines []SummaryLine) {
