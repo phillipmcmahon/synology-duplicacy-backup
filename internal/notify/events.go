@@ -51,7 +51,7 @@ func KnownEvents() []EventID {
 func IsKnownEvent(event string) bool {
 	event = strings.TrimSpace(event)
 	if event == "" {
-		return true
+		return false
 	}
 	for _, known := range KnownEvents() {
 		if string(known) == event {

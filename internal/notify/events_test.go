@@ -17,4 +17,7 @@ func TestKnownEventsIncludesUpdateAndRuntimeEvents(t *testing.T) {
 	if IsKnownEvent("discord_message_sent") {
 		t.Fatal("unexpected custom event accepted")
 	}
+	if IsKnownEvent("") {
+		t.Fatal("empty event accepted as known")
+	}
 }

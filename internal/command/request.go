@@ -532,6 +532,9 @@ func validateNotifySeverity(severity string) error {
 }
 
 func validateNotifyEvent(event string) error {
+	if strings.TrimSpace(event) == "" {
+		return nil
+	}
 	if notify.IsKnownEvent(event) {
 		return nil
 	}

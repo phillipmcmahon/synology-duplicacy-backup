@@ -168,6 +168,17 @@ func TestParseRequest_NotifyTest(t *testing.T) {
 	}
 }
 
+func TestParseRequest_NotifyTestAllowsOmittedEvent(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"notify", "test", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.NotifyEvent != "" {
+		t.Fatalf("NotifyEvent = %q, want empty", result.Request.NotifyEvent)
+	}
+}
+
 func TestParseRequest_NotifyTestUpdate(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"notify", "test", "update", "--provider", "ntfy", "--event", "update_install_failed", "--dry-run", "--config-dir", "/cfg"}, meta, workflow.DefaultRuntime())

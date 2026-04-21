@@ -28,6 +28,10 @@ func (s StorageSpec) Value() string {
 	return s.Raw
 }
 
+// Scheme returns the Duplicacy URL scheme used to identify well-known storage
+// backends. Local paths and unparsable values fall back to "local" here; full
+// config validation still reports malformed storage strings through
+// ValidateForConfig.
 func (s StorageSpec) Scheme() string {
 	parsed, err := url.Parse(s.Raw)
 	if err != nil || parsed.Scheme == "" {
