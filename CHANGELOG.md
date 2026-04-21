@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v6.0.0] - 2026-04-21
+
 ### Added
 - **Restore workspace preparation is now available**:
   `duplicacy-backup restore prepare --target <target> <label>` creates the
@@ -14,16 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selection, restore execution, and copy-back as explicit manual steps.
 
 ### Changed
-- **Runtime operations are now first-class CLI commands**:
+- **Breaking: runtime operations are now first-class CLI commands**:
   `backup`, `prune`, `cleanup-storage`, and `fix-perms` replace the old
   top-level operation flags. For example, use
   `duplicacy-backup backup --target onsite-usb homes` instead of
   `duplicacy-backup --target onsite-usb --backup homes`. This is an
   intentional breaking command-line change to keep the invocation model
   consistent with `config`, `health`, `notify`, `restore`, and `update`.
+  Existing Synology Task Scheduler entries that use the old operation flags
+  must be updated before upgrading.
 - **Forced prune now uses command-local syntax**:
   use `duplicacy-backup prune --target <target> --force <label>` instead of
   `--force-prune`.
+- **Restore planning internals are clearer and safer to extend**:
+  restore plan/prepare now use an explicit config-only planner path, clearer
+  state and workspace helpers, and shared report sections ahead of future
+  restore subcommands.
 
 ## [v5.1.2] - 2026-04-21
 
