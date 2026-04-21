@@ -9,11 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v5.1.1] - 2026-04-21
 
+### Added
+- **Restore planning is now available as a read-only command**:
+  `duplicacy-backup restore plan --target <target> <label>` resolves the
+  selected label and target, shows storage/config/secrets/state context, and
+  prints safe Duplicacy drill commands without creating directories, running a
+  restore, or copying data back to the live source path.
+
 ### Fixed
 - **S3-compatible Duplicacy schemes now load storage credentials**:
   `s3c://`, `minio://`, and `minios://` targets require the same
   `s3_id` and `s3_secret` keys as `s3://`, so local object-storage targets
   such as MinIO or Garage no longer validate without credentials.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `86.1%`
+  - `cmd/duplicacy-backup`: `92.4%`
+  - `internal/workflow`: `84.5%`
+  - `internal/update`: `83.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `92.0%`
+  - `internal/config`: `87.6%`
 
 ## [v5.1.0] - 2026-04-21
 
