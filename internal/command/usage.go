@@ -51,17 +51,19 @@ Use --help-full for the detailed reference.
 `)
 }
 
-func scriptTemplate(meta workflow.Metadata, template string) string {
-	return strings.NewReplacer("{{script}}", meta.ScriptName).Replace(template)
+func scriptTemplate(meta workflow.Metadata, template string, replacements ...string) string {
+	pairs := []string{"{{script}}", meta.ScriptName}
+	pairs = append(pairs, replacements...)
+	return strings.NewReplacer(pairs...).Replace(template)
 }
 
 func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return fmt.Sprintf(`Usage: %s [OPTIONS] <source>
-       %s config <validate|explain|paths> [OPTIONS] <source>
-       %s notify <test> [OPTIONS] <source|update>
-       %s update [OPTIONS]
-       %s health <status|doctor|verify> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
+       {{script}} config <validate|explain|paths> [OPTIONS] <source>
+       {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} update [OPTIONS]
+       {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
 OPERATIONS:
     Operations may be combined. Execution order is fixed:
@@ -85,7 +87,7 @@ MODIFIERS:
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable run summary to stdout
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
-    --secrets-dir <path>     Override secrets directory (default: %s)
+    --secrets-dir <path>     Override secrets directory (default: {{default_secrets_dir}})
     --version, -v            Show version and build information
     --help                   Show the concise help message
     --help-full              Show the detailed help message
@@ -107,15 +109,15 @@ ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_SECRETS_DIR  Override secrets directory (--secrets-dir takes precedence)
 
 SAFE PRUNE THRESHOLDS:
-    Max delete percent       : %d%% (default %d%%)
-    Max delete count         : %d (default %d)
-    Min revisions for %% check: %d (default %d)
+    Max delete percent       : {{safe_prune_max_delete_percent}}% (default {{safe_prune_max_delete_percent}}%)
+    Max delete count         : {{safe_prune_max_delete_count}} (default {{safe_prune_max_delete_count}})
+    Min revisions for % check: {{safe_prune_min_total_for_percent}} (default {{safe_prune_min_total_for_percent}})
 
 CONFIG FILE LOCATION:
     <binary-dir>/.config/<label>-backup.toml
-    Effective default: %s/<label>-backup.toml
+    Effective default: {{config_dir}}/<label>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
-    Global app config, when used: %s/%s
+    Global app config, when used: {{config_dir}}/{{app_config_file}}
 
 CONFIG STRUCTURE:
     label config files define:
@@ -132,7 +134,7 @@ CONFIG STRUCTURE:
 
     TARGET SECRETS:
       Duplicacy storage targets load runtime preference keys from:
-        %s/<label>-secrets.toml
+        {{default_secrets_dir}}/<label>-secrets.toml
       Path-based Duplicacy storage targets do not use storage credentials
       Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
       Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
@@ -150,7 +152,7 @@ CONFIG STRUCTURE:
 
 HEALTH STATE:
     Target-specific run and health state are stored under:
-      %s/<label>.<target>.json
+      {{state_dir}}/<label>.<target>.json
     Health commands combine this state with live storage inspection.
 
 HEALTH CONFIG:
@@ -174,7 +176,7 @@ HEALTH CONFIG:
       health_ntfy_token
 
 UPDATE NOTIFY CONFIG:
-    Optional global update notification config lives in %s/%s:
+    Optional global update notification config lives in {{config_dir}}/{{app_config_file}}:
       [update.notify]
       notify_on = ["failed"]
       interactive = false
@@ -199,57 +201,43 @@ JSON SUMMARY:
     Human-readable logs continue to be written to stderr.
 
 EXAMPLES:
-    %s --target onsite-usb --backup homes
-    %s --target onsite-usb --backup homes
-    %s --target onsite-usb --backup --prune homes
-    %s --target onsite-usb --json-summary --dry-run --backup homes
-    %s health status --target onsite-usb homes
-    %s health doctor --json-summary --target onsite-usb homes
-    %s health verify --target offsite-storj homes
-    %s --target onsite-usb --prune homes
-    %s --target onsite-usb --cleanup-storage homes
-    %s --target onsite-usb --prune --cleanup-storage homes
-    %s --target onsite-usb --prune --force-prune --cleanup-storage homes
-    %s --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
-    %s --target onsite-usb --fix-perms homes
-    %s --target onsite-usb --backup --fix-perms homes
-    %s --target offsite-storj --backup homes
-    %s --target onsite-usb --verbose --backup --prune homes
-    %s --target onsite-usb --config-dir /opt/etc --backup homes
-    %s --secrets-dir /opt/secrets --target offsite-storj --backup homes
-    %s config validate --target onsite-usb homes
-    %s config explain --target offsite-storj homes
-    %s config paths --target onsite-usb homes
-    %s notify test --target onsite-usb homes
-    %s update --check-only
-    %s update --yes
+    {{script}} --target onsite-usb --backup homes
+    {{script}} --target onsite-usb --backup homes
+    {{script}} --target onsite-usb --backup --prune homes
+    {{script}} --target onsite-usb --json-summary --dry-run --backup homes
+    {{script}} health status --target onsite-usb homes
+    {{script}} health doctor --json-summary --target onsite-usb homes
+    {{script}} health verify --target offsite-storj homes
+    {{script}} --target onsite-usb --prune homes
+    {{script}} --target onsite-usb --cleanup-storage homes
+    {{script}} --target onsite-usb --prune --cleanup-storage homes
+    {{script}} --target onsite-usb --prune --force-prune --cleanup-storage homes
+    {{script}} --target onsite-usb --backup --prune --force-prune --cleanup-storage homes
+    {{script}} --target onsite-usb --fix-perms homes
+    {{script}} --target onsite-usb --backup --fix-perms homes
+    {{script}} --target offsite-storj --backup homes
+    {{script}} --target onsite-usb --verbose --backup --prune homes
+    {{script}} --target onsite-usb --config-dir /opt/etc --backup homes
+    {{script}} --secrets-dir /opt/secrets --target offsite-storj --backup homes
+    {{script}} config validate --target onsite-usb homes
+    {{script}} config explain --target offsite-storj homes
+    {{script}} config paths --target onsite-usb homes
+    {{script}} notify test --target onsite-usb homes
+    {{script}} update --check-only
+    {{script}} update --yes
 `,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		config.DefaultSecretsDir,
-		config.DefaultSafePruneMaxDeletePercent, config.DefaultSafePruneMaxDeletePercent,
-		config.DefaultSafePruneMaxDeleteCount, config.DefaultSafePruneMaxDeleteCount,
-		config.DefaultSafePruneMinTotalForPercent, config.DefaultSafePruneMinTotalForPercent,
-		cfgDir,
-		cfgDir,
-		config.DefaultAppConfigFile,
-		config.DefaultSecretsDir,
-		meta.StateDir,
-		cfgDir,
-		config.DefaultAppConfigFile,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
-		meta.ScriptName, meta.ScriptName, meta.ScriptName, meta.ScriptName,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{safe_prune_max_delete_percent}}", fmt.Sprint(config.DefaultSafePruneMaxDeletePercent),
+		"{{safe_prune_max_delete_count}}", fmt.Sprint(config.DefaultSafePruneMaxDeleteCount),
+		"{{safe_prune_min_total_for_percent}}", fmt.Sprint(config.DefaultSafePruneMinTotalForPercent),
+		"{{config_dir}}", cfgDir,
+		"{{app_config_file}}", config.DefaultAppConfigFile,
+		"{{state_dir}}", meta.StateDir,
 	)
 }
 
 func ConfigUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s config <validate|explain|paths> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
 
 Config commands:
     validate
@@ -259,27 +247,23 @@ Config commands:
 Options:
     --target <name>
     --config-dir <path>     (default: <binary-dir>/.config)
-    --secrets-dir <path>    (default: %s)
+    --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
     --help-full
 
 Examples:
-    %s config validate --target onsite-usb homes
-    %s config explain --target offsite-storj homes
-    %s config paths --target onsite-usb homes
+    {{script}} config validate --target onsite-usb homes
+    {{script}} config explain --target offsite-storj homes
+    {{script}} config paths --target onsite-usb homes
 
 Use --help-full for the detailed config reference.
 `,
-		meta.ScriptName,
-		config.DefaultSecretsDir,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
 	)
 }
 
 func NotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source|update>
+	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
 
 Notify commands:
     test
@@ -294,29 +278,24 @@ Options:
     --dry-run
     --json-summary
     --config-dir <path>                  (default: <binary-dir>/.config)
-    --secrets-dir <path>                 (default: %s)
+    --secrets-dir <path>                 (default: {{default_secrets_dir}})
     --help
     --help-full
 
 Examples:
-    %s notify test --target onsite-usb homes
-    %s notify test --target offsite-storj --provider ntfy homes
-    %s notify test update --provider ntfy --dry-run
-    %s notify test --target onsite-usb --dry-run homes
+    {{script}} notify test --target onsite-usb homes
+    {{script}} notify test --target offsite-storj --provider ntfy homes
+    {{script}} notify test update --provider ntfy --dry-run
+    {{script}} notify test --target onsite-usb --dry-run homes
 
 Use --help-full for the detailed notify reference.
 `,
-		meta.ScriptName,
-		config.DefaultSecretsDir,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
 	)
 }
 
 func FullNotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s notify <test> [OPTIONS] <source|update>
+	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
 
 NOTIFY COMMANDS:
     test                    Send a synthetic test notification through the configured providers for the selected label and target
@@ -332,7 +311,7 @@ OPTIONS:
     --dry-run               Preview the resolved destinations and synthetic payload without sending
     --json-summary          Write a machine-readable test summary to stdout
     --config-dir <path>     Override config directory (default: <binary-dir>/.config)
-    --secrets-dir <path>    Override secrets directory (default: %s)
+    --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
     --help                  Show the concise notify help message
     --help-full             Show the detailed notify help message
 
@@ -345,7 +324,7 @@ BEHAVIOUR:
       - fails if the selected provider is not configured for the selected target
 
     notify test update:
-      - uses the global app config at <config-dir>/%s
+      - uses the global app config at <config-dir>/{{app_config_file}}
       - does not require a label, target, or storage secrets
       - sends a synthetic update notification; default event is update_install_failed
       - bypasses update.notify.notify_on because it is an explicit operator test
@@ -356,37 +335,28 @@ PROVIDER SELECTION:
     --provider ntfy         Test only the configured ntfy destination
 
 EXAMPLES:
-    %s notify test --target onsite-usb homes
-    %s notify test --target offsite-storj --provider ntfy homes
-    %s notify test --target onsite-usb --severity critical homes
-    %s notify test --target onsite-usb --summary "NAS alert path test" --message "Synthetic end-to-end notification check" homes
-    %s notify test --target onsite-usb --dry-run homes
-    %s notify test --target onsite-usb --json-summary homes
-    %s notify test update --provider ntfy --event update_install_failed
-    %s notify test update --provider ntfy --severity critical --dry-run
+    {{script}} notify test --target onsite-usb homes
+    {{script}} notify test --target offsite-storj --provider ntfy homes
+    {{script}} notify test --target onsite-usb --severity critical homes
+    {{script}} notify test --target onsite-usb --summary "NAS alert path test" --message "Synthetic end-to-end notification check" homes
+    {{script}} notify test --target onsite-usb --dry-run homes
+    {{script}} notify test --target onsite-usb --json-summary homes
+    {{script}} notify test update --provider ntfy --event update_install_failed
+    {{script}} notify test update --provider ntfy --severity critical --dry-run
 `,
-		meta.ScriptName,
-		config.DefaultSecretsDir,
-		config.DefaultAppConfigFile,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{app_config_file}}", config.DefaultAppConfigFile,
 	)
 }
 
 func UpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return fmt.Sprintf(`Usage: %s update [OPTIONS]
+	return scriptTemplate(meta, `Usage: {{script}} update [OPTIONS]
 
 Update options:
     --check-only
     --force
     --yes
-    --keep <count>                       (default: %d)
+    --keep <count>                       (default: {{default_keep}})
     --version <tag>                      (default: latest)
     --attestations <off|auto|required>   (default: off)
     --config-dir <path>                  (default: <binary-dir>/.config)
@@ -394,27 +364,21 @@ Update options:
     --help-full
 
 Examples:
-    %s update --check-only
-    %s update --yes
-    %s update --attestations required --yes
-    %s update --version v4.1.8 --yes
-    %s update --yes --config-dir /usr/local/lib/duplicacy-backup/.config
+    {{script}} update --check-only
+    {{script}} update --yes
+    {{script}} update --attestations required --yes
+    {{script}} update --version v4.1.8 --yes
+    {{script}} update --yes --config-dir /usr/local/lib/duplicacy-backup/.config
 
 Use --help-full for the detailed update reference.
 `,
-		meta.ScriptName,
-		updatepkg.DefaultKeep,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_keep}}", fmt.Sprint(updatepkg.DefaultKeep),
 	)
 }
 
 func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return fmt.Sprintf(`Usage: %s update [OPTIONS]
+	return scriptTemplate(meta, `Usage: {{script}} update [OPTIONS]
 
 UPDATE BEHAVIOUR:
     update:
@@ -428,7 +392,7 @@ OPTIONS:
     --check-only           Show the planned update without downloading or installing
     --force                Reinstall even when the selected release is already current
     --yes                  Skip the interactive confirmation prompt
-    --keep <count>         Keep this many newest installed binaries after activation (default: %d)
+    --keep <count>         Keep this many newest installed binaries after activation (default: {{default_keep}})
     --version <tag>        Install one specific published release tag instead of the latest release
     --attestations <mode>  Verify GitHub release attestations: off, auto, or required (default: off)
     --config-dir <path>    Override config directory for update notifications (default: <binary-dir>/.config)
@@ -462,7 +426,7 @@ SUPPORTED LAYOUT:
 
 UPDATE NOTIFICATIONS:
     update notification config is global, not label/target scoped:
-      %s/%s
+      {{config_dir}}/{{app_config_file}}
 
     Example:
       [update.notify]
@@ -478,29 +442,22 @@ UPDATE NOTIFICATIONS:
     scheduled-task monitoring remains the fallback for hard failures.
 
 EXAMPLES:
-    %s update --check-only
-    %s update --yes
-    %s update --attestations required --yes
-    %s update --force --yes
-    %s update --keep 3 --yes
-    %s update --version v4.1.8 --yes
+    {{script}} update --check-only
+    {{script}} update --yes
+    {{script}} update --attestations required --yes
+    {{script}} update --force --yes
+    {{script}} update --keep 3 --yes
+    {{script}} update --version v4.1.8 --yes
 `,
-		meta.ScriptName,
-		updatepkg.DefaultKeep,
-		cfgDir,
-		config.DefaultAppConfigFile,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_keep}}", fmt.Sprint(updatepkg.DefaultKeep),
+		"{{config_dir}}", cfgDir,
+		"{{app_config_file}}", config.DefaultAppConfigFile,
 	)
 }
 
 func FullConfigUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return fmt.Sprintf(`Usage: %s config <validate|explain|paths> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
 
 CONFIG COMMANDS:
     validate                Validate the resolved config and configured secrets
@@ -510,7 +467,7 @@ CONFIG COMMANDS:
 OPTIONS:
     --target <name>         Select the named target (required)
     --config-dir <path>     Override config directory (default: <binary-dir>/.config)
-    --secrets-dir <path>    Override secrets directory (default: %s)
+    --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
     --help                  Show the concise help message
     --help-full             Show the detailed config help message
 
@@ -519,25 +476,18 @@ BEHAVIOUR:
     Every config command requires an explicit --target selection.
 
 DEFAULT LOCATIONS:
-    Config dir             : %s
-    Secrets dir            : %s
+    Config dir             : {{config_dir}}
+    Secrets dir            : {{default_secrets_dir}}
 
 EXAMPLES:
-    %s config validate --target onsite-usb homes
-    %s config validate --target offsite-storj homes
-    %s config explain --target onsite-usb homes
-    %s config explain --target offsite-storj homes
-    %s config paths --target onsite-usb homes
+    {{script}} config validate --target onsite-usb homes
+    {{script}} config validate --target offsite-storj homes
+    {{script}} config explain --target onsite-usb homes
+    {{script}} config explain --target offsite-storj homes
+    {{script}} config paths --target onsite-usb homes
 `,
-		meta.ScriptName,
-		config.DefaultSecretsDir,
-		cfgDir,
-		config.DefaultSecretsDir,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
-		meta.ScriptName,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{config_dir}}", cfgDir,
 	)
 }
 

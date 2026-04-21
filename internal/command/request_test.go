@@ -106,6 +106,25 @@ func TestParseRequest_UpdateHelpFullHandled(t *testing.T) {
 	}
 }
 
+func TestUsageTextTemplatesAreFullyResolved(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	rt := workflow.DefaultRuntime()
+	for name, text := range map[string]string{
+		"usage":       UsageText(meta, rt),
+		"full":        FullUsageText(meta, rt),
+		"config":      ConfigUsageText(meta, rt),
+		"config-full": FullConfigUsageText(meta, rt),
+		"notify":      NotifyUsageText(meta, rt),
+		"notify-full": FullNotifyUsageText(meta, rt),
+		"update":      UpdateUsageText(meta, rt),
+		"update-full": FullUpdateUsageText(meta, rt),
+	} {
+		if strings.Contains(text, "{{") || strings.Contains(text, "}}") {
+			t.Fatalf("%s usage contains unresolved template marker: %q", name, text)
+		}
+	}
+}
+
 func TestParseRequest_ConfigValidate(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "validate", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
