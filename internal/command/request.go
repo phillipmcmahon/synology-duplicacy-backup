@@ -157,7 +157,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 
 	action := args[0]
 	switch action {
-	case "plan":
+	case "plan", "prepare":
 	default:
 		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
 	}
@@ -312,7 +312,18 @@ func parseRestoreFlags(args []string) (*workflow.Request, error) {
 		target:     true,
 		configDir:  true,
 		secretsDir: true,
-	}, nil)
+	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+		switch args[*index] {
+		case "--workspace":
+			value, err := consumeRequiredValue(args, index, "--workspace")
+			if err != nil {
+				return false, err
+			}
+			req.RestoreWorkspace = value
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 type extraFlagParser func(args []string, index *int, req *workflow.Request) (bool, error)

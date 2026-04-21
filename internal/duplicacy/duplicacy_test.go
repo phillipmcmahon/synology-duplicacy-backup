@@ -164,6 +164,29 @@ func TestWritePreferences_WithoutSecrets(t *testing.T) {
 	}
 }
 
+func TestNewWorkspaceSetupWritesPreferencesInWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	storage := "s3://bucket/homes"
+	setup := NewWorkspaceSetup(workspace, storage, false, execpkg.NewMockRunner())
+
+	if setup.DuplicacyRoot != workspace ||
+		setup.DuplicacyDir != filepath.Join(workspace, ".duplicacy") ||
+		setup.PrefsFile != filepath.Join(workspace, ".duplicacy", "preferences") ||
+		setup.RepositoryPath != workspace ||
+		setup.BackupTarget != storage {
+		t.Fatalf("setup = %#v", setup)
+	}
+	if err := setup.CreateDirs(); err != nil {
+		t.Fatalf("CreateDirs() error = %v", err)
+	}
+	if err := setup.WritePreferences(nil); err != nil {
+		t.Fatalf("WritePreferences() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, ".duplicacy", "preferences")); err != nil {
+		t.Fatalf("preferences not written in workspace: %v", err)
+	}
+}
+
 func TestWritePreferences_DryRun(t *testing.T) {
 	s, _ := newTestSetup(t, true)
 

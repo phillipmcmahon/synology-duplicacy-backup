@@ -13,7 +13,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan> [OPTIONS] <source>
+       {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
@@ -46,6 +46,7 @@ Examples:
     {{script}} config validate --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
+    {{script}} restore prepare --target onsite-usb homes
     {{script}} update --check-only
     {{script}} health status --target onsite-usb homes
 
@@ -64,7 +65,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan> [OPTIONS] <source>
+       {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
@@ -106,6 +107,7 @@ NOTIFY COMMANDS:
 
 RESTORE COMMANDS:
     restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore
+    restore prepare         Prepare a safe drill workspace without executing a restore
 
 UPDATE COMMAND:
     update                  Check GitHub for a newer published release and install it through the packaged installer
@@ -212,6 +214,12 @@ RESTORE PLANNING:
     It does not create directories, write preferences, run duplicacy restore, or
     copy data back to the live source path.
 
+RESTORE PREPARATION:
+    restore prepare creates a separate drill workspace and writes the Duplicacy
+    preferences needed to inspect or restore manually from that workspace. It
+    rejects the live source path, source-child workspaces, and non-empty
+    workspaces. It does not run duplicacy restore or copy data back.
+
 EXAMPLES:
     {{script}} --target onsite-usb --backup homes
     {{script}} --target onsite-usb --backup homes
@@ -236,6 +244,8 @@ EXAMPLES:
     {{script}} config paths --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
+    {{script}} restore prepare --target onsite-usb homes
+    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} notify test --target onsite-usb homes
     {{script}} update --check-only
     {{script}} update --yes
@@ -277,13 +287,15 @@ Use --help-full for the detailed config reference.
 }
 
 func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare> [OPTIONS] <source>
 
 Restore commands:
     plan
+    prepare
 
 Options:
     --target <name>
+    --workspace <path>      (default: <source-volume>/restore-drills/<label>-<target>)
     --config-dir <path>     (default: <binary-dir>/.config)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
@@ -291,6 +303,8 @@ Options:
 
 Examples:
     {{script}} restore plan --target onsite-usb homes
+    {{script}} restore prepare --target onsite-usb homes
+    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj homes
 
 Use --help-full for the detailed restore reference.
@@ -301,13 +315,15 @@ Use --help-full for the detailed restore reference.
 
 func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare> [OPTIONS] <source>
 
 RESTORE COMMANDS:
     plan                   Resolve a safe read-only restore drill plan for one label and target
+    prepare                Create a safe drill workspace and write Duplicacy preferences
 
 OPTIONS:
     --target <name>        Select the named target (required)
+    --workspace <path>     Override drill workspace (default: <source-volume>/restore-drills/<label>-<target>)
     --config-dir <path>    Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
     --help                 Show the concise restore help message
@@ -320,6 +336,11 @@ BEHAVIOUR:
       - reads the target state file when available to show the latest known backup revision
       - prints Duplicacy commands for creating a separate drill workspace, listing revisions, and restoring manually
       - does not create directories, write Duplicacy preferences, execute duplicacy restore, or copy data back
+    restore prepare:
+      - creates the selected drill workspace when it does not exist
+      - writes .duplicacy/preferences for the selected storage target
+      - rejects the live source path, source-child workspaces, and non-empty workspaces
+      - does not run duplicacy restore or copy data back
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}
@@ -333,6 +354,8 @@ SAFETY MODEL:
 EXAMPLES:
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
+    {{script}} restore prepare --target onsite-usb homes
+    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,

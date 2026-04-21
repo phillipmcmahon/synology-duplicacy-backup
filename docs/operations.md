@@ -153,6 +153,14 @@ commands without creating the workspace or running a restore:
 sudo duplicacy-backup restore plan --target onsite-usb homes
 ```
 
+Use `restore prepare` when you want the wrapper to create the separate drill
+workspace and write Duplicacy preferences there, but still leave revision
+selection and restore execution manual:
+
+```bash
+sudo duplicacy-backup restore prepare --target onsite-usb homes
+```
+
 At a high level:
 
 - use `config explain`, `config validate`, and `health status` to confirm the
@@ -280,9 +288,9 @@ those fields directly, and `ntfy` still keeps the visible message focused on
 the operator-readable summary.
 
 `--target <name>` selects one named target from the label config. Runtime,
-`config`, `health`, `restore plan`, and label-scoped `notify test` commands
-require an explicit target. Global update commands and `notify test update` do
-not.
+`config`, `health`, `restore plan`, `restore prepare`, and label-scoped
+`notify test` commands require an explicit target. Global update commands and
+`notify test update` do not.
 Targets define both `storage` and `location`. The configured `storage` value is
 passed directly through to Duplicacy. Use `location = "local"` or
 `location = "remote"` to describe where the target lives operationally, and add

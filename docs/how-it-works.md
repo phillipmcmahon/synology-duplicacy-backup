@@ -335,9 +335,10 @@ Unresolved requests go through `dispatchRequest` in
   request and goes through `Planner.Build` followed by `Executor.Run`
 
 This dispatch point is why global commands such as `update` and
-`notify test update` do not inherit label-target runtime requirements, while
-read-only label-target commands such as `restore plan` can stay out of the
-runtime executor path.
+`notify test update` do not inherit label-target runtime requirements. It also
+keeps restore drill commands out of the runtime executor path: `restore plan`
+is read-only, and `restore prepare` only creates the separate drill workspace
+and writes Duplicacy preferences there.
 
 ### Why this matters
 

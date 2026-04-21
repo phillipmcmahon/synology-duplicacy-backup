@@ -280,7 +280,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
 		!strings.Contains(stdout, "notify <test>") ||
-		!strings.Contains(stdout, "restore <plan>") ||
+		!strings.Contains(stdout, "restore <plan|prepare>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
@@ -307,7 +307,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "notify <test>") ||
-		!strings.Contains(stdout, "restore <plan>") ||
+		!strings.Contains(stdout, "restore <plan|prepare>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -397,8 +397,10 @@ func TestRunWithArgs_RestoreHelpReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Restore commands:") ||
 		!strings.Contains(stdout, "--target <name>") ||
+		!strings.Contains(stdout, "--workspace <path>") ||
 		!strings.Contains(stdout, "--config-dir <path>") ||
 		!strings.Contains(stdout, "--secrets-dir <path>") ||
+		!strings.Contains(stdout, "restore prepare --target onsite-usb homes") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed restore reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -440,7 +442,9 @@ func TestRunWithArgs_RestoreHelpFullReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "restore plan:") ||
+		!strings.Contains(stdout, "restore prepare:") ||
 		!strings.Contains(stdout, "does not create directories, write Duplicacy preferences, execute duplicacy restore") ||
+		!strings.Contains(stdout, "writes .duplicacy/preferences") ||
 		!strings.Contains(stdout, "docs/restore-drills.md") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -1068,6 +1072,39 @@ func TestRunWithArgs_RestorePlanReturnsZero(t *testing.T) {
 			if !strings.Contains(stdout, token) {
 				t.Fatalf("stdout missing %q:\n%s", token, stdout)
 			}
+		}
+	})
+}
+
+func TestRunWithArgs_RestorePrepareReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		workspace := filepath.Join(t.TempDir(), "restore-workspace")
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, "-keep 0:365"))
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"restore", "prepare", "--target", "onsite-usb", "--workspace", workspace, "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(restore prepare) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		for _, token := range []string{
+			"Restore workspace prepared for homes/onsite-usb",
+			"Executes Restore",
+			"false",
+			"Copies Back",
+			"false",
+			workspace,
+			"duplicacy list",
+			"docs/restore-drills.md",
+		} {
+			if !strings.Contains(stdout, token) {
+				t.Fatalf("stdout missing %q:\n%s", token, stdout)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(workspace, ".duplicacy", "preferences")); err != nil {
+			t.Fatalf("preferences not written: %v", err)
 		}
 	})
 }

@@ -24,12 +24,15 @@ sudo duplicacy-backup config explain --target onsite-usb2 homes
 sudo duplicacy-backup config validate --target onsite-usb2 homes
 sudo duplicacy-backup health status --target onsite-usb2 homes
 sudo duplicacy-backup restore plan --target onsite-usb2 homes
+sudo duplicacy-backup restore prepare --target onsite-usb2 homes
 ```
 
 Use the `Storage` value from `config explain` as the Duplicacy storage URL for
 the drill. `restore plan` prints that same value, the recommended drill
-workspace, and the Duplicacy commands to run manually. For repositories created
-by this tool, the Duplicacy snapshot ID is `data`.
+workspace, and the Duplicacy commands to run manually. `restore prepare`
+creates that separate workspace and writes `.duplicacy/preferences` there, but
+does not run a restore. For repositories created by this tool, the Duplicacy
+snapshot ID is `data`.
 
 If the selected storage backend needs credentials, configure the temporary
 Duplicacy workspace using Duplicacy's normal password and key handling. The
@@ -53,8 +56,16 @@ sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb2
 cd /volume1/restore-drills/homes-onsite-usb2
 ```
 
-Initialise this folder as a temporary Duplicacy repository that points at the
-same storage used by the backup target:
+The wrapper can prepare this workspace for you:
+
+```bash
+sudo duplicacy-backup restore prepare --target onsite-usb2 homes
+cd /volume1/restore-drills/homes-onsite-usb2
+```
+
+If you are preparing the workspace manually instead, initialise this folder as
+a temporary Duplicacy repository that points at the same storage used by the
+backup target:
 
 ```bash
 duplicacy init data "/volumeUSB2/usbshare/duplicacy/homes"
@@ -68,7 +79,9 @@ duplicacy init data "s3://EU@gateway.storjshare.io/bucket-id/homes"
 
 This prepares the drill workspace. If Duplicacy reports that the storage is not
 initialised, stop and re-check the selected target and storage value before
-continuing.
+continuing. `restore prepare` refuses to use the live source path, refuses
+workspaces inside the live source tree, and refuses non-empty workspaces except
+for an existing `.duplicacy` directory from an earlier preparation.
 
 ## Choose A Revision
 
@@ -162,7 +175,8 @@ assuming a file-level copy is sufficient.
 
 - Confirm the label and target with `config explain`.
 - Confirm `config validate` and `health status` before restoring.
-- Restore into a separate drill workspace, never directly over live data.
+- Use `restore prepare` or Duplicacy `init` to prepare a separate drill
+  workspace, never directly over live data.
 - Use snapshot ID `data` for repositories created by this tool.
 - Use `duplicacy list` to choose a revision.
 - Use `duplicacy list -files -r <revision>` before selective restores.
@@ -175,9 +189,10 @@ assuming a file-level copy is sufficient.
 
 This guide documents the safe manual process. `duplicacy-backup restore plan`
 helps prepare that process by resolving the selected label and target and
-printing the relevant Duplicacy commands. It is intentionally read-only: it does
-not create directories, write Duplicacy preferences, run `duplicacy restore`, or
-copy data back.
+printing the relevant Duplicacy commands. `duplicacy-backup restore prepare`
+creates the separate drill workspace and writes Duplicacy preferences there.
+Both commands are intentionally conservative: neither runs `duplicacy restore`
+or copies data back.
 
 Any future command that performs interactive file selection or executes a
 restore should be designed as a separate capability with its own safety review.

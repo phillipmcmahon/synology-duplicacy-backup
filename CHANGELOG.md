@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Restore workspace preparation is now available**:
+  `duplicacy-backup restore prepare --target <target> <label>` creates the
+  separate drill workspace, writes Duplicacy preferences, and leaves revision
+  selection, restore execution, and copy-back as explicit manual steps.
+
 ## [v5.1.2] - 2026-04-21
 
 ### Fixed

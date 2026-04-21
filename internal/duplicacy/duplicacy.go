@@ -103,6 +103,23 @@ func NewSetup(workRoot, repositoryPath, backupTarget string, dryRun bool, runner
 	}
 }
 
+// NewWorkspaceSetup creates a Duplicacy setup whose repository is the workspace
+// itself. Restore drills use this shape so `duplicacy list` and future restore
+// commands can be run directly from the drill workspace.
+func NewWorkspaceSetup(workspace, storage string, dryRun bool, runner execpkg.Runner) *Setup {
+	return &Setup{
+		WorkRoot:       workspace,
+		DuplicacyRoot:  workspace,
+		DuplicacyDir:   filepath.Join(workspace, ".duplicacy"),
+		PrefsFile:      filepath.Join(workspace, ".duplicacy", "preferences"),
+		FilterFile:     filepath.Join(workspace, ".duplicacy", "filters"),
+		RepositoryPath: workspace,
+		BackupTarget:   storage,
+		DryRun:         dryRun,
+		Runner:         runner,
+	}
+}
+
 // CreateDirs creates the duplicacy working directories.
 func (s *Setup) CreateDirs() error {
 	if s.DryRun {

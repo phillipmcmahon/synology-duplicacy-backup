@@ -114,6 +114,13 @@ Use `restore plan` to gather that context and print safe next-step commands:
 sudo duplicacy-backup restore plan --target <target> <label>
 ```
 
+Use `restore prepare` when you want the wrapper to create the separate drill
+workspace and write Duplicacy preferences there:
+
+```bash
+sudo duplicacy-backup restore prepare --target <target> <label>
+```
+
 Do not restore directly over the live source path as the first step. Restore
 elsewhere, inspect the result, and copy back only the intended files or
 directories.
