@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v5.1.0] - 2026-04-21
+
 ### Changed
 - **Duplicacy storage semantics now live in the Duplicacy integration layer**:
   backend scheme detection, local-path handling, storage-secret requirements,
