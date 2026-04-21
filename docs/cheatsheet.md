@@ -146,6 +146,21 @@ Installer behaviour:
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 
+### Restore Drills
+
+- `duplicacy-backup` does not execute restores yet; use Duplicacy directly from a separate drill workspace.
+- Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
+- Use snapshot ID `data` for repositories created by this tool.
+- Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.
+- See [`restore-drills.md`](restore-drills.md) for the full safe procedure.
+
+```bash
+# Confirm the selected repository before a restore drill
+sudo duplicacy-backup config explain --target onsite-usb2 homes
+sudo duplicacy-backup config validate --target onsite-usb2 homes
+sudo duplicacy-backup health status --target onsite-usb2 homes
+```
+
 ### Notifications and Secrets
 
 - Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple targets under that label.

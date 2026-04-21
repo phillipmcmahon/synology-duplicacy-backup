@@ -184,6 +184,7 @@ Use the documentation by task:
 | Check exact CLI syntax | [CLI reference](docs/cli.md) |
 | Configure labels, targets, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
 | Plan Synology Task Scheduler jobs | [Workflow and scheduling](docs/workflow-scheduling.md) |
+| Practise full or selective restores safely | [Restore drills](docs/restore-drills.md) |
 | Understand update trust and attestations | [Update trust model](docs/update-trust-model.md) |
 | Prepare or verify a release | [Release playbook](docs/release-playbook.md) |
 
@@ -214,6 +215,7 @@ Core operating rules:
 - [Operations](docs/operations.md)
 - [Configuration and secrets](docs/configuration.md)
 - [Workflow and scheduling](docs/workflow-scheduling.md)
+- [Restore drills](docs/restore-drills.md)
 - [CLI reference](docs/cli.md)
 - [Update trust model](docs/update-trust-model.md)
 - [Linux validation and packaging environment](docs/linux-environment.md)

@@ -139,6 +139,23 @@ Duplicacy; storage keys are needed only when the selected backend requires them.
 Path-based storage targets only need a secrets file if a notifying target uses
 authenticated webhook or `ntfy` delivery.
 
+## Restore Drills
+
+The wrapper does not execute restores yet. Use
+[`restore-drills.md`](restore-drills.md) to practise recovery with the Duplicacy
+CLI in a separate drill workspace before copying anything back to live source
+paths.
+
+At a high level:
+
+- use `config explain`, `config validate`, and `health status` to confirm the
+  label, target, storage value, and repository health
+- create an empty restore-drill workspace away from the live source path
+- initialise that workspace with Duplicacy snapshot ID `data` and the selected
+  target's `storage` value
+- restore a full revision or selected paths into the drill workspace
+- inspect the restored data before any deliberate copy-back step
+
 To install a new binary without switching immediately:
 
 ```bash

@@ -102,6 +102,21 @@ See also:
 - [Configuration and secrets](configuration.md#secrets)
 - [Duplicacy storage backends](https://github.com/gilbertchen/duplicacy/wiki/Storage-Backends)
 
+## I Need To Restore Data
+
+The wrapper does not run restore commands yet. Use it first to confirm the
+label, target, storage value, and current health, then perform the restore with
+Duplicacy in a separate drill workspace.
+
+Do not restore directly over the live source path as the first step. Restore
+elsewhere, inspect the result, and copy back only the intended files or
+directories.
+
+See also:
+
+- [Restore drills](restore-drills.md)
+- [Desk cheat sheet](cheatsheet.md#restore-drills)
+
 ## Update Attestation Fails on an Expected Release
 
 If you use `--attestations required`, the updater must be able to run GitHub
