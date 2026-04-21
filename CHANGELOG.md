@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v5.1.1] - 2026-04-21
+
 ### Fixed
 - **S3-compatible Duplicacy schemes now load storage credentials**:
   `s3c://`, `minio://`, and `minios://` targets require the same

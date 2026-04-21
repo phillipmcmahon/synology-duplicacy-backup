@@ -37,7 +37,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 Current public release baseline: `v5.1.0`
 
-Active release-prep target: `v5.1.0`
+Active release-prep target: `v5.1.1`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
