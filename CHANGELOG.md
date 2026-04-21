@@ -39,11 +39,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retired type model.
 
 ### Validation
-- **macOS Go 1.26**: `go test ./...`
-- **macOS Go 1.26**: `go vet ./...`
-- **macOS Go 1.26**:
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
   `go run honnef.co/go/tools/cmd/staticcheck ./...`
-- **macOS**: `git diff --check`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `85.9%`
+  - `cmd/duplicacy-backup`: `92.7%`
+  - `internal/workflow`: `84.3%`
+  - `internal/update`: `83.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `92.0%`
+  - `internal/config`: `87.6%`
 
 ## [v5.0.0] - 2026-04-20
 
