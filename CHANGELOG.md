@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Update install now fails early when not run as root**:
+  non-root update attempts that would install a release now stop before release
+  download or attestation verification and explain that the command should be
+  re-run with `sudo`; `update --check-only` remains available without root.
+
 ## [v5.1.1] - 2026-04-21
 
 ### Added

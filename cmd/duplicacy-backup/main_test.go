@@ -501,6 +501,61 @@ func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 	})
 }
 
+func TestRunWithArgs_UpdateInstallNonRootFailsBeforeHandler(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		called := false
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			called = true
+			return update.Result{}, nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--attestations", "required"}); code != 1 {
+				t.Fatalf("runWithArgs(update non-root) = %d", code)
+			}
+		})
+		if called {
+			t.Fatal("update handler should not be called for non-root install attempts")
+		}
+		if stdout != "" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "update install must be run as root") ||
+			!strings.Contains(stderr, "sudo") ||
+			!strings.Contains(stderr, "--check-only") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "gh auth") || strings.Contains(stderr, "GitHub CLI") {
+			t.Fatalf("stderr should not expose secondary attestation errors: %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_UpdateCheckOnlyNonRootReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			if !req.UpdateCheckOnly {
+				t.Fatalf("UpdateCheckOnly = false")
+			}
+			return update.Result{Output: "check only ok\n", Status: update.StatusAvailable}, nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"update", "--check-only"}); code != 0 {
+				t.Fatalf("runWithArgs(update --check-only non-root) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if stdout != "check only ok\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
 func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()

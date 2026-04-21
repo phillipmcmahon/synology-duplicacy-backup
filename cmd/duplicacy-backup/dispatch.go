@@ -63,6 +63,9 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 }
 
 func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if !req.UpdateCheckOnly && rt.Geteuid() != 0 {
+		return writeUpdatePrivilegeFailure()
+	}
 	result, err := handleUpdateCommand(req, meta, rt)
 	updateStatus := updateStatusForWorkflow(result.Status)
 	if err != nil {
@@ -76,6 +79,12 @@ func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 		fmt.Fprintf(os.Stderr, "[WARN] Failed to send update notification: %s\n", workflow.OperatorMessage(notifyErr))
 	}
 	return 0
+}
+
+func writeUpdatePrivilegeFailure() int {
+	message := "update install must be run as root; re-run with sudo or use --check-only to inspect the update plan"
+	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	return exitCodeGeneralFailure
 }
 
 func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
