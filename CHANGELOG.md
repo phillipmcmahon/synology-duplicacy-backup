@@ -33,6 +33,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state and workspace helpers, and shared report sections ahead of future
   restore subcommands.
 
+### Removed
+- **Old runtime operation flags are no longer supported**:
+  `--backup`, `--prune`, `--cleanup-storage`, `--fix-perms`, and
+  `--force-prune` are not accepted as the top-level runtime invocation model.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `86.2%`
+  - `cmd/duplicacy-backup`: `92.6%`
+  - `internal/workflow`: `84.8%`
+  - `internal/update`: `83.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `92.0%`
+  - `internal/config`: `87.6%`
+
 ## [v5.1.2] - 2026-04-21
 
 ### Fixed

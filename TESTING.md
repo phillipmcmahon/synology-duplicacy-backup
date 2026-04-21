@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v5.1.1`
+Current public release baseline: `v5.1.2`
 
-Active release-prep target: `v5.1.2`
+Active release-prep target: `v6.0.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -55,14 +55,27 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `86.1%`
+- overall coverage: `86.2%`
 - `cmd/duplicacy-backup`: `92.6%`
-- `internal/workflow`: `84.5%`
+- `internal/workflow`: `84.8%`
 - `internal/update`: `83.5%`
 - `internal/duplicacy`: `81.2%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v6.0.0 validation:
+
+- CLI parser, release-surface, and command-entrypoint tests cover the breaking
+  runtime command model:
+  `backup`, `prune`, `cleanup-storage`, and `fix-perms`.
+- Tests assert old top-level runtime operation flags are rejected rather than
+  preserved as compatibility syntax.
+- Restore tests cover `restore plan` and `restore prepare` under the aligned
+  command invocation model.
+- Restore workspace preparation tests cover local preference generation,
+  unsafe workspace rejection, non-empty workspace rejection, and root-gated
+  remote secret loading.
 
 Additional v4.4.1 validation:
 
