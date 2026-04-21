@@ -23,6 +23,7 @@ var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
 var handleNotifyCommand = workflow.HandleNotifyCommand
+var handleRestoreCommand = workflow.HandleRestoreCommand
 var handleUpdateCommand = handleUpdateRequest
 var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 

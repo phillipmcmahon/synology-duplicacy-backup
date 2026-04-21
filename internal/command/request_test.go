@@ -62,6 +62,17 @@ func TestParseRequest_UpdateHelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_RestoreHelpHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"restore", "--help"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_HelpFullHandled(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"--help-full"}, meta, workflow.DefaultRuntime())
@@ -106,18 +117,31 @@ func TestParseRequest_UpdateHelpFullHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_RestoreHelpFullHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"restore", "--help-full"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestUsageTextTemplatesAreFullyResolved(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 	for name, text := range map[string]string{
-		"usage":       UsageText(meta, rt),
-		"full":        FullUsageText(meta, rt),
-		"config":      ConfigUsageText(meta, rt),
-		"config-full": FullConfigUsageText(meta, rt),
-		"notify":      NotifyUsageText(meta, rt),
-		"notify-full": FullNotifyUsageText(meta, rt),
-		"update":      UpdateUsageText(meta, rt),
-		"update-full": FullUpdateUsageText(meta, rt),
+		"usage":        UsageText(meta, rt),
+		"full":         FullUsageText(meta, rt),
+		"config":       ConfigUsageText(meta, rt),
+		"config-full":  FullConfigUsageText(meta, rt),
+		"notify":       NotifyUsageText(meta, rt),
+		"notify-full":  FullNotifyUsageText(meta, rt),
+		"restore":      RestoreUsageText(meta, rt),
+		"restore-full": FullRestoreUsageText(meta, rt),
+		"update":       UpdateUsageText(meta, rt),
+		"update-full":  FullUpdateUsageText(meta, rt),
 	} {
 		if strings.Contains(text, "{{") || strings.Contains(text, "}}") {
 			t.Fatalf("%s usage contains unresolved template marker: %q", name, text)
@@ -220,6 +244,37 @@ func TestParseRequest_NotifyTestUpdateRejectsTarget(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	_, err := ParseRequest([]string{"notify", "test", "update", "--target", "onsite-usb"}, meta, workflow.DefaultRuntime())
 	if err == nil || !strings.Contains(err.Error(), "does not use --target") {
+		t.Fatalf("ParseRequest() err = %v", err)
+	}
+}
+
+func TestParseRequest_RestorePlan(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"restore", "plan", "--target", "offsite-storj", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.RestoreCommand != "plan" ||
+		result.Request.Target() != "offsite-storj" ||
+		result.Request.ConfigDir != "/cfg" ||
+		result.Request.SecretsDir != "/sec" ||
+		result.Request.Source != "homes" {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_RestorePlanRejectsRuntimeFlags(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"restore", "plan", "--target", "onsite-usb", "--dry-run", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unknown option --dry-run") {
+		t.Fatalf("ParseRequest() err = %v", err)
+	}
+}
+
+func TestParseRequest_RestoreUnknownCommandFails(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unknown restore command") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
 }

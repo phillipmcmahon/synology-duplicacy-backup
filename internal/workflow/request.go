@@ -25,6 +25,7 @@ type Request struct {
 	ConfigCommand      string
 	HealthCommand      string
 	NotifyCommand      string
+	RestoreCommand     string
 	UpdateCommand      string
 	FixPerms           bool
 	ForcePrune         bool

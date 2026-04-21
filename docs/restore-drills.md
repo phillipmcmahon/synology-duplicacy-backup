@@ -23,11 +23,13 @@ details:
 sudo duplicacy-backup config explain --target onsite-usb2 homes
 sudo duplicacy-backup config validate --target onsite-usb2 homes
 sudo duplicacy-backup health status --target onsite-usb2 homes
+sudo duplicacy-backup restore plan --target onsite-usb2 homes
 ```
 
 Use the `Storage` value from `config explain` as the Duplicacy storage URL for
-the drill. For repositories created by this tool, the Duplicacy snapshot ID is
-`data`.
+the drill. `restore plan` prints that same value, the recommended drill
+workspace, and the Duplicacy commands to run manually. For repositories created
+by this tool, the Duplicacy snapshot ID is `data`.
 
 If the selected storage backend needs credentials, configure the temporary
 Duplicacy workspace using Duplicacy's normal password and key handling. The
@@ -171,8 +173,11 @@ assuming a file-level copy is sufficient.
 
 ## Current Boundary
 
-This guide documents the safe manual process. A future
-`duplicacy-backup restore plan` command should be read-only and should generate
-the relevant Duplicacy commands from the selected label and target. It should
-not perform a restore until the operator experience is designed carefully
-enough to handle full and selective recovery without surprises.
+This guide documents the safe manual process. `duplicacy-backup restore plan`
+helps prepare that process by resolving the selected label and target and
+printing the relevant Duplicacy commands. It is intentionally read-only: it does
+not create directories, write Duplicacy preferences, run `duplicacy restore`, or
+copy data back.
+
+Any future command that performs interactive file selection or executes a
+restore should be designed as a separate capability with its own safety review.

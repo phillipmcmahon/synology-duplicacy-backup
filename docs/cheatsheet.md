@@ -6,10 +6,10 @@ and dry-run notification tests are common normal-user exceptions.
 This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 
-Runtime, `config`, `health`, and label-scoped `notify test` commands need an
-explicit `--target <name>`. Runtime commands also need at least one explicit
-operation flag such as `--backup`, `--prune`, `--cleanup-storage`, or
-`--fix-perms`.
+Runtime, `config`, `health`, `restore plan`, and label-scoped `notify test`
+commands need an explicit `--target <name>`. Runtime commands also need at
+least one explicit operation flag such as `--backup`, `--prune`,
+`--cleanup-storage`, or `--fix-perms`.
 
 Target model:
 
@@ -159,6 +159,9 @@ Installer behaviour:
 sudo duplicacy-backup config explain --target onsite-usb2 homes
 sudo duplicacy-backup config validate --target onsite-usb2 homes
 sudo duplicacy-backup health status --target onsite-usb2 homes
+
+# Print a read-only restore drill plan with suggested Duplicacy commands
+sudo duplicacy-backup restore plan --target onsite-usb2 homes
 ```
 
 ### Notifications and Secrets

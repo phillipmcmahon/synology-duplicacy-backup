@@ -13,6 +13,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} restore <plan> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
@@ -44,6 +45,7 @@ Examples:
     {{script}} --target offsite-storj --backup homes
     {{script}} config validate --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
+    {{script}} restore plan --target onsite-usb homes
     {{script}} update --check-only
     {{script}} health status --target onsite-usb homes
 
@@ -62,6 +64,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} restore <plan> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
 
@@ -100,6 +103,9 @@ HEALTH COMMANDS:
 NOTIFY COMMANDS:
     notify test             Send a clearly marked simulated notification through the configured providers
     notify test update      Send a simulated update notification through the global update config
+
+RESTORE COMMANDS:
+    restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore
 
 UPDATE COMMAND:
     update                  Check GitHub for a newer published release and install it through the packaged installer
@@ -200,6 +206,12 @@ JSON SUMMARY:
     --json-summary writes a machine-readable completion summary to stdout.
     Human-readable logs continue to be written to stderr.
 
+RESTORE PLANNING:
+    restore plan is read-only. It resolves label and target context, shows the
+    safe drill workspace pattern, and prints Duplicacy commands to run manually.
+    It does not create directories, write preferences, run duplicacy restore, or
+    copy data back to the live source path.
+
 EXAMPLES:
     {{script}} --target onsite-usb --backup homes
     {{script}} --target onsite-usb --backup homes
@@ -222,6 +234,8 @@ EXAMPLES:
     {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
+    {{script}} restore plan --target onsite-usb homes
+    {{script}} restore plan --target offsite-storj homes
     {{script}} notify test --target onsite-usb homes
     {{script}} update --check-only
     {{script}} update --yes
@@ -259,6 +273,70 @@ Examples:
 Use --help-full for the detailed config reference.
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+	)
+}
+
+func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan> [OPTIONS] <source>
+
+Restore commands:
+    plan
+
+Options:
+    --target <name>
+    --config-dir <path>     (default: <binary-dir>/.config)
+    --secrets-dir <path>    (default: {{default_secrets_dir}})
+    --help
+    --help-full
+
+Examples:
+    {{script}} restore plan --target onsite-usb homes
+    {{script}} restore plan --target offsite-storj homes
+
+Use --help-full for the detailed restore reference.
+`,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+	)
+}
+
+func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	cfgDir := workflow.EffectiveConfigDir(rt)
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan> [OPTIONS] <source>
+
+RESTORE COMMANDS:
+    plan                   Resolve a safe read-only restore drill plan for one label and target
+
+OPTIONS:
+    --target <name>        Select the named target (required)
+    --config-dir <path>    Override config directory (default: <binary-dir>/.config)
+    --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
+    --help                 Show the concise restore help message
+    --help-full            Show the detailed restore help message
+
+BEHAVIOUR:
+    restore plan:
+      - reads the selected label config
+      - shows the resolved source path, storage value, config file, and applicable secrets file
+      - reads the target state file when available to show the latest known backup revision
+      - prints Duplicacy commands for creating a separate drill workspace, listing revisions, and restoring manually
+      - does not create directories, write Duplicacy preferences, execute duplicacy restore, or copy data back
+
+DEFAULT LOCATIONS:
+    Config dir             : {{config_dir}}
+    Secrets dir            : {{default_secrets_dir}}
+
+SAFETY MODEL:
+    Restore drills should restore into a separate workspace first. Inspect the
+    restored data there, then copy back deliberately with rsync --dry-run before
+    any live write. See docs/restore-drills.md for the full procedure.
+
+EXAMPLES:
+    {{script}} restore plan --target onsite-usb homes
+    {{script}} restore plan --target offsite-storj homes
+    {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
+`,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{config_dir}}", cfgDir,
 	)
 }
 

@@ -34,6 +34,8 @@ var checkRevisionPassRegex = regexp.MustCompile(`(?i)all chunks referenced by sn
 var checkRevisionFailRegex = regexp.MustCompile(`(?i)some chunks referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+are missing`)
 var checkChunkMissingRegex = regexp.MustCompile(`(?i)chunk\s+[0-9a-f]+\s+referenced by snapshot\s+.+?\s+at revision\s+(\d+)\s+does not exist`)
 
+const DefaultSnapshotID = "data"
+
 type RepositoryProbeState string
 
 const (
@@ -122,7 +124,7 @@ func (s *Setup) WritePreferences(sec *secrets.Secrets) error {
 
 	prefs := []preferenceEntry{{
 		Name:               "default",
-		ID:                 "data",
+		ID:                 DefaultSnapshotID,
 		Repository:         s.RepositoryPath,
 		Storage:            s.BackupTarget,
 		Encrypted:          false,

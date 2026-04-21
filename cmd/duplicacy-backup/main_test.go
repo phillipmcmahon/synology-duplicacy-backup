@@ -75,6 +75,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
+	oldHandleRestoreCommand := handleRestoreCommand
 	oldHandleUpdateCommand := handleUpdateCommand
 	oldMaybeSendPreRunFailureNotification := maybeSendPreRunFailureNotification
 
@@ -85,6 +86,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	handleConfigCommand = workflow.HandleConfigCommand
+	handleRestoreCommand = workflow.HandleRestoreCommand
 	handleUpdateCommand = oldHandleUpdateCommand
 	maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
@@ -95,6 +97,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
+		handleRestoreCommand = oldHandleRestoreCommand
 		handleUpdateCommand = oldHandleUpdateCommand
 		maybeSendPreRunFailureNotification = oldMaybeSendPreRunFailureNotification
 	})
@@ -277,6 +280,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
 		!strings.Contains(stdout, "notify <test>") ||
+		!strings.Contains(stdout, "restore <plan>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
@@ -303,6 +307,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "notify <test>") ||
+		!strings.Contains(stdout, "restore <plan>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -381,6 +386,24 @@ func TestRunWithArgs_UpdateHelpReturnsZero(t *testing.T) {
 	}
 }
 
+func TestRunWithArgs_RestoreHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"restore", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(restore --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Restore commands:") ||
+		!strings.Contains(stdout, "--target <name>") ||
+		!strings.Contains(stdout, "--config-dir <path>") ||
+		!strings.Contains(stdout, "--secrets-dir <path>") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed restore reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
 func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"--help-full"}); code != 0 {
@@ -392,6 +415,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Use [targets.<name>.keys] tables with Duplicacy key names such as:") ||
 		!strings.Contains(stdout, "notify test             Send a clearly marked simulated notification through the configured providers") ||
+		!strings.Contains(stdout, "restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore") ||
 		!strings.Contains(stdout, "update                  Check GitHub for a newer published release and install it through the packaged installer") ||
 		!strings.Contains(stdout, "s3_id") ||
 		!strings.Contains(stdout, "s3_secret") ||
@@ -402,6 +426,22 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
 		!strings.Contains(stdout, "config explain --target offsite-storj homes") ||
 		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_RestoreHelpFullReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"restore", "--help-full"}); code != 0 {
+			t.Fatalf("runWithArgs(restore --help-full) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "restore plan:") ||
+		!strings.Contains(stdout, "does not create directories, write Duplicacy preferences, execute duplicacy restore") ||
+		!strings.Contains(stdout, "docs/restore-drills.md") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
@@ -945,6 +985,34 @@ func TestRunWithArgs_ConfigPathsReturnsZero(t *testing.T) {
 		}
 		if strings.Contains(stdout, "Work Dir") || strings.Contains(stdout, "Snapshot") {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_RestorePlanReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		configDir := t.TempDir()
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", "", "", 4, "-keep 0:365"))
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"restore", "plan", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(restore plan) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		for _, token := range []string{
+			"Restore plan for homes/onsite-usb",
+			"Read Only",
+			"Executes Restore",
+			"Section: Suggested Commands",
+			"duplicacy init",
+			"duplicacy restore -r <revision> -stats",
+			"docs/restore-drills.md",
+		} {
+			if !strings.Contains(stdout, token) {
+				t.Fatalf("stdout missing %q:\n%s", token, stdout)
+			}
 		}
 	})
 }

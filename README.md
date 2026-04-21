@@ -165,6 +165,9 @@ sudo duplicacy-backup --target onsite-usb --backup homes
 
 # Check backup freshness and repository status
 sudo duplicacy-backup health status --target onsite-usb homes
+
+# Print a safe read-only restore drill plan
+sudo duplicacy-backup restore plan --target onsite-usb homes
 ```
 
 For day-to-day commands, use the [desk cheat sheet](docs/cheatsheet.md). For
@@ -190,8 +193,8 @@ Use the documentation by task:
 
 Core operating rules:
 
-- Runtime, `config`, `health`, and label-scoped `notify test` commands require
-  an explicit `--target <name>`.
+- Runtime, `config`, `health`, `restore plan`, and label-scoped `notify test`
+  commands require an explicit `--target <name>`.
 - Runtime commands also require at least one operation flag such as `--backup`,
   `--prune`, `--cleanup-storage`, or `--fix-perms`.
 - When operations are combined, execution order is fixed:
@@ -202,6 +205,8 @@ Core operating rules:
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific
   state under `/var/lib/duplicacy-backup/<label>.<target>.json`.
+- `restore plan` is read-only. It prints the resolved context and Duplicacy
+  commands for a safe drill workspace, but it does not execute restores.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.

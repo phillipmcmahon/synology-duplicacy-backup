@@ -6,13 +6,14 @@
 duplicacy-backup [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source|update>
+duplicacy-backup restore <plan> [OPTIONS] <source>
 duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-Runtime, `config`, `health`, and label-scoped `notify test` commands need an
-explicit `--target <name>`. `notify test update` and `update` are global
-application commands and do not use a target.
+Runtime, `config`, `health`, `restore plan`, and label-scoped `notify test`
+commands need an explicit `--target <name>`. `notify test update` and `update`
+are global application commands and do not use a target.
 Every runtime command also needs at least one explicit primary operation.
 
 Targets describe both storage and deployment location:
@@ -46,7 +47,7 @@ Primary operations may be combined. When they are, execution order is fixed:
 | Flag | Description |
 |---|---|
 | `--force-prune` | Override safe prune thresholds, turning prune into forced prune |
-| `--target <name>` | Use the named target config; required for runtime, `config`, `health`, and label-scoped `notify test` commands |
+| `--target <name>` | Use the named target config; required for runtime, `config`, `health`, `restore plan`, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -70,6 +71,12 @@ Primary operations may be combined. When they are, execution order is fixed:
 |---|---|
 | `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
 | `notify test update` | Send a simulated update notification through the global update notification config |
+
+## Restore Commands
+
+| Command | Description |
+|---|---|
+| `restore plan --target <target> <label>` | Print a safe read-only restore drill plan for the selected label and target |
 
 ## Update Command
 
@@ -114,6 +121,9 @@ sudo duplicacy-backup health status --target onsite-usb homes
 # Label-scoped notification test
 sudo duplicacy-backup notify test --target onsite-usb homes
 
+# Restore planning command
+sudo duplicacy-backup restore plan --target onsite-usb homes
+
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
 
@@ -124,9 +134,12 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 ## Behaviour Notes
 
 - `--help` is intentionally concise; use `--help-full` for detailed command help.
-- Every runtime, `config`, `health`, and label-scoped `notify test` command
-  needs `--target <name>`.
+- Every runtime, `config`, `health`, `restore plan`, and label-scoped
+  `notify test` command needs `--target <name>`.
 - Runtime commands also need at least one primary operation flag.
+- `restore plan` is read-only. It resolves the selected target and prints
+  Duplicacy commands for a separate drill workspace; it does not create
+  directories, write preferences, run `duplicacy restore`, or copy data back.
 - Combined runtime phases always run in this order:
   `backup -> prune -> cleanup-storage -> fix-perms`.
 - `--force-prune` requires `--prune` and only affects prune threshold

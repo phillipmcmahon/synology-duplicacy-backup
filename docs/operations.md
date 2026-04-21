@@ -146,6 +146,13 @@ The wrapper does not execute restores yet. Use
 CLI in a separate drill workspace before copying anything back to live source
 paths.
 
+Use `restore plan` to print the resolved context and suggested Duplicacy
+commands without creating the workspace or running a restore:
+
+```bash
+sudo duplicacy-backup restore plan --target onsite-usb homes
+```
+
 At a high level:
 
 - use `config explain`, `config validate`, and `health status` to confirm the
@@ -273,8 +280,9 @@ those fields directly, and `ntfy` still keeps the visible message focused on
 the operator-readable summary.
 
 `--target <name>` selects one named target from the label config. Runtime,
-`config`, `health`, and label-scoped `notify test` commands require an
-explicit target. Global update commands and `notify test update` do not.
+`config`, `health`, `restore plan`, and label-scoped `notify test` commands
+require an explicit target. Global update commands and `notify test update` do
+not.
 Targets define both `storage` and `location`. The configured `storage` value is
 passed directly through to Duplicacy. Use `location = "local"` or
 `location = "remote"` to describe where the target lives operationally, and add

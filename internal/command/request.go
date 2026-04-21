@@ -27,6 +27,9 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if len(args) > 0 && args[0] == "notify" {
 		return parseNotifyRequest(args[1:], meta, rt)
 	}
+	if len(args) > 0 && args[0] == "restore" {
+		return parseRestoreRequest(args[1:], meta, rt)
+	}
 	if len(args) > 0 && args[0] == "update" {
 		return parseUpdateRequest(args[1:], meta, rt)
 	}
@@ -137,6 +140,33 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 	if req.NotifyEvent != "" {
 		return nil, workflow.NewUsageRequestError("--event is only supported for notify test update")
 	}
+	if err := validateTargetAndLabel(req); err != nil {
+		return nil, err
+	}
+
+	return &ParseResult{Request: req}, nil
+}
+
+func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+	if len(args) == 0 {
+		return &ParseResult{Handled: true, Output: RestoreUsageText(meta, rt)}, nil
+	}
+	if result := parseHelpRequest(args, RestoreUsageText(meta, rt), FullRestoreUsageText(meta, rt)); result != nil {
+		return result, nil
+	}
+
+	action := args[0]
+	switch action {
+	case "plan":
+	default:
+		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
+	}
+
+	req, err := parseRestoreFlags(args[1:])
+	if err != nil {
+		return nil, err
+	}
+	req.RestoreCommand = action
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
@@ -273,6 +303,15 @@ func parseHealthFlags(args []string) (*workflow.Request, error) {
 		jsonSummary: true,
 		configDir:   true,
 		secretsDir:  true,
+	}, nil)
+}
+
+func parseRestoreFlags(args []string) (*workflow.Request, error) {
+	req := &workflow.Request{}
+	return req, parseSourceFlags(args, req, sharedFlagOptions{
+		target:     true,
+		configDir:  true,
+		secretsDir: true,
 	}, nil)
 }
 

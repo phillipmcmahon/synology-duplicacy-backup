@@ -104,9 +104,15 @@ See also:
 
 ## I Need To Restore Data
 
-The wrapper does not run restore commands yet. Use it first to confirm the
-label, target, storage value, and current health, then perform the restore with
+The wrapper does not execute restores yet. Use it first to confirm the label,
+target, storage value, and current health, then perform the restore with
 Duplicacy in a separate drill workspace.
+
+Use `restore plan` to gather that context and print safe next-step commands:
+
+```bash
+sudo duplicacy-backup restore plan --target <target> <label>
+```
 
 Do not restore directly over the live source path as the first step. Restore
 elsewhere, inspect the result, and copy back only the intended files or

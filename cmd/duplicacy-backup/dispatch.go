@@ -24,6 +24,8 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 		return runConfigRequest(req, meta, rt)
 	case req.NotifyCommand != "":
 		return runNotifyRequest(req, meta, rt)
+	case req.RestoreCommand != "":
+		return runRestoreRequest(req, meta, rt)
 	case req.UpdateCommand != "":
 		return runUpdateRequest(req, meta, rt)
 	case req.HealthCommand != "":
@@ -46,6 +48,15 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	output, err := handleNotifyCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure(notify.CommandOutput(err), err)
+	}
+	fmt.Print(output)
+	return 0
+}
+
+func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	output, err := handleRestoreCommand(req, meta, rt)
+	if err != nil {
+		return writeCommandFailure("", err)
 	}
 	fmt.Print(output)
 	return 0

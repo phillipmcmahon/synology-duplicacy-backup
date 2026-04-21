@@ -327,6 +327,7 @@ Unresolved requests go through `dispatchRequest` in
 
 - `ConfigCommand` routes to `workflow.HandleConfigCommand`
 - `NotifyCommand` routes to `workflow.HandleNotifyCommand`
+- `RestoreCommand` routes to `workflow.HandleRestoreCommand`
 - `UpdateCommand` routes to `update.HandleCommand` and the update notification
   hooks
 - `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
@@ -334,7 +335,9 @@ Unresolved requests go through `dispatchRequest` in
   request and goes through `Planner.Build` followed by `Executor.Run`
 
 This dispatch point is why global commands such as `update` and
-`notify test update` do not inherit label-target runtime requirements.
+`notify test update` do not inherit label-target runtime requirements, while
+read-only label-target commands such as `restore plan` can stay out of the
+runtime executor path.
 
 ### Why this matters
 
