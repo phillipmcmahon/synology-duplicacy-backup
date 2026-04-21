@@ -13,7 +13,7 @@ usage() {
 Usage: ./scripts/mirror-release-assets.sh --tag <value> [OPTIONS]
 
 Download the published GitHub release assets and source archives for one tag,
-then mirror the full artefact set to the homestorage release directory.
+then mirror the full artefact set to the homestorage latest release directory.
 The mirrored set includes GitHub release assets plus `Source code (zip)` and
 `Source code (tar.gz)`.
 
@@ -90,6 +90,10 @@ require_command mktemp
 require_command find
 require_command basename
 
+REMOTE_LATEST_DIR="$REMOTE_ROOT/latest"
+REMOTE_ARCHIVE_DIR="$REMOTE_ROOT/archive"
+REMOTE_DIR="$REMOTE_LATEST_DIR/$TAG"
+
 if [ -z "$STAGE_DIR" ]; then
     TEMP_STAGE_DIR="$(mktemp -d)"
     STAGE_DIR="$TEMP_STAGE_DIR"
@@ -103,9 +107,42 @@ gh release download "$TAG" --repo "$REPO" --dir "$STAGE_DIR"
 gh release download "$TAG" --repo "$REPO" --archive zip --output "$STAGE_DIR/Source code (zip)"
 gh release download "$TAG" --repo "$REPO" --archive tar.gz --output "$STAGE_DIR/Source code (tar.gz)"
 
-REMOTE_DIR="$REMOTE_ROOT/$TAG"
+ssh "$HOST" "
+set -eu
+remote_root='$REMOTE_ROOT'
+latest_dir='$REMOTE_LATEST_DIR'
+archive_dir='$REMOTE_ARCHIVE_DIR'
+tag='$TAG'
 
-ssh "$HOST" "mkdir -p '$REMOTE_DIR'"
+mkdir -p \"\$latest_dir\" \"\$archive_dir\"
+
+for dir in \"\$remote_root\"/v*; do
+    [ -d \"\$dir\" ] || continue
+    name=\${dir##*/}
+    if [ -e \"\$archive_dir/\$name\" ]; then
+        echo \"archive target already exists: \$archive_dir/\$name\" >&2
+        exit 1
+    fi
+    mv \"\$dir\" \"\$archive_dir/\$name\"
+done
+
+for dir in \"\$latest_dir\"/v*; do
+    [ -d \"\$dir\" ] || continue
+    name=\${dir##*/}
+    [ \"\$name\" = \"\$tag\" ] && continue
+    if [ -e \"\$archive_dir/\$name\" ]; then
+        echo \"archive target already exists: \$archive_dir/\$name\" >&2
+        exit 1
+    fi
+    mv \"\$dir\" \"\$archive_dir/\$name\"
+done
+
+if [ -d \"\$archive_dir/\$tag\" ] && [ ! -e \"\$latest_dir/\$tag\" ]; then
+    mv \"\$archive_dir/\$tag\" \"\$latest_dir/\$tag\"
+fi
+
+mkdir -p \"\$latest_dir/\$tag\"
+"
 
 (
     cd "$STAGE_DIR"

@@ -12,7 +12,7 @@ usage() {
     cat <<'EOF'
 Usage: ./scripts/verify-release.sh --tag <value> [OPTIONS]
 
-Verify one published GitHub release and its mirrored artefacts on homestorage.
+Verify one published GitHub release and its latest mirrored artefacts on homestorage.
 
 Checks:
   - GitHub release exists and is neither draft nor prerelease
@@ -22,7 +22,7 @@ Checks:
   - the GitHub release has a release attestation
   - release assets verify against the release attestation
   - the remote tag commit matches the local tag commit
-  - the mirrored artefact set exists under homestorage
+  - the mirrored artefact set exists under homestorage latest/<tag>
 
 Options:
   --tag <value>         Release tag to verify (for example v4.1.4)
@@ -93,7 +93,7 @@ require_command mktemp
 require_command diff
 
 VERSION="${TAG#v}"
-REMOTE_DIR="$REMOTE_ROOT/$TAG"
+REMOTE_DIR="$REMOTE_ROOT/latest/$TAG"
 
 EXPECTED_RELEASE_ASSETS=$(cat <<EOF
 SHA256SUMS.txt

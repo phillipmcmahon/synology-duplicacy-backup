@@ -14,8 +14,8 @@ usage() {
     cat <<'EOF'
 Usage: ./scripts/finalize-release.sh --tag <value> [OPTIONS]
 
-Mirror a published GitHub release to homestorage, run the full release
-verification gate, and print a release-issue closure summary.
+Mirror a published GitHub release to homestorage latest/<tag>, run the full
+release verification gate, and print a release-issue closure summary.
 
 Options:
   --tag <value>         Release tag to finalize (for example v4.4.0)
@@ -93,7 +93,7 @@ done
 SCRIPT_DIR="$(script_dir)"
 MIRROR_SCRIPT="${MIRROR_RELEASE_SCRIPT:-$SCRIPT_DIR/mirror-release-assets.sh}"
 VERIFY_SCRIPT="${VERIFY_RELEASE_SCRIPT:-$SCRIPT_DIR/verify-release.sh}"
-REMOTE_DIR="$REMOTE_ROOT/$TAG"
+REMOTE_DIR="$REMOTE_ROOT/latest/$TAG"
 
 [ -f "$MIRROR_SCRIPT" ] || fail "mirror script not found: $MIRROR_SCRIPT"
 [ -f "$VERIFY_SCRIPT" ] || fail "verify script not found: $VERIFY_SCRIPT"

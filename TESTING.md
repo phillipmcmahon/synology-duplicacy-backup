@@ -173,11 +173,12 @@ Local packaging is optional and is only for test-package generation. After a
 release is published, the canonical GitHub-built artefacts and the two
 GitHub-generated source archives should be downloaded and mirrored to:
 
-- `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
+- `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/latest/<tag>/`
 
 Use `scripts/finalize-release.sh --tag vX.Y.Z` as the supported post-release
 closure path. It mirrors the published asset set and source archives to
-`homestorage`, runs the full release verifier, and prints a release-issue
+`homestorage` under `latest/<tag>`, moves older release directories under
+`archive/<tag>`, runs the full release verifier, and prints a release-issue
 closure summary.
 
 Use `scripts/mirror-release-assets.sh --tag vX.Y.Z` only when repairing the

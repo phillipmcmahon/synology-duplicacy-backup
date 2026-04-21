@@ -58,7 +58,12 @@ jobs:
         run: go test -v -race ./...
 
       - name: Run script tests
-        run: sh scripts/test-finalize-release.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_script in scripts/test-*.sh; do
+            sh "$test_script"
+          done
 
   build:
     name: Build

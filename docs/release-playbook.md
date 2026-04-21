@@ -26,7 +26,9 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Do not build local release tarballs as part of the normal release flow.
 - After the GitHub release is live, download the published release artefacts
   plus the GitHub-generated source archives and mirror them to
-  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`.
+  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/latest/<tag>/`.
+  Older release directories are kept under
+  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/archive/<tag>/`.
 
 ## Release Tracking Conventions
 
@@ -226,7 +228,9 @@ After the release exists and the GitHub Actions asset set is complete:
   - `Source code (zip)`
   - `Source code (tar.gz)`
 - create the destination directory:
-  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/<tag>/`
+  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/latest/<tag>/`
+- move older release mirror directories under:
+  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/archive/<tag>/`
 - mirror the full artefact set to homestorage
 - run the full release verifier
 - paste the generated closure summary into the release issue before closing it
@@ -261,8 +265,10 @@ sh ./scripts/mirror-release-assets.sh --tag vX.Y.Z
 ```
 
 The script downloads the published release assets plus the two GitHub source
-archives into a local staging directory, creates the remote release directory,
-and mirrors the files with a `tar`-over-SSH transfer (`tar -cf - . | ssh ...`).
+archives into a local staging directory, creates `latest/` and `archive/` if
+needed, archives older release directories, creates the remote latest release
+directory, and mirrors the files with a `tar`-over-SSH transfer
+(`tar -cf - . | ssh ...`).
 This avoids the filename
 and wildcard edge cases we saw from plain `scp` when copying files such as
 `Source code (zip)` to Synology.
@@ -279,7 +285,7 @@ sh ./scripts/verify-release.sh --tag vX.Y.Z
 The script verifies the published GitHub release, required release-note
 headings, expected packaged assets, GitHub release attestations, individual
 asset attestations, local-versus-remote tag commit alignment, and the mirrored
-artefact set on `homestorage`.
+artefact set under `homestorage` `latest/<tag>`.
 
 ## Release Failure Rule
 
