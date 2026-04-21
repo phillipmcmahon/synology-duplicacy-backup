@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   download or attestation verification and explain that the command should be
   re-run with `sudo`; `update --check-only` remains available without root.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: `86.1%`
+  - `cmd/duplicacy-backup`: `92.6%`
+  - `internal/workflow`: `84.5%`
+  - `internal/update`: `83.5%`
+  - `internal/duplicacy`: `81.2%`
+  - `internal/exec`: `95.2%`
+  - `internal/secrets`: `92.0%`
+  - `internal/config`: `87.6%`
+
 ## [v5.1.1] - 2026-04-21
 
 ### Added

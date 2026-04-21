@@ -56,7 +56,7 @@ Current Linux Go 1.26 development validation snapshot:
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 - overall coverage: `86.1%`
-- `cmd/duplicacy-backup`: `92.4%`
+- `cmd/duplicacy-backup`: `92.6%`
 - `internal/workflow`: `84.5%`
 - `internal/update`: `83.5%`
 - `internal/duplicacy`: `81.2%`
