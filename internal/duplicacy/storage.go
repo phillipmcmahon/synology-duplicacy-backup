@@ -50,7 +50,7 @@ func (s StorageSpec) SupportsFixPerms() bool {
 
 func (s StorageSpec) RequiredSecretKeys() []string {
 	switch s.Scheme() {
-	case "s3":
+	case "s3", "s3c", "minio", "minios":
 		return []string{"s3_id", "s3_secret"}
 	case "storj":
 		return []string{"storj_key", "storj_passphrase"}

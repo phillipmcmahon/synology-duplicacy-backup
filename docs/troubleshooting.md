@@ -88,8 +88,8 @@ not enforce provider-specific credential lengths. If a credential value is the
 wrong length, expired, or belongs to the wrong backend, use Duplicacy's own
 error output as the source of truth.
 
-For S3-compatible storage, including Storj gateway, use generic Duplicacy key
-names:
+For S3-compatible storage, including Storj gateway and Duplicacy's `s3c://`,
+`minio://`, and `minios://` schemes, use generic Duplicacy key names:
 
 ```toml
 [targets.offsite-storj.keys]

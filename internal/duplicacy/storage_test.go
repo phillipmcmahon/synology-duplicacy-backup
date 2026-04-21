@@ -18,6 +18,9 @@ func TestStorageSpecClassifiesDuplicacyBackends(t *testing.T) {
 	}{
 		{name: "local path", storage: "/volumeUSB1/usbshare/duplicacy/homes", scheme: "local", local: true, fixPerms: true},
 		{name: "s3", storage: "s3://EU@gateway.storjshare.io/bucket/homes", scheme: "s3", keys: []string{"s3_id", "s3_secret"}},
+		{name: "s3-compatible v2", storage: "s3c://garage.local/bucket/homes", scheme: "s3c", keys: []string{"s3_id", "s3_secret"}},
+		{name: "minio", storage: "minio://garage@192.168.202.24:3900/garage/homes", scheme: "minio", keys: []string{"s3_id", "s3_secret"}},
+		{name: "minio tls", storage: "minios://garage@storage.example.test/garage/homes", scheme: "minios", keys: []string{"s3_id", "s3_secret"}},
 		{name: "storj", storage: "storj://bucket/homes", scheme: "storj", keys: []string{"storj_key", "storj_passphrase"}},
 		{name: "b2", storage: "b2://bucket/homes", scheme: "b2"},
 	}

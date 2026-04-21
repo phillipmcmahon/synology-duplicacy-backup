@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **S3-compatible Duplicacy schemes now load storage credentials**:
+  `s3c://`, `minio://`, and `minios://` targets require the same
+  `s3_id` and `s3_secret` keys as `s3://`, so local object-storage targets
+  such as MinIO or Garage no longer validate without credentials.
+
 ## [v5.1.0] - 2026-04-21
 
 ### Changed

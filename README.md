@@ -29,7 +29,10 @@ operations are appropriate.
 In practice:
 
 - targets use `storage = "..."`; do not split storage into `destination` and `repository`
-- runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
+- runtime keys live under `[targets.<name>.keys]` in the secrets file and are
+  loaded for known Duplicacy backends that require them; S3-compatible
+  Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use
+  `s3_id` and `s3_secret`
 - `--fix-perms` is only supported for path-based Duplicacy storage targets
 - runtime, health, `config explain`, and `config paths` surface target
   location in operator-facing output

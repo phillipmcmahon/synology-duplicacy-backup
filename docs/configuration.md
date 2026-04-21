@@ -366,6 +366,10 @@ verify_warn_after_hours = 336
 [targets.onsite-rustfs]
 location = "local"
 storage = "s3://rustfs.local/my-backup-bucket/homes"
+
+[targets.onsite-minio]
+location = "local"
+storage = "minio://garage@192.168.202.24:3900/garage/homes"
 ```
 
 ## Source Path Rule
@@ -432,7 +436,14 @@ Requirements:
 
 Storage keys under `[targets.<name>.keys]` are passed through to Duplicacy as
 runtime preference keys. Use the key names Duplicacy expects for the selected
-storage value, such as `s3_id` and `s3_secret` for S3-compatible storage.
+storage value. S3-compatible Duplicacy schemes `s3://`, `s3c://`,
+`minio://`, and `minios://` use `s3_id` and `s3_secret`:
+
+```toml
+[targets.onsite-minio.keys]
+s3_id = "your-access-key-id"
+s3_secret = "your-secret-access-key"
+```
 
 When run as `root`, the bundled installer ensures `/root/.secrets` exists with
 mode `700`, but it does not create or rewrite any individual secrets files.

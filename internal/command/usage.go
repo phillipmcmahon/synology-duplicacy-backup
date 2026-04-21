@@ -145,8 +145,8 @@ CONFIG STRUCTURE:
       Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
       Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
       Use [targets.<name>.keys] tables with Duplicacy key names such as:
-        s3_id
-        s3_secret
+        s3_id      # s3, s3c, minio, minios
+        s3_secret  # s3, s3c, minio, minios
       Use [targets.<name>] for:
         optional health_webhook_bearer_token
         optional health_ntfy_token

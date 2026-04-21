@@ -151,7 +151,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
 - Storage keys live under `[targets.<name>.keys]` in the label secrets file
   when the selected backend requires them. For S3-compatible storage this
-  usually means `s3_id` and `s3_secret`; see
+  means `s3_id` and `s3_secret`, including `s3://`, `s3c://`,
+  `minio://`, and `minios://` storage values; see
   [configuration.md](configuration.md) for ownership, permissions, and
   notification-token details.
 - `update` uses the managed install layout under

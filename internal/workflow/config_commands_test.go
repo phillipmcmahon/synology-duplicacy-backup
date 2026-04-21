@@ -687,6 +687,23 @@ func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t 
 	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
+func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-garage", buildTargetConfig("homes", "onsite-garage", locationLocal, "/volume1/homes", "minio://garage@192.168.202.24:3900/garage/homes", "", "", 4, "-keep 0:365"))
+
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-garage"}
+	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	if err != nil {
+		t.Fatalf("HandleConfigCommand() error = %v", err)
+	}
+	for _, token := range []string{"Config explanation for homes/onsite-garage", "Storage", "minio://garage@192.168.202.24:3900/garage/homes", "Secrets File", "homes-secrets.toml"} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Secrets File")
+}
+
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
