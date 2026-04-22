@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v6.1.0] - 2026-04-22
+
 ### Added
 - **Redacted operator diagnostics command**:
   `duplicacy-backup diagnostics --target <target> <label>` gathers resolved
@@ -21,7 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can use `--version <tag>` to select a specific retained version.
 
 ### Validation
-- **macOS Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: pending release-prep refresh
+  - `cmd/duplicacy-backup`: pending release-prep refresh
+  - `internal/workflow`: pending release-prep refresh
+  - `internal/update`: pending release-prep refresh
+  - `internal/duplicacy`: pending release-prep refresh
+  - `internal/exec`: pending release-prep refresh
+  - `internal/secrets`: pending release-prep refresh
+  - `internal/config`: pending release-prep refresh
 
 ## [v6.0.0] - 2026-04-21
 

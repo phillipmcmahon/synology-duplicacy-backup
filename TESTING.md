@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v5.1.2`
+Current public release baseline: `v6.0.0`
 
-Active release-prep target: `v6.0.0`
+Active release-prep target: `v6.1.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -63,6 +63,17 @@ Current Linux Go 1.26 development validation snapshot:
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v6.1.0 validation:
+
+- Diagnostics command tests cover config-path reporting, state freshness,
+  last-run status, path-permission context, JSON summary output, and redaction
+  of storage URL credentials and query secrets.
+- Rollback command tests cover retained-version discovery, newest-previous
+  selection, explicit version selection, check-only reporting, root gating, and
+  managed `current` symlink activation.
+- Command-entrypoint tests cover the new `diagnostics` and `rollback`
+  dispatch paths, including non-root safe modes and privileged install changes.
 
 Additional v6.0.0 validation:
 
