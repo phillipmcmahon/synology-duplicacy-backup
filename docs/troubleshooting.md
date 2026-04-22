@@ -104,9 +104,8 @@ See also:
 
 ## I Need To Restore Data
 
-The wrapper does not execute restores yet. Use it first to confirm the label,
-target, storage value, and current health, then perform the restore with
-Duplicacy in a separate drill workspace.
+The wrapper restores only into a separate drill workspace. It does not copy
+restored data back to the live source path.
 
 Use `restore plan` to gather that context and print safe next-step commands:
 
@@ -119,6 +118,19 @@ workspace and write Duplicacy preferences there:
 
 ```bash
 sudo duplicacy-backup restore prepare --target <target> <label>
+```
+
+List revisions and inspect the specific revision before restoring:
+
+```bash
+sudo duplicacy-backup restore revisions --target <target> <label>
+sudo duplicacy-backup restore files --target <target> --revision <id> --path <relative-path> <label>
+```
+
+Restore into the prepared workspace only:
+
+```bash
+sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path> --workspace /volume1/restore-drills/<label>-<target> --yes <label>
 ```
 
 Do not restore directly over the live source path as the first step. Restore

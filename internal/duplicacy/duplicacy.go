@@ -348,6 +348,36 @@ func (s *Setup) ListVisibleRevisions() ([]RevisionInfo, string, error) {
 	return parseVisibleRevisions(combined), combined, nil
 }
 
+func (s *Setup) ListRevisionFiles(revision int) (string, error) {
+	if s.DryRun {
+		return "", nil
+	}
+
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", "list", "-files", "-r", strconv.Itoa(revision))
+	combined := stdout + stderr
+	if err != nil {
+		return combined, apperrors.NewBackupError("restore-list-files", fmt.Errorf("failed to list files for revision %d", revision))
+	}
+	return combined, nil
+}
+
+func (s *Setup) RestoreRevision(revision int, relativePath string) (string, error) {
+	if s.DryRun {
+		return "", nil
+	}
+
+	args := []string{"restore", "-r", strconv.Itoa(revision), "-stats"}
+	if strings.TrimSpace(relativePath) != "" {
+		args = append(args, "--", relativePath)
+	}
+	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
+	combined := stdout + stderr
+	if err != nil {
+		return combined, apperrors.NewBackupError("restore-run", fmt.Errorf("failed to restore revision %d", revision))
+	}
+	return combined, nil
+}
+
 func (s *Setup) CheckVisibleRevisions() ([]RevisionCheckResult, string, error) {
 	if s.DryRun {
 		return nil, "", nil

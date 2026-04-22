@@ -11,13 +11,13 @@ duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup diagnostics [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source|update>
 duplicacy-backup rollback [OPTIONS]
-duplicacy-backup restore <plan|prepare> [OPTIONS] <source>
+duplicacy-backup restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
 duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
 `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
-`health`, `restore plan`, `restore prepare`, and label-scoped `notify test`
+`health`, restore commands, and label-scoped `notify test`
 commands need an explicit `--target <name>`.
 `notify test update`, `update`, and `rollback` are global application commands
 and do not use a target.
@@ -49,7 +49,7 @@ are not supported.
 | Flag | Description |
 |---|---|
 | `--force` | Override safe prune thresholds for `prune` |
-| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`, `health`, `restore plan`, `restore prepare`, and label-scoped `notify test` commands |
+| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`, `health`, restore commands, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -87,6 +87,9 @@ are not supported.
 |---|---|
 | `restore plan --target <target> <label>` | Print a safe read-only restore drill plan for the selected label and target |
 | `restore prepare --target <target> [--workspace <path>] <label>` | Create the safe drill workspace and write Duplicacy preferences without executing a restore |
+| `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
+| `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
+| `restore run --target <target> --revision <id> [--path <relative-path>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
 
 ## Update Command
 
@@ -147,6 +150,13 @@ sudo duplicacy-backup restore plan --target onsite-usb homes
 # Restore workspace preparation command
 sudo duplicacy-backup restore prepare --target onsite-usb homes
 
+# Restore revision and file inspection
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
+
+# Restore into the prepared workspace only
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
 
@@ -161,8 +171,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 
 - `--help` is intentionally concise; use `--help-full` for detailed command help.
 - Every `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`,
-  `diagnostics`, `health`, `restore plan`, `restore prepare`, and
-  label-scoped `notify test` command needs `--target <name>`.
+  `diagnostics`, `health`, restore commands, and label-scoped `notify test`
+  command needs `--target <name>`.
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
 - `restore plan` is read-only. It resolves the selected target and prints
@@ -172,6 +182,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   `.duplicacy/preferences` there. It rejects the live source path,
   source-child workspaces, and non-empty workspaces, and still does not run
   `duplicacy restore` or copy data back.
+- `restore revisions` and `restore files` are read-only discovery commands.
+  They create a temporary Duplicacy workspace unless `--workspace` is supplied.
+- `restore run` executes `duplicacy restore` only inside a prepared workspace.
+  It never restores over the live source and never copies data back.
 - `prune --force` overrides prune threshold enforcement.
 - `cleanup-storage` runs exhaustive exclusive storage cleanup and should be
   treated as operator-directed maintenance.

@@ -1119,6 +1119,79 @@ func TestListVisibleRevisions_ParsesAndSortsAllVisibleRevisions(t *testing.T) {
 	}
 }
 
+func TestListRevisionFiles_RunsDuplicacyListFilesForRevision(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "docs/readme.md\nmusic/song.flac\n",
+	})
+
+	output, err := s.ListRevisionFiles(2403)
+	if err != nil {
+		t.Fatalf("ListRevisionFiles() error = %v", err)
+	}
+	if output != "docs/readme.md\nmusic/song.flac\n" {
+		t.Fatalf("output = %q", output)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+	invocation := mock.Invocations[0]
+	if invocation.Cmd != "duplicacy" || invocation.Dir != s.DuplicacyRoot || strings.Join(invocation.Args, " ") != "list -files -r 2403" {
+		t.Fatalf("invocation = %#v", invocation)
+	}
+}
+
+func TestListRevisionFiles_ReturnsCombinedOutputOnFailure(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "stdout\n",
+		Stderr: "stderr\n",
+		Err:    errors.New("list failed"),
+	})
+
+	output, err := s.ListRevisionFiles(2403)
+	if err == nil || !strings.Contains(err.Error(), "failed to list files for revision 2403") {
+		t.Fatalf("error = %v", err)
+	}
+	if output != "stdout\nstderr\n" {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestRestoreRevision_RunsFullAndSelectiveRestoreCommands(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "full\n"}, execpkg.MockResult{Stdout: "selective\n"})
+
+	if output, err := s.RestoreRevision(2403, ""); err != nil || output != "full\n" {
+		t.Fatalf("RestoreRevision(full) output = %q err = %v", output, err)
+	}
+	if output, err := s.RestoreRevision(2404, "docs/readme.md"); err != nil || output != "selective\n" {
+		t.Fatalf("RestoreRevision(selective) output = %q err = %v", output, err)
+	}
+	if len(mock.Invocations) != 2 {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+	if strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats" {
+		t.Fatalf("full restore args = %#v", mock.Invocations[0].Args)
+	}
+	if strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2404 -stats -- docs/readme.md" {
+		t.Fatalf("selective restore args = %#v", mock.Invocations[1].Args)
+	}
+}
+
+func TestRestoreRevision_ReturnsCombinedOutputOnFailure(t *testing.T) {
+	s, _ := newTestSetup(t, false, execpkg.MockResult{
+		Stdout: "stdout\n",
+		Stderr: "stderr\n",
+		Err:    errors.New("restore failed"),
+	})
+
+	output, err := s.RestoreRevision(2403, "")
+	if err == nil || !strings.Contains(err.Error(), "failed to restore revision 2403") {
+		t.Fatalf("error = %v", err)
+	}
+	if output != "stdout\nstderr\n" {
+		t.Fatalf("output = %q", output)
+	}
+}
+
 func TestCheckVisibleRevisions_ParsesPassAndFailResults(t *testing.T) {
 	s, _ := newTestSetup(t, false, execpkg.MockResult{
 		Stdout: "2026-04-10 00:31:11.326 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 235 exist\n" +

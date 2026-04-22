@@ -28,6 +28,10 @@ type Request struct {
 	NotifyCommand      string
 	RestoreCommand     string
 	RestoreWorkspace   string
+	RestoreRevision    int
+	RestorePath        string
+	RestoreLimit       int
+	RestoreYes         bool
 	RollbackCommand    string
 	RollbackVersion    string
 	RollbackCheckOnly  bool

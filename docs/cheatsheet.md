@@ -8,8 +8,8 @@ This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 
 `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
-`health`, `restore plan`, `restore prepare`, and label-scoped `notify test`
-commands need an explicit `--target <name>`.
+`health`, restore commands, and label-scoped `notify test` commands need an
+explicit `--target <name>`.
 
 Target model:
 
@@ -159,7 +159,7 @@ Installer behaviour:
 
 ### Restore Drills
 
-- `duplicacy-backup` does not execute restores yet; use Duplicacy directly from a separate drill workspace.
+- `duplicacy-backup restore run` executes restores only into a prepared drill workspace; it never copies data back to the live source.
 - Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
 - Use snapshot ID `data` for repositories created by this tool.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.
@@ -176,6 +176,19 @@ sudo duplicacy-backup restore plan --target onsite-usb2 homes
 
 # Prepare the separate drill workspace without running a restore
 sudo duplicacy-backup restore prepare --target onsite-usb2 homes
+
+# List revisions and inspect files before selecting what to restore
+sudo duplicacy-backup restore revisions --target onsite-usb2 homes
+sudo duplicacy-backup restore files --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Documents" homes
+
+# Restore into the prepared workspace only
+sudo duplicacy-backup restore run \
+  --target onsite-usb2 \
+  --revision 2403 \
+  --path "phillipmcmahon/Documents/tax.pdf" \
+  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --yes \
+  homes
 ```
 
 ### Notifications and Secrets

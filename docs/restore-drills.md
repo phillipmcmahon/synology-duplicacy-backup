@@ -1,8 +1,8 @@
 # Restore Drills
 
-`duplicacy-backup` does not run restores today. Restore drills use the
-Duplicacy CLI directly, with `duplicacy-backup` used first to confirm the
-label, target, storage value, and repository health.
+`duplicacy-backup` can now take a restore from planning through execution into
+a safe drill workspace. It still does not copy data back to the live source.
+That final copy-back remains an operator decision after inspection.
 
 The safe pattern is simple:
 
@@ -13,6 +13,27 @@ The safe pattern is simple:
 Do not run a first restore directly over `/volume1/homes`, `/volume1/music`,
 or any other live source path. A restore drill should prove that the backup can
 be read without putting production data at risk.
+
+## UX Model
+
+Restore commands follow a flag-first model so they are safe for scheduled,
+scripted, and documented recovery procedures:
+
+- `restore plan` explains the selected label and target.
+- `restore prepare` creates the safe workspace.
+- `restore revisions` lists recovery points.
+- `restore files` inspects a selected revision.
+- `restore run` restores a full revision or one snapshot-relative path into
+  the prepared workspace only.
+
+An interactive picker can still be added later, but it should sit on top of
+these explicit commands rather than replacing them. That keeps emergency
+procedures copyable and avoids hidden live-data actions.
+
+`restore revisions` and `restore files` use a temporary workspace by default.
+If you pass `--workspace`, it must already have been prepared with
+`restore prepare`; the listing commands will not create or rewrite persistent
+workspace preferences.
 
 ## What You Need
 
@@ -25,14 +46,15 @@ sudo duplicacy-backup config validate --target onsite-usb2 homes
 sudo duplicacy-backup health status --target onsite-usb2 homes
 sudo duplicacy-backup restore plan --target onsite-usb2 homes
 sudo duplicacy-backup restore prepare --target onsite-usb2 homes
+sudo duplicacy-backup restore revisions --target onsite-usb2 homes
 ```
 
 Use the `Storage` value from `config explain` as the Duplicacy storage URL for
 the drill. `restore plan` prints that same value, the recommended drill
-workspace, and the Duplicacy commands to run manually. `restore prepare`
-creates that separate workspace and writes `.duplicacy/preferences` there, but
-does not run a restore. For repositories created by this tool, the Duplicacy
-snapshot ID is `data`.
+workspace, and the Duplicacy commands that sit underneath the wrapper.
+`restore prepare` creates that separate workspace and writes
+`.duplicacy/preferences` there, but does not run a restore. For repositories
+created by this tool, the Duplicacy snapshot ID is `data`.
 
 If the selected storage backend needs credentials, configure the temporary
 Duplicacy workspace using Duplicacy's normal password and key handling. The
@@ -89,16 +111,17 @@ for an existing `.duplicacy` directory from an earlier preparation.
 
 ## Choose A Revision
 
-List available revisions from the drill workspace:
+List available revisions with the wrapper:
 
 ```bash
-duplicacy list
+sudo duplicacy-backup restore revisions --target onsite-usb2 homes
 ```
 
 To inspect file names in a specific revision:
 
 ```bash
-duplicacy list -files -r <revision>
+sudo duplicacy-backup restore files --target onsite-usb2 --revision <revision> homes
+sudo duplicacy-backup restore files --target onsite-usb2 --revision <revision> --path "relative/path" homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -107,10 +130,15 @@ confirming that the repository is current before a drill.
 
 ## Full Restore Drill
 
-Run the restore inside the drill workspace:
+Run the restore into the prepared drill workspace:
 
 ```bash
-duplicacy restore -r <revision> -stats
+sudo duplicacy-backup restore run \
+  --target onsite-usb2 \
+  --revision <revision> \
+  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --yes \
+  homes
 ```
 
 Because the drill workspace starts empty, avoid `-overwrite` and `-delete`.
@@ -138,14 +166,20 @@ Duplicacy restore accepts command-line patterns, so you can restore only a
 specific file or directory into the drill workspace:
 
 ```bash
-duplicacy restore -r <revision> -stats -- "relative/path/from/snapshot"
+sudo duplicacy-backup restore run \
+  --target onsite-usb2 \
+  --revision <revision> \
+  --path "relative/path/from/snapshot" \
+  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --yes \
+  homes
 ```
 
 Examples:
 
 ```bash
-duplicacy restore -r 2403 -stats -- "phillipmcmahon/Documents/tax.pdf"
-duplicacy restore -r 2403 -stats -- "phillipmcmahon/Music/"
+sudo duplicacy-backup restore run --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --workspace /volume1/restore-drills/homes-onsite-usb2 --yes homes
+sudo duplicacy-backup restore run --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Music/" --workspace /volume1/restore-drills/homes-onsite-usb2 --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,
@@ -182,8 +216,8 @@ assuming a file-level copy is sufficient.
 - Use `restore prepare` or Duplicacy `init` to prepare a separate drill
   workspace, never directly over live data.
 - Use snapshot ID `data` for repositories created by this tool.
-- Use `duplicacy list` to choose a revision.
-- Use `duplicacy list -files -r <revision>` before selective restores.
+- Use `restore revisions` to choose a revision.
+- Use `restore files --revision <id>` before selective restores.
 - Restore only into the drill workspace.
 - Inspect restored data before copying anything back.
 - Use `rsync --dry-run` before any live copy-back step.
@@ -191,12 +225,12 @@ assuming a file-level copy is sufficient.
 
 ## Current Boundary
 
-This guide documents the safe manual process. `duplicacy-backup restore plan`
-helps prepare that process by resolving the selected label and target and
-printing the relevant Duplicacy commands. `duplicacy-backup restore prepare`
-creates the separate drill workspace and writes Duplicacy preferences there.
-Both commands are intentionally conservative: neither runs `duplicacy restore`
-or copies data back.
+`duplicacy-backup restore run` executes `duplicacy restore` only inside a
+prepared drill workspace. It refuses to use the live source path, refuses
+source-child workspaces, and does not copy restored data back. That keeps the
+wrapper useful for actual restore drills without turning it into an
+unreviewed live-data mutation tool.
 
-Any future command that performs interactive file selection or executes a
-restore should be designed as a separate capability with its own safety review.
+Any future command that performs interactive file selection or automates
+copy-back into live data should be designed as a separate capability with its
+own safety review.

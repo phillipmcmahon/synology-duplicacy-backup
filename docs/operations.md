@@ -165,10 +165,10 @@ authenticated webhook or `ntfy` delivery.
 
 ## Restore Drills
 
-The wrapper does not execute restores yet. Use
-[`restore-drills.md`](restore-drills.md) to practise recovery with the Duplicacy
-CLI in a separate drill workspace before copying anything back to live source
-paths.
+The wrapper can now execute restores into a separate drill workspace. It still
+does not copy anything back to live source paths. Use
+[`restore-drills.md`](restore-drills.md) to practise recovery safely before any
+manual copy-back.
 
 Use `restore plan` to print the resolved context and suggested Duplicacy
 commands without creating the workspace or running a restore:
@@ -178,11 +178,18 @@ sudo duplicacy-backup restore plan --target onsite-usb homes
 ```
 
 Use `restore prepare` when you want the wrapper to create the separate drill
-workspace and write Duplicacy preferences there, but still leave revision
-selection and restore execution manual:
+workspace and write Duplicacy preferences there:
 
 ```bash
 sudo duplicacy-backup restore prepare --target onsite-usb homes
+```
+
+List revisions, inspect a revision, then restore into that prepared workspace:
+
+```bash
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 ```
 
 At a high level:
@@ -190,9 +197,10 @@ At a high level:
 - use `config explain`, `config validate`, and `health status` to confirm the
   label, target, storage value, and repository health
 - create an empty restore-drill workspace away from the live source path
-- initialise that workspace with Duplicacy snapshot ID `data` and the selected
-  target's `storage` value
-- restore a full revision or selected paths into the drill workspace
+- use `restore revisions` and `restore files` to choose a recovery point and
+  path
+- restore a full revision or selected paths into the drill workspace only
+- inspect the workspace before manually copying anything back
 - inspect the restored data before any deliberate copy-back step
 
 To install a new binary without switching immediately:
@@ -313,9 +321,9 @@ those fields directly, and `ntfy` still keeps the visible message focused on
 the operator-readable summary.
 
 `--target <name>` selects one named target from the label config. Runtime,
-`config`, `diagnostics`, `health`, `restore plan`, `restore prepare`, and
-label-scoped `notify test` commands require an explicit target. Global update
-and rollback commands, plus `notify test update`, do not.
+`config`, `diagnostics`, `health`, restore commands, and label-scoped
+`notify test` commands require an explicit target. Global update and rollback
+commands, plus `notify test update`, do not.
 Targets define both `storage` and `location`. The configured `storage` value is
 passed directly through to Duplicacy. Use `location = "local"` or
 `location = "remote"` to describe where the target lives operationally, and add

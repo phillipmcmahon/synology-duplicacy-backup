@@ -200,16 +200,33 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 
 	action := args[0]
 	switch action {
-	case "plan", "prepare":
+	case "plan", "prepare", "revisions", "files", "run":
 	default:
 		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
 	}
 
-	req, err := parseRestoreFlags(args[1:])
+	req, err := parseRestoreFlags(action, args[1:])
 	if err != nil {
 		return nil, err
 	}
 	req.RestoreCommand = action
+	switch action {
+	case "files":
+		if req.RestoreRevision <= 0 {
+			return nil, workflow.NewUsageRequestError("restore %s requires --revision <id>", action)
+		}
+		if req.RestoreLimit == 0 {
+			req.RestoreLimit = 200
+		}
+	case "run":
+		if req.RestoreRevision <= 0 {
+			return nil, workflow.NewUsageRequestError("restore %s requires --revision <id>", action)
+		}
+	case "revisions":
+		if req.RestoreLimit == 0 {
+			req.RestoreLimit = 50
+		}
+	}
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
@@ -362,12 +379,25 @@ func parseDiagnosticsFlags(args []string) (*workflow.Request, error) {
 	}, nil)
 }
 
-func parseRestoreFlags(args []string) (*workflow.Request, error) {
+func parseRestoreFlags(action string, args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
-	return req, parseSourceFlags(args, req, sharedFlagOptions{
+	opts := sharedFlagOptions{
 		target:     true,
 		configDir:  true,
 		secretsDir: true,
+	}
+	switch action {
+	case "revisions", "files":
+		opts.jsonSummary = true
+	case "run":
+		opts.dryRun = true
+	}
+	return req, parseSourceFlags(args, req, sharedFlagOptions{
+		target:      opts.target,
+		dryRun:      opts.dryRun,
+		jsonSummary: opts.jsonSummary,
+		configDir:   opts.configDir,
+		secretsDir:  opts.secretsDir,
 	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
 		switch args[*index] {
 		case "--workspace":
@@ -376,6 +406,50 @@ func parseRestoreFlags(args []string) (*workflow.Request, error) {
 				return false, err
 			}
 			req.RestoreWorkspace = value
+			return true, nil
+		case "--revision":
+			if action != "files" && action != "run" {
+				return false, nil
+			}
+			value, err := consumeRequiredValue(args, index, "--revision")
+			if err != nil {
+				return false, err
+			}
+			revision, err := parsePositiveInt(value, "--revision")
+			if err != nil {
+				return false, err
+			}
+			req.RestoreRevision = revision
+			return true, nil
+		case "--path":
+			if action != "files" && action != "run" {
+				return false, nil
+			}
+			value, err := consumeRequiredValue(args, index, "--path")
+			if err != nil {
+				return false, err
+			}
+			req.RestorePath = value
+			return true, nil
+		case "--limit":
+			if action != "revisions" && action != "files" {
+				return false, nil
+			}
+			value, err := consumeRequiredValue(args, index, "--limit")
+			if err != nil {
+				return false, err
+			}
+			limit, err := parsePositiveInt(value, "--limit")
+			if err != nil {
+				return false, err
+			}
+			req.RestoreLimit = limit
+			return true, nil
+		case "--yes":
+			if action != "run" {
+				return false, nil
+			}
+			req.RestoreYes = true
 			return true, nil
 		}
 		return false, nil
@@ -627,6 +701,17 @@ func parseNonNegativeInt(value string, flag string) (int, error) {
 			return 0, workflow.NewUsageRequestError("%s must be a non-negative integer", flag)
 		}
 		parsed = parsed*10 + int(ch-'0')
+	}
+	return parsed, nil
+}
+
+func parsePositiveInt(value string, flag string) (int, error) {
+	parsed, err := parseNonNegativeInt(value, flag)
+	if err != nil {
+		return 0, err
+	}
+	if parsed <= 0 {
+		return 0, workflow.NewUsageRequestError("%s must be a positive integer", flag)
 	}
 	return parsed, nil
 }
