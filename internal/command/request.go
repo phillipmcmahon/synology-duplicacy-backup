@@ -200,7 +200,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 
 	action := args[0]
 	switch action {
-	case "plan", "prepare", "revisions", "files", "run":
+	case "plan", "prepare", "revisions", "files", "run", "select":
 	default:
 		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
 	}

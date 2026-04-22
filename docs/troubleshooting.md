@@ -127,6 +127,13 @@ sudo duplicacy-backup restore revisions --target <target> <label>
 sudo duplicacy-backup restore files --target <target> --revision <id> --path <relative-path> <label>
 ```
 
+Use the guided picker when you want command generation help without executing a
+restore:
+
+```bash
+sudo duplicacy-backup restore select --target <target> <label>
+```
+
 Restore into the prepared workspace only:
 
 ```bash

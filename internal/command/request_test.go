@@ -380,6 +380,22 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 	}
 }
 
+func TestParseRequest_RestoreSelect(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace", "/restore/homes", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.RestoreCommand != "select" ||
+		result.Request.Target() != "onsite-usb" ||
+		result.Request.RestoreWorkspace != "/restore/homes" ||
+		result.Request.ConfigDir != "/cfg" ||
+		result.Request.SecretsDir != "/sec" ||
+		result.Request.Source != "homes" {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
 func TestParseRequest_RestoreRunRequiresRevision(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	_, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())

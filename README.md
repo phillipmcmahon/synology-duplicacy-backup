@@ -181,6 +181,7 @@ sudo duplicacy-backup restore prepare --target onsite-usb homes
 # Inspect revisions and restore only into the prepared workspace
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 ```
 
@@ -229,6 +230,8 @@ Core operating rules:
   restoring data.
 - `restore run` restores only into a prepared workspace and never copies data
   back to the live source.
+- `restore select` interactively generates explicit restore commands without
+  executing a restore.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.

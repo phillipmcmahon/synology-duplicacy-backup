@@ -181,6 +181,9 @@ sudo duplicacy-backup restore prepare --target onsite-usb2 homes
 sudo duplicacy-backup restore revisions --target onsite-usb2 homes
 sudo duplicacy-backup restore files --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Documents" homes
 
+# Guided command generation without executing a restore
+sudo duplicacy-backup restore select --target onsite-usb2 homes
+
 # Restore into the prepared workspace only
 sudo duplicacy-backup restore run \
   --target onsite-usb2 \

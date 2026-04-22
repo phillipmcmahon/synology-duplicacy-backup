@@ -339,9 +339,10 @@ This dispatch point is why global commands such as `update`, `rollback`, and
 `notify test update` do not inherit label-target runtime requirements. It also
 keeps diagnostics and restore drill commands out of the runtime executor path:
 `diagnostics` is non-mutating, `restore plan`, `restore revisions`, and
-`restore files` are read-only, `restore prepare` only creates the separate
-drill workspace and writes Duplicacy preferences there, and `restore run`
-executes Duplicacy only inside that prepared workspace.
+`restore files` are read-only, `restore select` is an interactive command
+generator, `restore prepare` only creates the separate drill workspace and
+writes Duplicacy preferences there, and `restore run` executes Duplicacy only
+inside that prepared workspace.
 
 ### Why this matters
 

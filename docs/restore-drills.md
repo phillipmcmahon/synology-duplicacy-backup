@@ -25,6 +25,8 @@ scripted, and documented recovery procedures:
 - `restore files` inspects a selected revision.
 - `restore run` restores a full revision or one snapshot-relative path into
   the prepared workspace only.
+- `restore select` interactively helps choose a revision/path and prints the
+  explicit primitive commands to run.
 
 An interactive picker can still be added later, but it should sit on top of
 these explicit commands rather than replacing them. That keeps emergency
@@ -34,6 +36,11 @@ procedures copyable and avoids hidden live-data actions.
 If you pass `--workspace`, it must already have been prepared with
 `restore prepare`; the listing commands will not create or rewrite persistent
 workspace preferences.
+
+`restore select` is a command generator, not a second restore model. It refuses
+non-interactive use, guides revision and path selection, then prints the exact
+`restore prepare` and `restore run` commands to execute explicitly. The picker
+is convenience; the command model is the contract.
 
 ## What You Need
 
@@ -47,6 +54,7 @@ sudo duplicacy-backup health status --target onsite-usb2 homes
 sudo duplicacy-backup restore plan --target onsite-usb2 homes
 sudo duplicacy-backup restore prepare --target onsite-usb2 homes
 sudo duplicacy-backup restore revisions --target onsite-usb2 homes
+sudo duplicacy-backup restore select --target onsite-usb2 homes
 ```
 
 Use the `Storage` value from `config explain` as the Duplicacy storage URL for
@@ -127,6 +135,15 @@ sudo duplicacy-backup restore files --target onsite-usb2 --revision <revision> -
 Choose a revision that matches the recovery point you want to prove. Health
 status also shows the latest known revision and age, which is useful for
 confirming that the repository is current before a drill.
+
+If you prefer a guided selection flow, use the picker:
+
+```bash
+sudo duplicacy-backup restore select --target onsite-usb2 homes
+```
+
+The picker prints the exact primitive command to run. It does not run
+`duplicacy restore` itself.
 
 ## Full Restore Drill
 
@@ -231,6 +248,7 @@ source-child workspaces, and does not copy restored data back. That keeps the
 wrapper useful for actual restore drills without turning it into an
 unreviewed live-data mutation tool.
 
-Any future command that performs interactive file selection or automates
-copy-back into live data should be designed as a separate capability with its
-own safety review.
+`duplicacy-backup restore select` is intentionally one step more conservative:
+it performs interactive selection and command generation only. It does not
+restore data. Any future command that automates copy-back into live data should
+be designed as a separate capability with its own safety review.

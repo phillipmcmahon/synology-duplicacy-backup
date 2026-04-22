@@ -11,7 +11,7 @@ duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup diagnostics [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source|update>
 duplicacy-backup rollback [OPTIONS]
-duplicacy-backup restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
+duplicacy-backup restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
 duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
@@ -90,6 +90,7 @@ are not supported.
 | `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
 | `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
 | `restore run --target <target> --revision <id> [--path <relative-path>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
+| `restore select --target <target> <label>` | Interactively generate explicit restore commands without executing a restore |
 
 ## Update Command
 
@@ -154,6 +155,9 @@ sudo duplicacy-backup restore prepare --target onsite-usb homes
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
 
+# Guided command generation without executing a restore
+sudo duplicacy-backup restore select --target onsite-usb homes
+
 # Restore into the prepared workspace only
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 
@@ -186,6 +190,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   They create a temporary Duplicacy workspace unless `--workspace` is supplied.
 - `restore run` executes `duplicacy restore` only inside a prepared workspace.
   It never restores over the live source and never copies data back.
+- `restore select` is an interactive command generator. It prints the exact
+  primitive commands to run and refuses non-interactive use.
 - `prune --force` overrides prune threshold enforcement.
 - `cleanup-storage` runs exhaustive exclusive storage cleanup and should be
   treated as operator-directed maintenance.

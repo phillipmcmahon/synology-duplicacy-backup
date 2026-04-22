@@ -90,11 +90,12 @@ Additional v6.0.0 validation:
 - Tests assert old top-level runtime operation flags are rejected rather than
   preserved as compatibility syntax.
 - Restore tests cover `restore plan`, `restore prepare`, `restore revisions`,
-  `restore files`, and `restore run` under the aligned command invocation
-  model.
+  `restore files`, `restore run`, and `restore select` under the aligned
+  command invocation model.
 - Restore workspace tests cover local preference generation, unsafe workspace
   rejection, non-empty workspace rejection, root-gated remote secret loading,
-  read-only revision/file inspection, and workspace-only restore execution.
+  read-only revision/file inspection, workspace-only restore execution, and
+  interactive command generation.
 
 Additional v4.4.1 validation:
 

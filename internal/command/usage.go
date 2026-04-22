@@ -19,7 +19,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
+       {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -27,7 +27,7 @@ Commands:
     Runtime operations     backup, prune, cleanup-storage, fix-perms
     Config and inspection  config, diagnostics, health
     Notifications          notify test, notify test update
-    Restore drills         restore plan, restore prepare, restore revisions, restore files, restore run
+    Restore drills         restore plan, restore prepare, restore revisions, restore files, restore run, restore select
     Managed install        update, rollback
 
 Common options:
@@ -67,6 +67,7 @@ Examples:
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore select --target onsite-usb homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -91,7 +92,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
+       {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -123,6 +124,7 @@ COMMAND OVERVIEW:
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision/path into a prepared workspace only
+      restore select        Interactively generate explicit restore commands without executing a restore
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -278,6 +280,13 @@ RESTORE EXECUTION:
     --path for selective restores, --dry-run to print the planned command, and
     --yes for unattended execution after the workspace has been prepared.
 
+RESTORE SELECTION:
+    restore select is an interactive command generator. It guides revision and
+    path selection, then prints the exact restore prepare and restore run
+    commands to execute explicitly. It does not run duplicacy restore and it
+    refuses non-interactive use. The picker is convenience; the command model is
+    the contract.
+
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
     {{script}} backup --target onsite-usb --json-summary --dry-run homes
@@ -303,6 +312,7 @@ EXAMPLES:
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore select --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
@@ -410,7 +420,7 @@ EXAMPLES:
 }
 
 func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
 
 Restore commands:
     plan
@@ -418,6 +428,7 @@ Restore commands:
     revisions
     files
     run
+    select
 
 Options:
     --target <name>
@@ -439,6 +450,7 @@ Examples:
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore select --target onsite-usb homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj homes
 
@@ -450,7 +462,7 @@ Use --help-full for the detailed restore reference.
 
 func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
 
 RESTORE COMMANDS:
     plan                   Resolve a safe read-only restore drill plan for one label and target
@@ -458,6 +470,7 @@ RESTORE COMMANDS:
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision or path into a prepared workspace only
+    select                 Interactively generate explicit restore commands without executing a restore
 
 OPTIONS:
     --target <name>        Select the named target (required)
@@ -503,6 +516,11 @@ BEHAVIOUR:
       - runs duplicacy restore only from that workspace
       - uses --path for selective restore and --yes for non-interactive execution
       - never restores over the live source path and never copies data back
+    restore select:
+      - requires an interactive terminal
+      - guides revision selection and optional path selection
+      - prints exact restore prepare / restore run commands
+      - does not execute duplicacy restore or copy data back
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}
@@ -524,6 +542,7 @@ EXAMPLES:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs --limit 50 homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore select --target onsite-usb homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
