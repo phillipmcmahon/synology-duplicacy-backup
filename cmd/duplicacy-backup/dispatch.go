@@ -22,10 +22,14 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 	switch {
 	case req.ConfigCommand != "":
 		return runConfigRequest(req, meta, rt)
+	case req.DiagnosticsCommand != "":
+		return runDiagnosticsRequest(req, meta, rt)
 	case req.NotifyCommand != "":
 		return runNotifyRequest(req, meta, rt)
 	case req.RestoreCommand != "":
 		return runRestoreRequest(req, meta, rt)
+	case req.RollbackCommand != "":
+		return runRollbackRequest(req, meta, rt)
 	case req.UpdateCommand != "":
 		return runUpdateRequest(req, meta, rt)
 	case req.HealthCommand != "":
@@ -39,6 +43,15 @@ func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	output, err := handleConfigCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure(workflow.ConfigCommandOutput(err), err)
+	}
+	fmt.Print(output)
+	return 0
+}
+
+func runDiagnosticsRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	output, err := handleDiagnosticsCommand(req, meta, rt)
+	if err != nil {
+		return writeCommandFailure("", err)
 	}
 	fmt.Print(output)
 	return 0
@@ -59,6 +72,18 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 		return writeCommandFailure("", err)
 	}
 	fmt.Print(output)
+	return 0
+}
+
+func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if !req.RollbackCheckOnly && rt.Geteuid() != 0 {
+		return writeRollbackPrivilegeFailure()
+	}
+	result, err := handleRollbackCommand(req, meta, rt)
+	if err != nil {
+		return writeCommandFailure("", err)
+	}
+	fmt.Print(result.Output)
 	return 0
 }
 
@@ -83,6 +108,12 @@ func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 
 func writeUpdatePrivilegeFailure() int {
 	message := "update install must be run as root; re-run with sudo or use --check-only to inspect the update plan"
+	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	return exitCodeGeneralFailure
+}
+
+func writeRollbackPrivilegeFailure() int {
+	message := "rollback activation must be run as root; re-run with sudo or use --check-only to inspect rollback candidates"
 	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
 	return exitCodeGeneralFailure
 }

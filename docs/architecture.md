@@ -22,14 +22,14 @@ coordinator type.
 runWithArgs
   -> command.ParseRequest
   -> handled help/version output, or dispatchRequest
-       -> config / notify / update / health / runtime
+       -> config / diagnostics / notify / rollback / update / health / runtime
 ```
 
 Only the runtime backup/prune/cleanup/fix-perms path goes through the full
-`Planner.Build -> Executor.Run` sequence. Config, notify, update, and health
-commands dispatch to their own narrower handlers so they do not inherit runtime
-requirements such as root access, logger setup, or target storage secrets unless
-that command actually needs them.
+`Planner.Build -> Executor.Run` sequence. Config, diagnostics, notify,
+rollback, update, and health commands dispatch to their own narrower handlers
+so they do not inherit runtime requirements such as root access, logger setup,
+or target storage secrets unless that command actually needs them.
 
 ## Request
 
@@ -183,8 +183,8 @@ happen to be used during execution.
 | `internal/health` | Health reports, health JSON output, and health presentation |
 | `internal/notify` | Notification payloads, provider delivery, and notify-test reports |
 | `internal/presentation` | Shared output formatting and runtime presentation helpers |
-| `internal/update` | Self-update planning, package verification, and installer execution |
-| `internal/workflow` | Planning, execution, and summary composition |
+| `internal/update` | Self-update planning, package verification, installer execution, and managed rollback activation |
+| `internal/workflow` | Planning, execution, diagnostics, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |
 | `internal/config` | Config parsing and validation |
 | `internal/duplicacy` | Duplicacy CLI operations |

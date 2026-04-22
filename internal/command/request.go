@@ -25,6 +25,9 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if len(args) > 0 && args[0] == "config" {
 		return parseConfigRequest(args[1:], meta, rt)
 	}
+	if len(args) > 0 && args[0] == "diagnostics" {
+		return parseDiagnosticsRequest(args[1:], meta, rt)
+	}
 	if len(args) > 0 && args[0] == "health" {
 		return parseHealthRequest(args[1:], meta, rt)
 	}
@@ -33,6 +36,9 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	}
 	if len(args) > 0 && args[0] == "restore" {
 		return parseRestoreRequest(args[1:], meta, rt)
+	}
+	if len(args) > 0 && args[0] == "rollback" {
+		return parseRollbackRequest(args[1:], meta, rt)
 	}
 	if len(args) > 0 && args[0] == "update" {
 		return parseUpdateRequest(args[1:], meta, rt)
@@ -69,6 +75,22 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 		return nil, workflow.NewUsageRequestError("unknown command %s", command)
 	}
 	req.DeriveModes()
+	if err := validateTargetAndLabel(req); err != nil {
+		return nil, err
+	}
+
+	return &ParseResult{Request: req}, nil
+}
+
+func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+	if result := parseHelpRequest(args, DiagnosticsUsageText(meta, rt), FullDiagnosticsUsageText(meta, rt)); result != nil {
+		return result, nil
+	}
+	req, err := parseDiagnosticsFlags(args)
+	if err != nil {
+		return nil, err
+	}
+	req.DiagnosticsCommand = "diagnostics"
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
@@ -195,6 +217,18 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 	return &ParseResult{Request: req}, nil
 }
 
+func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+	if result := parseHelpRequest(args, RollbackUsageText(meta, rt), FullRollbackUsageText(meta, rt)); result != nil {
+		return result, nil
+	}
+	req, err := parseRollbackFlags(args)
+	if err != nil {
+		return nil, err
+	}
+	req.RollbackCommand = "rollback"
+	return &ParseResult{Request: req}, nil
+}
+
 func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
 	if result := parseHelpRequest(args, UpdateUsageText(meta, rt), FullUpdateUsageText(meta, rt)); result != nil {
 		return result, nil
@@ -318,6 +352,16 @@ func parseHealthFlags(args []string) (*workflow.Request, error) {
 	}, nil)
 }
 
+func parseDiagnosticsFlags(args []string) (*workflow.Request, error) {
+	req := &workflow.Request{}
+	return req, parseSourceFlags(args, req, sharedFlagOptions{
+		target:      true,
+		jsonSummary: true,
+		configDir:   true,
+		secretsDir:  true,
+	}, nil)
+}
+
 func parseRestoreFlags(args []string) (*workflow.Request, error) {
 	req := &workflow.Request{}
 	return req, parseSourceFlags(args, req, sharedFlagOptions{
@@ -336,6 +380,35 @@ func parseRestoreFlags(args []string) (*workflow.Request, error) {
 		}
 		return false, nil
 	})
+}
+
+func parseRollbackFlags(args []string) (*workflow.Request, error) {
+	req := &workflow.Request{}
+	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
+		return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
+	}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--yes":
+			req.RollbackYes = true
+		case "--check-only":
+			req.RollbackCheckOnly = true
+		case "--version":
+			value, err := consumeRequiredValue(args, &i, "--version")
+			if err != nil {
+				return nil, err
+			}
+			req.RollbackVersion = value
+		default:
+			if isOption(args[i]) {
+				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+			}
+			return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
+		}
+	}
+
+	return req, nil
 }
 
 type extraFlagParser func(args []string, index *int, req *workflow.Request) (bool, error)

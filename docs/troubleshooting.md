@@ -191,9 +191,10 @@ and should be run with `sudo`. A normal-user run can fail before the operation
 starts if it cannot open the log file.
 
 Use normal-user commands only where they are designed to avoid protected
-runtime paths, such as `config paths`, `update --check-only`, and dry-run
-notification tests. For scheduled backup, prune, health, cleanup, and
-permission-fix jobs, use the installed command with root privileges.
+runtime paths, such as `config paths`, `diagnostics`, `update --check-only`,
+`rollback --check-only`, and dry-run notification tests. For scheduled backup,
+prune, health, cleanup, and permission-fix jobs, use the installed command with
+root privileges.
 
 See also:
 
@@ -206,6 +207,18 @@ See also:
 Use `--keep <count>` when you want a different local rollback window, and use
 `--force` when you need to reinstall the current version.
 
+Start with the non-mutating rollback inspection:
+
+```bash
+/usr/local/bin/duplicacy-backup rollback --check-only
+```
+
+If the previous retained version is the right target, activate it with:
+
+```bash
+sudo /usr/local/bin/duplicacy-backup rollback --yes
+```
+
 Scheduled tasks should call the stable command path:
 
 ```text
@@ -215,6 +228,10 @@ Scheduled tasks should call the stable command path:
 If an update reports path or layout errors, confirm that the command is being
 invoked through the installed symlink rather than from an extracted test
 package or a deleted working directory.
+
+If rollback reports that no previous retained version exists, the local update
+retention window has kept only the active binary. Install the desired release
+tarball manually, or increase future update retention with `update --keep`.
 
 See also:
 

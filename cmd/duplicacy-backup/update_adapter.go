@@ -26,6 +26,23 @@ func handleUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workf
 	return updater.RunResult(updateOptionsFromRequest(req))
 }
 
+func handleRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+	updater := update.New(meta.ScriptName, meta.Version, update.Runtime{
+		GOOS:         runtime.GOOS,
+		GOARCH:       runtime.GOARCH,
+		Stdin:        rt.Stdin,
+		StdinIsTTY:   rt.StdinIsTTY,
+		CommandPath:  func() string { return os.Args[0] },
+		LookPath:     exec.LookPath,
+		Executable:   rt.Executable,
+		EvalSymlinks: rt.EvalSymlinks,
+		TempDir:      rt.TempDir,
+		MkdirTemp:    os.MkdirTemp,
+		RemoveAll:    os.RemoveAll,
+	})
+	return updater.RollbackResult(rollbackOptionsFromRequest(req))
+}
+
 func updateOptionsFromRequest(req *workflow.Request) update.Options {
 	if req == nil {
 		return update.Options{Keep: update.DefaultKeep}
@@ -37,6 +54,17 @@ func updateOptionsFromRequest(req *workflow.Request) update.Options {
 		Yes:              req.UpdateYes,
 		Keep:             req.UpdateKeep,
 		Attestations:     req.UpdateAttestations,
+	}
+}
+
+func rollbackOptionsFromRequest(req *workflow.Request) update.RollbackOptions {
+	if req == nil {
+		return update.RollbackOptions{}
+	}
+	return update.RollbackOptions{
+		RequestedVersion: req.RollbackVersion,
+		CheckOnly:        req.RollbackCheckOnly,
+		Yes:              req.RollbackYes,
 	}
 }
 

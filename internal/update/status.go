@@ -21,6 +21,16 @@ type Options struct {
 	Attestations     string
 }
 
+type RollbackOptions struct {
+	RequestedVersion string
+	CheckOnly        bool
+	Yes              bool
+}
+
+type RollbackResult struct {
+	Output string
+}
+
 type AttestationMode string
 
 const (

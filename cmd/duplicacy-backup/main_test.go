@@ -75,7 +75,9 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
+	oldHandleDiagnosticsCommand := handleDiagnosticsCommand
 	oldHandleRestoreCommand := handleRestoreCommand
+	oldHandleRollbackCommand := handleRollbackCommand
 	oldHandleUpdateCommand := handleUpdateCommand
 	oldMaybeSendPreRunFailureNotification := maybeSendPreRunFailureNotification
 
@@ -86,7 +88,9 @@ func withTestGlobals(t *testing.T, fn func()) {
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	handleConfigCommand = workflow.HandleConfigCommand
+	handleDiagnosticsCommand = workflow.HandleDiagnosticsCommand
 	handleRestoreCommand = workflow.HandleRestoreCommand
+	handleRollbackCommand = oldHandleRollbackCommand
 	handleUpdateCommand = oldHandleUpdateCommand
 	maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 
@@ -97,7 +101,9 @@ func withTestGlobals(t *testing.T, fn func()) {
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
+		handleDiagnosticsCommand = oldHandleDiagnosticsCommand
 		handleRestoreCommand = oldHandleRestoreCommand
+		handleRollbackCommand = oldHandleRollbackCommand
 		handleUpdateCommand = oldHandleUpdateCommand
 		maybeSendPreRunFailureNotification = oldMaybeSendPreRunFailureNotification
 	})
@@ -386,6 +392,38 @@ func TestRunWithArgs_UpdateHelpReturnsZero(t *testing.T) {
 	}
 }
 
+func TestRunWithArgs_DiagnosticsHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"diagnostics", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(diagnostics --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Diagnostics options:") ||
+		!strings.Contains(stdout, "--json-summary") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed diagnostics reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRunWithArgs_RollbackHelpReturnsZero(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		if code := runWithArgs([]string{"rollback", "--help"}); code != 0 {
+			t.Fatalf("runWithArgs(rollback --help) = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Rollback options:") ||
+		!strings.Contains(stdout, "--version <tag>") ||
+		!strings.Contains(stdout, "Use --help-full for the detailed rollback reference.") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
 func TestRunWithArgs_RestoreHelpReturnsZero(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if code := runWithArgs([]string{"restore", "--help"}); code != 0 {
@@ -501,6 +539,80 @@ func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 		}
 		if stdout != "update ok\n" {
 			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_DiagnosticsDispatchReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		handleDiagnosticsCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			if req.DiagnosticsCommand != "diagnostics" || req.Target() != "onsite-usb" || req.Source != "homes" || !req.JSONSummary {
+				t.Fatalf("req = %+v", req)
+			}
+			return "diagnostics ok\n", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"diagnostics", "--target", "onsite-usb", "--json-summary", "homes"}); code != 0 {
+				t.Fatalf("runWithArgs(diagnostics) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if stdout != "diagnostics ok\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_RollbackCheckOnlyNonRootReturnsZero(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		handleRollbackCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+			if req.RollbackCommand != "rollback" || !req.RollbackCheckOnly {
+				t.Fatalf("req = %+v", req)
+			}
+			return update.RollbackResult{Output: "rollback check ok\n"}, nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"rollback", "--check-only"}); code != 0 {
+				t.Fatalf("runWithArgs(rollback --check-only) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if stdout != "rollback check ok\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_RollbackActivationNonRootFailsBeforeHandler(t *testing.T) {
+	withTestGlobals(t, func() {
+		geteuid = func() int { return 1000 }
+		called := false
+		handleRollbackCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+			called = true
+			return update.RollbackResult{}, nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"rollback"}); code != 1 {
+				t.Fatalf("runWithArgs(rollback non-root) = %d", code)
+			}
+		})
+		if called {
+			t.Fatal("rollback handler should not be called for non-root activation attempts")
+		}
+		if stdout != "" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "rollback activation must be run as root") ||
+			!strings.Contains(stderr, "--check-only") {
+			t.Fatalf("stderr = %q", stderr)
 		}
 	})
 }

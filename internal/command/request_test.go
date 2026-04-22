@@ -62,6 +62,28 @@ func TestParseRequest_UpdateHelpHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_DiagnosticsHelpHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"diagnostics", "--help"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_RollbackHelpHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"rollback", "--help"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_RestoreHelpHandled(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"restore", "--help"}, meta, workflow.DefaultRuntime())
@@ -117,6 +139,28 @@ func TestParseRequest_UpdateHelpFullHandled(t *testing.T) {
 	}
 }
 
+func TestParseRequest_DiagnosticsHelpFullHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"diagnostics", "--help-full"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
+func TestParseRequest_RollbackHelpFullHandled(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"rollback", "--help-full"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if !result.Handled || result.Output == "" || result.Request != nil {
+		t.Fatalf("unexpected parse result: %+v", result)
+	}
+}
+
 func TestParseRequest_RestoreHelpFullHandled(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"restore", "--help-full"}, meta, workflow.DefaultRuntime())
@@ -132,16 +176,20 @@ func TestUsageTextTemplatesAreFullyResolved(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 	for name, text := range map[string]string{
-		"usage":        UsageText(meta, rt),
-		"full":         FullUsageText(meta, rt),
-		"config":       ConfigUsageText(meta, rt),
-		"config-full":  FullConfigUsageText(meta, rt),
-		"notify":       NotifyUsageText(meta, rt),
-		"notify-full":  FullNotifyUsageText(meta, rt),
-		"restore":      RestoreUsageText(meta, rt),
-		"restore-full": FullRestoreUsageText(meta, rt),
-		"update":       UpdateUsageText(meta, rt),
-		"update-full":  FullUpdateUsageText(meta, rt),
+		"usage":         UsageText(meta, rt),
+		"full":          FullUsageText(meta, rt),
+		"config":        ConfigUsageText(meta, rt),
+		"config-full":   FullConfigUsageText(meta, rt),
+		"diagnostics":   DiagnosticsUsageText(meta, rt),
+		"diag-full":     FullDiagnosticsUsageText(meta, rt),
+		"notify":        NotifyUsageText(meta, rt),
+		"notify-full":   FullNotifyUsageText(meta, rt),
+		"rollback":      RollbackUsageText(meta, rt),
+		"rollback-full": FullRollbackUsageText(meta, rt),
+		"restore":       RestoreUsageText(meta, rt),
+		"restore-full":  FullRestoreUsageText(meta, rt),
+		"update":        UpdateUsageText(meta, rt),
+		"update-full":   FullUpdateUsageText(meta, rt),
 	} {
 		if strings.Contains(text, "{{") || strings.Contains(text, "}}") {
 			t.Fatalf("%s usage contains unresolved template marker: %q", name, text)
@@ -178,6 +226,22 @@ func TestParseRequest_ConfigExplainExplicitTarget(t *testing.T) {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if result.Request.ConfigCommand != "explain" || result.Request.Target() != "offsite-storj" {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_Diagnostics(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"diagnostics", "--target", "offsite-storj", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.DiagnosticsCommand != "diagnostics" ||
+		result.Request.Target() != "offsite-storj" ||
+		result.Request.Source != "homes" ||
+		result.Request.ConfigDir != "/cfg" ||
+		result.Request.SecretsDir != "/sec" ||
+		!result.Request.JSONSummary {
 		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
@@ -379,6 +443,28 @@ func TestParseRequest_Update(t *testing.T) {
 		result.Request.UpdateAttestations != "required" ||
 		result.Request.ConfigDir != "/cfg" {
 		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_Rollback(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	result, err := ParseRequest([]string{"rollback", "--check-only", "--version", "v5.1.1", "--yes"}, meta, workflow.DefaultRuntime())
+	if err != nil {
+		t.Fatalf("ParseRequest() error = %v", err)
+	}
+	if result.Request.RollbackCommand != "rollback" ||
+		!result.Request.RollbackCheckOnly ||
+		!result.Request.RollbackYes ||
+		result.Request.RollbackVersion != "v5.1.1" {
+		t.Fatalf("result.Request = %+v", result.Request)
+	}
+}
+
+func TestParseRequest_RollbackRejectsUnexpectedArgs(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"rollback", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unexpected extra arguments: homes") {
+		t.Fatalf("ParseRequest() err = %v", err)
 	}
 }
 
@@ -668,6 +754,7 @@ func TestParseRequest_TargetRequiredForRuntimeConfigAndHealth(t *testing.T) {
 	for _, args := range [][]string{
 		{"backup", "homes"},
 		{"config", "validate", "homes"},
+		{"diagnostics", "homes"},
 		{"health", "status", "homes"},
 		{"notify", "test", "homes"},
 	} {

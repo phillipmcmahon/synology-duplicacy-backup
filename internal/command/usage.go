@@ -16,7 +16,9 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} cleanup-storage [OPTIONS] <source>
        {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
+       {{script}} diagnostics [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} rollback [OPTIONS]
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
@@ -45,7 +47,9 @@ Examples:
     {{script}} backup --target offsite-storj homes
     {{script}} prune --target onsite-usb homes
     {{script}} config validate --target onsite-usb homes
+    {{script}} diagnostics --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
+    {{script}} rollback --check-only
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore prepare --target onsite-usb homes
     {{script}} update --check-only
@@ -69,7 +73,9 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} cleanup-storage [OPTIONS] <source>
        {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
+       {{script}} diagnostics [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
+       {{script}} rollback [OPTIONS]
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
@@ -99,6 +105,9 @@ HEALTH COMMANDS:
     health doctor            Read-only environment and storage diagnostics
     health verify            Read-only integrity check across revisions found for the current label
 
+DIAGNOSTICS COMMAND:
+    diagnostics              Print a redacted support bundle for one label and target
+
 NOTIFY COMMANDS:
     notify test             Send a clearly marked simulated notification through the configured providers
     notify test update      Send a simulated update notification through the global update config
@@ -109,6 +118,9 @@ RESTORE COMMANDS:
 
 UPDATE COMMAND:
     update                  Check GitHub for a newer published release and install it through the packaged installer
+
+ROLLBACK COMMAND:
+    rollback                Inspect or activate a retained managed-install version
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
@@ -240,11 +252,14 @@ EXAMPLES:
     {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
+    {{script}} diagnostics --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
     {{script}} restore prepare --target onsite-usb homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} notify test --target onsite-usb homes
+    {{script}} rollback --check-only
+    {{script}} rollback --yes
     {{script}} update --check-only
     {{script}} update --yes
 `,
@@ -281,6 +296,69 @@ Examples:
 Use --help-full for the detailed config reference.
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+	)
+}
+
+func DiagnosticsUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
+
+Diagnostics options:
+    --target <name>
+    --json-summary
+    --config-dir <path>     (default: <binary-dir>/.config)
+    --secrets-dir <path>    (default: {{default_secrets_dir}})
+    --help
+    --help-full
+
+Examples:
+    {{script}} diagnostics --target onsite-usb homes
+    {{script}} diagnostics --target offsite-storj --json-summary homes
+
+Use --help-full for the detailed diagnostics reference.
+`,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+	)
+}
+
+func FullDiagnosticsUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	cfgDir := workflow.EffectiveConfigDir(rt)
+	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
+
+DIAGNOSTICS COMMAND:
+    diagnostics             Print a redacted support bundle for one label and target
+
+OPTIONS:
+    --target <name>         Select the named target (required)
+    --json-summary          Write the diagnostics report as machine-readable JSON
+    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
+    --help                  Show the concise diagnostics help message
+    --help-full             Show the detailed diagnostics help message
+
+BEHAVIOUR:
+    diagnostics:
+      - resolves one label and target without running backup, prune, restore, or storage maintenance
+      - reports config paths, source path, storage value, storage scheme, state freshness, and last known run details
+      - inspects local path accessibility when the selected storage is path-based
+      - redacts secrets and reports only whether required storage keys are present
+      - can be pasted into support conversations without exposing storage credentials or notification tokens
+
+DEFAULT LOCATIONS:
+    Config dir             : {{config_dir}}
+    Secrets dir            : {{default_secrets_dir}}
+    State dir              : {{state_dir}}
+    Log dir                : {{log_dir}}
+
+EXAMPLES:
+    {{script}} diagnostics --target onsite-usb homes
+    {{script}} diagnostics --target offsite-storj homes
+    {{script}} diagnostics --target offsite-storj --json-summary homes
+    {{script}} diagnostics --target onsite-usb --config-dir /opt/etc --secrets-dir /opt/secrets homes
+`,
+		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{config_dir}}", cfgDir,
+		"{{state_dir}}", meta.StateDir,
+		"{{log_dir}}", meta.LogDir,
 	)
 }
 
@@ -473,6 +551,61 @@ Use --help-full for the detailed update reference.
 `,
 		"{{default_keep}}", fmt.Sprint(updatepkg.DefaultKeep),
 	)
+}
+
+func RollbackUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return scriptTemplate(meta, `Usage: {{script}} rollback [OPTIONS]
+
+Rollback options:
+    --check-only
+    --yes
+    --version <tag>       (default: newest previous retained version)
+    --help
+    --help-full
+
+Examples:
+    {{script}} rollback --check-only
+    sudo {{script}} rollback --yes
+    sudo {{script}} rollback --version v5.1.1 --yes
+
+Use --help-full for the detailed rollback reference.
+`)
+}
+
+func FullRollbackUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+	return scriptTemplate(meta, `Usage: {{script}} rollback [OPTIONS]
+
+ROLLBACK BEHAVIOUR:
+    rollback:
+      - inspects the managed install layout used by update
+      - lists retained versioned binaries in the install root
+      - activates the newest previous retained version by default
+      - can activate an explicit retained version with --version
+      - updates only the managed current symlink
+      - does not download releases and does not modify config or secrets
+
+OPTIONS:
+    --check-only           Show the rollback plan without changing symlinks
+    --yes                  Skip the interactive confirmation prompt
+    --version <tag>        Activate one retained version instead of the newest previous version
+    --help                 Show the concise rollback help message
+    --help-full            Show the detailed rollback help message
+
+INTERACTIVE RULES:
+    Interactive runs show the selected rollback target and ask for confirmation.
+    Non-interactive activation requires --yes.
+    --check-only is safe to run without root because it does not change symlinks.
+
+SUPPORTED LAYOUT:
+    rollback expects the standard managed install layout:
+      /usr/local/lib/duplicacy-backup/
+      /usr/local/bin/duplicacy-backup -> /usr/local/lib/duplicacy-backup/current
+
+EXAMPLES:
+    {{script}} rollback --check-only
+    sudo {{script}} rollback --yes
+    sudo {{script}} rollback --version v5.1.1 --yes
+`)
 }
 
 func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {

@@ -169,6 +169,9 @@ sudo duplicacy-backup backup --target onsite-usb homes
 # Check backup freshness and repository status
 sudo duplicacy-backup health status --target onsite-usb homes
 
+# Gather a redacted support bundle for one label and target
+sudo duplicacy-backup diagnostics --target onsite-usb homes
+
 # Print a safe read-only restore drill plan
 sudo duplicacy-backup restore plan --target onsite-usb homes
 
@@ -199,8 +202,8 @@ Use the documentation by task:
 
 Core operating rules:
 
-- `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
-  `restore plan`, `restore prepare`, and
+- `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`,
+  `diagnostics`, `health`, `restore plan`, `restore prepare`, and
   label-scoped `notify test` commands require an explicit `--target <name>`.
 - Runtime operations are first-class commands. Use `backup`, `prune`,
   `cleanup-storage`, or `fix-perms`; old top-level operation flags are not
@@ -211,6 +214,8 @@ Core operating rules:
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific
   state under `/var/lib/duplicacy-backup/<label>.<target>.json`.
+- `diagnostics` prints a redacted label-target support bundle with resolved
+  paths, storage scheme, state freshness, and permission summaries.
 - `restore plan` is read-only. It prints the resolved context and Duplicacy
   commands for a safe drill workspace, but it does not execute restores.
 - `restore prepare` creates the separate drill workspace and writes Duplicacy
@@ -220,6 +225,8 @@ Core operating rules:
 - `update --check-only` is safe for routine inspection of published updates.
 - `update` keeps the newly activated binary and one previous binary by default;
   use `--keep <count>` if you want a different local rollback window.
+- `rollback --check-only` inspects retained managed-install versions;
+  `rollback --yes` activates the newest previous retained version.
 
 ## Documentation
 

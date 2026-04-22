@@ -87,6 +87,26 @@ sudo /usr/local/bin/duplicacy-backup update --attestations required --yes
 sudo /usr/local/bin/duplicacy-backup update --force --yes
 ```
 
+Inspect retained rollback candidates before changing anything:
+
+```bash
+/usr/local/bin/duplicacy-backup rollback --check-only
+```
+
+Activate the newest previous retained version when you need to back out a
+managed update:
+
+```bash
+sudo /usr/local/bin/duplicacy-backup rollback --yes
+```
+
+Use an explicit retained version when incident response calls for a specific
+target:
+
+```bash
+sudo /usr/local/bin/duplicacy-backup rollback --version v5.1.1 --yes
+```
+
 ### Update trust model
 
 `duplicacy-backup update` verifies the downloaded package checksum before
@@ -129,6 +149,10 @@ interactive rules, so add `--yes` for unattended scheduler or repair jobs.
 
 By default, `update` keeps the newly activated binary and one previous binary;
 use `--keep <count>` if you want a different local rollback window.
+
+`rollback` uses that retained-binary window. It does not download anything and
+does not modify config or secrets; activation changes only the managed
+`current` symlink under `/usr/local/lib/duplicacy-backup`.
 
 Update network calls are bounded. If GitHub release metadata lookup or package
 download stalls, the command reports which phase timed out instead of waiting
@@ -177,7 +201,8 @@ To install a new binary without switching immediately:
 sudo ./install.sh --no-activate
 ```
 
-To roll back after an upgrade:
+The rollback command is preferred for normal managed installs. If the command
+itself is unavailable during an emergency, the manual fallback is:
 
 ```bash
 cd /usr/local/lib/duplicacy-backup
@@ -288,9 +313,9 @@ those fields directly, and `ntfy` still keeps the visible message focused on
 the operator-readable summary.
 
 `--target <name>` selects one named target from the label config. Runtime,
-`config`, `health`, `restore plan`, `restore prepare`, and label-scoped
-`notify test` commands require an explicit target. Global update commands and
-`notify test update` do not.
+`config`, `diagnostics`, `health`, `restore plan`, `restore prepare`, and
+label-scoped `notify test` commands require an explicit target. Global update
+and rollback commands, plus `notify test update`, do not.
 Targets define both `storage` and `location`. The configured `storage` value is
 passed directly through to Duplicacy. Use `location = "local"` or
 `location = "remote"` to describe where the target lives operationally, and add

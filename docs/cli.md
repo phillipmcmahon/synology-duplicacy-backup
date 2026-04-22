@@ -8,17 +8,19 @@ duplicacy-backup prune [OPTIONS] <source>
 duplicacy-backup cleanup-storage [OPTIONS] <source>
 duplicacy-backup fix-perms [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
+duplicacy-backup diagnostics [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source|update>
+duplicacy-backup rollback [OPTIONS]
 duplicacy-backup restore <plan|prepare> [OPTIONS] <source>
 duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
-`restore plan`, `restore prepare`, and label-scoped `notify test` commands need
-an explicit `--target <name>`.
-`notify test update` and `update` are global application commands and do not
-use a target.
+`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
+`health`, `restore plan`, `restore prepare`, and label-scoped `notify test`
+commands need an explicit `--target <name>`.
+`notify test update`, `update`, and `rollback` are global application commands
+and do not use a target.
 
 Targets describe both storage and deployment location:
 
@@ -47,7 +49,7 @@ are not supported.
 | Flag | Description |
 |---|---|
 | `--force` | Override safe prune thresholds for `prune` |
-| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`, `restore plan`, `restore prepare`, and label-scoped `notify test` commands |
+| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`, `health`, `restore plan`, `restore prepare`, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -64,6 +66,13 @@ are not supported.
 | `config validate --target <target> <label>` | Validate the selected target from that label config and any required storage secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
+
+## Diagnostics Command
+
+| Command | Description |
+|---|---|
+| `diagnostics --target <target> <label>` | Print a redacted support bundle with resolved config, storage, secrets, state, and path-permission context |
+| `diagnostics --target <target> --json-summary <label>` | Write the diagnostics report as JSON |
 
 ## Notify Commands
 
@@ -84,6 +93,13 @@ are not supported.
 | Command | Description |
 |---|---|
 | `update [--check-only]` | Check GitHub for the latest published release and, when requested, install it through the packaged installer |
+
+## Rollback Command
+
+| Command | Description |
+|---|---|
+| `rollback --check-only` | Inspect retained managed-install versions and the selected rollback target |
+| `rollback [--version <tag>] --yes` | Activate the newest previous retained version, or a specific retained version |
 
 ## Health Commands
 
@@ -119,6 +135,9 @@ sudo duplicacy-backup config validate --target onsite-usb homes
 # Health command
 sudo duplicacy-backup health status --target onsite-usb homes
 
+# Redacted support bundle
+duplicacy-backup diagnostics --target onsite-usb homes
+
 # Label-scoped notification test
 sudo duplicacy-backup notify test --target onsite-usb homes
 
@@ -131,6 +150,9 @@ sudo duplicacy-backup restore prepare --target onsite-usb homes
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
 
+# Managed rollback inspection
+/usr/local/bin/duplicacy-backup rollback --check-only
+
 # Global update notification test
 duplicacy-backup notify test update --provider ntfy --dry-run
 ```
@@ -138,8 +160,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 ## Behaviour Notes
 
 - `--help` is intentionally concise; use `--help-full` for detailed command help.
-- Every `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
-  `restore plan`, `restore prepare`, and
+- Every `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`,
+  `diagnostics`, `health`, `restore plan`, `restore prepare`, and
   label-scoped `notify test` command needs `--target <name>`.
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
@@ -155,6 +177,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   treated as operator-directed maintenance.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
+- `diagnostics` is non-mutating. It gathers resolved label-target context,
+  redacts secret values, and is intended for support bundles.
 - Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
 - Storage keys live under `[targets.<name>.keys]` in the label secrets file
   when the selected backend requires them. For S3-compatible storage this
@@ -167,6 +191,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   the stable command path.
 - `update` defaults to `--keep 2`, so the newly activated version and one
   previous version are retained unless you override that policy.
+- `rollback --check-only` is non-mutating. Actual rollback activation requires
+  root and changes only the managed `current` symlink.
 
 Source-of-truth guides:
 

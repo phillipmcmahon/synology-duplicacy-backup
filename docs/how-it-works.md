@@ -75,7 +75,7 @@ main
     -> runWithArgs
       -> command.ParseRequest
       -> handled help/version output, or dispatchRequest
-           -> config / notify / update / health / runtime
+           -> config / diagnostics / notify / rollback / update / health / runtime
 ```
 
 In other words:
@@ -91,7 +91,7 @@ Supporting packages now keep adjacent concerns together:
 - `internal/health` owns health reporting, health JSON output, and health presentation
 - `internal/notify` owns notification delivery and notify-test reporting
 - `internal/update` owns self-update planning, download, checksum and
-  attestation verification, and install execution
+  attestation verification, install execution, and managed rollback activation
 - `internal/presentation` owns shared output formatting and the runtime presenter
 
 ## Architecture Overview
@@ -105,7 +105,9 @@ flowchart TD
     D --> E["config command handler"]
     D --> F["notify command handler"]
     D --> G["update command handler"]
+    D --> G2["rollback command handler"]
     D --> H["health runner"]
+    D --> H2["diagnostics command handler"]
     D --> I["runtime planner"]
     I --> J["Plan"]
     J --> K["Executor.Run"]
@@ -200,7 +202,7 @@ It owns:
 
 - [`internal/update`](../internal/update)
 
-This package owns the self-update command path.
+This package owns the managed update and rollback command paths.
 
 It owns:
 
@@ -209,6 +211,7 @@ It owns:
 - [`internal/update/attestation.go`](../internal/update/attestation.go): optional GitHub release-asset attestation verification
 - [`internal/update/package.go`](../internal/update/package.go): package download, checksum verification, archive extraction, and binary discovery
 - [`internal/update/install.go`](../internal/update/install.go): managed install layout detection, operator confirmation, and packaged installer execution
+- [`internal/update/rollback.go`](../internal/update/rollback.go): retained-version discovery, rollback confirmation, and managed symlink activation
 - [`internal/update/report.go`](../internal/update/report.go): operator-facing update report rendering
 
 ### Presentation package
@@ -275,7 +278,8 @@ The `Request` type contains user intent only:
 - `--dry-run`
 - config/secrets directory overrides
 - source label
-- command selectors for `config`, `notify`, `restore`, `update`, and `health`
+- command selectors for `config`, `diagnostics`, `notify`, `restore`,
+  `rollback`, `update`, and `health`
 
 It also derives convenience booleans such as:
 
@@ -321,19 +325,22 @@ Unresolved requests go through `dispatchRequest` in
 [`cmd/duplicacy-backup/dispatch.go`](../cmd/duplicacy-backup/dispatch.go):
 
 - `ConfigCommand` routes to `workflow.HandleConfigCommand`
+- `DiagnosticsCommand` routes to `workflow.HandleDiagnosticsCommand`
 - `NotifyCommand` routes to `workflow.HandleNotifyCommand`
 - `RestoreCommand` routes to `workflow.HandleRestoreCommand`
-- `UpdateCommand` routes to `update.HandleCommand` and the update notification
-  hooks
+- `RollbackCommand` routes to the managed rollback adapter in the update
+  package
+- `UpdateCommand` routes to the update adapter and the update notification hooks
 - `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
 - everything else is treated as a runtime backup/prune/cleanup/fix-perms
   request and goes through `Planner.Build` followed by `Executor.Run`
 
-This dispatch point is why global commands such as `update` and
+This dispatch point is why global commands such as `update`, `rollback`, and
 `notify test update` do not inherit label-target runtime requirements. It also
-keeps restore drill commands out of the runtime executor path: `restore plan`
-is read-only, and `restore prepare` only creates the separate drill workspace
-and writes Duplicacy preferences there.
+keeps diagnostics and restore drill commands out of the runtime executor path:
+`diagnostics` is non-mutating, `restore plan` is read-only, and
+`restore prepare` only creates the separate drill workspace and writes
+Duplicacy preferences there.
 
 ### Why this matters
 

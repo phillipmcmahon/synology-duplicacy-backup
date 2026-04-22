@@ -1,14 +1,15 @@
 # Desk Cheat Sheet
 
-Use `sudo` for most installed NAS operations. `config paths`, `update --check-only`,
-and dry-run notification tests are common normal-user exceptions.
+Use `sudo` for most installed NAS operations. `config paths`,
+`diagnostics`, `update --check-only`, `rollback --check-only`, and dry-run
+notification tests are common normal-user exceptions.
 
 This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 
-`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `health`,
-`restore plan`, `restore prepare`, and label-scoped `notify test` commands need
-an explicit `--target <name>`.
+`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
+`health`, `restore plan`, `restore prepare`, and label-scoped `notify test`
+commands need an explicit `--target <name>`.
 
 Target model:
 
@@ -91,6 +92,20 @@ duplicacy-backup config paths --target onsite-usb homes
 # Show paths for homes on target offsite-storj
 duplicacy-backup config paths --target offsite-storj homes
 ```
+
+## Diagnostics
+
+```bash
+# Gather a redacted support bundle for homes on target onsite-usb
+duplicacy-backup diagnostics --target onsite-usb homes
+
+# Write machine-readable diagnostics for support or automation
+duplicacy-backup diagnostics --target offsite-storj --json-summary homes
+```
+
+- Use `diagnostics` when you need one pasteable view of resolved config paths, storage scheme, secrets presence, state freshness, last run status, and basic path permissions.
+- Diagnostics redacts secret values; it reports whether required storage keys are present, not the key contents.
+- It does not run backup, prune, restore, or storage cleanup.
 
 ## Installed Paths
 
@@ -181,12 +196,16 @@ duplicacy-backup update --check-only
 sudo duplicacy-backup update --yes
 sudo duplicacy-backup update --attestations required --yes
 sudo duplicacy-backup update --force --yes
+duplicacy-backup rollback --check-only
+sudo duplicacy-backup rollback --yes
 ```
 
 - `--attestations required` needs GitHub CLI on `PATH` and stops before extraction/install if release-asset attestation verification fails.
 - `--attestations auto` verifies when `gh` is available, stops on verification failure, and otherwise continues with checksum-only verification when `gh` is missing.
 - The default is `--attestations off`, so existing scheduled update jobs keep checksum-only behaviour unless you opt in.
 - `update` keeps the newly activated binary and one previous binary by default; use `--keep <count>` to change that local rollback window.
+- `rollback --check-only` shows retained versions without changing symlinks.
+- `rollback --yes` activates the newest previous retained version; use `--version <tag>` when you need a specific retained version.
 
 ## Help
 
@@ -196,6 +215,8 @@ duplicacy-backup --help-full
 duplicacy-backup config --help
 duplicacy-backup notify --help
 duplicacy-backup update --help
+duplicacy-backup rollback --help
+duplicacy-backup diagnostics --help
 duplicacy-backup health --help
 duplicacy-backup config --help-full
 ```

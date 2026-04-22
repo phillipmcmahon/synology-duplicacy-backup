@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Redacted operator diagnostics command**:
+  `duplicacy-backup diagnostics --target <target> <label>` gathers resolved
+  config paths, storage scheme, secrets presence, state freshness, last run
+  details, and basic path-permission context without running backup, prune,
+  restore, or storage cleanup. `--json-summary` emits the same support-bundle
+  context as machine-readable JSON.
+- **Managed install rollback command**:
+  `duplicacy-backup rollback --check-only` inspects retained managed-install
+  versions, while `sudo duplicacy-backup rollback --yes` activates the newest
+  previous retained binary by updating the managed `current` symlink. Operators
+  can use `--version <tag>` to select a specific retained version.
+
+### Validation
+- **macOS Go 1.26**: `go test ./...`
+
 ## [v6.0.0] - 2026-04-21
 
 ### Added

@@ -22,8 +22,10 @@ var lookPath = osexec.LookPath
 var newLock = lock.New
 var newSourceLock = lock.NewSource
 var handleConfigCommand = workflow.HandleConfigCommand
+var handleDiagnosticsCommand = workflow.HandleDiagnosticsCommand
 var handleNotifyCommand = workflow.HandleNotifyCommand
 var handleRestoreCommand = workflow.HandleRestoreCommand
+var handleRollbackCommand = handleRollbackRequest
 var handleUpdateCommand = handleUpdateRequest
 var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification
 

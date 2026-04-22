@@ -23,10 +23,15 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 
 type Request struct {
 	ConfigCommand      string
+	DiagnosticsCommand string
 	HealthCommand      string
 	NotifyCommand      string
 	RestoreCommand     string
 	RestoreWorkspace   string
+	RollbackCommand    string
+	RollbackVersion    string
+	RollbackCheckOnly  bool
+	RollbackYes        bool
 	UpdateCommand      string
 	FixPerms           bool
 	ForcePrune         bool

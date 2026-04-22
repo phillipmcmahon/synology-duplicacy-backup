@@ -24,6 +24,18 @@ func TestUpdateOptionsFromRequestMapsCommandRequest(t *testing.T) {
 	}
 }
 
+func TestRollbackOptionsFromRequestMapsCommandRequest(t *testing.T) {
+	got := rollbackOptionsFromRequest(&workflow.Request{
+		RollbackVersion:   "v5.1.1",
+		RollbackCheckOnly: true,
+		RollbackYes:       true,
+	})
+
+	if got.RequestedVersion != "v5.1.1" || !got.CheckOnly || !got.Yes {
+		t.Fatalf("rollbackOptionsFromRequest() = %+v", got)
+	}
+}
+
 func TestUpdateStatusForWorkflowMappingContract(t *testing.T) {
 	tests := []struct {
 		name string
