@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CLI help command surface**:
+  concise and full help now list the current command groups consistently,
+  including diagnostics, rollback, restore drills, notification tests, and
+  managed install commands.
+
 ## [v6.1.0] - 2026-04-22
 
 ### Added

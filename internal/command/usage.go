@@ -17,29 +17,38 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} diagnostics [OPTIONS] <source>
+       {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} rollback [OPTIONS]
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
-       {{script}} health <status|doctor|verify> [OPTIONS] <source>
+       {{script}} rollback [OPTIONS]
 
-Runtime commands:
-    backup
-    prune
-    cleanup-storage
-    fix-perms
+Commands:
+    Runtime operations     backup, prune, cleanup-storage, fix-perms
+    Config and inspection  config, diagnostics, health
+    Notifications          notify test, notify test update
+    Restore drills         restore plan, restore prepare
+    Managed install        update, rollback
 
-Command modifiers:
-    --force (prune only)
-    --target <name>
-    --dry-run
-    --verbose
-    --json-summary
-    --config-dir <path>
-    --secrets-dir <path>
-    --version, -v
-    --help
-    --help-full
+Common options:
+    --target <name>        Select a configured label target where required
+    --dry-run              Preview supported operations without making changes
+    --verbose              Show detailed operational output where supported
+    --json-summary         Write supported command summaries as JSON
+    --config-dir <path>    Override config directory
+    --secrets-dir <path>   Override secrets directory
+    --help                 Show concise help
+    --help-full            Show detailed help
+    --version, -v          Show version
+
+Command-specific options:
+    --force                Prune: override thresholds; update: reinstall selected release
+    --workspace <path>     Override restore drill workspace
+    --provider <name>      Select notification provider for notify test
+    --check-only           Inspect update or rollback without changing install
+    --yes                  Skip update or rollback confirmation
+    --keep <count>         Update retention count
+    --attestations <mode>  Update release attestation mode
 
 Examples:
     {{script}} backup --target onsite-usb homes
@@ -48,12 +57,12 @@ Examples:
     {{script}} prune --target onsite-usb homes
     {{script}} config validate --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
+    {{script}} health status --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
-    {{script}} rollback --check-only
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore prepare --target onsite-usb homes
     {{script}} update --check-only
-    {{script}} health status --target onsite-usb homes
+    {{script}} rollback --check-only
 
 Use --help-full for the detailed reference.
 `)
@@ -74,53 +83,63 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} diagnostics [OPTIONS] <source>
+       {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} rollback [OPTIONS]
        {{script}} restore <plan|prepare> [OPTIONS] <source>
        {{script}} update [OPTIONS]
-       {{script}} health <status|doctor|verify> [OPTIONS] <source>
+       {{script}} rollback [OPTIONS]
 
-RUNTIME COMMANDS:
-    backup                  Run a backup for the selected label and target
-    prune                   Run threshold-guarded prune for the selected label and target
-    cleanup-storage         Request storage maintenance:
-                             duplicacy prune -exhaustive -exclusive
-                             Use only when no other client is writing to the same storage
-    fix-perms               Normalise path-based storage ownership and permissions
+COMMAND OVERVIEW:
+    Runtime operations      Run, maintain, or repair one configured label target
+      backup                Run a backup for the selected label and target
+      prune                 Run threshold-guarded prune for the selected label and target
+      cleanup-storage       Request storage maintenance:
+                              duplicacy prune -exhaustive -exclusive
+                              Use only when no other client is writing to the same storage
+      fix-perms             Normalise path-based storage ownership and permissions
 
-MODIFIERS:
-    --force                  Override safe prune thresholds during prune
+    Config and inspection   Read, explain, validate, or diagnose configured targets
+      config validate       Validate the resolved config and configured secrets
+      config explain        Show resolved config values for the selected target
+      config paths          Show resolved config, source, log, and secrets paths
+      diagnostics           Print a redacted support bundle for one label and target
+      health status         Fast read-only health summary for operators and schedulers
+      health doctor         Read-only environment and storage diagnostics
+      health verify         Read-only integrity check across revisions found for the current label
+
+    Notifications           Send explicit synthetic notification checks
+      notify test           Send a simulated notification through configured providers
+      notify test update    Send a simulated update notification through global update config
+
+    Restore drills          Prepare safe restore workflows without writing to the live source
+      restore plan          Print a read-only Duplicacy restore-drill plan without executing a restore
+      restore prepare       Prepare a safe drill workspace without executing a restore
+
+    Managed install         Manage the installed application binary
+      update                Check GitHub for a newer published release and install it through the packaged installer
+      rollback              Inspect or activate a retained managed-install version
+
+COMMON OPTIONS:
     --target <name>          Select the named target config where the command uses a label target
-    --dry-run                Simulate actions without making changes
+    --dry-run                Simulate supported actions without making changes
     --verbose                Show detailed operational logging and command details
-    --json-summary           Write a machine-readable run summary to stdout
+    --json-summary           Write a machine-readable command summary to stdout
     --config-dir <path>      Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>     Override secrets directory (default: {{default_secrets_dir}})
-    --version, -v            Show version and build information
     --help                   Show the concise help message
     --help-full              Show the detailed help message
+    --version, -v            Show version and build information
 
-HEALTH COMMANDS:
-    health status            Fast read-only health summary for operators and schedulers
-    health doctor            Read-only environment and storage diagnostics
-    health verify            Read-only integrity check across revisions found for the current label
-
-DIAGNOSTICS COMMAND:
-    diagnostics              Print a redacted support bundle for one label and target
-
-NOTIFY COMMANDS:
-    notify test             Send a clearly marked simulated notification through the configured providers
-    notify test update      Send a simulated update notification through the global update config
-
-RESTORE COMMANDS:
-    restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore
-    restore prepare         Prepare a safe drill workspace without executing a restore
-
-UPDATE COMMAND:
-    update                  Check GitHub for a newer published release and install it through the packaged installer
-
-ROLLBACK COMMAND:
-    rollback                Inspect or activate a retained managed-install version
+COMMAND-SPECIFIC OPTIONS:
+    --force                  Prune: override thresholds; update: reinstall selected release
+    --workspace <path>       Override restore drill workspace
+    --provider <name>        Select notification provider for notify test
+    --severity <level>       Select notification severity for notify test
+    --event <name>           Select notification event for notify test
+    --check-only             Inspect update or rollback without changing install
+    --yes                    Skip update or rollback confirmation
+    --keep <count>           Update retention count (default: {{default_keep}})
+    --attestations <mode>    Update release attestation mode
 
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
@@ -264,6 +283,7 @@ EXAMPLES:
     {{script}} update --yes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_keep}}", fmt.Sprint(updatepkg.DefaultKeep),
 		"{{safe_prune_max_delete_percent}}", fmt.Sprint(config.DefaultSafePruneMaxDeletePercent),
 		"{{safe_prune_max_delete_count}}", fmt.Sprint(config.DefaultSafePruneMaxDeleteCount),
 		"{{safe_prune_min_total_for_percent}}", fmt.Sprint(config.DefaultSafePruneMinTotalForPercent),

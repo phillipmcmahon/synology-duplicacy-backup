@@ -285,13 +285,19 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
+		!strings.Contains(stdout, "diagnostics [OPTIONS] <source>") ||
 		!strings.Contains(stdout, "notify <test>") ||
+		!strings.Contains(stdout, "rollback [OPTIONS]") ||
 		!strings.Contains(stdout, "restore <plan|prepare>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "health <status|doctor|verify>") ||
+		!strings.Contains(stdout, "Commands:") ||
+		!strings.Contains(stdout, "Config and inspection  config, diagnostics, health") ||
+		!strings.Contains(stdout, "Managed install        update, rollback") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") ||
 		!strings.Contains(stdout, "cleanup-storage") ||
-		!strings.Contains(stdout, "--json-summary") {
+		!strings.Contains(stdout, "--json-summary") ||
+		!strings.Contains(stdout, "--check-only") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	if strings.Contains(stdout, "storj_s3_id") ||
@@ -312,6 +318,8 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
+		!strings.Contains(stdout, "rollback [OPTIONS]") ||
+		!strings.Contains(stdout, "diagnostics [OPTIONS] <source>") ||
 		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "restore <plan|prepare>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
@@ -454,18 +462,27 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "Use [targets.<name>.keys] tables with Duplicacy key names such as:") ||
-		!strings.Contains(stdout, "notify test             Send a clearly marked simulated notification through the configured providers") ||
-		!strings.Contains(stdout, "restore plan            Print a read-only Duplicacy restore-drill plan without executing a restore") ||
-		!strings.Contains(stdout, "update                  Check GitHub for a newer published release and install it through the packaged installer") ||
+		!strings.Contains(stdout, "COMMAND OVERVIEW:") ||
+		!strings.Contains(stdout, "Runtime operations      Run, maintain, or repair one configured label target") ||
+		!strings.Contains(stdout, "Config and inspection   Read, explain, validate, or diagnose configured targets") ||
+		!strings.Contains(stdout, "Notifications           Send explicit synthetic notification checks") ||
+		!strings.Contains(stdout, "Managed install         Manage the installed application binary") ||
+		!strings.Contains(stdout, "notify test           Send a simulated notification through configured providers") ||
+		!strings.Contains(stdout, "diagnostics           Print a redacted support bundle for one label and target") ||
+		!strings.Contains(stdout, "restore plan          Print a read-only Duplicacy restore-drill plan without executing a restore") ||
+		!strings.Contains(stdout, "update                Check GitHub for a newer published release and install it through the packaged installer") ||
+		!strings.Contains(stdout, "rollback              Inspect or activate a retained managed-install version") ||
 		!strings.Contains(stdout, "s3_id") ||
 		!strings.Contains(stdout, "s3_secret") ||
 		!strings.Contains(stdout, "health_webhook_bearer_token") ||
 		!strings.Contains(stdout, "health_ntfy_token") ||
-		!strings.Contains(stdout, "health status            Fast read-only health summary for operators and schedulers") ||
-		!strings.Contains(stdout, "health verify            Read-only integrity check across revisions found for the current label") ||
+		!strings.Contains(stdout, "health status         Fast read-only health summary for operators and schedulers") ||
+		!strings.Contains(stdout, "health verify         Read-only integrity check across revisions found for the current label") ||
 		!strings.Contains(stdout, "DUPLICACY_BACKUP_CONFIG_DIR") ||
 		!strings.Contains(stdout, "config explain --target offsite-storj homes") ||
-		!strings.Contains(stdout, "--json-summary           Write a machine-readable run summary to stdout") {
+		!strings.Contains(stdout, "--json-summary           Write a machine-readable command summary to stdout") ||
+		!strings.Contains(stdout, "--keep <count>           Update retention count (default: 2)") ||
+		!strings.Contains(stdout, "--attestations <mode>    Update release attestation mode") {
 		t.Fatalf("stdout = %q", stdout)
 	}
 }
