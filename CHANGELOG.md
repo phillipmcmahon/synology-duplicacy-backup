@@ -7,11 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v6.1.1] - 2026-04-22
+
 ### Fixed
 - **CLI help command surface**:
   concise and full help now list the current command groups consistently,
   including diagnostics, rollback, restore drills, notification tests, and
   managed install commands.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Coverage snapshot**:
+  - overall coverage: pending release-prep refresh
+  - `cmd/duplicacy-backup`: pending release-prep refresh
+  - `internal/workflow`: pending release-prep refresh
+  - `internal/update`: pending release-prep refresh
+  - `internal/duplicacy`: pending release-prep refresh
+  - `internal/exec`: pending release-prep refresh
+  - `internal/secrets`: pending release-prep refresh
+  - `internal/config`: pending release-prep refresh
 
 ## [v6.1.0] - 2026-04-22
 
