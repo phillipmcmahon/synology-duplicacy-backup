@@ -184,6 +184,9 @@ sudo duplicacy-backup restore files --target onsite-usb2 --revision 2403 --path 
 # Guided command generation without executing a restore
 sudo duplicacy-backup restore select --target onsite-usb2 homes
 
+# Guided selection with guarded execution through restore run
+sudo duplicacy-backup restore select --target onsite-usb2 --execute homes
+
 # Restore into the prepared workspace only
 sudo duplicacy-backup restore run \
   --target onsite-usb2 \

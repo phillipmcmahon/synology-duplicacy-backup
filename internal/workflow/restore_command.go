@@ -207,6 +207,9 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 		return "", err
 	}
 	defer cleanup()
+	if req.RestoreExecute && !workspacePrepared {
+		return "", NewRequestError("restore select --execute requires a prepared workspace; run restore prepare --target %s --workspace %s %s first", req.Target(), shellQuote(commandWorkspace), req.Source)
+	}
 
 	revisions, _, err := ctx.dup.ListVisibleRevisions()
 	if err != nil {
@@ -233,7 +236,29 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 	}
 
 	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision, restorePath)
-	return formatRestoreSelect(report), nil
+	selectOutput := formatRestoreSelect(report)
+	if !req.RestoreExecute {
+		return selectOutput, nil
+	}
+	confirmed, err := confirmRestoreSelectExecution(reader, report)
+	if err != nil {
+		return "", err
+	}
+	if !confirmed {
+		return "", NewRequestError("restore select execution cancelled")
+	}
+	runReq := *req
+	runReq.RestoreCommand = "run"
+	runReq.RestoreRevision = revision
+	runReq.RestorePath = restorePath
+	runReq.RestoreWorkspace = commandWorkspace
+	runReq.RestoreYes = true
+	runReq.RestoreExecute = false
+	runOutput, err := handleRestoreRun(&runReq, meta, rt)
+	if err != nil {
+		return selectOutput + "\n" + runOutput, err
+	}
+	return selectOutput + "\n" + runOutput, nil
 }
 
 type restoreExecutionContext struct {
@@ -404,6 +429,7 @@ type restoreSelectReport struct {
 	RestorePath       string
 	PrepareCommand    string
 	RestoreCommand    string
+	Execute           bool
 	Guide             string
 }
 
@@ -546,6 +572,7 @@ func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, wo
 		RestorePath:       restorePath,
 		PrepareCommand:    buildRestorePrepareCommand(meta.ScriptName, req, workspace),
 		RestoreCommand:    buildRestoreRunCommand(meta.ScriptName, req, revision, restorePath, workspace),
+		Execute:           req.RestoreExecute,
 		Guide:             "docs/restore-drills.md",
 	}
 }
@@ -803,6 +830,19 @@ func promptRestoreYesNo(reader *bufio.Reader, prompt string) (bool, error) {
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	return answer == "y" || answer == "yes", nil
+}
+
+func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectReport) (bool, error) {
+	restorePath := report.RestorePath
+	if restorePath == "" {
+		restorePath = "<full revision>"
+	}
+	fmt.Fprintln(restorePromptOutput, "Ready to execute restore command:")
+	fmt.Fprintf(restorePromptOutput, "  Revision : %d\n", report.Revision)
+	fmt.Fprintf(restorePromptOutput, "  Path     : %s\n", restorePath)
+	fmt.Fprintf(restorePromptOutput, "  Workspace: %s\n", report.Workspace)
+	fmt.Fprintf(restorePromptOutput, "  Command  : %s\n", report.RestoreCommand)
+	return promptRestoreYesNo(reader, "Execute restore into the prepared workspace? [y/N]: ")
 }
 
 func promptRestoreLine(reader *bufio.Reader, prompt string) (string, error) {
@@ -1083,7 +1123,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
 		{Label: "Location", Value: report.Location},
-		{Label: "Executes Restore", Value: "false"},
+		{Label: "Executes Restore", Value: fmt.Sprintf("%t", report.Execute)},
 		{Label: "Copies Back", Value: "false"},
 	})
 	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, "")
@@ -1105,7 +1145,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 	})
 	writeRestoreSection(&b, "Safety", []SummaryLine{
 		{Label: "Command Model", Value: "restore select only generates primitive commands"},
-		{Label: "Restore Execution", Value: "not performed by this command"},
+		{Label: "Restore Execution", Value: selectValue(report.Execute, "delegated to restore run after confirmation", "not performed by this command")},
 		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
 		{Label: "Guide", Value: report.Guide},
 	})

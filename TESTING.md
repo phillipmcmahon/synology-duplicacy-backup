@@ -95,7 +95,7 @@ Additional v6.0.0 validation:
 - Restore workspace tests cover local preference generation, unsafe workspace
   rejection, non-empty workspace rejection, root-gated remote secret loading,
   read-only revision/file inspection, workspace-only restore execution, and
-  interactive command generation.
+  interactive command generation with guarded delegated execution.
 
 Additional v4.4.1 validation:
 

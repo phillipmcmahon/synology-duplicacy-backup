@@ -90,7 +90,7 @@ are not supported.
 | `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
 | `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
 | `restore run --target <target> --revision <id> [--path <relative-path>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
-| `restore select --target <target> <label>` | Interactively generate explicit restore commands without executing a restore |
+| `restore select --target <target> [--execute] <label>` | Interactively generate explicit restore commands; with `--execute`, confirm and delegate to `restore run` |
 
 ## Update Command
 
@@ -158,6 +158,9 @@ sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path d
 # Guided command generation without executing a restore
 sudo duplicacy-backup restore select --target onsite-usb homes
 
+# Guided selection with guarded execution through restore run
+sudo duplicacy-backup restore select --target onsite-usb --execute homes
+
 # Restore into the prepared workspace only
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 
@@ -191,7 +194,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `restore run` executes `duplicacy restore` only inside a prepared workspace.
   It never restores over the live source and never copies data back.
 - `restore select` is an interactive command generator. It prints the exact
-  primitive commands to run and refuses non-interactive use.
+  primitive commands to run and refuses non-interactive use. With `--execute`,
+  it requires confirmation and delegates to `restore run`.
 - `prune --force` overrides prune threshold enforcement.
 - `cleanup-storage` runs exhaustive exclusive storage cleanup and should be
   treated as operator-directed maintenance.

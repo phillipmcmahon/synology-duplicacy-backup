@@ -134,6 +134,13 @@ restore:
 sudo duplicacy-backup restore select --target <target> <label>
 ```
 
+If the workspace is already prepared and you want guarded execution through
+`restore run`, add `--execute` and confirm the generated command:
+
+```bash
+sudo duplicacy-backup restore select --target <target> --execute <label>
+```
+
 Restore into the prepared workspace only:
 
 ```bash

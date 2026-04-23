@@ -42,6 +42,11 @@ non-interactive use, guides revision and path selection, then prints the exact
 `restore prepare` and `restore run` commands to execute explicitly. The picker
 is convenience; the command model is the contract.
 
+If you add `--execute`, the picker still shows the generated `restore run`
+command and asks for confirmation before delegating to `restore run`. This mode
+requires the restore workspace to already be prepared. It still never copies
+data back to the live source.
+
 ## What You Need
 
 Pick the label and target you want to prove, then collect the current storage
@@ -144,6 +149,13 @@ sudo duplicacy-backup restore select --target onsite-usb2 homes
 
 The picker prints the exact primitive command to run. It does not run
 `duplicacy restore` itself.
+
+If the workspace is already prepared and you want the picker to execute the
+selected restore after confirmation:
+
+```bash
+sudo duplicacy-backup restore select --target onsite-usb2 --execute homes
+```
 
 ## Full Restore Drill
 
@@ -249,6 +261,7 @@ wrapper useful for actual restore drills without turning it into an
 unreviewed live-data mutation tool.
 
 `duplicacy-backup restore select` is intentionally one step more conservative:
-it performs interactive selection and command generation only. It does not
-restore data. Any future command that automates copy-back into live data should
+without `--execute`, it performs interactive selection and command generation
+only. With `--execute`, it delegates to `restore run` after explicit
+confirmation. Any future command that automates copy-back into live data should
 be designed as a separate capability with its own safety review.

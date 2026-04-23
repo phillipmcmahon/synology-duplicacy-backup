@@ -451,6 +451,12 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			}
 			req.RestoreYes = true
 			return true, nil
+		case "--execute":
+			if action != "select" {
+				return false, nil
+			}
+			req.RestoreExecute = true
+			return true, nil
 		}
 		return false, nil
 	})

@@ -68,6 +68,7 @@ Examples:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --execute homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -283,9 +284,10 @@ RESTORE EXECUTION:
 RESTORE SELECTION:
     restore select is an interactive command generator. It guides revision and
     path selection, then prints the exact restore prepare and restore run
-    commands to execute explicitly. It does not run duplicacy restore and it
-    refuses non-interactive use. The picker is convenience; the command model is
-    the contract.
+    commands to execute explicitly. With --execute, it shows the generated
+    restore run command, requires confirmation, and delegates to restore run.
+    It refuses non-interactive use. The picker is convenience; the command
+    model is the contract.
 
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
@@ -313,6 +315,7 @@ EXAMPLES:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --execute homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
@@ -438,6 +441,7 @@ Options:
     --limit <count>         revisions default: 50; files default: 200
     --dry-run               run only; print planned restore without executing
     --yes                   run only; skip interactive confirmation
+    --execute               select only; execute generated restore run after confirmation
     --json-summary          revisions/files only
     --config-dir <path>     (default: <binary-dir>/.config)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
@@ -451,6 +455,7 @@ Examples:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj homes
 
@@ -480,6 +485,7 @@ OPTIONS:
     --limit <count>        Limit revision/file output (revisions default: 50; files default: 200)
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
+    --execute              select only; execute generated restore run after confirmation
     --json-summary         revisions/files only; write machine-readable output
     --config-dir <path>    Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
@@ -520,7 +526,8 @@ BEHAVIOUR:
       - requires an interactive terminal
       - guides revision selection and optional path selection
       - prints exact restore prepare / restore run commands
-      - does not execute duplicacy restore or copy data back
+      - with --execute, delegates to restore run after explicit confirmation
+      - never copies data back
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}

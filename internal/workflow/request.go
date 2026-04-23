@@ -32,6 +32,7 @@ type Request struct {
 	RestorePath        string
 	RestoreLimit       int
 	RestoreYes         bool
+	RestoreExecute     bool
 	RollbackCommand    string
 	RollbackVersion    string
 	RollbackCheckOnly  bool
