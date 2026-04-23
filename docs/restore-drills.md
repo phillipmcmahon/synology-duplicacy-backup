@@ -38,9 +38,10 @@ If you pass `--workspace`, it must already have been prepared with
 workspace preferences.
 
 `restore select` is a guided front end, not a second restore model. It refuses
-non-interactive use, guides revision and path selection, then prints the exact
-`restore prepare` and `restore run` commands. Without `--execute`, it stops
-there. The picker is convenience; the command model is the contract.
+non-interactive use, guides revision and path selection through a simple
+directory/file browser, then prints the exact `restore prepare` and
+`restore run` commands. Without `--execute`, it stops there. The picker is
+convenience; the command model is the contract.
 
 If you add `--execute`, the picker still shows the generated `restore run`
 command and asks for confirmation before delegating to `restore run`. This mode
@@ -148,7 +149,20 @@ sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 The picker prints the exact primitive command to run. It does not run
-`duplicacy restore` itself.
+`duplicacy restore` itself. In the browser:
+
+- enter a plain number to open a directory or select a file
+- enter `d <number>` to select a directory subtree as a pattern such as `path/*`
+- enter `/text` to filter the current listing
+- enter `p <path-or-pattern>` to type a path or Duplicacy pattern manually
+- enter `..` to move up one level
+- enter `q` to quit
+
+For large repositories, start from a useful subtree:
+
+```bash
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+```
 
 If the workspace is already prepared and you want the picker to execute the
 selected restore after confirmation:
@@ -216,9 +230,9 @@ use `phillipmcmahon/Documents/tax.pdf`, not
 `/volume1/homes/phillipmcmahon/Documents/tax.pdf`.
 
 For a directory subtree, pass a Duplicacy pattern such as
-`phillipmcmahon/code/*`. The current picker lists files, so choose a numbered
-file when you want exactly that file, or type the subtree pattern manually at
-the path prompt when you want a directory and its children.
+`phillipmcmahon/code/*`. The picker can now select a directory subtree for you:
+browse to the parent and enter `d <number>` for the directory you want, or type
+the subtree pattern manually with `p phillipmcmahon/code/*`.
 
 ## Copy Back Deliberately
 

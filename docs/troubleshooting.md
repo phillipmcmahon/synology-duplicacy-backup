@@ -134,6 +134,12 @@ restore:
 sudo duplicacy-backup restore select --target <target> <label>
 ```
 
+For large repositories, start browsing under a known subtree:
+
+```bash
+sudo duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
+```
+
 If the workspace is already prepared and you want guarded execution through
 `restore run`, add `--execute` and confirm the generated command:
 

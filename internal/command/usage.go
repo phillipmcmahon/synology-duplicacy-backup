@@ -46,6 +46,7 @@ Command-specific options:
     --workspace <path>     Override restore drill workspace
     --revision <id>        Restore files/run: select backup revision
     --path <path>          Restore files/run: filter or restore one snapshot-relative path or pattern
+    --path-prefix <path>   Restore select: start browsing under a snapshot-relative prefix
     --limit <count>        Restore revisions/files: bound listed results
     --execute              Restore select: confirm and execute through restore run
     --provider <name>      Select notification provider for notify test
@@ -148,6 +149,7 @@ COMMAND-SPECIFIC OPTIONS:
     --workspace <path>       Override restore drill workspace
     --revision <id>          Restore files/run: select backup revision
     --path <path>            Restore files/run: filter or restore one snapshot-relative path or pattern
+    --path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix
     --limit <count>          Restore revisions/files: bound listed results
     --execute                Restore select: confirm and execute through restore run
     --provider <name>        Select notification provider for notify test
@@ -287,11 +289,14 @@ RESTORE EXECUTION:
 RESTORE SELECTION:
     restore select is an interactive guide over the explicit restore commands.
     Without --execute, it guides revision and path selection, prints the exact
-    restore prepare and restore run commands, and stops. With --execute, it
-    shows the generated restore run command, requires a prepared workspace,
-    asks for confirmation, and delegates to restore run. It refuses
-    non-interactive use. The picker is convenience; the command model is the
-    contract.
+    restore prepare and restore run commands, and stops. The path browser lets
+    operators open directory levels, select one file, select a directory
+    subtree as a Duplicacy pattern, or enter a path/pattern manually. Use
+    --path-prefix to start browsing from a useful subtree in large backups.
+    With --execute, it shows the generated restore run command, requires a
+    prepared workspace, asks for confirmation, and delegates to restore run. It
+    refuses non-interactive use. The picker is convenience; the command model is
+    the contract.
 
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
@@ -319,6 +324,7 @@ EXAMPLES:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
@@ -486,6 +492,7 @@ OPTIONS:
     --workspace <path>     Override drill workspace (default: <source-volume>/restore-drills/<label>-<target>)
     --revision <id>        Required for files and run
     --path <path>          Optional snapshot-relative path or pattern for files and run
+    --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
     --limit <count>        Limit revision/file output (revisions default: 50; files default: 200)
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
@@ -529,7 +536,13 @@ BEHAVIOUR:
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
-      - guides revision selection and optional path selection
+      - guides revision selection and optional path browsing
+      - opens directory levels with a plain number
+      - selects one file with a plain number
+      - selects a directory subtree with "d <number>", generating a pattern such as path/*
+      - accepts "/text" to filter the current listing
+      - accepts "p <path-or-pattern>" to enter a path or pattern manually
+      - accepts "--path-prefix <path>" to start browsing from a useful subtree
       - prints exact restore prepare / restore run commands
       - without --execute, does not run duplicacy restore
       - with --execute, requires a prepared workspace
@@ -557,6 +570,7 @@ EXAMPLES:
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
     {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,

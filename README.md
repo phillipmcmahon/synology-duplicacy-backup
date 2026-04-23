@@ -183,6 +183,7 @@ sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
@@ -233,8 +234,8 @@ Core operating rules:
   back to the live source. Use `--path` for one file or a Duplicacy pattern
   such as `docs/*` for a subtree.
 - `restore select` is an interactive guide over the explicit restore commands.
-  Without `--execute`, it prints the generated commands and stops. With
-  `--execute`, it confirms and delegates to `restore run`.
+  It can browse directories and files, generate commands only, or confirm and
+  delegate to `restore run` with `--execute`.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.

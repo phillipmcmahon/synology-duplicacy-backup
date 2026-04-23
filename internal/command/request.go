@@ -431,6 +431,16 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			}
 			req.RestorePath = value
 			return true, nil
+		case "--path-prefix":
+			if action != "select" {
+				return false, nil
+			}
+			value, err := consumeRequiredValue(args, index, "--path-prefix")
+			if err != nil {
+				return false, err
+			}
+			req.RestorePathPrefix = value
+			return true, nil
 		case "--limit":
 			if action != "revisions" && action != "files" {
 				return false, nil

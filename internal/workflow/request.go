@@ -30,6 +30,7 @@ type Request struct {
 	RestoreWorkspace   string
 	RestoreRevision    int
 	RestorePath        string
+	RestorePathPrefix  string
 	RestoreLimit       int
 	RestoreYes         bool
 	RestoreExecute     bool

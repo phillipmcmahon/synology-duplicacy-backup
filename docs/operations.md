@@ -206,6 +206,7 @@ sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
@@ -218,7 +219,8 @@ At a high level:
   path
 - use `restore select` when you want an interactive guide over the same
   explicit restore commands; add `--execute` only when the workspace is
-  prepared and you want it to delegate to `restore run` after confirmation
+  prepared and you want it to delegate to `restore run` after confirmation;
+  add `--path-prefix` when you want the picker to start under a known subtree
 - restore a full revision or selected paths into the drill workspace only
 - inspect the workspace before manually copying anything back
 - inspect the restored data before any deliberate copy-back step

@@ -184,6 +184,9 @@ sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path "
 # Guided command generation without executing a restore
 sudo duplicacy-backup restore select --target onsite-usb homes
 
+# Start the picker under a known subtree in a large backup
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+
 # Guided selection with guarded execution through restore run
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 

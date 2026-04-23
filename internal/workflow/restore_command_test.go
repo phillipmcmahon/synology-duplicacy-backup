@@ -508,7 +508,7 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "2403\ny\ndocs\n2\n"))
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "2403\ny\n1\n1\n"))
 	if err != nil {
 		t.Fatalf("HandleRestoreCommand() error = %v", err)
 	}
@@ -559,8 +559,8 @@ func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
 	newRestoreCommandRunner = func() execpkg.Runner { return mock }
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
-	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreExecute: true}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\narchive\n1\ny\n"))
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestorePathPrefix: "phillipmcmahon/code/duplicacy-backup/archive/v5.0.0", RestoreExecute: true}
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\n1\ny\n"))
 	if err != nil {
 		t.Fatalf("HandleRestoreCommand() error = %v", err)
 	}
@@ -660,7 +660,7 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreExecute: true}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\ndocs\n2\ny\n"))
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\n1\n1\ny\n"))
 	if err != nil {
 		t.Fatalf("HandleRestoreCommand() error = %v", err)
 	}
@@ -684,6 +684,104 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -- docs/manual.pdf" ||
 		mock.Invocations[2].Dir != workspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
+func TestHandleRestoreCommand_SelectGeneratesDirectoryPattern(t *testing.T) {
+	suppressRestorePrompts(t)
+
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
+		execpkg.MockResult{Stdout: "docs/readme.md\ndocs/reference/api.md\nmusic/song.flac\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\nd 1\n"))
+	if err != nil {
+		t.Fatalf("HandleRestoreCommand() error = %v", err)
+	}
+	for _, token := range []string{
+		"--path 'docs/*'",
+		"Path",
+		"docs/*",
+		"restore run",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+}
+
+func TestHandleRestoreCommand_SelectSupportsPathPrefixAndManualPattern(t *testing.T) {
+	suppressRestorePrompts(t)
+
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
+		execpkg.MockResult{Stdout: "phillipmcmahon/code/app/main.go\nphillipmcmahon/code/app/internal/readme.md\nphillipmcmahon/music/song.flac\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestorePathPrefix: "phillipmcmahon/code"}
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\np phillipmcmahon/code/app/*\n"))
+	if err != nil {
+		t.Fatalf("HandleRestoreCommand() error = %v", err)
+	}
+	for _, token := range []string{
+		"--path 'phillipmcmahon/code/app/*'",
+		"phillipmcmahon/code/app/*",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+}
+
+func TestHandleRestoreCommand_SelectFilterNavigatesToMatchingDescendant(t *testing.T) {
+	suppressRestorePrompts(t)
+
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
+		execpkg.MockResult{Stdout: "docs/readme.md\nmusic/live/song.flac\nmusic/studio/song.flac\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\n/song\n1\n1\n1\n"))
+	if err != nil {
+		t.Fatalf("HandleRestoreCommand() error = %v", err)
+	}
+	for _, token := range []string{
+		"--path 'music/live/song.flac'",
+		"music/live/song.flac",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
 	}
 }
 
