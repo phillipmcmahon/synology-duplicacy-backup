@@ -162,6 +162,7 @@ Installer behaviour:
 - `duplicacy-backup restore run` executes restores only into a prepared drill workspace; it never copies data back to the live source.
 - Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
 - Use snapshot ID `data` for repositories created by this tool.
+- `restore select` builds a basket of files, directory subtrees, or manual patterns, then prints the matching `restore run` command for each item.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.
 - See [`restore-drills.md`](restore-drills.md) for the full safe procedure.
 

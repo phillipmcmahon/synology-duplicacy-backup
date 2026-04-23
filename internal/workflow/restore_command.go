@@ -225,19 +225,19 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 		return "", err
 	}
 
-	restorePath := ""
+	restorePaths := []string{""}
 	selective, err := promptRestoreYesNo(reader, "Restore a specific path instead of the full revision? [y/N]: ")
 	if err != nil {
 		return "", err
 	}
 	if selective {
-		restorePath, err = promptRestorePath(reader, ctx, revision, req.RestorePathPrefix, 200)
+		restorePaths, err = promptRestorePath(reader, ctx, revision, req.RestorePathPrefix, 200)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision, restorePath)
+	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision, restorePaths)
 	selectOutput := formatRestoreSelect(report)
 	if !req.RestoreExecute {
 		return selectOutput, nil
@@ -249,18 +249,22 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 	if !confirmed {
 		return "", NewRequestError("restore select execution cancelled")
 	}
-	runReq := *req
-	runReq.RestoreCommand = "run"
-	runReq.RestoreRevision = revision
-	runReq.RestorePath = restorePath
-	runReq.RestoreWorkspace = commandWorkspace
-	runReq.RestoreYes = true
-	runReq.RestoreExecute = false
-	runOutput, err := handleRestoreRun(&runReq, meta, rt)
-	if err != nil {
-		return selectOutput + "\n" + runOutput, err
+	outputs := []string{selectOutput}
+	for _, restorePath := range restorePaths {
+		runReq := *req
+		runReq.RestoreCommand = "run"
+		runReq.RestoreRevision = revision
+		runReq.RestorePath = restorePath
+		runReq.RestoreWorkspace = commandWorkspace
+		runReq.RestoreYes = true
+		runReq.RestoreExecute = false
+		runOutput, err := handleRestoreRun(&runReq, meta, rt)
+		outputs = append(outputs, runOutput)
+		if err != nil {
+			return strings.Join(outputs, "\n"), err
+		}
 	}
-	return selectOutput + "\n" + runOutput, nil
+	return strings.Join(outputs, "\n"), nil
 }
 
 type restoreExecutionContext struct {
@@ -428,9 +432,9 @@ type restoreSelectReport struct {
 	Workspace         string
 	WorkspacePrepared bool
 	Revision          int
-	RestorePath       string
+	RestorePaths      []string
 	PrepareCommand    string
-	RestoreCommand    string
+	RestoreCommands   []string
 	Execute           bool
 	Guide             string
 }
@@ -560,7 +564,7 @@ func newRestoreRunReport(req *Request, plan *Plan, storage, workspace, restorePa
 	}
 }
 
-func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, workspace string, workspacePrepared bool, revision int, restorePath string) *restoreSelectReport {
+func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, workspace string, workspacePrepared bool, revision int, restorePaths []string) *restoreSelectReport {
 	return &restoreSelectReport{
 		Label:             req.Source,
 		Target:            req.Target(),
@@ -571,9 +575,9 @@ func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, wo
 		Workspace:         workspace,
 		WorkspacePrepared: workspacePrepared,
 		Revision:          revision,
-		RestorePath:       restorePath,
+		RestorePaths:      normaliseRestoreSelection(restorePaths),
 		PrepareCommand:    buildRestorePrepareCommand(meta.ScriptName, req, workspace),
-		RestoreCommand:    buildRestoreRunCommand(meta.ScriptName, req, revision, restorePath, workspace),
+		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace),
 		Execute:           req.RestoreExecute,
 		Guide:             "docs/restore-drills.md",
 	}
@@ -791,21 +795,21 @@ func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionI
 	return 0, NewRequestError("revision %d was not found in the visible revision list", choice)
 }
 
-func promptRestorePath(reader *bufio.Reader, ctx *restoreExecutionContext, revision int, pathPrefix string, limit int) (string, error) {
+func promptRestorePath(reader *bufio.Reader, ctx *restoreExecutionContext, revision int, pathPrefix string, limit int) ([]string, error) {
 	pathPrefix, err := cleanRestorePath(pathPrefix)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	output, err := ctx.dup.ListRevisionFiles(revision)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	paths := extractRestoreFilePaths(output)
 	if len(paths) == 0 {
-		return "", NewRequestError("restore select found no restorable paths in revision %d", revision)
+		return nil, NewRequestError("restore select found no restorable paths in revision %d", revision)
 	}
 	if pathPrefix != "" && !restorePathPrefixHasMatches(paths, pathPrefix) {
-		return "", NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
+		return nil, NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
 	}
 	return promptRestoreBrowser(reader, paths, pathPrefix, limit)
 }
@@ -815,67 +819,201 @@ type restoreBrowseItem struct {
 	Path string
 }
 
-func promptRestoreBrowser(reader *bufio.Reader, paths []string, startPrefix string, limit int) (string, error) {
+func promptRestoreBrowser(reader *bufio.Reader, paths []string, startPrefix string, limit int) ([]string, error) {
 	current := strings.Trim(startPrefix, "/")
 	filter := ""
+	selected := []string{}
 	for {
 		items, total := restoreBrowserItems(paths, current, filter, limit)
-		fmt.Fprintf(restorePromptOutput, "Browsing restore paths at: %s\n", restoreBrowserLocation(current))
+		fmt.Fprintf(restorePromptOutput, "\nRestore picker\n")
+		fmt.Fprintf(restorePromptOutput, "Current location: %s\n", restoreBrowserLocation(current))
+		fmt.Fprintf(restorePromptOutput, "Selected items: %d\n", len(selected))
 		if filter != "" {
-			fmt.Fprintf(restorePromptOutput, "Filter: %s\n", filter)
+			fmt.Fprintf(restorePromptOutput, "Search: %s\n", filter)
 		}
 		fmt.Fprintf(restorePromptOutput, "Paths (%d shown of %d):\n", len(items), total)
 		for i, item := range items {
-			marker := "[f]"
+			marker := "[file]"
 			display := item.Path
 			if item.Kind == "dir" {
-				marker = "[d]"
+				marker = "[dir] "
 				display += "/"
 			}
 			fmt.Fprintf(restorePromptOutput, "  %d. %s %s\n", i+1, marker, display)
 		}
-		answer, err := promptRestoreLine(reader, "Select number to open/select, 'd <n>' for directory subtree, '..' up, '/text' filter, 'p <path>' path/pattern, 'q' quit: ")
+		fmt.Fprintln(restorePromptOutput, "Commands: open <n>, add <n>[,<n>...], add <path-or-pattern>, search <text>, clear, up, selected, remove <n>, done, quit")
+		answer, err := promptRestoreLine(reader, "Enter command: ")
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		answer = strings.TrimSpace(answer)
+		command, value := splitRestoreBrowserCommand(answer)
 		switch {
 		case answer == "":
 			continue
-		case strings.EqualFold(answer, "q") || strings.EqualFold(answer, "quit"):
-			return "", NewRequestError("restore select cancelled")
-		case answer == "..":
+		case command == "q" || command == "quit":
+			return nil, NewRequestError("restore select cancelled")
+		case command == "up" || answer == "..":
 			current = restoreParentPath(current)
 			filter = ""
 			continue
-		case strings.HasPrefix(answer, "/"):
-			filter = strings.TrimSpace(strings.TrimPrefix(answer, "/"))
+		case command == "search" || strings.HasPrefix(answer, "/"):
+			if command == "search" {
+				filter = strings.ToLower(strings.TrimSpace(value))
+			} else {
+				filter = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(answer, "/")))
+			}
 			continue
-		case strings.HasPrefix(strings.ToLower(answer), "p "):
-			return cleanRestorePath(strings.TrimSpace(answer[2:]))
-		case strings.HasPrefix(strings.ToLower(answer), "d "):
-			choice, err := parseRestoreBrowserChoice(strings.TrimSpace(answer[2:]), len(items))
+		case command == "clear":
+			filter = ""
+			continue
+		case command == "selected":
+			printRestoreSelectionBasket(selected)
+			continue
+		case command == "remove":
+			choice, err := parseRestoreBrowserChoice(value, len(selected))
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			item := items[choice-1]
-			if item.Kind != "dir" {
-				return "", NewRequestError("selection %d is a file; choose a directory for subtree restore", choice)
+			selected = append(selected[:choice-1], selected[choice:]...)
+			continue
+		case command == "done":
+			if len(selected) == 0 {
+				fmt.Fprintln(restorePromptOutput, "No paths selected yet. Use add <number> or add <path-or-pattern> first.")
+				continue
 			}
-			return restoreDirectoryPattern(item.Path), nil
+			return selected, nil
+		case command == "add":
+			added, err := restoreSelectionFromAddCommand(value, items)
+			if err != nil {
+				return nil, err
+			}
+			for _, selection := range added {
+				selected = addRestoreSelection(selected, selection)
+			}
+		case command == "open":
+			next, err := restoreOpenSelection(value, items)
+			if err != nil {
+				return nil, err
+			}
+			if next == "" {
+				continue
+			}
+			current = next
+			filter = ""
 		default:
-			choice, err := parseRestoreBrowserChoice(answer, len(items))
-			if err != nil {
-				return "", err
-			}
-			item := items[choice-1]
-			if item.Kind == "dir" {
-				current = item.Path
+			if _, err := strconv.Atoi(answer); err == nil {
+				next, err := restoreOpenSelection(answer, items)
+				if err != nil {
+					return nil, err
+				}
+				if next == "" {
+					continue
+				}
+				current = next
 				filter = ""
 				continue
 			}
-			return cleanRestorePath(item.Path)
+			return nil, NewRequestError("unknown restore picker command %q", answer)
 		}
+	}
+}
+
+func splitRestoreBrowserCommand(answer string) (string, string) {
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return "", ""
+	}
+	command, value, ok := strings.Cut(answer, " ")
+	if !ok {
+		return strings.ToLower(command), ""
+	}
+	return strings.ToLower(strings.TrimSpace(command)), strings.TrimSpace(value)
+}
+
+func restoreSelectionFromAddCommand(value string, items []restoreBrowseItem) ([]string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, NewRequestError("add requires a list number or snapshot-relative path")
+	}
+	if restoreLooksLikeChoiceList(value) {
+		parts := strings.Split(value, ",")
+		selections := make([]string, 0, len(parts))
+		for _, part := range parts {
+			choice, err := parseRestoreBrowserChoice(part, len(items))
+			if err != nil {
+				return nil, err
+			}
+			selection, err := restoreSelectionFromItem(items[choice-1])
+			if err != nil {
+				return nil, err
+			}
+			selections = append(selections, selection)
+		}
+		return selections, nil
+	}
+	selection, err := cleanRestorePath(value)
+	if err != nil {
+		return nil, err
+	}
+	return []string{selection}, nil
+}
+
+func restoreLooksLikeChoiceList(value string) bool {
+	for _, part := range strings.Split(value, ",") {
+		if strings.TrimSpace(part) == "" {
+			return false
+		}
+		if _, err := strconv.Atoi(strings.TrimSpace(part)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func restoreSelectionFromItem(item restoreBrowseItem) (string, error) {
+	if item.Kind == "dir" {
+		return restoreDirectoryPattern(item.Path), nil
+	}
+	return cleanRestorePath(item.Path)
+}
+
+func restoreOpenSelection(value string, items []restoreBrowseItem) (string, error) {
+	choice, err := parseRestoreBrowserChoice(value, len(items))
+	if err != nil {
+		return "", err
+	}
+	item := items[choice-1]
+	if item.Kind == "dir" {
+		return item.Path, nil
+	}
+	fmt.Fprintf(restorePromptOutput, "File: %s\nUse add %d to add it to the restore selection.\n", item.Path, choice)
+	return "", nil
+}
+
+func addRestoreSelection(selected []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return selected
+	}
+	for _, existing := range selected {
+		if existing == value {
+			fmt.Fprintf(restorePromptOutput, "Already selected: %s\n", value)
+			return selected
+		}
+	}
+	fmt.Fprintf(restorePromptOutput, "Added: %s\n", value)
+	return append(selected, value)
+}
+
+func printRestoreSelectionBasket(selected []string) {
+	if len(selected) == 0 {
+		fmt.Fprintln(restorePromptOutput, "No paths selected.")
+		return
+	}
+	fmt.Fprintln(restorePromptOutput, "Selected restore paths:")
+	for i, path := range selected {
+		fmt.Fprintf(restorePromptOutput, "  %d. %s\n", i+1, path)
 	}
 }
 
@@ -1020,15 +1158,15 @@ func promptRestoreYesNo(reader *bufio.Reader, prompt string) (bool, error) {
 }
 
 func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectReport) (bool, error) {
-	restorePath := report.RestorePath
-	if restorePath == "" {
-		restorePath = "<full revision>"
-	}
-	fmt.Fprintln(restorePromptOutput, "Ready to execute restore command:")
+	fmt.Fprintln(restorePromptOutput, "Ready to execute restore command(s):")
 	fmt.Fprintf(restorePromptOutput, "  Revision : %d\n", report.Revision)
-	fmt.Fprintf(restorePromptOutput, "  Path     : %s\n", restorePath)
 	fmt.Fprintf(restorePromptOutput, "  Workspace: %s\n", report.Workspace)
-	fmt.Fprintf(restorePromptOutput, "  Command  : %s\n", report.RestoreCommand)
+	for _, path := range restoreDisplayPaths(report.RestorePaths) {
+		fmt.Fprintf(restorePromptOutput, "  Path     : %s\n", path)
+	}
+	for _, command := range report.RestoreCommands {
+		fmt.Fprintf(restorePromptOutput, "  Command  : %s\n", command)
+	}
 	return promptRestoreYesNo(reader, "Execute restore into the prepared workspace? [y/N]: ")
 }
 
@@ -1077,6 +1215,26 @@ func buildRestoreRunCommand(scriptName string, req *Request, revision int, resto
 	args = appendRestoreConfigFlags(args, req)
 	args = append(args, shellQuote(req.Source))
 	return strings.Join(args, " ")
+}
+
+func buildRestoreRunCommands(scriptName string, req *Request, revision int, restorePaths []string, workspace string) []string {
+	restorePaths = normaliseRestoreSelection(restorePaths)
+	commands := make([]string, 0, len(restorePaths))
+	for _, restorePath := range restorePaths {
+		commands = append(commands, buildRestoreRunCommand(scriptName, req, revision, restorePath, workspace))
+	}
+	return commands
+}
+
+func normaliseRestoreSelection(restorePaths []string) []string {
+	if len(restorePaths) == 0 {
+		return []string{""}
+	}
+	normalised := make([]string, 0, len(restorePaths))
+	for _, restorePath := range restorePaths {
+		normalised = append(normalised, strings.TrimSpace(restorePath))
+	}
+	return normalised
 }
 
 func appendRestoreConfigFlags(args []string, req *Request) []string {
@@ -1415,17 +1573,16 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 		{Label: "Prepared", Value: fmt.Sprintf("%t", report.WorkspacePrepared)},
 		{Label: "Prepare Command", Value: selectValue(!report.WorkspacePrepared, report.PrepareCommand, "")},
 	})
-	restorePath := report.RestorePath
-	if restorePath == "" {
-		restorePath = "<full revision>"
+	selectionLines := []SummaryLine{{Label: "Revision", Value: strconv.Itoa(report.Revision)}}
+	for _, restorePath := range restoreDisplayPaths(report.RestorePaths) {
+		selectionLines = append(selectionLines, SummaryLine{Label: "Path", Value: restorePath})
 	}
-	writeRestoreSection(&b, "Selection", []SummaryLine{
-		{Label: "Revision", Value: strconv.Itoa(report.Revision)},
-		{Label: "Path", Value: restorePath},
-	})
-	writeRestoreSection(&b, "Generated Command", []SummaryLine{
-		{Label: "Restore Command", Value: report.RestoreCommand},
-	})
+	writeRestoreSection(&b, "Selection", selectionLines)
+	commandLines := make([]SummaryLine, 0, len(report.RestoreCommands))
+	for _, command := range report.RestoreCommands {
+		commandLines = append(commandLines, SummaryLine{Label: "Restore Command", Value: command})
+	}
+	writeRestoreSection(&b, "Generated Commands", commandLines)
 	writeRestoreSection(&b, "Safety", []SummaryLine{
 		{Label: "Command Model", Value: selectValue(report.Execute, "restore select delegates to restore run after confirmation", "restore select only generates primitive commands")},
 		{Label: "Restore Execution", Value: selectValue(report.Execute, "delegated to restore run after confirmation", "not performed by this command")},
@@ -1433,6 +1590,19 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 		{Label: "Guide", Value: report.Guide},
 	})
 	return b.String()
+}
+
+func restoreDisplayPaths(restorePaths []string) []string {
+	restorePaths = normaliseRestoreSelection(restorePaths)
+	display := make([]string, 0, len(restorePaths))
+	for _, restorePath := range restorePaths {
+		if restorePath == "" {
+			display = append(display, "<full revision>")
+			continue
+		}
+		display = append(display, restorePath)
+	}
+	return display
 }
 
 func selectValue(condition bool, whenTrue string, whenFalse string) string {

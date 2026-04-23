@@ -323,7 +323,7 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"restore revisions     List visible backup revisions without executing a restore",
 		"restore files         List files in one revision without executing a restore",
 		"restore run           Restore a revision, file, or pattern into a prepared workspace only",
-		"restore select        Guide revision and path selection; optionally confirm and execute via restore run",
+		"restore select        Build a guided restore selection basket; optionally confirm and execute via restore run",
 		"--path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix",
 		"--execute                Restore select: confirm and execute through restore run",
 		"update                Check GitHub for a newer published release and install it through the packaged installer",

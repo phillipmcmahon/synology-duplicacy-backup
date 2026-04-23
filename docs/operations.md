@@ -221,6 +221,8 @@ At a high level:
   explicit restore commands; add `--execute` only when the workspace is
   prepared and you want it to delegate to `restore run` after confirmation;
   add `--path-prefix` when you want the picker to start under a known subtree
+- in the picker, build a selection basket with `add <number>`,
+  `add <number>,<number>`, or `add <path-or-pattern>`, then choose `done`
 - restore a full revision or selected paths into the drill workspace only
 - inspect the workspace before manually copying anything back
 - inspect the restored data before any deliberate copy-back step

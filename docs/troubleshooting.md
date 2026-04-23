@@ -154,7 +154,10 @@ sudo duplicacy-backup restore run --target <target> --revision <id> --path <rela
 ```
 
 Use a snapshot-relative file path for one file, or a Duplicacy pattern such as
-`phillipmcmahon/code/*` for a directory subtree.
+`phillipmcmahon/code/*` for a directory subtree. In `restore select`, use
+`open <number>` to browse, `add <number>` to add a displayed file or directory
+subtree to the selection basket, `add <number>,<number>` to add several visible
+items, and `done` to generate the matching primitive `restore run` commands.
 
 Do not restore directly over the live source path as the first step. Restore
 elsewhere, inspect the result, and copy back only the intended files or

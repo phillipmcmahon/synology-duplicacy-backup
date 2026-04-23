@@ -234,7 +234,8 @@ Core operating rules:
   back to the live source. Use `--path` for one file or a Duplicacy pattern
   such as `docs/*` for a subtree.
 - `restore select` is an interactive guide over the explicit restore commands.
-  It can browse directories and files, generate commands only, or confirm and
+  It can browse directories and files, build a basket of files, directory
+  subtrees, and manual patterns, generate commands only, or confirm and
   delegate to `restore run` with `--execute`.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.

@@ -127,7 +127,7 @@ COMMAND OVERVIEW:
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision, file, or pattern into a prepared workspace only
-      restore select        Guide revision and path selection; optionally confirm and execute via restore run
+      restore select        Build a guided restore selection basket; optionally confirm and execute via restore run
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -485,7 +485,7 @@ RESTORE COMMANDS:
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision, file, or pattern into a prepared workspace only
-    select                 Guide revision and path selection; optionally confirm and execute via restore run
+    select                 Build a guided restore selection basket; optionally confirm and execute via restore run
 
 OPTIONS:
     --target <name>        Select the named target (required)
@@ -536,17 +536,19 @@ BEHAVIOUR:
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
-      - guides revision selection and optional path browsing
-      - opens directory levels with a plain number
-      - selects one file with a plain number
-      - selects a directory subtree with "d <number>", generating a pattern such as path/*
-      - accepts "/text" to filter the current listing
-      - accepts "p <path-or-pattern>" to enter a path or pattern manually
+      - guides revision selection and optional basket-based path selection
+      - uses a selection basket: add files, directory subtrees, or manual patterns before choosing done
+      - opens directory levels with "open <number>" or a plain number
+      - adds one or more displayed items with "add <number>" or "add <number>,<number>"
+      - adds a directory as a subtree pattern such as path/*
+      - accepts "search <text>" to filter the current listing, and "clear" to remove the filter
+      - accepts "add <path-or-pattern>" to enter a path or Duplicacy pattern manually
+      - accepts "selected" and "remove <number>" to review or change the basket
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
-      - prints exact restore prepare / restore run commands
+      - prints exact restore prepare / restore run commands for every selected path or pattern
       - without --execute, does not run duplicacy restore
       - with --execute, requires a prepared workspace
-      - with --execute, delegates to restore run after explicit confirmation
+      - with --execute, delegates each selected path or pattern to restore run after explicit confirmation
       - never copies data back
 
 DEFAULT LOCATIONS:
