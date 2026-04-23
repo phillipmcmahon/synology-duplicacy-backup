@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
@@ -910,15 +911,97 @@ func extractRestoreFileLines(output, restorePath string, limit int) ([]string, i
 		if line == "" {
 			continue
 		}
-		if restorePath != "" && !strings.Contains(filepath.ToSlash(line), restorePath) {
+		path := extractRestoreFilePath(line)
+		if restorePath != "" && !strings.Contains(filepath.ToSlash(path), restorePath) {
 			continue
 		}
 		totalMatches++
 		if limit <= 0 || len(paths) < limit {
-			paths = append(paths, line)
+			paths = append(paths, path)
 		}
 	}
 	return paths, totalMatches
+}
+
+func extractRestoreFilePath(line string) string {
+	line = strings.TrimSpace(line)
+	fields, remainder := splitLeadingFields(line, 4)
+	if len(fields) < 4 || strings.TrimSpace(remainder) == "" {
+		return line
+	}
+	if _, err := strconv.ParseInt(fields[0], 10, 64); err != nil {
+		return line
+	}
+	if !looksLikeDate(fields[1]) || !looksLikeTime(fields[2]) || !looksLikeHexDigest(fields[3]) {
+		return line
+	}
+	return strings.TrimSpace(remainder)
+}
+
+func splitLeadingFields(value string, count int) ([]string, string) {
+	remainder := strings.TrimLeftFunc(value, unicode.IsSpace)
+	fields := make([]string, 0, count)
+	for len(fields) < count && remainder != "" {
+		fieldEnd := strings.IndexFunc(remainder, unicode.IsSpace)
+		if fieldEnd < 0 {
+			fields = append(fields, remainder)
+			return fields, ""
+		}
+		fields = append(fields, remainder[:fieldEnd])
+		remainder = strings.TrimLeftFunc(remainder[fieldEnd:], unicode.IsSpace)
+	}
+	return fields, remainder
+}
+
+func looksLikeDate(value string) bool {
+	if len(value) != len("2006-01-02") {
+		return false
+	}
+	for i, r := range value {
+		switch i {
+		case 4, 7:
+			if r != '-' {
+				return false
+			}
+		default:
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func looksLikeTime(value string) bool {
+	if len(value) != len("15:04:05") {
+		return false
+	}
+	for i, r := range value {
+		switch i {
+		case 2, 5:
+			if r != ':' {
+				return false
+			}
+		default:
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func looksLikeHexDigest(value string) bool {
+	if len(value) < 8 {
+		return false
+	}
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func formatRevisionCreatedAt(revision duplicacy.RevisionInfo) string {
@@ -1144,7 +1227,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 		{Label: "Restore Command", Value: report.RestoreCommand},
 	})
 	writeRestoreSection(&b, "Safety", []SummaryLine{
-		{Label: "Command Model", Value: "restore select only generates primitive commands"},
+		{Label: "Command Model", Value: selectValue(report.Execute, "restore select delegates to restore run after confirmation", "restore select only generates primitive commands")},
 		{Label: "Restore Execution", Value: selectValue(report.Execute, "delegated to restore run after confirmation", "not performed by this command")},
 		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
 		{Label: "Guide", Value: report.Guide},

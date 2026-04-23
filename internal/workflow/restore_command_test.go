@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -331,6 +332,32 @@ func TestHandleRestoreCommand_FilesListsRevisionPaths(t *testing.T) {
 	}
 }
 
+func TestExtractRestoreFileLinesParsesDuplicacyRows(t *testing.T) {
+	output := strings.Join([]string{
+		"5585354 2026-04-20 19:29:38 45fcaf55f07a698bd608e892802bd3f7275a8688374de79acbc5ebb078ebdc06 phillipmcmahon/code/archive.tar.gz",
+		"1024 2026-04-21 08:10:11 1234567890abcdef Documents/Folder With Spaces/report final.pdf",
+		"plain/path/from/test-fixture.txt",
+	}, "\n")
+
+	paths, total := extractRestoreFileLines(output, "", 0)
+	if total != 3 {
+		t.Fatalf("total = %d, want 3", total)
+	}
+	want := []string{
+		"phillipmcmahon/code/archive.tar.gz",
+		"Documents/Folder With Spaces/report final.pdf",
+		"plain/path/from/test-fixture.txt",
+	}
+	if !reflect.DeepEqual(paths, want) {
+		t.Fatalf("paths = %#v, want %#v", paths, want)
+	}
+
+	filtered, total := extractRestoreFileLines(output, "Folder With Spaces", 1)
+	if total != 1 || !reflect.DeepEqual(filtered, []string{"Documents/Folder With Spaces/report final.pdf"}) {
+		t.Fatalf("filtered = %#v total = %d", filtered, total)
+	}
+}
+
 func TestHandleRestoreCommand_RevisionsWithWorkspaceRequiresPreparedWorkspace(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
@@ -507,6 +534,59 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	}
 }
 
+func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
+	suppressRestorePrompts(t)
+
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	workspace := filepath.Join(t.TempDir(), "restore-workspace")
+	if err := os.MkdirAll(filepath.Join(workspace, ".duplicacy"), 0770); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
+		execpkg.MockResult{Stdout: "5585354 2026-04-20 19:29:38 45fcaf55f07a698bd608e892802bd3f7275a8688374de79acbc5ebb078ebdc06 phillipmcmahon/code/duplicacy-backup/archive/v5.0.0/duplicacy-backup_5.0.0_linux_armv7.tar.gz\n"},
+		execpkg.MockResult{Stdout: "Restored phillipmcmahon/code/duplicacy-backup/archive/v5.0.0/duplicacy-backup_5.0.0_linux_armv7.tar.gz\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreExecute: true}
+	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\ny\narchive\n1\ny\n"))
+	if err != nil {
+		t.Fatalf("HandleRestoreCommand() error = %v", err)
+	}
+	restorePath := "phillipmcmahon/code/duplicacy-backup/archive/v5.0.0/duplicacy-backup_5.0.0_linux_armv7.tar.gz"
+	for _, token := range []string{
+		"Path",
+		restorePath,
+		"--path '" + restorePath + "'",
+		"Restored into workspace",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	if strings.Contains(out, "5585354 2026-04-20 19:29:38") {
+		t.Fatalf("output should not include Duplicacy metadata columns as the restore path:\n%s", out)
+	}
+	if len(mock.Invocations) != 3 ||
+		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
+		strings.Join(mock.Invocations[1].Args, " ") != "list -files -r 2403" ||
+		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -- "+restorePath ||
+		mock.Invocations[2].Dir != workspace {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
 func TestHandleRestoreCommand_SelectExecuteRequiresPreparedWorkspace(t *testing.T) {
 	suppressRestorePrompts(t)
 
@@ -588,6 +668,7 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 		"Restore selection for homes/onsite-usb",
 		"Executes Restore",
 		"true",
+		"restore select delegates to restore run after confirmation",
 		"delegated to restore run after confirmation",
 		"Restore run for homes/onsite-usb revision 2403",
 		"Restored into workspace",
