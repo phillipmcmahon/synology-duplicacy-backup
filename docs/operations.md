@@ -189,9 +189,9 @@ List revisions, inspect a revision, then restore into that prepared workspace:
 ```bash
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 sudo duplicacy-backup restore select --target onsite-usb homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 ```
 
 At a high level:

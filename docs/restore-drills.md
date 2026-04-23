@@ -25,22 +25,22 @@ scripted, and documented recovery procedures:
 - `restore files` inspects a selected revision.
 - `restore run` restores a full revision or one snapshot-relative path into
   the prepared workspace only.
-- `restore select` interactively helps choose a revision/path and prints the
-  explicit primitive commands to run.
+- `restore select` interactively helps choose a revision/path, prints the
+  explicit primitive commands, and can optionally execute through `restore run`
+  after confirmation.
 
-An interactive picker can still be added later, but it should sit on top of
-these explicit commands rather than replacing them. That keeps emergency
-procedures copyable and avoids hidden live-data actions.
+The picker sits on top of the explicit commands rather than replacing them.
+That keeps emergency procedures copyable and avoids hidden live-data actions.
 
 `restore revisions` and `restore files` use a temporary workspace by default.
 If you pass `--workspace`, it must already have been prepared with
 `restore prepare`; the listing commands will not create or rewrite persistent
 workspace preferences.
 
-`restore select` is a command generator, not a second restore model. It refuses
+`restore select` is a guided front end, not a second restore model. It refuses
 non-interactive use, guides revision and path selection, then prints the exact
-`restore prepare` and `restore run` commands to execute explicitly. The picker
-is convenience; the command model is the contract.
+`restore prepare` and `restore run` commands. Without `--execute`, it stops
+there. The picker is convenience; the command model is the contract.
 
 If you add `--execute`, the picker still shows the generated `restore run`
 command and asks for confirmation before delegating to `restore run`. This mode

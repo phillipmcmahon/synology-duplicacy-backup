@@ -47,6 +47,7 @@ Command-specific options:
     --revision <id>        Restore files/run: select backup revision
     --path <path>          Restore files/run: inspect or restore one snapshot-relative path
     --limit <count>        Restore revisions/files: bound listed results
+    --execute              Restore select: confirm and execute through restore run
     --provider <name>      Select notification provider for notify test
     --check-only           Inspect update or rollback without changing install
     --yes                  Skip update, rollback, or restore confirmation
@@ -125,7 +126,7 @@ COMMAND OVERVIEW:
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision/path into a prepared workspace only
-      restore select        Interactively generate explicit restore commands without executing a restore
+      restore select        Guide revision/path selection; optionally confirm and execute via restore run
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -148,6 +149,7 @@ COMMAND-SPECIFIC OPTIONS:
     --revision <id>          Restore files/run: select backup revision
     --path <path>            Restore files/run: inspect or restore one snapshot-relative path
     --limit <count>          Restore revisions/files: bound listed results
+    --execute                Restore select: confirm and execute through restore run
     --provider <name>        Select notification provider for notify test
     --severity <level>       Select notification severity for notify test
     --event <name>           Select notification event for notify test
@@ -282,12 +284,13 @@ RESTORE EXECUTION:
     --yes for unattended execution after the workspace has been prepared.
 
 RESTORE SELECTION:
-    restore select is an interactive command generator. It guides revision and
-    path selection, then prints the exact restore prepare and restore run
-    commands to execute explicitly. With --execute, it shows the generated
-    restore run command, requires confirmation, and delegates to restore run.
-    It refuses non-interactive use. The picker is convenience; the command
-    model is the contract.
+    restore select is an interactive guide over the explicit restore commands.
+    Without --execute, it guides revision/path selection, prints the exact
+    restore prepare and restore run commands, and stops. With --execute, it
+    shows the generated restore run command, requires a prepared workspace,
+    asks for confirmation, and delegates to restore run. It refuses
+    non-interactive use. The picker is convenience; the command model is the
+    contract.
 
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
@@ -475,7 +478,7 @@ RESTORE COMMANDS:
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision or path into a prepared workspace only
-    select                 Interactively generate explicit restore commands without executing a restore
+    select                 Guide revision/path selection; optionally confirm and execute via restore run
 
 OPTIONS:
     --target <name>        Select the named target (required)
@@ -526,6 +529,8 @@ BEHAVIOUR:
       - requires an interactive terminal
       - guides revision selection and optional path selection
       - prints exact restore prepare / restore run commands
+      - without --execute, does not run duplicacy restore
+      - with --execute, requires a prepared workspace
       - with --execute, delegates to restore run after explicit confirmation
       - never copies data back
 
@@ -550,6 +555,7 @@ EXAMPLES:
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
