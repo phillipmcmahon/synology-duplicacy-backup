@@ -14,8 +14,8 @@ It focuses on supported, repeatable operator practice:
 
 ## Scheduling Philosophy
 
-The CLI supports combined runtime phases, but scheduled operations are easier to
-understand and troubleshoot when they are separated by purpose.
+The CLI uses first-class runtime commands, and scheduled operations are easiest
+to understand and troubleshoot when each task has one clear purpose.
 
 Recommended approach:
 

@@ -14,8 +14,9 @@ gofmt -l .
 # Auto-fix all files
 gofmt -w .
 
-# Also run vet and tests before pushing
+# Also run vet, Staticcheck, and tests before pushing
 go vet ./...
+go run honnef.co/go/tools/cmd/staticcheck ./...
 go test -race ./...
 ```
 
@@ -38,5 +39,6 @@ automatically use tabs for Go files and LF line endings.
 
 - [ ] `gofmt -l .` returns no output
 - [ ] `go vet ./...` passes
+- [ ] `go run honnef.co/go/tools/cmd/staticcheck ./...` passes
 - [ ] `go test -race ./...` passes
 - [ ] CHANGELOG.md updated (if user-facing change)

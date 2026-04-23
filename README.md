@@ -186,7 +186,7 @@ sudo duplicacy-backup restore select --target onsite-usb homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
-For day-to-day commands, use the [desk cheat sheet](docs/cheatsheet.md). For
+For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
 complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology
 Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
 and fix-perms; see [Workflow and scheduling](docs/workflow-scheduling.md).
@@ -198,7 +198,7 @@ Use the documentation by task:
 | Task | Start here |
 |---|---|
 | Install or upgrade the binary | [Operations](docs/operations.md) |
-| Run common commands | [Desk cheat sheet](docs/cheatsheet.md) |
+| Run common commands | [Operator cheat sheet](docs/cheatsheet.md) |
 | Diagnose failed runs or confusing status output | [Troubleshooting](docs/troubleshooting.md) |
 | Check exact CLI syntax | [CLI reference](docs/cli.md) |
 | Configure labels, targets, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
@@ -215,7 +215,7 @@ Core operating rules:
 - Runtime operations are first-class commands. Use `backup`, `prune`,
   `cleanup-storage`, or `fix-perms`; old top-level operation flags are not
   supported.
-- Storage keys are loaded only when the selected Duplicacy backend needs them.
+- Storage keys are loaded for known Duplicacy backends that require them.
 - `fix-perms` applies only to path-based Duplicacy storage targets.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
@@ -245,7 +245,7 @@ Core operating rules:
 
 ## Documentation
 
-- [Desk cheat sheet](docs/cheatsheet.md)
+- [Operator cheat sheet](docs/cheatsheet.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)
 - [Configuration and secrets](docs/configuration.md)

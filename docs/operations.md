@@ -163,6 +163,21 @@ Duplicacy; storage keys are needed only when the selected backend requires them.
 Path-based storage targets only need a secrets file if a notifying target uses
 authenticated webhook or `ntfy` delivery.
 
+To install a new binary without switching immediately:
+
+```bash
+sudo ./install.sh --no-activate
+```
+
+The rollback command is preferred for normal managed installs. If the command
+itself is unavailable during an emergency, the manual fallback is:
+
+```bash
+cd /usr/local/lib/duplicacy-backup
+ls -1 duplicacy-backup_*_linux_*
+sudo ln -sfn <older-binary-name> current
+```
+
 ## Restore Drills
 
 The wrapper can now execute restores into a separate drill workspace. It still
@@ -207,21 +222,6 @@ At a high level:
 - restore a full revision or selected paths into the drill workspace only
 - inspect the workspace before manually copying anything back
 - inspect the restored data before any deliberate copy-back step
-
-To install a new binary without switching immediately:
-
-```bash
-sudo ./install.sh --no-activate
-```
-
-The rollback command is preferred for normal managed installs. If the command
-itself is unavailable during an emergency, the manual fallback is:
-
-```bash
-cd /usr/local/lib/duplicacy-backup
-ls -1 duplicacy-backup_*_linux_*
-sudo ln -sfn <older-binary-name> current
-```
 
 ### Config location after install
 

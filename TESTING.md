@@ -313,7 +313,7 @@ Planner tests cover:
 
 Executor tests cover:
 
-- operation-mode rendering for combined flows
+- operation-mode rendering for first-class runtime commands
 - end-to-end dry-run execution for fix-perms-only
 - lock lifecycle during execution
 - cleanup and prune-policy behaviour through focused workflow helpers

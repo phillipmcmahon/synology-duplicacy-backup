@@ -1,4 +1,4 @@
-# Desk Cheat Sheet
+# Operator Cheat Sheet
 
 Use `sudo` for most installed NAS operations. `config paths`,
 `diagnostics`, `update --check-only`, `rollback --check-only`, and dry-run
@@ -15,7 +15,7 @@ Target model:
 
 - `location = "local"` or `location = "remote"`
 - targets use `storage = "..."`; include the full Duplicacy backend path there
-- storage keys are loaded only when the selected Duplicacy backend needs them
+- storage keys are loaded for known Duplicacy backends that require them
 - `fix-perms` only works for path-based Duplicacy storage targets
 
 ## Common Runs

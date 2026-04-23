@@ -38,7 +38,7 @@ latest backup state is still healthy.
 See also:
 
 - [Workflow and scheduling](workflow-scheduling.md)
-- [Desk cheat sheet](cheatsheet.md#health-checks)
+- [Operator cheat sheet](cheatsheet.md#health-checks)
 - [Operations](operations.md#synology-task-scheduler)
 
 ## Repository Access Is Not Initialized
@@ -56,7 +56,7 @@ initialized` to `Valid`.
 See also:
 
 - [Configuration and secrets](configuration.md#output-model)
-- [Desk cheat sheet](cheatsheet.md#config-and-validation)
+- [Operator cheat sheet](cheatsheet.md#config-and-validation)
 
 ## Health Verify Is Degraded or Unhealthy
 
@@ -77,7 +77,7 @@ follow the recommendation before changing retention or pruning policy.
 See also:
 
 - [Configuration and secrets](configuration.md#health-state)
-- [Desk cheat sheet](cheatsheet.md#health-checks)
+- [Operator cheat sheet](cheatsheet.md#health-checks)
 
 ## Storage Credentials Fail During Validation Or Backup
 
@@ -157,7 +157,7 @@ directories.
 See also:
 
 - [Restore drills](restore-drills.md)
-- [Desk cheat sheet](cheatsheet.md#restore-drills)
+- [Operator cheat sheet](cheatsheet.md#restore-drills)
 
 ## Update Attestation Fails on an Expected Release
 
@@ -196,7 +196,7 @@ on Synology scheduled-task output or email as the fallback signal.
 See also:
 
 - [Configuration and secrets](configuration.md#notifications)
-- [Desk cheat sheet](cheatsheet.md#notifications-and-secrets)
+- [Operator cheat sheet](cheatsheet.md#notifications-and-secrets)
 
 ## Config Validation Shows Not Checked
 
@@ -211,7 +211,7 @@ for scheduled NAS operation.
 See also:
 
 - [Configuration and secrets](configuration.md#conditional-validation)
-- [Desk cheat sheet](cheatsheet.md#config-and-validation)
+- [Operator cheat sheet](cheatsheet.md#config-and-validation)
 
 ## Log File Permission Is Denied
 
@@ -227,7 +227,7 @@ root privileges.
 
 See also:
 
-- [Desk cheat sheet](cheatsheet.md)
+- [Operator cheat sheet](cheatsheet.md)
 - [Workflow and scheduling](workflow-scheduling.md#synology-task-scheduler-setup)
 
 ## Update Reinstall or Rollback Looks Wrong

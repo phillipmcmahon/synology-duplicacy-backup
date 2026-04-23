@@ -54,8 +54,9 @@ runtime presenter used by workflow execution.
 
 The `Request` type is intentionally small. It describes what the user asked
 for, not what the application has resolved from the filesystem or config yet.
-Requested operations can be combined, but execution order is fixed later in
-the workflow so CLI flag order never changes runtime sequencing.
+Runtime operations are first-class commands, so the CLI contract is explicit:
+one command names the operation, and command-specific flags refine that
+operation.
 
 ## Plan
 

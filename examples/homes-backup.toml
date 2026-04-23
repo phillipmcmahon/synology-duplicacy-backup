@@ -40,7 +40,7 @@ local_group = "users"
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
 allow_local_accounts = true
-local_owner = "AJT"
+local_owner = "myuser"
 local_group = "users"
 
 [targets.offsite-storj]

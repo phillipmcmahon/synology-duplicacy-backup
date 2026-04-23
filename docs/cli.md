@@ -123,7 +123,7 @@ are not supported.
 ## Examples
 
 These examples show representative syntax. For a fuller operator command list,
-use the [desk cheat sheet](cheatsheet.md). For recurring Synology scheduling
+use the [operator cheat sheet](cheatsheet.md). For recurring Synology scheduling
 patterns, use [workflow-scheduling.md](workflow-scheduling.md).
 
 ```bash
@@ -229,5 +229,7 @@ Source-of-truth guides:
   [operations.md](operations.md)
 - Routine Synology scheduling patterns:
   [workflow-scheduling.md](workflow-scheduling.md)
+- Safe restore planning, selection, and workspace execution:
+  [restore-drills.md](restore-drills.md)
 - Update checksum and attestation trust model:
   [update-trust-model.md](update-trust-model.md)
