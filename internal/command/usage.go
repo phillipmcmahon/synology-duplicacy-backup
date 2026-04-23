@@ -45,7 +45,7 @@ Command-specific options:
     --force                Prune: override thresholds; update: reinstall selected release
     --workspace <path>     Override restore drill workspace
     --revision <id>        Restore files/run: select backup revision
-    --path <path>          Restore files/run: inspect or restore one snapshot-relative path
+    --path <path>          Restore files/run: filter or restore one snapshot-relative path or pattern
     --limit <count>        Restore revisions/files: bound listed results
     --execute              Restore select: confirm and execute through restore run
     --provider <name>      Select notification provider for notify test
@@ -67,7 +67,7 @@ Examples:
     {{script}} restore prepare --target onsite-usb homes
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} update --check-only
@@ -125,8 +125,8 @@ COMMAND OVERVIEW:
       restore prepare       Prepare a safe drill workspace without executing a restore
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
-      restore run           Restore a revision/path into a prepared workspace only
-      restore select        Guide revision/path selection; optionally confirm and execute via restore run
+      restore run           Restore a revision, file, or pattern into a prepared workspace only
+      restore select        Guide revision and path selection; optionally confirm and execute via restore run
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -147,7 +147,7 @@ COMMAND-SPECIFIC OPTIONS:
     --force                  Prune: override thresholds; update: reinstall selected release
     --workspace <path>       Override restore drill workspace
     --revision <id>          Restore files/run: select backup revision
-    --path <path>            Restore files/run: inspect or restore one snapshot-relative path
+    --path <path>            Restore files/run: filter or restore one snapshot-relative path or pattern
     --limit <count>          Restore revisions/files: bound listed results
     --execute                Restore select: confirm and execute through restore run
     --provider <name>        Select notification provider for notify test
@@ -280,12 +280,13 @@ RESTORE PREPARATION:
 RESTORE EXECUTION:
     restore run executes duplicacy restore only inside a prepared workspace. It
     never restores over the live source path and never copies data back. Use
-    --path for selective restores, --dry-run to print the planned command, and
-    --yes for unattended execution after the workspace has been prepared.
+    --path for selective file restores or directory patterns, --dry-run to
+    print the planned command, and --yes for unattended execution after the
+    workspace has been prepared.
 
 RESTORE SELECTION:
     restore select is an interactive guide over the explicit restore commands.
-    Without --execute, it guides revision/path selection, prints the exact
+    Without --execute, it guides revision and path selection, prints the exact
     restore prepare and restore run commands, and stops. With --execute, it
     shows the generated restore run command, requires a prepared workspace,
     asks for confirmation, and delegates to restore run. It refuses
@@ -316,7 +317,7 @@ EXAMPLES:
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} notify test --target onsite-usb homes
@@ -440,7 +441,7 @@ Options:
     --target <name>
     --workspace <path>      (default: <source-volume>/restore-drills/<label>-<target>)
     --revision <id>         required for files and run
-    --path <path>           optional snapshot-relative path for files and run
+    --path <path>           optional snapshot-relative path or pattern for files and run
     --limit <count>         revisions default: 50; files default: 200
     --dry-run               run only; print planned restore without executing
     --yes                   run only; skip interactive confirmation
@@ -456,7 +457,7 @@ Examples:
     {{script}} restore prepare --target onsite-usb homes
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
@@ -477,14 +478,14 @@ RESTORE COMMANDS:
     prepare                Create a safe drill workspace and write Duplicacy preferences
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
-    run                    Restore a revision or path into a prepared workspace only
-    select                 Guide revision/path selection; optionally confirm and execute via restore run
+    run                    Restore a revision, file, or pattern into a prepared workspace only
+    select                 Guide revision and path selection; optionally confirm and execute via restore run
 
 OPTIONS:
     --target <name>        Select the named target (required)
     --workspace <path>     Override drill workspace (default: <source-volume>/restore-drills/<label>-<target>)
     --revision <id>        Required for files and run
-    --path <path>          Optional snapshot-relative path for files and run
+    --path <path>          Optional snapshot-relative path or pattern for files and run
     --limit <count>        Limit revision/file output (revisions default: 50; files default: 200)
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
@@ -523,7 +524,8 @@ BEHAVIOUR:
       - requires --revision <id>
       - requires a prepared workspace containing .duplicacy/preferences
       - runs duplicacy restore only from that workspace
-      - uses --path for selective restore and --yes for non-interactive execution
+      - uses --path for selective file restores or directory patterns
+      - uses --yes for non-interactive execution
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
@@ -552,8 +554,8 @@ EXAMPLES:
     {{script}} restore revisions --target offsite-storj --json-summary homes
     {{script}} restore files --target onsite-usb --revision 2403 homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs --limit 50 homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes

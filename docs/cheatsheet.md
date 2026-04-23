@@ -167,32 +167,41 @@ Installer behaviour:
 
 ```bash
 # Confirm the selected repository before a restore drill
-sudo duplicacy-backup config explain --target onsite-usb2 homes
-sudo duplicacy-backup config validate --target onsite-usb2 homes
-sudo duplicacy-backup health status --target onsite-usb2 homes
+sudo duplicacy-backup config explain --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Print a read-only restore drill plan with suggested Duplicacy commands
-sudo duplicacy-backup restore plan --target onsite-usb2 homes
+sudo duplicacy-backup restore plan --target onsite-usb homes
 
 # Prepare the separate drill workspace without running a restore
-sudo duplicacy-backup restore prepare --target onsite-usb2 homes
+sudo duplicacy-backup restore prepare --target onsite-usb homes
 
 # List revisions and inspect files before selecting what to restore
-sudo duplicacy-backup restore revisions --target onsite-usb2 homes
-sudo duplicacy-backup restore files --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Documents" homes
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents" homes
 
 # Guided command generation without executing a restore
-sudo duplicacy-backup restore select --target onsite-usb2 homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 
 # Guided selection with guarded execution through restore run
-sudo duplicacy-backup restore select --target onsite-usb2 --execute homes
+sudo duplicacy-backup restore select --target onsite-usb --execute homes
 
 # Restore into the prepared workspace only
 sudo duplicacy-backup restore run \
-  --target onsite-usb2 \
+  --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/Documents/tax.pdf" \
-  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --workspace /volume1/restore-drills/homes-onsite-usb \
+  --yes \
+  homes
+
+# Restore a directory subtree into the prepared workspace
+sudo duplicacy-backup restore run \
+  --target onsite-usb \
+  --revision 2403 \
+  --path "phillipmcmahon/code/*" \
+  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```

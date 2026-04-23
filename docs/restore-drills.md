@@ -23,9 +23,9 @@ scripted, and documented recovery procedures:
 - `restore prepare` creates the safe workspace.
 - `restore revisions` lists recovery points.
 - `restore files` inspects a selected revision.
-- `restore run` restores a full revision or one snapshot-relative path into
-  the prepared workspace only.
-- `restore select` interactively helps choose a revision/path, prints the
+- `restore run` restores a full revision, one file, or a directory pattern
+  into the prepared workspace only.
+- `restore select` interactively helps choose a revision and path, prints the
   explicit primitive commands, and can optionally execute through `restore run`
   after confirmation.
 
@@ -53,13 +53,13 @@ Pick the label and target you want to prove, then collect the current storage
 details:
 
 ```bash
-sudo duplicacy-backup config explain --target onsite-usb2 homes
-sudo duplicacy-backup config validate --target onsite-usb2 homes
-sudo duplicacy-backup health status --target onsite-usb2 homes
-sudo duplicacy-backup restore plan --target onsite-usb2 homes
-sudo duplicacy-backup restore prepare --target onsite-usb2 homes
-sudo duplicacy-backup restore revisions --target onsite-usb2 homes
-sudo duplicacy-backup restore select --target onsite-usb2 homes
+sudo duplicacy-backup config explain --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
+sudo duplicacy-backup restore plan --target onsite-usb homes
+sudo duplicacy-backup restore prepare --target onsite-usb homes
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 Use the `Storage` value from `config explain` as the Duplicacy storage URL for
@@ -86,16 +86,16 @@ Primary Duplicacy references:
 Create a new, empty folder outside the live source tree:
 
 ```bash
-sudo mkdir -p /volume1/restore-drills/homes-onsite-usb2
-sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb2
-cd /volume1/restore-drills/homes-onsite-usb2
+sudo mkdir -p /volume1/restore-drills/homes-onsite-usb
+sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb
+cd /volume1/restore-drills/homes-onsite-usb
 ```
 
 The wrapper can prepare this workspace for you:
 
 ```bash
-sudo duplicacy-backup restore prepare --target onsite-usb2 homes
-cd /volume1/restore-drills/homes-onsite-usb2
+sudo duplicacy-backup restore prepare --target onsite-usb homes
+cd /volume1/restore-drills/homes-onsite-usb
 ```
 
 When run with `sudo`, `restore prepare` creates the drill workspace as a
@@ -127,14 +127,14 @@ for an existing `.duplicacy` directory from an earlier preparation.
 List available revisions with the wrapper:
 
 ```bash
-sudo duplicacy-backup restore revisions --target onsite-usb2 homes
+sudo duplicacy-backup restore revisions --target onsite-usb homes
 ```
 
 To inspect file names in a specific revision:
 
 ```bash
-sudo duplicacy-backup restore files --target onsite-usb2 --revision <revision> homes
-sudo duplicacy-backup restore files --target onsite-usb2 --revision <revision> --path "relative/path" homes
+sudo duplicacy-backup restore files --target onsite-usb --revision <revision> homes
+sudo duplicacy-backup restore files --target onsite-usb --revision <revision> --path "relative/path" homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -144,7 +144,7 @@ confirming that the repository is current before a drill.
 If you prefer a guided selection flow, use the picker:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb2 homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 The picker prints the exact primitive command to run. It does not run
@@ -154,7 +154,7 @@ If the workspace is already prepared and you want the picker to execute the
 selected restore after confirmation:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb2 --execute homes
+sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
 ## Full Restore Drill
@@ -163,9 +163,9 @@ Run the restore into the prepared drill workspace:
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb2 \
+  --target onsite-usb \
   --revision <revision> \
-  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```
@@ -191,15 +191,15 @@ matter, and record the revision that was successfully restored.
 
 ## Selective Restore Drill
 
-Duplicacy restore accepts command-line patterns, so you can restore only a
-specific file or directory into the drill workspace:
+Duplicacy restore accepts command-line patterns, so you can restore one file
+or a directory subtree into the drill workspace:
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb2 \
+  --target onsite-usb \
   --revision <revision> \
-  --path "relative/path/from/snapshot" \
-  --workspace /volume1/restore-drills/homes-onsite-usb2 \
+  --path "relative/file/or/pattern" \
+  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```
@@ -207,13 +207,18 @@ sudo duplicacy-backup restore run \
 Examples:
 
 ```bash
-sudo duplicacy-backup restore run --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --workspace /volume1/restore-drills/homes-onsite-usb2 --yes homes
-sudo duplicacy-backup restore run --target onsite-usb2 --revision 2403 --path "phillipmcmahon/Music/" --workspace /volume1/restore-drills/homes-onsite-usb2 --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,
 use `phillipmcmahon/Documents/tax.pdf`, not
 `/volume1/homes/phillipmcmahon/Documents/tax.pdf`.
+
+For a directory subtree, pass a Duplicacy pattern such as
+`phillipmcmahon/code/*`. The current picker lists files, so choose a numbered
+file when you want exactly that file, or type the subtree pattern manually at
+the path prompt when you want a directory and its children.
 
 ## Copy Back Deliberately
 
@@ -222,7 +227,7 @@ the target location. Start with `rsync --dry-run`:
 
 ```bash
 rsync -a --dry-run \
-  /volume1/restore-drills/homes-onsite-usb2/phillipmcmahon/Documents/tax.pdf \
+  /volume1/restore-drills/homes-onsite-usb/phillipmcmahon/Documents/tax.pdf \
   /volume1/homes/phillipmcmahon/Documents/tax.pdf
 ```
 
@@ -230,7 +235,7 @@ If the dry run shows exactly what you expect, repeat without `--dry-run`:
 
 ```bash
 sudo rsync -a \
-  /volume1/restore-drills/homes-onsite-usb2/phillipmcmahon/Documents/tax.pdf \
+  /volume1/restore-drills/homes-onsite-usb/phillipmcmahon/Documents/tax.pdf \
   /volume1/homes/phillipmcmahon/Documents/tax.pdf
 ```
 

@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v6.1.0`
+Current public release baseline: `v6.1.1`
 
-Active release-prep target: `v6.1.1`
+Active release-prep target: none
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -55,13 +55,13 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `86.0%`
+- overall coverage: `84.7%`
 - `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `84.9%`
+- `internal/workflow`: `83.0%`
 - `internal/update`: `82.6%`
-- `internal/duplicacy`: `81.2%`
+- `internal/duplicacy`: `81.6%`
 - `internal/exec`: `95.2%`
-- `internal/secrets`: `92.0%`
+- `internal/secrets`: `84.8%`
 - `internal/config`: `87.6%`
 
 Additional v6.1.1 validation:
@@ -95,7 +95,9 @@ Additional v6.0.0 validation:
 - Restore workspace tests cover local preference generation, unsafe workspace
   rejection, non-empty workspace rejection, root-gated remote secret loading,
   read-only revision/file inspection, workspace-only restore execution, and
-  interactive command generation with guarded delegated execution.
+  interactive command generation with guarded delegated execution. NAS smoke
+  also covers real Duplicacy file-list rows and directory/subtree restore
+  patterns.
 
 Additional v4.4.1 validation:
 

@@ -89,8 +89,8 @@ are not supported.
 | `restore prepare --target <target> [--workspace <path>] <label>` | Create the safe drill workspace and write Duplicacy preferences without executing a restore |
 | `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
 | `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
-| `restore run --target <target> --revision <id> [--path <relative-path>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
-| `restore select --target <target> [--execute] <label>` | Guide revision/path selection; without `--execute`, print primitive commands only; with `--execute`, confirm and delegate to `restore run` |
+| `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
+| `restore select --target <target> [--execute] <label>` | Guide revision and path selection; without `--execute`, print primitive commands only; with `--execute`, confirm and delegate to `restore run` |
 
 ## Update Command
 
@@ -162,7 +162,7 @@ sudo duplicacy-backup restore select --target onsite-usb homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 
 # Restore into the prepared workspace only
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
@@ -192,7 +192,9 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `restore revisions` and `restore files` are read-only discovery commands.
   They create a temporary Duplicacy workspace unless `--workspace` is supplied.
 - `restore run` executes `duplicacy restore` only inside a prepared workspace.
-  It never restores over the live source and never copies data back.
+  It never restores over the live source and never copies data back. Use a
+  file path for one file or a Duplicacy pattern such as `docs/*` for a
+  subtree.
 - `restore select` is an interactive guide over the primitive restore commands.
   Without `--execute`, it prints the exact commands and stops. With
   `--execute`, it requires a prepared workspace, asks for confirmation, and

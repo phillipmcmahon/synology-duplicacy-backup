@@ -189,7 +189,7 @@ List revisions, inspect a revision, then restore into that prepared workspace:
 ```bash
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
 sudo duplicacy-backup restore select --target onsite-usb homes
 sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
@@ -201,8 +201,8 @@ At a high level:
 - create an empty restore-drill workspace away from the live source path
 - use `restore revisions` and `restore files` to choose a recovery point and
   path
-- use `restore select` when you want an interactive command generator for the
-  same explicit restore commands; add `--execute` only when the workspace is
+- use `restore select` when you want an interactive guide over the same
+  explicit restore commands; add `--execute` only when the workspace is
   prepared and you want it to delegate to `restore run` after confirmation
 - restore a full revision or selected paths into the drill workspace only
 - inspect the workspace before manually copying anything back

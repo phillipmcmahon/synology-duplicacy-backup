@@ -144,8 +144,11 @@ sudo duplicacy-backup restore select --target <target> --execute <label>
 Restore into the prepared workspace only:
 
 ```bash
-sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path> --workspace /volume1/restore-drills/<label>-<target> --yes <label>
+sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --workspace /volume1/restore-drills/<label>-<target> --yes <label>
 ```
+
+Use a snapshot-relative file path for one file, or a Duplicacy pattern such as
+`phillipmcmahon/code/*` for a directory subtree.
 
 Do not restore directly over the live source path as the first step. Restore
 elsewhere, inspect the result, and copy back only the intended files or
