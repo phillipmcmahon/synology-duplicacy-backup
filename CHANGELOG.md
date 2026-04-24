@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v6.2.1] - 2026-04-24
+
+### Changed
+- **Default restore-drill workspaces are now timestamped**:
+  when `restore prepare` is run without `--workspace`, the wrapper now creates
+  a timestamped drill directory under `restore-drills` so repeated restore
+  drills do not silently reuse the same destination and operators can more
+  easily tell when a drill workspace was created.
+- **Follow-on restore execution now reuses the newest prepared matching workspace**:
+  when `restore run` or `restore select --execute` is used without
+  `--workspace`, the wrapper now looks for the newest prepared drill workspace
+  for the same label and target before falling back to a fresh recommendation.
+
+### Fixed
+- **Restore picker controls are clearer about the continue action**:
+  the picker now explains that `g` continues with the current selection and
+  generates the restore commands, which makes the keybinding explicit in both
+  the UI and the restore guidance.
+
 ## [v6.2.0] - 2026-04-24
 
 ### Added
