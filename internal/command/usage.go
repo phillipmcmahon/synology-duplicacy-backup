@@ -438,12 +438,12 @@ func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
 
 Restore commands:
-    plan
-    prepare
-    revisions
-    files
-    run
-    select
+    select                  guided operator flow
+    plan                    expert: explain resolved restore context
+    prepare                 expert: create a drill workspace
+    revisions               expert: list restore points
+    files                   expert: list files in one revision
+    run                     expert: restore into a prepared workspace
 
 Options:
     --target <name>
@@ -461,12 +461,13 @@ Options:
     --help-full
 
 Examples:
+    {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore prepare --target onsite-usb homes
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-    {{script}} restore select --target onsite-usb homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj homes
 
@@ -481,12 +482,12 @@ func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
 
 RESTORE COMMANDS:
+    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
     plan                   Resolve a safe read-only restore drill plan for one label and target
     prepare                Create a safe drill workspace and write Duplicacy preferences
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision, file, or pattern into a prepared workspace only
-    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
 
 OPTIONS:
     --target <name>        Select the named target (required)
@@ -573,6 +574,8 @@ SAFETY MODEL:
     any live write. See docs/restore-drills.md for the full procedure.
 
 EXAMPLES:
+    {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
     {{script}} restore prepare --target onsite-usb homes
@@ -583,8 +586,6 @@ EXAMPLES:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs --limit 50 homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
     {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-    {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
