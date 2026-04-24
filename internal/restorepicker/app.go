@@ -207,9 +207,9 @@ func newApp(root *Node, opts AppOptions, session *pickerSession) *tview.Applicat
 }
 
 func helpText(enableGenerate bool) string {
-	actions := ""
+	actionLine := "g: continue with the current selection and generate the restore commands"
 	if enableGenerate {
-		actions = "\ng: continue with the current selection and return restore primitives"
+		actionLine = "g: continue with the current selection and generate the restore commands"
 	}
 	return `[yellow]Interactive tree picker[-]
 Arrow keys: navigate
@@ -218,7 +218,8 @@ Left: collapse directory
 Space: toggle full select / clear on current node
 Tab: switch focus between tree and detail
 When detail is focused: Up/Down/PgUp/PgDn scroll the right-hand panel
-q: cancel` + actions + `
+` + actionLine + `
+q: cancel and leave restore select
 
 [green](x)[-] fully selected
 [yellow](~)[-] partially selected

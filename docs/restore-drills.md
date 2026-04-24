@@ -159,8 +159,16 @@ tree picker:
 - use `Left` to collapse directories or move back up
 - use `Space` to select or clear the current file or subtree
 - use `Tab` to switch between the tree and the primitive detail pane
-- use `g` to continue with the current selection
+- use `g` to continue with the current selection and generate the restore commands
 - use `q` to quit
+
+By default, `restore prepare` now creates a timestamped drill workspace under
+`restore-drills`, for example
+`/volume1/restore-drills/homes-onsite-usb-20260424-081530`. If you later run
+`restore run` or `restore select --execute` without `--workspace`, the wrapper
+reuses the newest prepared drill workspace for that label and target. Pass
+`--workspace` explicitly whenever you want to pin the flow to one known drill
+directory.
 
 The common restore shapes are:
 

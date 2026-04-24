@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
@@ -48,7 +49,15 @@ func stubRestoreSelectPicker(t *testing.T, stub func([]string, restorepicker.App
 	t.Cleanup(func() { runRestoreSelectPicker = old })
 }
 
+func stubRestoreWorkspaceTime(t *testing.T, ts time.Time) {
+	t.Helper()
+	old := restoreWorkspaceNow
+	restoreWorkspaceNow = func() time.Time { return ts }
+	t.Cleanup(func() { restoreWorkspaceNow = old })
+}
+
 func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
+	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
 	configDir := t.TempDir()
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
@@ -78,7 +87,7 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 		"Storage",
 		"/backups/homes",
 		"Section: Safe Workspace",
-		"/volume1/restore-drills/homes-onsite-usb",
+		"/volume1/restore-drills/homes-onsite-usb-20260424-081530",
 		"Snapshot ID",
 		"data",
 		"Section: Revision Signal",
@@ -102,8 +111,59 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 	if strings.Contains(out, "mkdir -p /volume1/restore-drills") {
 		t.Fatalf("workspace command should shell-quote paths:\n%s", out)
 	}
-	if _, err := os.Stat("/volume1/restore-drills/homes-onsite-usb"); err == nil {
+	if _, err := os.Stat("/volume1/restore-drills/homes-onsite-usb-20260424-081530"); err == nil {
 		t.Fatalf("restore plan command must not create the suggested workspace")
+	}
+}
+
+func TestResolvedPreparedRestoreWorkspace_ReusesNewestPreparedWorkspace(t *testing.T) {
+	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
+	sourcePath := "/tmp/homes"
+	label := "homes-reuse-test"
+	target := "onsite-usb-reuse-test"
+	restoreRoot := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills")
+	olderBase := filepath.Join(restoreRoot, label+"-"+target+"-20260424-070000")
+	newerBase := filepath.Join(restoreRoot, label+"-"+target+"-20260424-080000")
+	t.Cleanup(func() {
+		_ = os.RemoveAll(olderBase)
+		_ = os.RemoveAll(newerBase)
+	})
+	older := filepath.Join(olderBase, ".duplicacy")
+	newer := filepath.Join(newerBase, ".duplicacy")
+	if err := os.MkdirAll(older, 0o755); err != nil {
+		t.Fatalf("MkdirAll(older) error = %v", err)
+	}
+	if err := os.MkdirAll(newer, 0o755); err != nil {
+		t.Fatalf("MkdirAll(newer) error = %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(older, "preferences"),
+		filepath.Join(newer, "preferences"),
+	} {
+		if err := os.WriteFile(path, []byte("[]"), 0o644); err != nil {
+			t.Fatalf("WriteFile(%s) error = %v", path, err)
+		}
+	}
+	req := &Request{Source: label, RequestedTarget: target}
+	plan := &Plan{SnapshotSource: sourcePath}
+
+	got := resolvedPreparedRestoreWorkspace(req, plan)
+	want := newerBase
+	if got != want {
+		t.Fatalf("resolvedPreparedRestoreWorkspace() = %q, want %q", got, want)
+	}
+}
+
+func TestResolvedPreparedRestoreWorkspace_FallsBackToTimestampedRecommendation(t *testing.T) {
+	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
+	sourcePath := "/tmp/homes"
+	req := &Request{Source: "homes-fallback-test", RequestedTarget: "onsite-usb-fallback-test"}
+	plan := &Plan{SnapshotSource: sourcePath}
+
+	got := resolvedPreparedRestoreWorkspace(req, plan)
+	want := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills", "homes-fallback-test-onsite-usb-fallback-test-20260424-081530")
+	if got != want {
+		t.Fatalf("resolvedPreparedRestoreWorkspace() = %q, want %q", got, want)
 	}
 }
 

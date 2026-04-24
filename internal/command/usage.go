@@ -291,8 +291,9 @@ RESTORE SELECTION:
     Without --execute, it guides revision and path selection, prints the exact
     restore prepare and restore run commands, and stops. The tree picker lets
     operators move through the snapshot tree, select one file, or select a
-    directory subtree as a Duplicacy pattern. Use --path-prefix to start from
-    a useful subtree in large backups.
+    directory subtree as a Duplicacy pattern. Press g to continue with the
+    current selection and generate the restore commands, or q to cancel. Use
+    --path-prefix to start from a useful subtree in large backups.
     With --execute, it shows the generated restore run command, requires a
     prepared workspace, asks for confirmation, and delegates to restore run. It
     refuses non-interactive use. The picker is convenience; the command model is
@@ -445,7 +446,7 @@ Restore commands:
 
 Options:
     --target <name>
-    --workspace <path>      (default: <source-volume>/restore-drills/<label>-<target>)
+    --workspace <path>      (default prepare path: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
     --revision <id>         required for files and run
     --path <path>           optional snapshot-relative path or pattern for files and run
     --limit <count>         revisions default: 50; files default: 200
@@ -489,7 +490,7 @@ RESTORE COMMANDS:
 
 OPTIONS:
     --target <name>        Select the named target (required)
-    --workspace <path>     Override drill workspace (default: <source-volume>/restore-drills/<label>-<target>)
+    --workspace <path>     Override drill workspace (default prepare path: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
     --revision <id>        Required for files and run
     --path <path>          Optional snapshot-relative path or pattern for files and run
     --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
@@ -511,6 +512,7 @@ BEHAVIOUR:
       - prints Duplicacy commands for creating a separate drill workspace, listing revisions, and restoring manually
       - does not create directories, write Duplicacy preferences, execute duplicacy restore, or copy data back
     restore prepare:
+      - when --workspace is omitted, creates a timestamped drill workspace under restore-drills
       - creates the selected drill workspace when it does not exist
       - writes .duplicacy/preferences for the selected storage target
       - rejects the live source path, source-child workspaces, and non-empty workspaces
@@ -530,6 +532,7 @@ BEHAVIOUR:
     restore run:
       - requires --revision <id>
       - requires a prepared workspace containing .duplicacy/preferences
+      - when --workspace is omitted, reuses the newest prepared drill workspace for the same label and target
       - runs duplicacy restore only from that workspace
       - uses --path for selective file restores or directory patterns
       - uses --yes for non-interactive execution
@@ -541,11 +544,13 @@ BEHAVIOUR:
       - uses Right to expand directories and Left to collapse them
       - uses Space to select or clear the current file or subtree
       - uses Tab to switch between the tree and the primitive detail pane
-      - uses g to continue with the current selection and q to cancel
+      - uses g to continue with the current selection and generate the restore commands
+      - uses q to cancel
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
       - shows the exact restore run primitives that the current selection compiles to
       - without --execute, does not run duplicacy restore
       - with --execute, requires a prepared workspace
+      - with --execute and no --workspace, reuses the newest prepared drill workspace for the same label and target
       - with --execute, delegates each selected path or pattern to restore run after explicit confirmation
       - never copies data back
 

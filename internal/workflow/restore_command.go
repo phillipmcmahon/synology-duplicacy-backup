@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -25,6 +26,10 @@ var newRestoreCommandRunner = func() execpkg.Runner {
 }
 
 var restorePromptOutput io.Writer = os.Stdout
+
+var restoreWorkspaceNow = func() time.Time {
+	return time.Now()
+}
 
 var runRestoreSelectPicker = func(paths []string, opts restorepicker.AppOptions) ([]string, error) {
 	filteredPaths, err := restorepicker.FilterPaths(paths, opts.PathPrefix)
@@ -168,7 +173,7 @@ func handleRestoreRun(req *Request, meta Metadata, rt Runtime) (string, error) {
 	}
 	plan.applyConfig(cfg, rt)
 
-	workspace := resolvedRestoreWorkspace(req, plan)
+	workspace := resolvedPreparedRestoreWorkspace(req, plan)
 	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
 		return "", err
 	}
@@ -621,9 +626,52 @@ func resolvedRestoreWorkspace(req *Request, plan *Plan) string {
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
+func resolvedPreparedRestoreWorkspace(req *Request, plan *Plan) string {
+	if strings.TrimSpace(req.RestoreWorkspace) != "" {
+		return resolvedRestoreWorkspace(req, plan)
+	}
+	if workspace, ok := latestPreparedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target()); ok {
+		return workspace
+	}
+	return recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
+}
+
 func recommendedRestoreWorkspace(sourcePath, label, target string) string {
 	base := rootVolumeForSource(sourcePath)
-	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s", label, target))
+	timestamp := restoreWorkspaceNow().Local().Format("20060102-150405")
+	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s", label, target, timestamp))
+}
+
+func latestPreparedRestoreWorkspace(sourcePath, label, target string) (string, bool) {
+	base := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return "", false
+	}
+	prefix := fmt.Sprintf("%s-%s", label, target)
+	bestName := ""
+	bestPath := ""
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name != prefix && !strings.HasPrefix(name, prefix+"-") {
+			continue
+		}
+		path := filepath.Join(base, name)
+		if !restoreWorkspacePrepared(path) {
+			continue
+		}
+		if bestName == "" || name > bestName {
+			bestName = name
+			bestPath = path
+		}
+	}
+	if bestPath == "" {
+		return "", false
+	}
+	return bestPath, true
 }
 
 func validateRestoreWorkspace(workspace, sourcePath string) error {
@@ -735,7 +783,7 @@ func newRestoreSelectContext(req *Request, meta Metadata, rt Runtime) (*restoreE
 	}
 	plan.applyConfig(cfg, rt)
 
-	commandWorkspace := resolvedRestoreWorkspace(req, plan)
+	commandWorkspace := resolvedPreparedRestoreWorkspace(req, plan)
 	if err := validateRestoreWorkspace(commandWorkspace, plan.SnapshotSource); err != nil {
 		return nil, "", false, func() {}, err
 	}

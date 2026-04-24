@@ -235,9 +235,12 @@ Core operating rules:
   such as `docs/*` for a subtree.
 - `restore select` is an interactive guide over the explicit restore commands.
   It uses a tree picker with arrow-key navigation, `Space` to toggle files or
-  subtrees, `Tab` to inspect the primitive detail pane, `g` to continue, and
-  `q` to cancel. It can generate commands only, or confirm and delegate to
-  `restore run` with `--execute`.
+  subtrees, `Tab` to inspect the primitive detail pane, `g` to continue with
+  the current selection, and `q` to cancel. It can generate commands only, or
+  confirm and delegate to `restore run` with `--execute`.
+- When `--workspace` is omitted, `restore prepare` creates a timestamped drill
+  directory under `restore-drills`, and later restore execution reuses the
+  newest prepared matching workspace by default.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.
