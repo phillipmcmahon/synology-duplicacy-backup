@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v6.2.0] - 2026-04-24
+
+### Added
+- **Restore select now ships with an interactive tree picker**:
+  operators can browse restore contents with the keyboard, expand and collapse
+  directories with the arrow keys, toggle files or whole subtrees with the
+  space bar, inspect the generated restore primitives in a dedicated detail
+  pane, and continue or cancel without dropping into a bespoke command
+  language.
+
+### Changed
+- **Restore selection keeps the existing explicit restore contract**:
+  `restore select` now uses the tree picker as its interaction layer, but it
+  still compiles back into explicit `restore run` commands and optional
+  delegated execution rather than introducing hidden restore semantics.
+- **Restore guidance now matches the shipped picker workflow**:
+  concise help, full help, and operator documentation consistently describe the
+  tree-based restore flow and no longer refer to the removed text-browser
+  commands.
+
 ## [v6.1.1] - 2026-04-22
 
 ### Fixed
