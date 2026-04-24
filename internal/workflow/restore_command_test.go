@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +14,24 @@ import (
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 )
+
+var (
+	restorePromptOutput     io.Writer = os.Stdout
+	runRestoreSelectPicker            = defaultRestoreDeps().RunSelectPicker
+	runRestoreInspectPicker           = defaultRestoreDeps().RunInspectPicker
+	restoreWorkspaceNow               = defaultRestoreDeps().Now
+	newRestoreCommandRunner           = defaultRestoreDeps().NewRunner
+)
+
+func restoreHandleCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+	return handleRestoreCommand(req, meta, rt, RestoreDeps{
+		NewRunner:        newRestoreCommandRunner,
+		PromptOutput:     restorePromptOutput,
+		Now:              restoreWorkspaceNow,
+		RunSelectPicker:  runRestoreSelectPicker,
+		RunInspectPicker: runRestoreInspectPicker,
+	})
+}
 
 func restoreSelectRuntime(t *testing.T, input string) Runtime {
 	t.Helper()
@@ -87,9 +106,9 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 	}
 
 	req := &Request{RestoreCommand: "plan", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 
 	for _, token := range []string{
@@ -142,7 +161,7 @@ func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T)
 		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
 	}
 
-	got := resolvedRestoreSelectWorkspace(req, plan, revision)
+	got := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
 	want := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills", "homes-onsite-usb-20260424-070000-rev2403")
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
@@ -157,9 +176,9 @@ func TestHandleRestoreCommand_PlanRemoteDoesNotLoadSecrets(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://gateway.example.invalid/bucket/homes", 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "plan", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
@@ -196,9 +215,9 @@ func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 
 	preferences := filepath.Join(workspace, ".duplicacy", "preferences")
@@ -254,9 +273,9 @@ func TestHandleRestoreCommand_RunRemoteLoadsSecretsWithoutPrintingValues(t *test
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj", RestoreWorkspace: workspace, RestoreRevision: 2403, RestoreYes: true}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	if strings.Contains(out, "ABCDEFGHIJKLMNOPQRSTUVWXYZ01") || strings.Contains(out, "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR") {
 		t.Fatalf("output leaked secret values:\n%s", out)
@@ -289,7 +308,7 @@ func TestHandleRestoreCommand_RunRejectsUnsafeWorkspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: tt.workspace, RestoreRevision: 2403, RestoreYes: true}
-			_, err := HandleRestoreCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+			_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
@@ -306,7 +325,7 @@ func TestHandleRestoreCommand_RunRejectsNonEmptyUnpreparedWorkspace(t *testing.T
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", filepath.Join(t.TempDir(), "backups", "homes"), "", "", 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestoreYes: true}
-	_, err := HandleRestoreCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "must be empty") {
 		t.Fatalf("error = %v", err)
 	}
@@ -325,9 +344,9 @@ func TestHandleRestoreCommand_RevisionsListsVisibleRevisionsReadOnly(t *testing.
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "list-revisions", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreLimit: 1}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore revision list for homes/onsite-usb",
@@ -379,7 +398,7 @@ func TestHandleRestoreCommand_RevisionsWithWorkspaceRequiresPreparedWorkspace(t 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "list-revisions", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	_, err := HandleRestoreCommand(req, meta, testRuntime())
+	_, err := restoreHandleCommand(req, meta, testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "requires a workspace containing .duplicacy/preferences") {
 		t.Fatalf("error = %v", err)
 	}
@@ -405,9 +424,9 @@ func TestHandleRestoreCommand_RunRestoresOnlyIntoPreparedWorkspace(t *testing.T)
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore run for homes/onsite-usb revision 2403",
@@ -444,9 +463,9 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
-	out, err := HandleRestoreCommand(req, meta, testRuntime())
+	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		wantWorkspace,
@@ -473,7 +492,7 @@ func TestHandleRestoreCommand_SelectRejectsNonInteractiveUse(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &Request{RestoreCommand: "select", Source: "homes", RequestedTarget: "onsite-usb"}
-	_, err := HandleRestoreCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err == nil || !strings.Contains(err.Error(), "requires an interactive terminal") {
 		t.Fatalf("error = %v", err)
 	}
@@ -494,9 +513,9 @@ func TestHandleRestoreCommand_SelectShowsRestorePointPrompt(t *testing.T) {
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
+	_, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	output := prompts.String()
 	for _, token := range []string{
@@ -541,10 +560,10 @@ func TestHandleRestoreCommand_SelectInspectsRevisionWithoutWorkspace(t *testing.
 		return nil
 	})
 
-	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreExecute: true}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n1\n"))
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n1\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	if !inspected {
 		t.Fatalf("inspect picker was not invoked")
@@ -582,9 +601,9 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore selection for homes/onsite-usb",
@@ -631,9 +650,9 @@ func TestHandleRestoreCommand_SelectOptionTwoWithPathPrefixUsesScopedSubtree(t *
 		RequestedTarget:   "onsite-usb",
 		RestorePathPrefix: "phillipmcmahon/code",
 	}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	if !strings.Contains(out, "--path 'phillipmcmahon/code/*'") {
 		t.Fatalf("output missing scoped subtree path:\n%s", out)
@@ -674,9 +693,9 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "2403\n3\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "2403\n3\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore selection for homes/onsite-usb",
@@ -728,9 +747,9 @@ func TestHandleRestoreCommand_SelectBuildsMultipleRestoreCommands(t *testing.T) 
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"--path 'docs/*'",
@@ -780,9 +799,9 @@ func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestorePathPrefix: "phillipmcmahon/code/duplicacy-backup/archive/v5.0.0"}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\ny\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\ny\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Path",
@@ -825,9 +844,9 @@ func TestHandleRestoreCommand_SelectAutoPreparesWorkspaceBeforeExecution(t *test
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n2\ny\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\ny\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore run for homes/onsite-usb revision 2403",
@@ -868,9 +887,9 @@ func TestHandleRestoreCommand_SelectStopsAfterPreviewWhenExecutionNotConfirmed(t
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	if !strings.Contains(out, "Restore selection for homes/onsite-usb") {
 		t.Fatalf("output missing preview:\n%s", out)
@@ -912,9 +931,9 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\ny\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\ny\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"Restore selection for homes/onsite-usb",
@@ -960,9 +979,9 @@ func TestHandleRestoreCommand_SelectGeneratesDirectoryPattern(t *testing.T) {
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"--path 'docs/*'",
@@ -1000,9 +1019,9 @@ func TestHandleRestoreCommand_SelectPassesPathPrefixToPicker(t *testing.T) {
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestorePathPrefix: "phillipmcmahon/code"}
-	out, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\nn\n"))
 	if err != nil {
-		t.Fatalf("HandleRestoreCommand() error = %v", err)
+		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}
 	for _, token := range []string{
 		"--path 'phillipmcmahon/code/app/*'",
@@ -1035,14 +1054,14 @@ func TestHandleRestoreCommand_SelectCancellationFromPicker(t *testing.T) {
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleRestoreCommand(req, meta, restoreSelectRuntime(t, "1\n3\n"))
+	_, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\n"))
 	if err == nil || !strings.Contains(err.Error(), "restore select cancelled") {
 		t.Fatalf("error = %v", err)
 	}
 }
 
 func TestHandleRestoreCommand_Unsupported(t *testing.T) {
-	_, err := HandleRestoreCommand(&Request{RestoreCommand: "execute", Source: "homes"}, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := restoreHandleCommand(&Request{RestoreCommand: "execute", Source: "homes"}, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "unsupported restore command") {
 		t.Fatalf("err = %v", err)
 	}

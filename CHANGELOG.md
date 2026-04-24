@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the public revision listing command is `restore list-revisions`, making the
   expert path read as `restore plan`, `restore list-revisions`, then
   `restore run`.
+- **Restore internals are split by responsibility**:
+  restore command dispatch, dependency seams, config context, workspace safety,
+  picker prompting, Duplicacy list parsing, and report formatting now live in
+  focused workflow files instead of one large restore command file.
+- **Restore help is isolated from the general usage text**:
+  restore-specific concise and full help moved into a dedicated help file with
+  shared command-surface text to reduce future documentation drift.
 
 ### Removed
 - **Removed the standalone `restore prepare` command**:
@@ -25,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file discovery is now part of the guided `restore select` flow. Expert and
   scripted recovery stay focused on listing revisions and executing explicit
   `restore run` primitives.
+- **Removed the restore picker POC command**:
+  the standalone proof-of-concept binary and its package script were deleted
+  now that the picker is part of the production restore flow.
+- **Removed the hidden `restore select --execute` option**:
+  guided restore selection now always reviews generated commands and asks for
+  confirmation before delegating to `restore run`.
 
 ## [v6.2.1] - 2026-04-24
 

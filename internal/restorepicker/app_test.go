@@ -306,3 +306,131 @@ func TestHandleCollapseLeftMovesToParentWhenAlreadyCollapsed(t *testing.T) {
 		t.Fatalf("current node = %v, want docs node", tree.GetCurrentNode())
 	}
 }
+
+func TestHelpTextDistinguishesInspectAndGenerateModes(t *testing.T) {
+	inspect := helpText(false)
+	if !strings.Contains(inspect, "Interactive tree inspection") ||
+		!strings.Contains(inspect, "q: quit inspection") ||
+		strings.Contains(inspect, "g: continue") {
+		t.Fatalf("inspect help text = %q", inspect)
+	}
+
+	generate := helpText(true)
+	if !strings.Contains(generate, "Interactive tree picker") ||
+		!strings.Contains(generate, "g: continue with the current selection and generate the restore commands") ||
+		!strings.Contains(generate, "q: cancel") {
+		t.Fatalf("generate help text = %q", generate)
+	}
+}
+
+func TestNodeLabelShowsSelectionStateAndKind(t *testing.T) {
+	root := BuildTree([]string{
+		"docs/readme.md",
+		"docs/reference/api.md",
+	})
+	docs := root.Children[0]
+	readme := docs.Children[1]
+
+	if got := nodeLabel(docs); !strings.Contains(got, "( )") || !strings.Contains(got, "docs/") {
+		t.Fatalf("nodeLabel(docs) = %q", got)
+	}
+
+	ToggleSelection(readme)
+	if got := nodeLabel(readme); !strings.Contains(got, "(x)") || !strings.Contains(got, "<selected>") {
+		t.Fatalf("nodeLabel(readme selected) = %q", got)
+	}
+
+	if got := nodeLabel(docs); !strings.Contains(got, "(~)") || !strings.Contains(got, "<partial>") {
+		t.Fatalf("nodeLabel(docs partial) = %q", got)
+	}
+
+	ToggleSelection(docs)
+	if got := nodeLabel(docs); !strings.Contains(got, "(x)") || !strings.Contains(got, "<selected subtree>") {
+		t.Fatalf("nodeLabel(docs full) = %q", got)
+	}
+}
+
+func TestRefreshTreeLabelsReflectsSelectionChanges(t *testing.T) {
+	root := BuildTree([]string{
+		"docs/readme.md",
+		"docs/reference/api.md",
+	})
+	rootNode := buildTreeNode(root)
+	docs := root.Children[0]
+	docsTreeNode := rootNode.GetChildren()[0]
+
+	ToggleSelection(docs)
+	refreshTreeLabels(rootNode)
+
+	if got := docsTreeNode.GetText(); !strings.Contains(got, "(x)") || !strings.Contains(got, "<selected subtree>") {
+		t.Fatalf("refreshed docs label = %q", got)
+	}
+}
+
+func TestFormatPrimitivePreviewIncludesPathsCommandsAndNotes(t *testing.T) {
+	preview := PrimitivePreview{
+		RestorePaths: []string{"docs/*", "music/song.flac"},
+		Commands: []string{
+			"duplicacy-backup restore run --path 'docs/*'",
+			"duplicacy-backup restore run --path music/song.flac",
+		},
+		Notes: []string{"2 explicit restore run commands will be generated."},
+	}
+
+	text := formatPrimitivePreview(preview)
+	for _, token := range []string{
+		"Mode              : Selective restore",
+		"Restore paths     : 2",
+		"- docs/*",
+		"1. duplicacy-backup restore run --path 'docs/*'",
+		"2 explicit restore run commands will be generated.",
+	} {
+		if !strings.Contains(text, token) {
+			t.Fatalf("preview missing %q:\n%s", token, text)
+		}
+	}
+}
+
+func TestFormatPrimitivePreviewFullRestoreMarker(t *testing.T) {
+	preview := PrimitivePreview{
+		FullRestore:  true,
+		RestorePaths: []string{""},
+		Commands:     []string{"duplicacy-backup restore run --revision 2403"},
+	}
+
+	text := formatPrimitivePreview(preview)
+	if !strings.Contains(text, "Mode              : Full restore") ||
+		!strings.Contains(text, "- <full revision>") {
+		t.Fatalf("preview = %q", text)
+	}
+}
+
+func TestDisplayBreadcrumbBuildsPathFromParents(t *testing.T) {
+	root := BuildTree([]string{
+		"phillipmcmahon/code/duplicacy-backup/README.md",
+	})
+	readme := root.Children[0].Children[0].Children[0].Children[0]
+
+	if got := displayBreadcrumb(readme); got != "phillipmcmahon/code/duplicacy-backup/README.md" {
+		t.Fatalf("displayBreadcrumb() = %q", got)
+	}
+	if got := displayBreadcrumb(root); got != "<snapshot root>" {
+		t.Fatalf("displayBreadcrumb(root) = %q", got)
+	}
+}
+
+func TestSelectionNameReturnsOperatorWords(t *testing.T) {
+	cases := []struct {
+		state SelectionState
+		want  string
+	}{
+		{SelectionNone, "none"},
+		{SelectionPartial, "partial"},
+		{SelectionFull, "full"},
+	}
+	for _, tc := range cases {
+		if got := selectionName(tc.state); got != tc.want {
+			t.Fatalf("selectionName(%v) = %q, want %q", tc.state, got, tc.want)
+		}
+	}
+}
