@@ -178,10 +178,8 @@ sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmc
 
 # Expert or scripted restore path
 sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
@@ -224,25 +222,23 @@ Core operating rules:
 - `restore select` is the primary operator restore path. It presents restore
   points first, then supports inspect-only, full restore, or tree-based
   selective restore. It previews the exact commands, asks for confirmation,
-  prepares the drill workspace when needed, and delegates to `restore run`.
+  and delegates to `restore run`, which prepares the drill workspace when
+  needed.
 - `restore plan` is read-only. It prints the resolved context and Duplicacy
   commands for a safe drill workspace, but it does not execute restores.
-- `restore prepare` creates the separate drill workspace and writes Duplicacy
-  preferences there, but it still does not run restores or copy data back.
-- `restore revisions` and `restore files` inspect backup contents without
-  restoring data.
-- `restore run` restores only into a prepared workspace and never copies data
-  back to the live source. Use `--path` for one file or a Duplicacy pattern
-  such as `docs/*` for a subtree.
+- `restore list-revisions` is read-only. It lists visible backup revisions
+  without restoring data.
+- `restore run` prepares or reuses a drill workspace, restores only there, and
+  never copies data back to the live source. Use `--path` for one file or a
+  Duplicacy pattern such as `docs/*` for a subtree.
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
   to continue with the current selection and generate the restore commands,
   and `q` to cancel.
-- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and
-  `restore run` remain the expert and scriptable restore primitives.
-- When `--workspace` is omitted, `restore prepare` creates a timestamped drill
-  directory under `restore-drills`. Guided restore actions in `restore select`
-  name the default workspace from the selected restore point, for example
+- `restore plan`, `restore list-revisions`, and `restore run`
+  remain the expert and scriptable restore primitives.
+- When `--workspace` is omitted, restore actions name the default workspace
+  from the selected restore point, for example
   `<label>-<target>-<restore-point-timestamp>-rev<id>`.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.

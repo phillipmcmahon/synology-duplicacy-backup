@@ -202,19 +202,11 @@ commands without creating the workspace or running a restore:
 sudo duplicacy-backup restore plan --target onsite-usb homes
 ```
 
-Use `restore prepare` when you want the wrapper to create the separate drill
-workspace and write Duplicacy preferences there:
+List revisions, then restore into a drill workspace:
 
 ```bash
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-```
-
-List revisions, inspect a revision, then restore into that prepared workspace:
-
-```bash
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 At a high level:
@@ -222,8 +214,8 @@ At a high level:
 - use `config explain`, `config validate`, and `health status` to confirm the
   label, target, storage value, and repository health
 - use `restore select` first when you want the operator-focused guided flow
-- use `restore plan`, `restore prepare`, `restore revisions`, `restore files`,
-  and `restore run` when you want fully explicit step-by-step control
+- use `restore plan`, `restore list-revisions`, and `restore run`
+  when you want fully explicit step-by-step control
 - in the picker, move with the arrow keys, expand with `Right`, collapse with
   `Left`, toggle files or subtrees with `Space`, then press `g`
 - restore a full revision or selected paths into the drill workspace only

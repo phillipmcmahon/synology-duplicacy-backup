@@ -200,7 +200,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 
 	action := args[0]
 	switch action {
-	case "plan", "prepare", "revisions", "files", "run", "select":
+	case "plan", "list-revisions", "run", "select":
 	default:
 		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
 	}
@@ -211,18 +211,11 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 	}
 	req.RestoreCommand = action
 	switch action {
-	case "files":
-		if req.RestoreRevision <= 0 {
-			return nil, workflow.NewUsageRequestError("restore %s requires --revision <id>", action)
-		}
-		if req.RestoreLimit == 0 {
-			req.RestoreLimit = 200
-		}
 	case "run":
 		if req.RestoreRevision <= 0 {
 			return nil, workflow.NewUsageRequestError("restore %s requires --revision <id>", action)
 		}
-	case "revisions":
+	case "list-revisions":
 		if req.RestoreLimit == 0 {
 			req.RestoreLimit = 50
 		}
@@ -387,7 +380,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 		secretsDir: true,
 	}
 	switch action {
-	case "revisions", "files":
+	case "list-revisions":
 		opts.jsonSummary = true
 	case "run":
 		opts.dryRun = true
@@ -408,7 +401,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			req.RestoreWorkspace = value
 			return true, nil
 		case "--revision":
-			if action != "files" && action != "run" {
+			if action != "run" {
 				return false, nil
 			}
 			value, err := consumeRequiredValue(args, index, "--revision")
@@ -422,7 +415,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			req.RestoreRevision = revision
 			return true, nil
 		case "--path":
-			if action != "files" && action != "run" {
+			if action != "run" {
 				return false, nil
 			}
 			value, err := consumeRequiredValue(args, index, "--path")
@@ -442,7 +435,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			req.RestorePathPrefix = value
 			return true, nil
 		case "--limit":
-			if action != "revisions" && action != "files" {
+			if action != "list-revisions" {
 				return false, nil
 			}
 			value, err := consumeRequiredValue(args, index, "--limit")

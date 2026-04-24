@@ -327,32 +327,33 @@ func TestParseRequest_RestorePlan(t *testing.T) {
 	}
 }
 
-func TestParseRequest_RestorePrepare(t *testing.T) {
+func TestParseRequest_RestoreRunRemoteWithSecrets(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "prepare", "--target", "offsite-storj", "--workspace", "/restore/homes", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "run", "--target", "offsite-storj", "--revision", "2403", "--path", "docs/readme.md", "--workspace", "/restore/homes", "--config-dir", "/cfg", "--secrets-dir", "/sec", "--yes", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
-	if result.Request.RestoreCommand != "prepare" ||
+	if result.Request.RestoreCommand != "run" ||
 		result.Request.Target() != "offsite-storj" ||
+		result.Request.RestoreRevision != 2403 ||
+		result.Request.RestorePath != "docs/readme.md" ||
 		result.Request.RestoreWorkspace != "/restore/homes" ||
 		result.Request.ConfigDir != "/cfg" ||
 		result.Request.SecretsDir != "/sec" ||
+		!result.Request.RestoreYes ||
 		result.Request.Source != "homes" {
 		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 
-func TestParseRequest_RestoreFiles(t *testing.T) {
+func TestParseRequest_RestoreListRevisions(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "files", "--target", "offsite-storj", "--revision", "2403", "--path", "music/flac", "--limit", "25", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "list-revisions", "--target", "offsite-storj", "--limit", "25", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
-	if result.Request.RestoreCommand != "files" ||
+	if result.Request.RestoreCommand != "list-revisions" ||
 		result.Request.Target() != "offsite-storj" ||
-		result.Request.RestoreRevision != 2403 ||
-		result.Request.RestorePath != "music/flac" ||
 		result.Request.RestoreLimit != 25 ||
 		!result.Request.JSONSummary ||
 		result.Request.ConfigDir != "/cfg" ||

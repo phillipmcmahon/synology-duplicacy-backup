@@ -122,18 +122,10 @@ Use `restore plan` when you want the explicit expert path and safe next-step com
 sudo duplicacy-backup restore plan --target <target> <label>
 ```
 
-Use `restore prepare` when you want the wrapper to create the separate drill
-workspace and write Duplicacy preferences there:
+List revisions before restoring:
 
 ```bash
-sudo duplicacy-backup restore prepare --target <target> <label>
-```
-
-List revisions and inspect the specific revision before restoring:
-
-```bash
-sudo duplicacy-backup restore revisions --target <target> <label>
-sudo duplicacy-backup restore files --target <target> --revision <id> --path <relative-path> <label>
+sudo duplicacy-backup restore list-revisions --target <target> <label>
 ```
 
 For large repositories, start browsing under a known subtree:
@@ -142,10 +134,10 @@ For large repositories, start browsing under a known subtree:
 sudo duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
 ```
 
-Restore into the prepared workspace only:
+Restore into the drill workspace only:
 
 ```bash
-sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --workspace /volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id> --yes <label>
+sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --yes <label>
 ```
 
 Use a snapshot-relative file path for one file, or a Duplicacy pattern such as

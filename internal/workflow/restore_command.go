@@ -61,12 +61,8 @@ func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, erro
 	switch req.RestoreCommand {
 	case "plan":
 		return handleRestorePlan(req, meta, rt)
-	case "prepare":
-		return handleRestorePrepare(req, meta, rt)
-	case "revisions":
+	case "list-revisions":
 		return handleRestoreRevisions(req, meta, rt)
-	case "files":
-		return handleRestoreFiles(req, meta, rt)
 	case "run":
 		return handleRestoreRun(req, meta, rt)
 	case "select":
@@ -91,50 +87,6 @@ func handleRestorePlan(req *Request, meta Metadata, rt Runtime) (string, error) 
 	return formatRestorePlan(report), nil
 }
 
-func handleRestorePrepare(req *Request, meta Metadata, rt Runtime) (string, error) {
-	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
-	cfg, err := planner.loadConfig(plan)
-	if err != nil {
-		return "", err
-	}
-	plan.applyConfig(cfg, rt)
-
-	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
-	var sec *secrets.Secrets
-	if storageSpec.NeedsSecrets() {
-		sec, err = planner.loadSecrets(plan)
-		if err != nil {
-			return "", err
-		}
-		if err := storageSpec.ValidateSecrets(sec); err != nil {
-			return "", err
-		}
-	}
-
-	workspace := resolvedRestoreWorkspace(req, plan)
-	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
-		return "", err
-	}
-	if err := ensureRestoreWorkspaceReady(workspace); err != nil {
-		return "", err
-	}
-
-	dup := duplicacy.NewWorkspaceSetup(workspace, cfg.Storage, false, nil)
-	if err := dup.CreateDirs(); err != nil {
-		return "", err
-	}
-	if err := dup.WritePreferences(sec); err != nil {
-		return "", err
-	}
-	if err := dup.SetPermissions(); err != nil {
-		return "", err
-	}
-
-	return formatRestorePrepare(newRestorePrepareReport(req, plan, cfg.Storage, workspace, storageSpec.NeedsSecrets())), nil
-}
-
 func handleRestoreRevisions(req *Request, meta Metadata, rt Runtime) (string, error) {
 	ctx, err := newRestoreExecutionContext(req, meta, rt, true)
 	if err != nil {
@@ -153,55 +105,20 @@ func handleRestoreRevisions(req *Request, meta Metadata, rt Runtime) (string, er
 	return formatRestoreRevisions(report), nil
 }
 
-func handleRestoreFiles(req *Request, meta Metadata, rt Runtime) (string, error) {
-	restorePath, err := cleanRestorePath(req.RestorePath)
-	if err != nil {
-		return "", err
-	}
-	ctx, err := newRestoreExecutionContext(req, meta, rt, true)
-	if err != nil {
-		return "", err
-	}
-	defer ctx.cleanup()
-
-	output, err := ctx.dup.ListRevisionFiles(req.RestoreRevision)
-	if err != nil {
-		return "", err
-	}
-	paths, totalMatches := extractRestoreFileLines(output, restorePath, req.RestoreLimit)
-	report := newRestoreFilesReport(req, ctx, restorePath, paths, totalMatches)
-	if req.JSONSummary {
-		return marshalRestoreJSON(report)
-	}
-	return formatRestoreFiles(report), nil
-}
-
 func handleRestoreRun(req *Request, meta Metadata, rt Runtime) (string, error) {
 	restorePath, err := cleanRestorePath(req.RestorePath)
 	if err != nil {
 		return "", err
 	}
-	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
-	cfg, err := planner.loadConfig(plan)
+	ctx, err := newRestoreRunContext(req, meta, rt)
 	if err != nil {
 		return "", err
 	}
-	plan.applyConfig(cfg, rt)
 
-	workspace := resolvedPreparedRestoreWorkspace(req, plan)
-	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
-		return "", err
-	}
-	if !restoreWorkspacePrepared(workspace) {
-		return "", NewRequestError("restore run requires a prepared workspace; run restore prepare --target %s --workspace %s %s first", req.Target(), shellQuote(workspace), req.Source)
-	}
-
-	report := newRestoreRunReport(req, plan, cfg.Storage, workspace, restorePath)
+	report := newRestoreRunReport(req, ctx.plan, ctx.storage, ctx.workspace, restorePath)
 	if req.DryRun {
 		report.Result = "Dry run"
-		report.Output = "restore command was not executed"
+		report.Output = "workspace preparation and restore command were not executed"
 		return formatRestoreRun(report), nil
 	}
 	if !req.RestoreYes {
@@ -214,7 +131,12 @@ func handleRestoreRun(req *Request, meta Metadata, rt Runtime) (string, error) {
 		}
 	}
 
-	dup := duplicacy.NewWorkspaceSetup(workspace, cfg.Storage, false, newRestoreCommandRunner())
+	if err := prepareRestoreWorkspace(ctx.workspace, ctx.storage, ctx.secrets); err != nil {
+		return "", err
+	}
+	report.WorkspacePrepared = true
+
+	dup := duplicacy.NewWorkspaceSetup(ctx.workspace, ctx.storage, false, newRestoreCommandRunner())
 	output, err := dup.RestoreRevision(req.RestoreRevision, restorePath)
 	report.Output = strings.TrimSpace(output)
 	if err != nil {
@@ -227,7 +149,7 @@ func handleRestoreRun(req *Request, meta Metadata, rt Runtime) (string, error) {
 
 func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error) {
 	if rt.StdinIsTTY == nil || !rt.StdinIsTTY() {
-		return "", NewRequestError("restore select requires an interactive terminal; use restore revisions, restore files, and restore run for scripts or scheduled jobs")
+		return "", NewRequestError("restore select requires an interactive terminal; use restore list-revisions and restore run for scripts or scheduled jobs")
 	}
 	stdin := os.Stdin
 	if rt.Stdin != nil && rt.Stdin() != nil {
@@ -246,7 +168,7 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 		return "", err
 	}
 	if len(revisions) == 0 {
-		return "", NewRequestError("restore select found no visible revisions; run restore revisions --target %s %s to inspect the target directly", req.Target(), req.Source)
+		return "", NewRequestError("restore select found no visible revisions; run restore list-revisions --target %s %s to inspect the target directly", req.Target(), req.Source)
 	}
 	revision, err := promptRestoreRevision(reader, revisions, 50)
 	if err != nil {
@@ -296,17 +218,6 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 		return selectOutput, nil
 	}
 	outputs := []string{selectOutput}
-	if !workspacePrepared {
-		prepareReq := *req
-		prepareReq.RestoreCommand = "prepare"
-		prepareReq.RestoreWorkspace = commandWorkspace
-		prepareReq.RestoreExecute = false
-		prepareOutput, err := handleRestorePrepare(&prepareReq, meta, rt)
-		outputs = append(outputs, prepareOutput)
-		if err != nil {
-			return strings.Join(outputs, "\n"), err
-		}
-	}
 	for _, restorePath := range restorePaths {
 		runReq := *req
 		runReq.RestoreCommand = "run"
@@ -337,6 +248,51 @@ type restoreExecutionContext struct {
 
 type configForRestore struct {
 	Storage string
+}
+
+type restoreRunContext struct {
+	plan      *Plan
+	storage   string
+	secrets   *secrets.Secrets
+	workspace string
+}
+
+func newRestoreRunContext(req *Request, meta Metadata, rt Runtime) (*restoreRunContext, error) {
+	planner := NewConfigPlanner(meta, rt)
+	planReq := configValidationRequest(req, req.Target())
+	plan := planner.derivePlan(planReq)
+	cfg, err := planner.loadConfig(plan)
+	if err != nil {
+		return nil, err
+	}
+	plan.applyConfig(cfg, rt)
+
+	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
+	var sec *secrets.Secrets
+	if storageSpec.NeedsSecrets() {
+		sec, err = planner.loadSecrets(plan)
+		if err != nil {
+			return nil, err
+		}
+		if err := storageSpec.ValidateSecrets(sec); err != nil {
+			return nil, err
+		}
+	}
+
+	workspace, err := resolvedRestoreRunWorkspace(req, rt, plan, cfg.Storage, sec)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
+		return nil, err
+	}
+
+	return &restoreRunContext{
+		plan:      plan,
+		storage:   cfg.Storage,
+		secrets:   sec,
+		workspace: workspace,
+	}, nil
 }
 
 func newRestoreExecutionContext(req *Request, meta Metadata, rt Runtime, allowTemporary bool) (*restoreExecutionContext, error) {
@@ -408,22 +364,6 @@ type restorePlanReport struct {
 	DocumentationPath string
 }
 
-type restorePrepareReport struct {
-	Label            string
-	Target           string
-	Location         string
-	ConfigFile       string
-	SourcePath       string
-	Storage          string
-	SecretsFile      string
-	Workspace        string
-	PreferencesFile  string
-	SnapshotID       string
-	ListCommand      string
-	ListFilesCommand string
-	Guide            string
-}
-
 type restoreRevisionsReport struct {
 	Label           string                `json:"label"`
 	Target          string                `json:"target"`
@@ -445,38 +385,22 @@ type restoreRevisionItem struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
-type restoreFilesReport struct {
-	Label           string   `json:"label"`
-	Target          string   `json:"target"`
-	Location        string   `json:"location"`
-	ConfigFile      string   `json:"config_file"`
-	Storage         string   `json:"storage"`
-	Workspace       string   `json:"workspace"`
-	WorkspaceMode   string   `json:"workspace_mode"`
-	Revision        int      `json:"revision"`
-	PathFilter      string   `json:"path_filter,omitempty"`
-	TotalMatches    int      `json:"total_matches"`
-	Showing         int      `json:"showing"`
-	Limit           int      `json:"limit"`
-	Paths           []string `json:"paths"`
-	ExecutesRestore bool     `json:"executes_restore"`
-}
-
 type restoreRunReport struct {
-	Label       string
-	Target      string
-	Location    string
-	ConfigFile  string
-	SourcePath  string
-	Storage     string
-	Workspace   string
-	Revision    int
-	RestorePath string
-	Command     string
-	DryRun      bool
-	Result      string
-	Output      string
-	Guide       string
+	Label             string
+	Target            string
+	Location          string
+	ConfigFile        string
+	SourcePath        string
+	Storage           string
+	Workspace         string
+	WorkspacePrepared bool
+	Revision          int
+	RestorePath       string
+	Command           string
+	DryRun            bool
+	Result            string
+	Output            string
+	Guide             string
 }
 
 type restoreInspectReport struct {
@@ -502,32 +426,9 @@ type restoreSelectReport struct {
 	WorkspacePrepared bool
 	Revision          int
 	RestorePaths      []string
-	PrepareCommand    string
 	RestoreCommands   []string
 	Execute           bool
 	Guide             string
-}
-
-func newRestorePrepareReport(req *Request, plan *Plan, storage, workspace string, secretsRequired bool) *restorePrepareReport {
-	secretsFile := "Not required for this storage backend"
-	if secretsRequired {
-		secretsFile = plan.SecretsFile
-	}
-	return &restorePrepareReport{
-		Label:            req.Source,
-		Target:           req.Target(),
-		Location:         plan.Location,
-		ConfigFile:       plan.ConfigFile,
-		SourcePath:       plan.SnapshotSource,
-		Storage:          storage,
-		SecretsFile:      secretsFile,
-		Workspace:        workspace,
-		PreferencesFile:  filepath.Join(workspace, ".duplicacy", "preferences"),
-		SnapshotID:       duplicacy.DefaultSnapshotID,
-		ListCommand:      "duplicacy list",
-		ListFilesCommand: "duplicacy list -files -r <revision>",
-		Guide:            "docs/restore-drills.md",
-	}
 }
 
 func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage string) *restorePlanReport {
@@ -592,44 +493,26 @@ func newRestoreRevisionsReport(req *Request, ctx *restoreExecutionContext, revis
 	}
 }
 
-func newRestoreFilesReport(req *Request, ctx *restoreExecutionContext, restorePath string, paths []string, totalMatches int) *restoreFilesReport {
-	return &restoreFilesReport{
-		Label:           req.Source,
-		Target:          req.Target(),
-		Location:        ctx.plan.Location,
-		ConfigFile:      ctx.plan.ConfigFile,
-		Storage:         ctx.cfg.Storage,
-		Workspace:       ctx.workspace,
-		WorkspaceMode:   ctx.mode,
-		Revision:        req.RestoreRevision,
-		PathFilter:      restorePath,
-		TotalMatches:    totalMatches,
-		Showing:         len(paths),
-		Limit:           req.RestoreLimit,
-		Paths:           paths,
-		ExecutesRestore: false,
-	}
-}
-
 func newRestoreRunReport(req *Request, plan *Plan, storage, workspace, restorePath string) *restoreRunReport {
 	command := fmt.Sprintf("duplicacy restore -r %d -stats", req.RestoreRevision)
 	if restorePath != "" {
 		command += " -- " + shellQuote(restorePath)
 	}
 	return &restoreRunReport{
-		Label:       req.Source,
-		Target:      req.Target(),
-		Location:    plan.Location,
-		ConfigFile:  plan.ConfigFile,
-		SourcePath:  plan.SnapshotSource,
-		Storage:     storage,
-		Workspace:   workspace,
-		Revision:    req.RestoreRevision,
-		RestorePath: restorePath,
-		Command:     command,
-		DryRun:      req.DryRun,
-		Result:      "Pending confirmation",
-		Guide:       "docs/restore-drills.md",
+		Label:             req.Source,
+		Target:            req.Target(),
+		Location:          plan.Location,
+		ConfigFile:        plan.ConfigFile,
+		SourcePath:        plan.SnapshotSource,
+		Storage:           storage,
+		Workspace:         workspace,
+		WorkspacePrepared: restoreWorkspacePrepared(workspace),
+		Revision:          req.RestoreRevision,
+		RestorePath:       restorePath,
+		Command:           command,
+		DryRun:            req.DryRun,
+		Result:            "Pending confirmation",
+		Guide:             "docs/restore-drills.md",
 	}
 }
 
@@ -663,7 +546,6 @@ func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, wo
 		WorkspacePrepared: workspacePrepared,
 		Revision:          revision,
 		RestorePaths:      normaliseRestoreSelection(restorePaths),
-		PrepareCommand:    buildRestorePrepareCommand(meta.ScriptName, req, workspace),
 		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace),
 		Execute:           req.RestoreExecute,
 		Guide:             "docs/restore-drills.md",
@@ -699,14 +581,15 @@ func resolvedRestoreWorkspace(req *Request, plan *Plan) string {
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
-func resolvedPreparedRestoreWorkspace(req *Request, plan *Plan) string {
+func resolvedRestoreRunWorkspace(req *Request, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets) (string, error) {
 	if strings.TrimSpace(req.RestoreWorkspace) != "" {
-		return resolvedRestoreWorkspace(req, plan)
+		return resolvedRestoreWorkspace(req, plan), nil
 	}
-	if workspace, ok := latestPreparedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target()); ok {
-		return workspace
+	revision, err := findRestoreRevision(req, rt, plan, storage, sec)
+	if err != nil {
+		return "", err
 	}
-	return recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
+	return recommendedRestoreWorkspaceForRevision(plan.SnapshotSource, req.Source, req.Target(), revision), nil
 }
 
 func resolvedRestoreSelectWorkspace(req *Request, plan *Plan, revision duplicacy.RevisionInfo) string {
@@ -729,38 +612,6 @@ func recommendedRestoreWorkspaceForRevision(sourcePath, label, target string, re
 		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
 	}
 	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
-}
-
-func latestPreparedRestoreWorkspace(sourcePath, label, target string) (string, bool) {
-	base := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills")
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return "", false
-	}
-	prefix := fmt.Sprintf("%s-%s", label, target)
-	bestName := ""
-	bestPath := ""
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if name != prefix && !strings.HasPrefix(name, prefix+"-") {
-			continue
-		}
-		path := filepath.Join(base, name)
-		if !restoreWorkspacePrepared(path) {
-			continue
-		}
-		if bestName == "" || name > bestName {
-			bestName = name
-			bestPath = path
-		}
-	}
-	if bestPath == "" {
-		return "", false
-	}
-	return bestPath, true
 }
 
 func validateRestoreWorkspace(workspace, sourcePath string) error {
@@ -823,13 +674,21 @@ func restoreWorkspaceForRead(req *Request, plan *Plan, rt Runtime, allowTemporar
 			return "", "", func() {}, err
 		}
 		if !restoreWorkspacePrepared(workspace) {
-			return "", "", func() {}, NewRequestError("restore listing with --workspace requires a prepared workspace; run restore prepare --target %s --workspace %s %s first", req.Target(), shellQuote(workspace), req.Source)
+			return "", "", func() {}, NewRequestError("restore listing with --workspace requires a workspace containing .duplicacy/preferences; omit --workspace to use a temporary read-only listing workspace")
 		}
 		return workspace, "prepared", func() {}, nil
 	}
 	if !allowTemporary {
 		return "", "", func() {}, NewRequestError("--workspace is required")
 	}
+	workspace, cleanup, err := temporaryRestoreWorkspace(plan, rt)
+	if err != nil {
+		return "", "", func() {}, err
+	}
+	return workspace, "temporary", cleanup, nil
+}
+
+func temporaryRestoreWorkspace(plan *Plan, rt Runtime) (string, func(), error) {
 	base := rt.TempDir
 	tempParent := os.TempDir()
 	if base != nil && strings.TrimSpace(base()) != "" {
@@ -837,13 +696,45 @@ func restoreWorkspaceForRead(req *Request, plan *Plan, rt Runtime, allowTemporar
 	}
 	workspace, err := os.MkdirTemp(tempParent, "duplicacy-restore-*")
 	if err != nil {
-		return "", "", func() {}, fmt.Errorf("restore temporary workspace cannot be created: %w", err)
+		return "", func() {}, fmt.Errorf("restore temporary workspace cannot be created: %w", err)
 	}
 	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
 		_ = os.RemoveAll(workspace)
-		return "", "", func() {}, err
+		return "", func() {}, err
 	}
-	return workspace, "temporary", func() { _ = os.RemoveAll(workspace) }, nil
+	return workspace, func() { _ = os.RemoveAll(workspace) }, nil
+}
+
+func findRestoreRevision(req *Request, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets) (duplicacy.RevisionInfo, error) {
+	workspace, cleanup, err := temporaryRestoreWorkspace(plan, rt)
+	if err != nil {
+		return duplicacy.RevisionInfo{}, err
+	}
+	defer cleanup()
+	if err := writeRestoreWorkspacePreferences(workspace, storage, sec); err != nil {
+		return duplicacy.RevisionInfo{}, err
+	}
+	dup := duplicacy.NewWorkspaceSetup(workspace, storage, false, newRestoreCommandRunner())
+	revisions, _, err := dup.ListVisibleRevisions()
+	if err != nil {
+		return duplicacy.RevisionInfo{}, err
+	}
+	for _, revision := range revisions {
+		if revision.Revision == req.RestoreRevision {
+			return revision, nil
+		}
+	}
+	return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found in the visible revision list", req.RestoreRevision)
+}
+
+func prepareRestoreWorkspace(workspace, storage string, sec *secrets.Secrets) error {
+	if restoreWorkspacePrepared(workspace) {
+		return nil
+	}
+	if err := ensureRestoreWorkspaceReady(workspace); err != nil {
+		return err
+	}
+	return writeRestoreWorkspacePreferences(workspace, storage, sec)
 }
 
 func writeRestoreWorkspacePreferences(workspace, storage string, sec *secrets.Secrets) error {
@@ -1096,9 +987,9 @@ func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectRe
 		fmt.Fprintf(restorePromptOutput, "  Command  : %s\n", command)
 	}
 	if report.WorkspacePrepared {
-		return promptRestoreYesNo(reader, "Restore into the prepared workspace now? [y/N]: ")
+		return promptRestoreYesNo(reader, "Restore into this drill workspace now? [y/N]: ")
 	}
-	return promptRestoreYesNo(reader, "Prepare the drill workspace and restore now? [y/N]: ")
+	return promptRestoreYesNo(reader, "Prepare this drill workspace and restore now? [y/N]: ")
 }
 
 func promptRestoreLine(reader *bufio.Reader, prompt string) (string, error) {
@@ -1108,22 +999,6 @@ func promptRestoreLine(reader *bufio.Reader, prompt string) (string, error) {
 		return "", fmt.Errorf("failed to read restore selection: %w", err)
 	}
 	return strings.TrimSpace(answer), nil
-}
-
-func buildRestorePrepareCommand(scriptName string, req *Request, workspace string) string {
-	args := []string{
-		"sudo",
-		shellQuote(scriptName),
-		"restore",
-		"prepare",
-		"--target",
-		shellQuote(req.Target()),
-		"--workspace",
-		shellQuote(workspace),
-	}
-	args = appendRestoreConfigFlags(args, req)
-	args = append(args, shellQuote(req.Source))
-	return strings.Join(args, " ")
 }
 
 func buildRestoreRunCommand(scriptName string, req *Request, revision int, restorePath string, workspace string) string {
@@ -1176,22 +1051,6 @@ func appendRestoreConfigFlags(args []string, req *Request) []string {
 		args = append(args, "--secrets-dir", shellQuote(req.SecretsDir))
 	}
 	return args
-}
-
-func extractRestoreFileLines(output, restorePath string, limit int) ([]string, int) {
-	allPaths := extractRestoreFilePaths(output)
-	var paths []string
-	totalMatches := 0
-	for _, path := range allPaths {
-		if restorePath != "" && !strings.Contains(filepath.ToSlash(path), restorePath) {
-			continue
-		}
-		totalMatches++
-		if limit <= 0 || len(paths) < limit {
-			paths = append(paths, path)
-		}
-	}
-	return paths, totalMatches
 }
 
 func extractRestoreFilePaths(output string) []string {
@@ -1406,35 +1265,9 @@ func formatRestorePlan(report *restorePlanReport) string {
 	return b.String()
 }
 
-func formatRestorePrepare(report *restorePrepareReport) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Restore workspace prepared for %s/%s\n", report.Label, report.Target)
-	writeRestoreLines(&b, []SummaryLine{
-		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
-		{Label: "Location", Value: report.Location},
-		{Label: "Executes Restore", Value: "false"},
-		{Label: "Copies Back", Value: "false"},
-	})
-	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, report.SecretsFile)
-	writeRestoreSection(&b, "Workspace", []SummaryLine{
-		{Label: "Path", Value: report.Workspace},
-		{Label: "Snapshot ID", Value: report.SnapshotID},
-		{Label: "Preferences", Value: report.PreferencesFile},
-		{Label: "Rule", Value: "restore here first, never directly over the live source path"},
-	})
-	writeRestoreSection(&b, "Next Commands", []SummaryLine{
-		{Label: "Enter Workspace", Value: "cd " + shellQuote(report.Workspace)},
-		{Label: "List Revisions", Value: report.ListCommand},
-		{Label: "List Files", Value: report.ListFilesCommand},
-	})
-	writeRestoreSafetySection(&b, "manual only; inspect restored data and use rsync --dry-run first", report.Guide)
-	return b.String()
-}
-
 func formatRestoreRevisions(report *restoreRevisionsReport) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Restore revisions for %s/%s\n", report.Label, report.Target)
+	fmt.Fprintf(&b, "Restore revision list for %s/%s\n", report.Label, report.Target)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
@@ -1463,35 +1296,6 @@ func formatRestoreRevisions(report *restoreRevisionsReport) string {
 	return b.String()
 }
 
-func formatRestoreFiles(report *restoreFilesReport) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Restore files for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
-	writeRestoreLines(&b, []SummaryLine{
-		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
-		{Label: "Location", Value: report.Location},
-		{Label: "Read Only", Value: "true"},
-		{Label: "Executes Restore", Value: "false"},
-	})
-	writeRestoreResolvedSection(&b, report.ConfigFile, "", report.Storage, "")
-	writeRestoreSection(&b, "Workspace", []SummaryLine{
-		{Label: "Mode", Value: report.WorkspaceMode},
-		{Label: "Path", Value: report.Workspace},
-	})
-	writeRestoreSection(&b, "File Listing", []SummaryLine{
-		{Label: "Revision", Value: strconv.Itoa(report.Revision)},
-		{Label: "Path Filter", Value: report.PathFilter},
-		{Label: "Total Matches", Value: strconv.Itoa(report.TotalMatches)},
-		{Label: "Showing", Value: fmt.Sprintf("%d of %d", report.Showing, report.TotalMatches)},
-		{Label: "Limit", Value: strconv.Itoa(report.Limit)},
-	})
-	for _, path := range report.Paths {
-		writeRestoreLines(&b, []SummaryLine{{Label: "Path", Value: path}})
-	}
-	writeRestoreSafetySection(&b, "not applicable; this command only lists revision contents", "docs/restore-drills.md")
-	return b.String()
-}
-
 func formatRestoreRun(report *restoreRunReport) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Restore run for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
@@ -1505,6 +1309,7 @@ func formatRestoreRun(report *restoreRunReport) string {
 	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, "")
 	writeRestoreSection(&b, "Workspace", []SummaryLine{
 		{Label: "Path", Value: report.Workspace},
+		{Label: "Prepared", Value: fmt.Sprintf("%t", report.WorkspacePrepared)},
 		{Label: "Rule", Value: "restored files stay in the workspace until an operator manually copies them back"},
 	})
 	writeRestoreSection(&b, "Restore", []SummaryLine{
@@ -1563,7 +1368,6 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 	writeRestoreSection(&b, "Workspace", []SummaryLine{
 		{Label: "Path", Value: report.Workspace},
 		{Label: "Prepared", Value: fmt.Sprintf("%t", report.WorkspacePrepared)},
-		{Label: "Prepare Command", Value: selectValue(!report.WorkspacePrepared, report.PrepareCommand, "")},
 	})
 	selectionLines := []SummaryLine{{Label: "Revision", Value: strconv.Itoa(report.Revision)}}
 	for _, restorePath := range restoreDisplayPaths(report.RestorePaths) {
@@ -1576,7 +1380,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 	}
 	writeRestoreSection(&b, "Generated Commands", commandLines)
 	writeRestoreSection(&b, "Safety", []SummaryLine{
-		{Label: "Command Model", Value: "restore select previews explicit restore commands and can prepare and delegate to restore run after confirmation"},
+		{Label: "Command Model", Value: "restore select previews explicit restore run commands; restore run prepares the workspace and restores only there"},
 		{Label: "Restore Execution", Value: "not performed unless you confirm after reviewing the commands"},
 		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
 		{Label: "Guide", Value: report.Guide},
@@ -1595,13 +1399,6 @@ func restoreDisplayPaths(restorePaths []string) []string {
 		display = append(display, restorePath)
 	}
 	return display
-}
-
-func selectValue(condition bool, whenTrue string, whenFalse string) string {
-	if condition {
-		return whenTrue
-	}
-	return whenFalse
 }
 
 func writeRestoreResolvedSection(b *strings.Builder, configFile, sourcePath, storage, secretsFile string) {

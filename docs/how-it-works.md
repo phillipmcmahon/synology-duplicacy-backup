@@ -338,12 +338,11 @@ Unresolved requests go through `dispatchRequest` in
 This dispatch point is why global commands such as `update`, `rollback`, and
 `notify test update` do not inherit label-target runtime requirements. It also
 keeps diagnostics and restore drill commands out of the runtime executor path:
-`diagnostics` is non-mutating, `restore plan`, `restore revisions`, and
-`restore files` are read-only, `restore select` is an interactive revision-first
-guide that can inspect or prepare and delegate a restore only after explicit
-confirmation, `restore prepare` only creates the separate drill workspace and
-writes Duplicacy preferences there, and `restore run` executes Duplicacy only
-inside that prepared workspace.
+`diagnostics` is non-mutating, `restore plan` and `restore list-revisions` are
+read-only, `restore select` is an interactive revision-first guide that can
+inspect or delegate a restore only after explicit confirmation, and
+`restore run` prepares or reuses a drill workspace before executing Duplicacy
+only inside that workspace.
 
 ### Why this matters
 

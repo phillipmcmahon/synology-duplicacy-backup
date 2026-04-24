@@ -19,7 +19,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
+       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -27,7 +27,7 @@ Commands:
     Runtime operations     backup, prune, cleanup-storage, fix-perms
     Config and inspection  config, diagnostics, health
     Notifications          notify test, notify test update
-    Restore drills         restore select, restore plan, restore prepare, restore revisions, restore files, restore run
+    Restore drills         restore select, restore plan, restore list-revisions, restore run
     Managed install        update, rollback
 
 Common options:
@@ -43,11 +43,11 @@ Common options:
 
 Command-specific options:
     --force                Prune: override thresholds; update: reinstall selected release
-    --workspace <path>     Override restore drill workspace for prepare, run, or guided restore
-    --revision <id>        Restore files/run: select backup revision
-    --path <path>          Restore files/run: filter or restore one snapshot-relative path or pattern
+    --workspace <path>     Override restore drill workspace for run or guided restore
+    --revision <id>        Restore run: select backup revision
+    --path <path>          Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>   Restore select: start browsing under a snapshot-relative prefix
-    --limit <count>        Restore revisions/files: bound listed results
+    --limit <count>        Restore list-revisions: bound listed results
     --provider <name>      Select notification provider for notify test
     --check-only           Inspect update or rollback without changing install
     --yes                  Skip update, rollback, or restore confirmation
@@ -65,7 +65,7 @@ Examples:
     {{script}} notify test --target onsite-usb homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -90,7 +90,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
        {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
+       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -117,12 +117,11 @@ COMMAND OVERVIEW:
       notify test update    Send a simulated update notification through global update config
 
     Restore drills          Prepare and execute safe restore workflows without writing to the live source
-      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
+      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to restore into a drill workspace
       restore plan          Print a read-only Duplicacy restore-drill plan without executing a restore
-      restore prepare       Prepare a safe drill workspace without executing a restore
-      restore revisions     List visible backup revisions without executing a restore
-      restore files         List files in one revision without executing a restore
-      restore run           Restore a revision, file, or pattern into a prepared workspace only
+      restore list-revisions
+                            List visible backup revisions without executing a restore
+      restore run           Prepare or reuse a drill workspace, then restore a revision, file, or pattern only there
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -141,11 +140,11 @@ COMMON OPTIONS:
 
 COMMAND-SPECIFIC OPTIONS:
     --force                  Prune: override thresholds; update: reinstall selected release
-    --workspace <path>       Override restore drill workspace for prepare, run, or guided restore
-    --revision <id>          Restore files/run: select backup revision
-    --path <path>            Restore files/run: filter or restore one snapshot-relative path or pattern
+    --workspace <path>       Override restore drill workspace for run or guided restore
+    --revision <id>          Restore run: select backup revision
+    --path <path>            Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix
-    --limit <count>          Restore revisions/files: bound listed results
+    --limit <count>          Restore list-revisions: bound listed results
     --provider <name>        Select notification provider for notify test
     --severity <level>       Select notification severity for notify test
     --event <name>           Select notification event for notify test
@@ -261,42 +260,39 @@ RESTORE PLANNING AND DISCOVERY:
     It does not create directories, write preferences, run duplicacy restore, or
     copy data back to the live source path.
 
-    restore revisions and restore files are also read-only. They create a
-    temporary Duplicacy workspace when --workspace is not supplied, run Duplicacy
-    list commands from that workspace, and remove the temporary workspace before
-    returning. If --workspace is supplied, it must already be prepared. Use
-    --json-summary when a machine-readable listing is useful.
-
-RESTORE PREPARATION:
-    restore prepare creates a separate drill workspace and writes the Duplicacy
-    preferences needed to inspect or restore manually from that workspace. It
-    rejects the live source path, source-child workspaces, and non-empty
-    workspaces. It does not run duplicacy restore or copy data back.
+    restore list-revisions is also read-only. It creates a
+    temporary Duplicacy workspace when --workspace is not supplied, runs Duplicacy
+    list from that workspace, and removes the temporary workspace before
+    returning. If --workspace is supplied, it must already contain
+    .duplicacy/preferences. Use --json-summary when a machine-readable listing
+    is useful.
 
 RESTORE EXECUTION:
-    restore run executes duplicacy restore only inside a prepared workspace. It
-    never restores over the live source path and never copies data back. Use
+    restore run prepares the drill workspace when needed and then executes
+    duplicacy restore only inside that workspace. When --workspace is omitted,
+    the workspace is derived from the selected restore point:
+    <source-volume>/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
+    It never restores over the live source path and never copies data back. Use
     --path for selective file restores or directory patterns, --dry-run to
-    print the planned command, and --yes for unattended execution after the
-    workspace has been prepared.
+    print the planned command, and --yes for unattended execution.
 
 RESTORE SELECTION:
     restore select is the primary operator restore path. It first presents
     restore points, then lets operators choose inspect-only, full restore, or
     tree-based selective restore. For restore actions, it shows the exact
-    restore prepare and restore run commands, asks for confirmation, prepares
-    the drill workspace when needed, and then delegates to restore run. The
-    tree picker lets operators move through the snapshot tree, select one file,
-    or select a directory subtree as a Duplicacy pattern. Press g to continue
-    with the current selection and generate the restore commands, or q to
-    cancel. Use --path-prefix to start from a useful subtree in large backups.
+    restore run commands, asks for confirmation, and then delegates to
+    restore run. The tree picker lets operators move through the snapshot tree,
+    select one file, or select a directory subtree as a Duplicacy pattern.
+    Press g to continue with the current selection and generate the restore
+    commands, or q to cancel. Use --path-prefix to start from a useful subtree
+    in large backups.
     Inspect-only remains read-only. The picker is convenience; the command
     model is the contract.
 
-    restore plan, restore prepare, restore revisions, restore files, and
-    restore run remain the expert and scriptable restore primitives. Use them
-    when you want fully explicit step-by-step control, automation, or a
-    documented recovery procedure without the interactive guide.
+    restore plan, restore list-revisions, and restore run remain the
+    expert and scriptable restore primitives. Use them when you want fully
+    explicit step-by-step control, automation, or a documented recovery
+    procedure without the interactive guide.
 
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
@@ -320,11 +316,8 @@ EXAMPLES:
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
-    {{script}} restore prepare --target onsite-usb homes
-    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
-    {{script}} restore revisions --target onsite-usb homes
-    {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore list-revisions --target onsite-usb homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
@@ -432,26 +425,24 @@ EXAMPLES:
 }
 
 func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
 
 Restore commands:
     select                  guided operator flow
     plan                    expert: explain resolved restore context
-    prepare                 expert: create a drill workspace
-    revisions               expert: list restore points
-    files                   expert: list files in one revision
-    run                     expert: restore into a prepared workspace
+    list-revisions          expert: list backup revisions
+    run                     expert: prepare a drill workspace and restore only there
 
 Options:
     --target <name>
-    --workspace <path>      (prepare default: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
-    --revision <id>         required for files and run
-    --path <path>           optional snapshot-relative path or pattern for files and run
+    --workspace <path>      override the derived drill workspace
+    --revision <id>         required for run
+    --path <path>           optional snapshot-relative path or pattern for run
     --path-prefix <path>    select only; start the tree picker under a useful subtree
-    --limit <count>         revisions default: 50; files default: 200
+    --limit <count>         list-revisions default: 50
     --dry-run               run only; print planned restore without executing
     --yes                   run only; skip interactive confirmation
-    --json-summary          revisions/files only
+    --json-summary          list-revisions only
     --config-dir <path>     (default: <binary-dir>/.config)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
@@ -461,11 +452,8 @@ Examples:
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
-    {{script}} restore prepare --target onsite-usb homes
-    {{script}} restore revisions --target onsite-usb homes
-    {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
+    {{script}} restore list-revisions --target onsite-usb homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} restore plan --target offsite-storj homes
 
 Use --help-full for the detailed restore reference.
@@ -476,26 +464,24 @@ Use --help-full for the detailed restore reference.
 
 func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} restore <plan|prepare|revisions|files|run|select> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
 
 RESTORE COMMANDS:
-    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
+    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to restore into a drill workspace
     plan                   Resolve a safe read-only restore drill plan for one label and target
-    prepare                Create a safe drill workspace and write Duplicacy preferences
-    revisions              List visible backup revisions without executing a restore
-    files                  List files in one revision without executing a restore
-    run                    Restore a revision, file, or pattern into a prepared workspace only
+    list-revisions         List visible backup revisions without executing a restore
+    run                    Prepare or reuse a drill workspace, then restore a revision, file, or pattern only there
 
 OPTIONS:
     --target <name>        Select the named target (required)
-    --workspace <path>     Override drill workspace (prepare default: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
-    --revision <id>        Required for files and run
-    --path <path>          Optional snapshot-relative path or pattern for files and run
+    --workspace <path>     Override derived drill workspace; honored exactly when supplied
+    --revision <id>        Required for run
+    --path <path>          Optional snapshot-relative path or pattern for run
     --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
-    --limit <count>        Limit revision/file output (revisions default: 50; files default: 200)
+    --limit <count>        Limit listed revisions (default: 50)
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
-    --json-summary         revisions/files only; write machine-readable output
+    --json-summary         list-revisions only; write machine-readable output
     --config-dir <path>    Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
     --help                 Show the concise restore help message
@@ -512,29 +498,17 @@ BEHAVIOUR:
       - reads the target state file when available to show the latest known backup revision
       - prints Duplicacy commands for creating a separate drill workspace, listing revisions, and restoring manually
       - does not create directories, write Duplicacy preferences, execute duplicacy restore, or copy data back
-    restore prepare:
-      - when --workspace is omitted, creates a timestamped drill workspace under restore-drills
-      - creates the selected drill workspace when it does not exist
-      - writes .duplicacy/preferences for the selected storage target
-      - rejects the live source path, source-child workspaces, and non-empty workspaces
-      - does not run duplicacy restore or copy data back
-    restore revisions:
+    restore list-revisions:
       - creates a temporary Duplicacy workspace unless --workspace is supplied
-      - requires --workspace to point at a prepared workspace when supplied
+      - requires --workspace to point at a workspace containing .duplicacy/preferences when supplied
       - runs duplicacy list and prints visible revisions
-      - does not run duplicacy restore or copy data back
-    restore files:
-      - requires --revision <id>
-      - creates a temporary Duplicacy workspace unless --workspace is supplied
-      - requires --workspace to point at a prepared workspace when supplied
-      - runs duplicacy list -files -r <revision>
-      - optionally filters output with --path and bounds it with --limit
       - does not run duplicacy restore or copy data back
     restore run:
       - requires --revision <id>
-      - requires a prepared workspace containing .duplicacy/preferences
-      - when --workspace is omitted, reuses the newest prepared drill workspace for the same label and target
-      - runs duplicacy restore only from that workspace
+      - when --workspace is omitted, derives a predictable workspace from label, target, restore-point timestamp, and revision id
+      - creates that workspace and writes .duplicacy/preferences when needed
+      - rejects the live source path, source-child workspaces, and non-empty unprepared workspaces
+      - runs duplicacy restore only from the drill workspace
       - uses --path for selective file restores or directory patterns
       - uses --yes for non-interactive execution
       - never restores over the live source path and never copies data back
@@ -552,14 +526,14 @@ BEHAVIOUR:
       - shows the exact restore run primitives that the current selection compiles to
       - inspect-only remains read-only and does not run duplicacy restore
       - for restore actions, shows the generated restore commands and asks for confirmation
-      - for restore actions, prepares the workspace when needed before delegating to restore run
+      - delegates restore actions to restore run, which prepares the workspace when needed
       - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point, for example <label>-<target>-<restore-point-timestamp>-rev<id>
       - never copies data back
 
     expert path:
-      - use restore plan, restore prepare, restore revisions, restore files, and restore run for explicit, scriptable, or incident-runbook-driven recovery
-      - restore prepare defaults to a new timestamped drill workspace under restore-drills
-      - restore run reuses the newest prepared drill workspace for the same label and target when --workspace is omitted
+      - use restore plan, restore list-revisions, and restore run for explicit, scriptable, or incident-runbook-driven recovery
+      - restore run self-prepares a predictable drill workspace when --workspace is omitted
+      - pass --workspace only when you need a specific operator-chosen destination
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}
@@ -575,14 +549,10 @@ EXAMPLES:
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
-    {{script}} restore prepare --target onsite-usb homes
-    {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
-    {{script}} restore revisions --target onsite-usb homes
-    {{script}} restore revisions --target offsite-storj --json-summary homes
-    {{script}} restore files --target onsite-usb --revision 2403 homes
-    {{script}} restore files --target onsite-usb --revision 2403 --path docs --limit 50 homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --dry-run homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+    {{script}} restore list-revisions --target onsite-usb homes
+    {{script}} restore list-revisions --target offsite-storj --json-summary homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,

@@ -21,26 +21,24 @@ There are two restore paths:
 - `restore select` is the primary operator path. It is revision-first: choose
   a restore point, inspect it or restore from it, review the generated
   commands, then confirm the drill-workspace restore.
-- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and
-  `restore run` are the expert and scriptable primitives. Use them when you
-  want step-by-step control, automation, or a runbook-friendly recovery
-  procedure.
+- `restore plan`, `restore list-revisions`, and `restore run` are
+  the expert and scriptable primitives. Use them when you want step-by-step
+  control, automation, or a runbook-friendly recovery procedure.
 
 The picker sits on top of the explicit commands rather than replacing them.
 That keeps emergency procedures copyable and avoids hidden live-data actions.
 
-`restore revisions` and `restore files` use a temporary workspace by default.
-If you pass `--workspace`, it must already have been prepared with
-`restore prepare`; the listing commands will not create or rewrite persistent
-workspace preferences.
+`restore list-revisions` uses a temporary workspace by default.
+If you pass `--workspace`, it must already contain `.duplicacy/preferences`;
+the listing commands will not create or rewrite persistent workspace
+preferences.
 
 `restore select` is a guided front end, not a second restore model. It refuses
 non-interactive use, presents restore points, offers inspect-only or restore
 actions, and uses a simple tree picker for selective restores. For restore
-actions, it prints the exact `restore prepare` and `restore run` commands,
-asks for confirmation, prepares the drill workspace when needed, and then
-delegates to `restore run`. Multiple selected paths become multiple explicit
-`restore run` commands into the same drill workspace. The picker is
+actions, it prints the exact `restore run` commands, asks for confirmation,
+and then delegates to `restore run`. Multiple selected paths become multiple
+explicit `restore run` commands into the same drill workspace. The picker is
 convenience; the command model is the contract. It still never copies data
 back to the live source.
 
@@ -60,22 +58,21 @@ Use the expert primitives when you want a step-by-step runbook instead:
 
 ```bash
 sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-sudo duplicacy-backup restore files --target onsite-usb --revision <revision> --path "relative/path" homes
-sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --workspace <workspace> --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
 ```
 
 `restore plan` shows the same `Storage` value as `config explain`, the
 recommended drill workspace, and the Duplicacy commands that sit underneath
-the wrapper. `restore prepare` creates that separate workspace and writes
-`.duplicacy/preferences` there, but does not run a restore. For repositories
-created by this tool, the Duplicacy snapshot ID is `data`.
+the wrapper. `restore run` creates or reuses the separate workspace and writes
+`.duplicacy/preferences` there before restoring. For repositories created by
+this tool, the Duplicacy snapshot ID is `data`.
 
-If the selected storage backend needs credentials, configure the temporary
-Duplicacy workspace using Duplicacy's normal password and key handling. The
-same key names used in `[targets.<name>.keys]`, such as `s3_id` and
-`s3_secret`, are the keys Duplicacy expects.
+If the selected storage backend needs credentials, `restore run` writes the
+target keys from the label secrets file into the drill workspace preferences.
+For a fully manual Duplicacy drill, use Duplicacy's normal password and key
+handling. The same key names used in `[targets.<name>.keys]`, such as `s3_id`
+and `s3_secret`, are the keys Duplicacy expects.
 
 Primary Duplicacy references:
 
@@ -84,10 +81,24 @@ Primary Duplicacy references:
 - [init command](https://github.com/gilbertchen/duplicacy/wiki/init)
 - [managing passwords](https://github.com/gilbertchen/duplicacy/wiki/Managing-Passwords)
 
-## Prepare A Drill Workspace
+## Drill Workspace
 
-Create a new, empty folder outside the live source tree if you want to pin the
-workspace name yourself:
+For restore execution, the wrapper prepares the drill workspace for you. When
+`--workspace` is omitted, it derives a predictable path from the selected
+restore point:
+
+```text
+<source-volume>/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>
+```
+
+For example:
+
+```text
+/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3
+```
+
+Create a new, empty folder outside the live source tree only if you want to pin
+the workspace name yourself:
 
 ```bash
 sudo mkdir -p /volume1/restore-drills/homes-onsite-usb
@@ -95,19 +106,9 @@ sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb
 cd /volume1/restore-drills/homes-onsite-usb
 ```
 
-The wrapper can prepare this workspace for you:
-
-```bash
-sudo duplicacy-backup restore prepare --target onsite-usb --workspace /volume1/restore-drills/homes-onsite-usb homes
-cd /volume1/restore-drills/homes-onsite-usb
-```
-
-If you omit `--workspace`, `restore prepare` creates a timestamped drill
-workspace instead.
-
-When run with `sudo`, `restore prepare` creates the drill workspace as a
-root-owned workspace by design. Keep restore inspection and Duplicacy commands
-under `sudo` unless you deliberately change ownership for a manual drill.
+When run with `sudo`, restore execution creates the drill workspace as a
+root-owned workspace by design. Keep restore inspection under `sudo` unless
+you deliberately change ownership for a manual drill.
 
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the
@@ -123,25 +124,18 @@ For S3-compatible storage, use the full `storage` value from the label config:
 duplicacy init data "s3://EU@gateway.storjshare.io/bucket-id/homes"
 ```
 
-This prepares the drill workspace. If Duplicacy reports that the storage is not
-initialised, stop and re-check the selected target and storage value before
-continuing. `restore prepare` refuses to use the live source path, refuses
-workspaces inside the live source tree, and refuses non-empty workspaces except
-for an existing `.duplicacy` directory from an earlier preparation.
+This prepares the drill workspace for manual Duplicacy use. If Duplicacy
+reports that the storage is not initialised, stop and re-check the selected
+target and storage value before continuing. `restore run` refuses to use the
+live source path, refuses workspaces inside the live source tree, and refuses
+non-empty unprepared workspaces.
 
-## Choose A Revision
+## Choose A Restore Point
 
-List available revisions with the wrapper:
-
-```bash
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-```
-
-To inspect file names in a specific revision:
+List available backup revisions with the wrapper:
 
 ```bash
-sudo duplicacy-backup restore files --target onsite-usb --revision <revision> homes
-sudo duplicacy-backup restore files --target onsite-usb --revision <revision> --path "relative/path" homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -166,11 +160,8 @@ performed. In the tree picker:
 - use `g` to continue with the current selection and generate the restore commands
 - use `q` to quit
 
-By default, `restore prepare` creates a timestamped drill workspace under
-`restore-drills`, for example
-`/volume1/restore-drills/homes-onsite-usb-20260424-081530`. In the guided
-`restore select` flow, restore actions instead default to a workspace named
-from the selected restore point, for example
+By default, restore actions use a workspace named from the selected restore
+point, for example
 `/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3`. That gives
 the drill workspace an obvious link back to the restore point the operator
 chose. Pass `--workspace` explicitly whenever you want to pin the flow to one
@@ -193,13 +184,12 @@ sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmc
 
 ## Full Restore Drill
 
-Run the restore into the prepared drill workspace:
+Run the restore into the drill workspace:
 
 ```bash
 sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
-  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```
@@ -233,7 +223,6 @@ sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --path "relative/file/or/pattern" \
-  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```
@@ -241,8 +230,8 @@ sudo duplicacy-backup restore run \
 Examples:
 
 ```bash
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,
@@ -284,11 +273,10 @@ assuming a file-level copy is sufficient.
 
 - Confirm the label and target with `config explain`.
 - Confirm `config validate` and `health status` before restoring.
-- Use `restore prepare` or Duplicacy `init` to prepare a separate drill
-  workspace, never directly over live data.
+- Use `restore run` for wrapper-managed drill execution. Use Duplicacy `init`
+  only when you are deliberately running a fully manual Duplicacy drill.
 - Use snapshot ID `data` for repositories created by this tool.
-- Use `restore revisions` to choose a revision.
-- Use `restore files --revision <id>` before selective restores.
+- Use `restore list-revisions` to choose a revision.
 - Restore only into the drill workspace.
 - Inspect restored data before copying anything back.
 - Use `rsync --dry-run` before any live copy-back step.
@@ -296,15 +284,15 @@ assuming a file-level copy is sufficient.
 
 ## Current Boundary
 
-`duplicacy-backup restore run` executes `duplicacy restore` only inside a
-prepared drill workspace. It refuses to use the live source path, refuses
-source-child workspaces, and does not copy restored data back. That keeps the
-wrapper useful for actual restore drills without turning it into an
-unreviewed live-data mutation tool.
+`duplicacy-backup restore run` prepares or reuses a drill workspace and
+executes `duplicacy restore` only inside that workspace. It refuses to use the
+live source path, refuses source-child workspaces, and does not copy restored
+data back. That keeps the wrapper useful for actual restore drills without
+turning it into an unreviewed live-data mutation tool.
 
 `duplicacy-backup restore select` is intentionally one step more conservative:
 it keeps inspect-only read-only, and for restore actions it still shows the
-explicit restore commands and requires confirmation before preparing the drill
-workspace and delegating to `restore run`. Any future command that automates
+explicit restore commands and requires confirmation before `restore run`
+prepares the drill workspace. Any future command that automates
 copy-back into live data should be designed as a separate capability with its
 own safety review.

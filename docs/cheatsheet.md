@@ -159,12 +159,12 @@ Installer behaviour:
 
 ### Restore Drills
 
-- `duplicacy-backup restore run` executes restores only into a prepared drill workspace; it never copies data back to the live source.
+- `duplicacy-backup restore run` prepares or reuses a drill workspace, restores only there, and never copies data back to the live source.
 - Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
 - Use snapshot ID `data` for repositories created by this tool.
 - `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.
-- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and `restore run` remain the expert and scriptable restore primitives.
+- `restore plan`, `restore list-revisions`, and `restore run` remain the expert and scriptable restore primitives.
 - See [`restore-drills.md`](restore-drills.md) for the full safe procedure.
 
 ```bash
@@ -181,23 +181,19 @@ sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmc
 
 # Expert restore primitives
 sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents" homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
 sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/Documents/tax.pdf" \
-  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 
-# Restore a directory subtree into the prepared workspace
+# Restore a directory subtree into the drill workspace
 sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/code/*" \
-  --workspace /volume1/restore-drills/homes-onsite-usb \
   --yes \
   homes
 ```

@@ -7,18 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Restore execution now self-prepares drill workspaces**:
+  `restore run` creates or reuses the drill workspace itself and derives the
+  default workspace from the selected restore point as
+  `<label>-<target>-<restore-point-timestamp>-rev<id>`.
+- **Restore discovery is now named for the operator task**:
+  the public revision listing command is `restore list-revisions`, making the
+  expert path read as `restore plan`, `restore list-revisions`, then
+  `restore run`.
+
+### Removed
+- **Removed the standalone `restore prepare` command**:
+  restore preparation is now part of restore execution so operators have fewer
+  command paths to reason about during recovery.
+- **Removed the public `restore files` command**:
+  file discovery is now part of the guided `restore select` flow. Expert and
+  scripted recovery stay focused on listing revisions and executing explicit
+  `restore run` primitives.
+
 ## [v6.2.1] - 2026-04-24
 
 ### Changed
-- **Default restore-drill workspaces are now timestamped**:
-  when `restore prepare` is run without `--workspace`, the wrapper now creates
-  a timestamped drill directory under `restore-drills` so repeated restore
-  drills do not silently reuse the same destination and operators can more
-  easily tell when a drill workspace was created.
-- **Follow-on restore execution now reuses the newest prepared matching workspace**:
-  when `restore run` or `restore select --execute` is used without
-  `--workspace`, the wrapper now looks for the newest prepared drill workspace
-  for the same label and target before falling back to a fresh recommendation.
+- **Default restore-drill workspaces became timestamped**:
+  restore workspace recommendations added timestamps under `restore-drills` so
+  repeated restore drills did not silently reuse the same destination and
+  operators could more easily tell when a drill workspace was created.
+- **Follow-on restore execution reused the newest matching workspace**:
+  restore execution could reuse the newest matching drill workspace for the
+  same label and target before falling back to a fresh recommendation.
 
 ### Fixed
 - **Restore picker controls are clearer about the continue action**:
@@ -138,10 +155,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v6.0.0] - 2026-04-21
 
 ### Added
-- **Restore workspace preparation is now available**:
-  `duplicacy-backup restore prepare --target <target> <label>` creates the
-  separate drill workspace, writes Duplicacy preferences, and leaves revision
-  selection, restore execution, and copy-back as explicit manual steps.
+- **Restore workspace preparation became available**:
+  the wrapper gained a safe drill-workspace preparation step that wrote
+  Duplicacy preferences and left revision selection, restore execution, and
+  copy-back as explicit manual steps.
 
 ### Changed
 - **Breaking: runtime operations are now first-class CLI commands**:
@@ -157,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use `duplicacy-backup prune --target <target> --force <label>` instead of
   `--force-prune`.
 - **Restore planning internals are clearer and safer to extend**:
-  restore plan/prepare now use an explicit config-only planner path, clearer
+  restore planning paths use an explicit config-only planner path, clearer
   state and workspace helpers, and shared report sections ahead of future
   restore subcommands.
 
