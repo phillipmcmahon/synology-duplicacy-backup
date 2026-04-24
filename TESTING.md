@@ -57,12 +57,21 @@ Current Linux Go 1.26 development validation snapshot:
 - `go test -cover ./...`
 - overall coverage: `81.8%`
 - `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `83.5%`
+- `internal/workflow`: `83.6%`
 - `internal/update`: `82.6%`
 - `internal/duplicacy`: `81.6%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v6.2.1 validation:
+
+- Restore drill defaults now cover timestamped workspace recommendations and
+  reuse of the newest prepared matching workspace when `restore run` or
+  `restore select --execute` omit `--workspace`.
+- Restore-picker help and restore guidance now pin the `g` action as
+  “generate the restore commands” so the picker controls and operator docs
+  stay aligned.
 
 Additional v6.2.0 validation:
 
