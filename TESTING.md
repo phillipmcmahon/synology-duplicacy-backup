@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v6.1.1`
+Current public release baseline: `v6.2.0`
 
-Active release-prep target: `v6.2.0`
+Active release-prep target: none
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -55,14 +55,24 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `84.7%`
+- overall coverage: `81.8%`
 - `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `83.0%`
+- `internal/workflow`: `83.5%`
 - `internal/update`: `82.6%`
 - `internal/duplicacy`: `81.6%`
 - `internal/exec`: `95.2%`
-- `internal/secrets`: `84.8%`
+- `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v6.2.0 validation:
+
+- Restore select now has production Linux coverage for the tree picker
+  interaction layer, including collapse and expand behaviour, root selection,
+  selective restore primitive compilation, independent detail-pane scrolling,
+  and rejection of Duplicacy summary footer lines as selectable restore paths.
+- Restore help and documentation checks now pin the shipped tree-picker
+  controls and operator guidance so the release surface stays aligned with the
+  production picker workflow.
 
 Additional v6.1.1 validation:
 

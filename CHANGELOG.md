@@ -27,6 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tree-based restore flow and no longer refer to the removed text-browser
   commands.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `81.8%`
+- `cmd/duplicacy-backup`: `90.6%`
+- `internal/workflow`: `83.5%`
+- `internal/update`: `82.6%`
+- `internal/duplicacy`: `81.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `92.0%`
+- `internal/config`: `87.6%`
+
 ## [v6.1.1] - 2026-04-22
 
 ### Fixed
