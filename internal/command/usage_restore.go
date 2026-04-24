@@ -128,7 +128,7 @@ BEHAVIOUR:
       - uses Space to select or clear the current file or subtree
       - uses Tab to switch between the tree and the primitive detail pane
       - uses g to continue with the current selection and generate the restore commands
-      - uses q to cancel
+      - uses q to cancel selection or quit inspection
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
       - shows the exact restore run primitives that the current selection compiles to
       - inspect-only remains read-only and does not run duplicacy restore

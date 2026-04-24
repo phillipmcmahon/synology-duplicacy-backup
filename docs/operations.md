@@ -219,7 +219,6 @@ At a high level:
 - in the picker, move with the arrow keys, expand with `Right`, collapse with
   `Left`, toggle files or subtrees with `Space`, then press `g`
 - restore a full revision or selected paths into the drill workspace only
-- inspect the workspace before manually copying anything back
 - inspect the restored data before any deliberate copy-back step
 
 ### Config location after install

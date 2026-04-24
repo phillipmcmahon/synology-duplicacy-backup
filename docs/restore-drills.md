@@ -158,7 +158,7 @@ performed. In the tree picker:
 - use `Space` to select or clear the current file or subtree
 - use `Tab` to switch between the tree and the primitive detail pane
 - use `g` to continue with the current selection and generate the restore commands
-- use `q` to quit
+- use `q` to cancel selection or quit inspection
 
 By default, restore actions use a workspace named from the selected restore
 point, for example
@@ -253,7 +253,7 @@ the target location. Start with `rsync --dry-run`:
 
 ```bash
 rsync -a --dry-run \
-  /volume1/restore-drills/homes-onsite-usb/phillipmcmahon/Documents/tax.pdf \
+  /volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3/phillipmcmahon/Documents/tax.pdf \
   /volume1/homes/phillipmcmahon/Documents/tax.pdf
 ```
 
@@ -261,7 +261,7 @@ If the dry run shows exactly what you expect, repeat without `--dry-run`:
 
 ```bash
 sudo rsync -a \
-  /volume1/restore-drills/homes-onsite-usb/phillipmcmahon/Documents/tax.pdf \
+  /volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3/phillipmcmahon/Documents/tax.pdf \
   /volume1/homes/phillipmcmahon/Documents/tax.pdf
 ```
 

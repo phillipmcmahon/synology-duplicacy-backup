@@ -284,8 +284,8 @@ RESTORE SELECTION:
     restore run. The tree picker lets operators move through the snapshot tree,
     select one file, or select a directory subtree as a Duplicacy pattern.
     Press g to continue with the current selection and generate the restore
-    commands, or q to cancel. Use --path-prefix to start from a useful subtree
-    in large backups.
+    commands, or q to cancel selection or quit inspection. Use --path-prefix
+    to start from a useful subtree in large backups.
     Inspect-only remains read-only. The picker is convenience; the command
     model is the contract.
 
