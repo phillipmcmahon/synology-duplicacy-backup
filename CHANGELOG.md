@@ -57,15 +57,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux Go 1.26**: `go test -cover ./...`
 
 ### Coverage snapshot
-- overall coverage: `to be refreshed during release prep`
-- `cmd/duplicacy-backup`: `to be refreshed during release prep`
-- `internal/workflow`: `to be refreshed during release prep`
-- `internal/restorepicker`: `to be refreshed during release prep`
-- `internal/update`: `to be refreshed during release prep`
-- `internal/duplicacy`: `to be refreshed during release prep`
-- `internal/exec`: `to be refreshed during release prep`
-- `internal/secrets`: `to be refreshed during release prep`
-- `internal/config`: `to be refreshed during release prep`
+- overall coverage: `83.8%`
+- `cmd/duplicacy-backup`: `90.6%`
+- `internal/workflow`: `82.8%`
+- `internal/restorepicker`: `73.9%`
+- `internal/update`: `82.6%`
+- `internal/duplicacy`: `81.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `92.0%`
+- `internal/config`: `87.6%`
 
 ## [v6.2.1] - 2026-04-24
 

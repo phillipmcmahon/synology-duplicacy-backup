@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v6.2.1`
+Current public release baseline: `v7.0.0`
 
 Active release-prep target: none
 
@@ -55,15 +55,27 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `83.4%`
+- overall coverage: `83.8%`
 - `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `82.1%`
+- `internal/workflow`: `82.8%`
 - `internal/restorepicker`: `73.9%`
 - `internal/update`: `82.6%`
 - `internal/duplicacy`: `81.6%`
 - `internal/exec`: `95.2%`
-- `internal/secrets`: `84.8%`
+- `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v7.0.0 validation:
+
+- Release validation covers the breaking restore command simplification:
+  `restore prepare`, `restore files`, and the hidden `restore select
+  --execute` path are removed from the public command surface.
+- Restore execution coverage now includes self-prepared drill workspaces using
+  the deterministic `<label>-<target>-<restore-point-timestamp>-rev<id>`
+  workspace naming model.
+- Restore help and documentation checks pin the current operator flow:
+  `restore select`, `restore plan`, `restore list-revisions`, and
+  `restore run`.
 
 Additional v6.2.1 validation:
 
