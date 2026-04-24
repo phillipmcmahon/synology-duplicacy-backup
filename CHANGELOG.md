@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v7.0.0] - 2026-04-24
+
 ### Changed
-- **Restore execution now self-prepares drill workspaces**:
+- **Breaking: restore execution now self-prepares drill workspaces**:
   `restore run` creates or reuses the drill workspace itself and derives the
   default workspace from the selected restore point as
   `<label>-<target>-<restore-point-timestamp>-rev<id>`.
-- **Restore discovery is now named for the operator task**:
+- **Breaking: restore discovery is now named for the operator task**:
   the public revision listing command is `restore list-revisions`, making the
   expert path read as `restore plan`, `restore list-revisions`, then
   `restore run`.
+- **Guided restore selection is now the primary operator path**:
+  `restore select` presents restore points first, offers inspect-only, full
+  restore, or tree-based selective restore, previews the exact `restore run`
+  primitives, and asks for confirmation before execution.
 - **Restore internals are split by responsibility**:
   restore command dispatch, dependency seams, config context, workspace safety,
   picker prompting, Duplicacy list parsing, and report formatting now live in
@@ -23,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Restore help is isolated from the general usage text**:
   restore-specific concise and full help moved into a dedicated help file with
   shared command-surface text to reduce future documentation drift.
+- **Restore docs and help were realigned with the shipped command surface**:
+  operator guidance now consistently describes `restore select`,
+  `restore plan`, `restore list-revisions`, and `restore run`, including the
+  deterministic drill-workspace naming model and picker controls.
 
 ### Removed
 - **Removed the standalone `restore prepare` command**:
@@ -38,6 +48,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed the hidden `restore select --execute` option**:
   guided restore selection now always reviews generated commands and asks for
   confirmation before delegating to `restore run`.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `to be refreshed during release prep`
+- `cmd/duplicacy-backup`: `to be refreshed during release prep`
+- `internal/workflow`: `to be refreshed during release prep`
+- `internal/restorepicker`: `to be refreshed during release prep`
+- `internal/update`: `to be refreshed during release prep`
+- `internal/duplicacy`: `to be refreshed during release prep`
+- `internal/exec`: `to be refreshed during release prep`
+- `internal/secrets`: `to be refreshed during release prep`
+- `internal/config`: `to be refreshed during release prep`
 
 ## [v6.2.1] - 2026-04-24
 
