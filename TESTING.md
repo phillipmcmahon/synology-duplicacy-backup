@@ -222,8 +222,13 @@ need to rerun full verification without re-mirroring.
 
 When you do create a local test package, it must be generated inside the Linux
 container, not on the macOS host. All local test packages must be written under
-`build/test-packages`; do not create one-off package directories elsewhere
-under `build/`.
+the structured `build/test-packages` tree:
+
+- `build/test-packages/release/` for standard `duplicacy-backup` package output
+- `build/test-packages/poc/<name>/` for experimental or proof-of-concept bundles
+
+Do not create one-off package directories elsewhere under `build/`, and do not
+drop new artefacts flat into the root of `build/test-packages`.
 
 That includes:
 

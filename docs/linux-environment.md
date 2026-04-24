@@ -103,9 +103,14 @@ docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
 ## Standard Packaging Commands
 
 Use the repo scripts for local test-package builds. They already enforce the
-Linux-only packaging flow. Keep all local test packages under
-`build/test-packages`; do not create ad-hoc package directories elsewhere under
-`build/`.
+Linux-only packaging flow. Keep all local test packages under the structured
+`build/test-packages` tree:
+
+- `build/test-packages/release/` for standard `duplicacy-backup` package output
+- `build/test-packages/poc/<name>/` for experimental or proof-of-concept bundles
+
+Do not create ad-hoc package directories elsewhere under `build/`, and do not
+drop new artefacts flat into the root of `build/test-packages`.
 
 ### One artefact
 
@@ -115,7 +120,7 @@ sh ./scripts/package-linux-docker.sh \
   --build-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
   --goos linux \
   --goarch amd64 \
-  --output-dir /work/build/test-packages
+  --output-dir /work/build/test-packages/release
 ```
 
 ### Supported Synology package set
@@ -162,7 +167,8 @@ Check these first:
 - enough disk space for the container image and Go cache
 - the repo is mounted at `/work`
 - `GOCACHE` is set inside the container
-- the target files do not already exist in `build/test-packages`
+- the target files do not already exist in the intended structured output
+  directory under `build/test-packages`
 
 If packaging still fails:
 

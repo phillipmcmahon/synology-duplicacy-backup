@@ -127,7 +127,7 @@ COMMAND OVERVIEW:
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision, file, or pattern into a prepared workspace only
-      restore select        Build a guided restore selection basket; optionally confirm and execute via restore run
+      restore select        Build an interactive tree-based restore selection; optionally confirm and execute via restore run
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -289,10 +289,10 @@ RESTORE EXECUTION:
 RESTORE SELECTION:
     restore select is an interactive guide over the explicit restore commands.
     Without --execute, it guides revision and path selection, prints the exact
-    restore prepare and restore run commands, and stops. The path browser lets
-    operators open directory levels, select one file, select a directory
-    subtree as a Duplicacy pattern, or enter a path/pattern manually. Use
-    --path-prefix to start browsing from a useful subtree in large backups.
+    restore prepare and restore run commands, and stops. The tree picker lets
+    operators move through the snapshot tree, select one file, or select a
+    directory subtree as a Duplicacy pattern. Use --path-prefix to start from
+    a useful subtree in large backups.
     With --execute, it shows the generated restore run command, requires a
     prepared workspace, asks for confirmation, and delegates to restore run. It
     refuses non-interactive use. The picker is convenience; the command model is
@@ -485,7 +485,7 @@ RESTORE COMMANDS:
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision, file, or pattern into a prepared workspace only
-    select                 Build a guided restore selection basket; optionally confirm and execute via restore run
+    select                 Build an interactive tree-based restore selection; optionally confirm and execute via restore run
 
 OPTIONS:
     --target <name>        Select the named target (required)
@@ -536,16 +536,14 @@ BEHAVIOUR:
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
-      - guides revision selection and optional basket-based path selection
-      - uses a selection basket: add files, directory subtrees, or manual patterns before choosing done
-      - opens directory levels with "open <number>" or a plain number
-      - adds one or more displayed items with "add <number>" or "add <number>,<number>"
-      - adds a directory as a subtree pattern such as path/*
-      - accepts "search <text>" to filter the current listing, and "clear" to remove the filter
-      - accepts "add <path-or-pattern>" to enter a path or Duplicacy pattern manually
-      - accepts "selected" and "remove <number>" to review or change the basket
+      - guides revision selection and optional tree-based path selection
+      - uses arrow keys to move through the snapshot tree
+      - uses Right to expand directories and Left to collapse them
+      - uses Space to select or clear the current file or subtree
+      - uses Tab to switch between the tree and the primitive detail pane
+      - uses g to continue with the current selection and q to cancel
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
-      - prints exact restore prepare / restore run commands for every selected path or pattern
+      - shows the exact restore run primitives that the current selection compiles to
       - without --execute, does not run duplicacy restore
       - with --execute, requires a prepared workspace
       - with --execute, delegates each selected path or pattern to restore run after explicit confirmation

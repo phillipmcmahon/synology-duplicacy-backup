@@ -8,13 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -25,6 +25,15 @@ var newRestoreCommandRunner = func() execpkg.Runner {
 }
 
 var restorePromptOutput io.Writer = os.Stdout
+
+var runRestoreSelectPicker = func(paths []string, opts restorepicker.AppOptions) ([]string, error) {
+	filteredPaths, err := restorepicker.FilterPaths(paths, opts.PathPrefix)
+	if err != nil {
+		return nil, err
+	}
+	root := restorepicker.BuildTree(filteredPaths)
+	return restorepicker.RunPicker(root, opts)
+}
 
 func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	switch req.RestoreCommand {
@@ -231,7 +240,7 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 		return "", err
 	}
 	if selective {
-		restorePaths, err = promptRestorePath(reader, ctx, revision, req.RestorePathPrefix, 200)
+		restorePaths, err = promptRestorePath(ctx, req, meta, revision)
 		if err != nil {
 			return "", err
 		}
@@ -795,8 +804,8 @@ func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionI
 	return 0, NewRequestError("revision %d was not found in the visible revision list", choice)
 }
 
-func promptRestorePath(reader *bufio.Reader, ctx *restoreExecutionContext, revision int, pathPrefix string, limit int) ([]string, error) {
-	pathPrefix, err := cleanRestorePath(pathPrefix)
+func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata, revision int) ([]string, error) {
+	pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -811,302 +820,27 @@ func promptRestorePath(reader *bufio.Reader, ctx *restoreExecutionContext, revis
 	if pathPrefix != "" && !restorePathPrefixHasMatches(paths, pathPrefix) {
 		return nil, NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
 	}
-	return promptRestoreBrowser(reader, paths, pathPrefix, limit)
-}
-
-type restoreBrowseItem struct {
-	Kind string
-	Path string
-}
-
-func promptRestoreBrowser(reader *bufio.Reader, paths []string, startPrefix string, limit int) ([]string, error) {
-	current := strings.Trim(startPrefix, "/")
-	filter := ""
-	selected := []string{}
-	for {
-		items, total := restoreBrowserItems(paths, current, filter, limit)
-		fmt.Fprintf(restorePromptOutput, "\nRestore picker\n")
-		fmt.Fprintf(restorePromptOutput, "Current location: %s\n", restoreBrowserLocation(current))
-		fmt.Fprintf(restorePromptOutput, "Selected items: %d\n", len(selected))
-		if filter != "" {
-			fmt.Fprintf(restorePromptOutput, "Search: %s\n", filter)
-		}
-		fmt.Fprintf(restorePromptOutput, "Paths (%d shown of %d):\n", len(items), total)
-		for i, item := range items {
-			marker := "[file]"
-			display := item.Path
-			if item.Kind == "dir" {
-				marker = "[dir] "
-				display += "/"
-			}
-			fmt.Fprintf(restorePromptOutput, "  %d. %s %s\n", i+1, marker, display)
-		}
-		fmt.Fprintln(restorePromptOutput, "Commands: open <n>, add <n>[,<n>...], add <path-or-pattern>, search <text>, clear, up, selected, remove <n>, done, quit")
-		answer, err := promptRestoreLine(reader, "Enter command: ")
-		if err != nil {
-			return nil, err
-		}
-		answer = strings.TrimSpace(answer)
-		command, value := splitRestoreBrowserCommand(answer)
-		switch {
-		case answer == "":
-			continue
-		case command == "q" || command == "quit":
-			return nil, NewRequestError("restore select cancelled")
-		case command == "up" || answer == "..":
-			current = restoreParentPath(current)
-			filter = ""
-			continue
-		case command == "search" || strings.HasPrefix(answer, "/"):
-			if command == "search" {
-				filter = strings.ToLower(strings.TrimSpace(value))
-			} else {
-				filter = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(answer, "/")))
-			}
-			continue
-		case command == "clear":
-			filter = ""
-			continue
-		case command == "selected":
-			printRestoreSelectionBasket(selected)
-			continue
-		case command == "remove":
-			choice, err := parseRestoreBrowserChoice(value, len(selected))
-			if err != nil {
-				return nil, err
-			}
-			selected = append(selected[:choice-1], selected[choice:]...)
-			continue
-		case command == "done":
-			if len(selected) == 0 {
-				fmt.Fprintln(restorePromptOutput, "No paths selected yet. Use add <number> or add <path-or-pattern> first.")
-				continue
-			}
-			return selected, nil
-		case command == "add":
-			added, err := restoreSelectionFromAddCommand(value, items)
-			if err != nil {
-				return nil, err
-			}
-			for _, selection := range added {
-				selected = addRestoreSelection(selected, selection)
-			}
-		case command == "open":
-			next, err := restoreOpenSelection(value, items)
-			if err != nil {
-				return nil, err
-			}
-			if next == "" {
-				continue
-			}
-			current = next
-			filter = ""
-		default:
-			if _, err := strconv.Atoi(answer); err == nil {
-				next, err := restoreOpenSelection(answer, items)
-				if err != nil {
-					return nil, err
-				}
-				if next == "" {
-					continue
-				}
-				current = next
-				filter = ""
-				continue
-			}
-			return nil, NewRequestError("unknown restore picker command %q", answer)
-		}
-	}
-}
-
-func splitRestoreBrowserCommand(answer string) (string, string) {
-	answer = strings.TrimSpace(answer)
-	if answer == "" {
-		return "", ""
-	}
-	command, value, ok := strings.Cut(answer, " ")
-	if !ok {
-		return strings.ToLower(command), ""
-	}
-	return strings.ToLower(strings.TrimSpace(command)), strings.TrimSpace(value)
-}
-
-func restoreSelectionFromAddCommand(value string, items []restoreBrowseItem) ([]string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil, NewRequestError("add requires a list number or snapshot-relative path")
-	}
-	if restoreLooksLikeChoiceList(value) {
-		parts := strings.Split(value, ",")
-		selections := make([]string, 0, len(parts))
-		for _, part := range parts {
-			choice, err := parseRestoreBrowserChoice(part, len(items))
-			if err != nil {
-				return nil, err
-			}
-			selection, err := restoreSelectionFromItem(items[choice-1])
-			if err != nil {
-				return nil, err
-			}
-			selections = append(selections, selection)
-		}
-		return selections, nil
-	}
-	selection, err := cleanRestorePath(value)
+	restorePaths, err := runRestoreSelectPicker(paths, restorepicker.AppOptions{
+		Title:      fmt.Sprintf("Restore selection for %s/%s", req.Source, req.Target()),
+		PathPrefix: pathPrefix,
+		Primitive: restorepicker.PrimitiveOptions{
+			ScriptName: meta.ScriptName,
+			Source:     req.Source,
+			Target:     req.Target(),
+			Revision:   strconv.Itoa(revision),
+			Workspace:  ctx.workspace,
+		},
+	})
 	if err != nil {
+		if errors.Is(err, restorepicker.ErrPickerCancelled) {
+			return nil, NewRequestError("restore select cancelled")
+		}
 		return nil, err
 	}
-	return []string{selection}, nil
-}
-
-func restoreLooksLikeChoiceList(value string) bool {
-	for _, part := range strings.Split(value, ",") {
-		if strings.TrimSpace(part) == "" {
-			return false
-		}
-		if _, err := strconv.Atoi(strings.TrimSpace(part)); err != nil {
-			return false
-		}
+	if len(restorePaths) == 0 {
+		return nil, NewRequestError("restore select requires at least one restore path")
 	}
-	return true
-}
-
-func restoreSelectionFromItem(item restoreBrowseItem) (string, error) {
-	if item.Kind == "dir" {
-		return restoreDirectoryPattern(item.Path), nil
-	}
-	return cleanRestorePath(item.Path)
-}
-
-func restoreOpenSelection(value string, items []restoreBrowseItem) (string, error) {
-	choice, err := parseRestoreBrowserChoice(value, len(items))
-	if err != nil {
-		return "", err
-	}
-	item := items[choice-1]
-	if item.Kind == "dir" {
-		return item.Path, nil
-	}
-	fmt.Fprintf(restorePromptOutput, "File: %s\nUse add %d to add it to the restore selection.\n", item.Path, choice)
-	return "", nil
-}
-
-func addRestoreSelection(selected []string, value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return selected
-	}
-	for _, existing := range selected {
-		if existing == value {
-			fmt.Fprintf(restorePromptOutput, "Already selected: %s\n", value)
-			return selected
-		}
-	}
-	fmt.Fprintf(restorePromptOutput, "Added: %s\n", value)
-	return append(selected, value)
-}
-
-func printRestoreSelectionBasket(selected []string) {
-	if len(selected) == 0 {
-		fmt.Fprintln(restorePromptOutput, "No paths selected.")
-		return
-	}
-	fmt.Fprintln(restorePromptOutput, "Selected restore paths:")
-	for i, path := range selected {
-		fmt.Fprintf(restorePromptOutput, "  %d. %s\n", i+1, path)
-	}
-}
-
-func restoreBrowserItems(paths []string, current string, filter string, limit int) ([]restoreBrowseItem, int) {
-	current = strings.Trim(current, "/")
-	filter = strings.ToLower(strings.TrimSpace(filter))
-	dirSeen := map[string]bool{}
-	fileSeen := map[string]bool{}
-	for _, path := range paths {
-		path = strings.Trim(filepath.ToSlash(path), "/")
-		if path == "" {
-			continue
-		}
-		rel := path
-		if current != "" {
-			if path == current {
-				continue
-			}
-			prefix := current + "/"
-			if !strings.HasPrefix(path, prefix) {
-				continue
-			}
-			rel = strings.TrimPrefix(path, prefix)
-		}
-		segment, _, hasChild := strings.Cut(rel, "/")
-		if segment == "" {
-			continue
-		}
-		childPath := segment
-		if current != "" {
-			childPath = current + "/" + segment
-		}
-		if hasChild {
-			dirSeen[childPath] = true
-			continue
-		}
-		fileSeen[childPath] = true
-	}
-
-	dirs := sortedRestoreKeys(dirSeen)
-	files := sortedRestoreKeys(fileSeen)
-	var items []restoreBrowseItem
-	total := 0
-	for _, dir := range dirs {
-		if filter != "" && !strings.Contains(strings.ToLower(dir), filter) && !restoreHasFilteredDescendant(paths, dir, filter) {
-			continue
-		}
-		total++
-		if limit <= 0 || len(items) < limit {
-			items = append(items, restoreBrowseItem{Kind: "dir", Path: dir})
-		}
-	}
-	for _, file := range files {
-		if filter != "" && !strings.Contains(strings.ToLower(file), filter) {
-			continue
-		}
-		total++
-		if limit <= 0 || len(items) < limit {
-			items = append(items, restoreBrowseItem{Kind: "file", Path: file})
-		}
-	}
-	return items, total
-}
-
-func parseRestoreBrowserChoice(value string, itemCount int) (int, error) {
-	choice, err := strconv.Atoi(strings.TrimSpace(value))
-	if err != nil || choice <= 0 {
-		return 0, NewRequestError("restore select requires a positive path selection")
-	}
-	if choice > itemCount {
-		return 0, NewRequestError("path selection %d is outside the displayed path list", choice)
-	}
-	return choice, nil
-}
-
-func sortedRestoreKeys(values map[string]bool) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func restoreHasFilteredDescendant(paths []string, dir string, filter string) bool {
-	prefix := strings.Trim(dir, "/") + "/"
-	for _, path := range paths {
-		path = strings.Trim(filepath.ToSlash(path), "/")
-		if strings.HasPrefix(path, prefix) && strings.Contains(strings.ToLower(path), filter) {
-			return true
-		}
-	}
-	return false
+	return restorePaths, nil
 }
 
 func restorePathPrefixHasMatches(paths []string, prefix string) bool {
@@ -1118,34 +852,6 @@ func restorePathPrefixHasMatches(paths []string, prefix string) bool {
 		}
 	}
 	return false
-}
-
-func restoreParentPath(path string) string {
-	path = strings.Trim(path, "/")
-	if path == "" {
-		return ""
-	}
-	parent := filepath.ToSlash(filepath.Dir(path))
-	if parent == "." {
-		return ""
-	}
-	return parent
-}
-
-func restoreBrowserLocation(path string) string {
-	path = strings.Trim(path, "/")
-	if path == "" {
-		return "<snapshot root>"
-	}
-	return path + "/"
-}
-
-func restoreDirectoryPattern(path string) string {
-	path = strings.Trim(path, "/")
-	if path == "" {
-		return ""
-	}
-	return path + "/*"
 }
 
 func promptRestoreYesNo(reader *bufio.Reader, prompt string) (bool, error) {
@@ -1268,7 +974,7 @@ func extractRestoreFilePaths(output string) []string {
 	seen := map[string]bool{}
 	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" {
+		if line == "" || isIgnoredRestoreListLine(line) {
 			continue
 		}
 		path := filepath.ToSlash(strings.TrimSpace(extractRestoreFilePath(line)))
@@ -1283,6 +989,9 @@ func extractRestoreFilePaths(output string) []string {
 
 func extractRestoreFilePath(line string) string {
 	line = strings.TrimSpace(line)
+	if line == "" || isIgnoredRestoreListLine(line) {
+		return ""
+	}
 	fields, remainder := splitLeadingFields(line, 4)
 	if len(fields) < 4 || strings.TrimSpace(remainder) == "" {
 		return line
@@ -1294,6 +1003,40 @@ func extractRestoreFilePath(line string) string {
 		return line
 	}
 	return strings.TrimSpace(remainder)
+}
+
+func isIgnoredRestoreListLine(line string) bool {
+	line = strings.TrimSpace(line)
+	switch {
+	case line == "":
+		return true
+	case strings.HasPrefix(line, "Files: "):
+		return true
+	case strings.HasPrefix(line, "Total size: "):
+		return true
+	case strings.HasPrefix(line, "Repository set to "):
+		return true
+	case strings.HasPrefix(line, "Storage set to "):
+		return true
+	case strings.HasPrefix(line, "Loaded "):
+		return true
+	case strings.HasPrefix(line, "Parsing "):
+		return true
+	case strings.HasPrefix(line, "Restoring "):
+		return true
+	case strings.HasPrefix(line, "Restored "):
+		return true
+	case strings.HasPrefix(line, "Skipped "):
+		return true
+	case strings.HasPrefix(line, "Downloaded "):
+		return true
+	case strings.HasPrefix(line, "Total running time: "):
+		return true
+	case strings.HasPrefix(line, "Snapshot ") && strings.Contains(line, " created at "):
+		return true
+	default:
+		return false
+	}
 }
 
 func splitLeadingFields(value string, count int) ([]string, string) {

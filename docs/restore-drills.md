@@ -25,10 +25,10 @@ scripted, and documented recovery procedures:
 - `restore files` inspects a selected revision.
 - `restore run` restores a full revision, one file, or one directory pattern
   into the prepared workspace only.
-- `restore select` interactively helps choose a revision and build a selection
-  basket of files, directory subtrees, and manual patterns. It prints the
-  explicit primitive commands, and can optionally execute them through
-  `restore run` after confirmation.
+- `restore select` interactively helps choose a revision and then select files
+  or directory subtrees in a tree view. It prints the explicit primitive
+  commands, and can optionally execute them through `restore run` after
+  confirmation.
 
 The picker sits on top of the explicit commands rather than replacing them.
 That keeps emergency procedures copyable and avoids hidden live-data actions.
@@ -39,11 +39,11 @@ If you pass `--workspace`, it must already have been prepared with
 workspace preferences.
 
 `restore select` is a guided front end, not a second restore model. It refuses
-non-interactive use, guides revision and path selection through a simple
-directory/file browser, then prints the exact `restore prepare` and
-`restore run` commands. Multiple selected paths become multiple explicit
-`restore run` commands into the same drill workspace. Without `--execute`, it
-stops there. The picker is convenience; the command model is the contract.
+non-interactive use, guides revision and path selection through a simple tree
+picker, then prints the exact `restore prepare` and `restore run` commands.
+Multiple selected paths become multiple explicit `restore run` commands into
+the same drill workspace. Without `--execute`, it stops there. The picker is
+convenience; the command model is the contract.
 
 If you add `--execute`, the picker still shows the generated `restore run`
 command and asks for confirmation before delegating to `restore run`. This mode
@@ -152,27 +152,23 @@ sudo duplicacy-backup restore select --target onsite-usb homes
 
 The picker prints the exact primitive command or commands to run. It does not
 run `duplicacy restore` itself unless you pass `--execute` and confirm. In the
-browser, build a selection basket:
+tree picker:
 
-- enter `open <number>` or a plain number to open a directory
-- enter `add <number>` to add a displayed file or directory subtree
-- enter `add <number>,<number>` to add several displayed items at once
-- enter `add <path-or-pattern>` to type a snapshot-relative path or Duplicacy pattern manually
-- enter `search <text>` to filter the current listing
-- enter `clear` to remove the current search
-- enter `selected` to review the basket
-- enter `remove <number>` to remove an item from the basket
-- enter `..` to move up one level
-- enter `done` when the basket contains the files and subtrees you want
-- enter `q` to quit
+- use the arrow keys to move through the snapshot tree
+- use `Right` to expand directories
+- use `Left` to collapse directories or move back up
+- use `Space` to select or clear the current file or subtree
+- use `Tab` to switch between the tree and the primitive detail pane
+- use `g` to continue with the current selection
+- use `q` to quit
 
 The common restore shapes are:
 
 - full revision: answer `no` when asked whether to restore a specific path
-- one file: browse to the file, then `add <number>` and `done`
-- one directory subtree: browse to the directory, then `add <number>` and `done`; the picker generates a pattern such as `phillipmcmahon/code/*`
-- several files or subtrees: keep browsing and adding items to the basket, then choose `done`
-- known path or pattern: use `add phillipmcmahon/code/*` or another snapshot-relative value directly
+- one file: move to the file, toggle it with `Space`, then press `g`
+- one directory subtree: move to the directory, toggle it with `Space`, then press `g`; the picker generates a pattern such as `phillipmcmahon/code/*`
+- several files or subtrees: keep moving and toggling items, then press `g`
+- known subtree: start from `--path-prefix <path>` when you already know a useful branch
 
 For large repositories, start from a useful subtree:
 
@@ -247,11 +243,10 @@ use `phillipmcmahon/Documents/tax.pdf`, not
 
 For a directory subtree, pass a Duplicacy pattern such as
 `phillipmcmahon/code/*`. The picker can select a directory subtree for you:
-browse to the parent and enter `add <number>` for the directory you want, or
-type the subtree pattern manually with `add phillipmcmahon/code/*`.
+move to the directory in the tree and toggle it with `Space`.
 
-For several files or subtrees, add each one to the picker basket before
-choosing `done`. The generated output remains explicit: one `restore run`
+For several files or subtrees, keep toggling the items you want before
+pressing `g`. The generated output remains explicit: one `restore run`
 command is produced for each selected path or pattern.
 
 ## Copy Back Deliberately

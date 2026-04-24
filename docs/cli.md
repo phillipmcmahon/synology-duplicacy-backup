@@ -90,7 +90,7 @@ are not supported.
 | `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
 | `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
 | `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
-| `restore select --target <target> [--path-prefix <path>] [--execute] <label>` | Browse revision paths, build a basket of files, directory subtrees, or manual patterns, and print primitive commands; with `--execute`, confirm and delegate to `restore run` |
+| `restore select --target <target> [--path-prefix <path>] [--execute] <label>` | Browse revision paths in an interactive tree, select files or directory subtrees, and print primitive commands; with `--execute`, confirm and delegate to `restore run` |
 
 ## Update Command
 
@@ -201,12 +201,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `restore select` is an interactive guide over the primitive restore commands.
   Without `--execute`, it prints the exact commands and stops. With
   `--execute`, it requires a prepared workspace, asks for confirmation, and
-  delegates each selected path or pattern to `restore run`. The browser uses a
-  selection basket: use `open <number>` or a plain number to move through
-  directories, `add <number>` or `add <number>,<number>` to select displayed
-  files or directory subtrees, `search <text>` to filter the current listing,
-  `selected` and `remove <number>` to review or adjust the basket, and
-  `done` when the basket contains the restore set you want.
+  delegates each selected path or pattern to `restore run`. The picker uses an
+  interactive tree: use the arrow keys to move, `Right` to expand, `Left` to
+  collapse, `Space` to select or clear the current file or subtree, `Tab` to
+  inspect the primitive detail pane, `g` to continue, and `q` to cancel.
 - `prune --force` overrides prune threshold enforcement.
 - `cleanup-storage` runs exhaustive exclusive storage cleanup and should be
   treated as operator-directed maintenance.
