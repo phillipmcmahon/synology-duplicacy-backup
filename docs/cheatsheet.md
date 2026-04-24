@@ -162,8 +162,9 @@ Installer behaviour:
 - `duplicacy-backup restore run` executes restores only into a prepared drill workspace; it never copies data back to the live source.
 - Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
 - Use snapshot ID `data` for repositories created by this tool.
-- `restore select` uses an interactive tree to select files or subtrees, then prints the matching `restore run` command for each item.
+- `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.
+- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and `restore run` remain the expert and scriptable restore primitives.
 - See [`restore-drills.md`](restore-drills.md) for the full safe procedure.
 
 ```bash
@@ -172,26 +173,17 @@ sudo duplicacy-backup config explain --target onsite-usb homes
 sudo duplicacy-backup config validate --target onsite-usb homes
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Print a read-only restore drill plan with suggested Duplicacy commands
-sudo duplicacy-backup restore plan --target onsite-usb homes
-
-# Prepare the separate drill workspace without running a restore
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-
-# List revisions and inspect files before selecting what to restore
-sudo duplicacy-backup restore revisions --target onsite-usb homes
-sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents" homes
-
-# Guided command generation without executing a restore
+# Guided operator restore
 sudo duplicacy-backup restore select --target onsite-usb homes
 
 # Start the picker under a known subtree in a large backup
 sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
-# Guided selection with guarded execution through restore run
-sudo duplicacy-backup restore select --target onsite-usb --execute homes
-
-# Restore into the prepared workspace only
+# Expert restore primitives
+sudo duplicacy-backup restore plan --target onsite-usb homes
+sudo duplicacy-backup restore prepare --target onsite-usb homes
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents" homes
 sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \

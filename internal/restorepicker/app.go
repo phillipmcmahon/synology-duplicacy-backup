@@ -10,9 +10,10 @@ import (
 )
 
 type AppOptions struct {
-	Title      string
-	PathPrefix string
-	Primitive  PrimitiveOptions
+	Title       string
+	PathPrefix  string
+	Primitive   PrimitiveOptions
+	InspectOnly bool
 }
 
 var ErrPickerCancelled = errors.New("restore picker cancelled")
@@ -31,6 +32,12 @@ func RunPicker(root *Node, opts AppOptions) ([]string, error) {
 		return append([]string(nil), state.result...), nil
 	}
 	return nil, ErrPickerCancelled
+}
+
+func RunInspect(root *Node, opts AppOptions) error {
+	opts.InspectOnly = true
+	app := newApp(root, opts, nil)
+	return app.Run()
 }
 
 type pickerSession struct {
@@ -59,6 +66,9 @@ func newApp(root *Node, opts AppOptions, session *pickerSession) *tview.Applicat
 	rootNode := buildTreeNode(root)
 	rootNode.SetExpanded(true)
 	tree.SetRoot(rootNode).SetCurrentNode(rootNode)
+	if prefixNode := findTreeNodeByPath(rootNode, opts.PathPrefix); prefixNode != nil {
+		tree.SetCurrentNode(prefixNode)
+	}
 
 	updatePanels := func(node *tview.TreeNode) {
 		updateDetail(detail, root, node, opts, sessionStatus(session))
@@ -97,6 +107,9 @@ func newApp(root *Node, opts AppOptions, session *pickerSession) *tview.Applicat
 			app.Stop()
 			return nil
 		case 'g', 'G':
+			if opts.InspectOnly {
+				return nil
+			}
 			if commitSelection() {
 				return nil
 			}
@@ -120,6 +133,9 @@ func newApp(root *Node, opts AppOptions, session *pickerSession) *tview.Applicat
 		}
 		switch event.Rune() {
 		case ' ':
+			if opts.InspectOnly {
+				return nil
+			}
 			ref, _ := node.GetReference().(*Node)
 			if ref == nil {
 				return nil
@@ -207,10 +223,23 @@ func newApp(root *Node, opts AppOptions, session *pickerSession) *tview.Applicat
 }
 
 func helpText(enableGenerate bool) string {
-	actionLine := "g: continue with the current selection and generate the restore commands"
-	if enableGenerate {
-		actionLine = "g: continue with the current selection and generate the restore commands"
+	if !enableGenerate {
+		return `[yellow]Interactive tree inspection[-]
+Arrow keys: navigate
+Right: expand directory
+Left: collapse directory
+Tab: switch focus between tree and detail
+When detail is focused: Up/Down/PgUp/PgDn scroll the right-hand panel
+q: quit inspection
+
+[green](x)[-] fully selected
+[yellow](~)[-] partially selected
+[gray]( )[-] clear
+Focused pane uses a bright bold border and [ACTIVE] title markers.
+Current row uses a high-contrast focus highlight.
+Inspect mode does not generate restore commands.`
 	}
+	actionLine := "g: continue with the current selection and generate the restore commands"
 	return `[yellow]Interactive tree picker[-]
 Arrow keys: navigate
 Right: expand directory
@@ -239,6 +268,23 @@ func buildTreeNode(node *Node) *tview.TreeNode {
 		return treeNode
 	}
 	return treeNode
+}
+
+func findTreeNodeByPath(node *tview.TreeNode, path string) *tview.TreeNode {
+	path = strings.Trim(strings.TrimSpace(path), "/")
+	if node == nil || path == "" {
+		return nil
+	}
+	ref, _ := node.GetReference().(*Node)
+	if ref != nil && strings.Trim(ref.Path, "/") == path {
+		return node
+	}
+	for _, child := range node.GetChildren() {
+		if found := findTreeNodeByPath(child, path); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 func displayEmpty(value, fallback string) string {
@@ -307,6 +353,10 @@ func updateDetail(detail *tview.TextView, root *Node, node *tview.TreeNode, opts
 	if status != "" {
 		statusBlock = fmt.Sprintf("\n[yellow]Status:[-] %s\n", status)
 	}
+	previewBlock := formatPrimitivePreview(preview)
+	if opts.InspectOnly {
+		previewBlock = "  Inspection mode only. Browse the revision contents and press q when you are done.\n  No restore commands are generated in this mode."
+	}
 	detail.SetText(fmt.Sprintf(
 		"[yellow]Title:[-] %s\n[yellow]Prefix:[-] %s\n[yellow]Kind:[-] %s\n[yellow]Path:[-] %s\n[yellow]State:[-] %s\n[yellow]Visible Children:[-] %d\n\n[yellow]Selection Summary:[-]\n  Full directories : %d\n  Partial dirs     : %d\n  Selected files   : %d\n\n[yellow]Current breadcrumb:[-] %s%s\n[yellow]Primitive Preview:[-]\n%s",
 		displayEmpty(opts.Title, "Restore Tree Picker POC"),
@@ -320,7 +370,7 @@ func updateDetail(detail *tview.TextView, root *Node, node *tview.TreeNode, opts
 		summary.SelectedFiles,
 		displayBreadcrumb(ref),
 		statusBlock,
-		formatPrimitivePreview(preview),
+		previewBlock,
 	))
 	detail.ScrollToBeginning()
 }

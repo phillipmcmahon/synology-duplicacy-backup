@@ -16,19 +16,15 @@ be read without putting production data at risk.
 
 ## UX Model
 
-Restore commands follow a flag-first model so they are safe for scheduled,
-scripted, and documented recovery procedures:
+There are two restore paths:
 
-- `restore plan` explains the selected label and target.
-- `restore prepare` creates the safe workspace.
-- `restore revisions` lists recovery points.
-- `restore files` inspects a selected revision.
-- `restore run` restores a full revision, one file, or one directory pattern
-  into the prepared workspace only.
-- `restore select` interactively helps choose a revision and then select files
-  or directory subtrees in a tree view. It prints the explicit primitive
-  commands, and can optionally execute them through `restore run` after
-  confirmation.
+- `restore select` is the primary operator path. It is revision-first: choose
+  a restore point, inspect it or restore from it, review the generated
+  commands, then confirm the drill-workspace restore.
+- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and
+  `restore run` are the expert and scriptable primitives. Use them when you
+  want step-by-step control, automation, or a runbook-friendly recovery
+  procedure.
 
 The picker sits on top of the explicit commands rather than replacing them.
 That keeps emergency procedures copyable and avoids hidden live-data actions.
@@ -39,16 +35,14 @@ If you pass `--workspace`, it must already have been prepared with
 workspace preferences.
 
 `restore select` is a guided front end, not a second restore model. It refuses
-non-interactive use, guides revision and path selection through a simple tree
-picker, then prints the exact `restore prepare` and `restore run` commands.
-Multiple selected paths become multiple explicit `restore run` commands into
-the same drill workspace. Without `--execute`, it stops there. The picker is
-convenience; the command model is the contract.
-
-If you add `--execute`, the picker still shows the generated `restore run`
-command and asks for confirmation before delegating to `restore run`. This mode
-requires the restore workspace to already be prepared. It still never copies
-data back to the live source.
+non-interactive use, presents restore points, offers inspect-only or restore
+actions, and uses a simple tree picker for selective restores. For restore
+actions, it prints the exact `restore prepare` and `restore run` commands,
+asks for confirmation, prepares the drill workspace when needed, and then
+delegates to `restore run`. Multiple selected paths become multiple explicit
+`restore run` commands into the same drill workspace. The picker is
+convenience; the command model is the contract. It still never copies data
+back to the live source.
 
 ## What You Need
 
@@ -86,7 +80,8 @@ Primary Duplicacy references:
 
 ## Prepare A Drill Workspace
 
-Create a new, empty folder outside the live source tree:
+Create a new, empty folder outside the live source tree if you want to pin the
+workspace name yourself:
 
 ```bash
 sudo mkdir -p /volume1/restore-drills/homes-onsite-usb
@@ -97,9 +92,12 @@ cd /volume1/restore-drills/homes-onsite-usb
 The wrapper can prepare this workspace for you:
 
 ```bash
-sudo duplicacy-backup restore prepare --target onsite-usb homes
+sudo duplicacy-backup restore prepare --target onsite-usb --workspace /volume1/restore-drills/homes-onsite-usb homes
 cd /volume1/restore-drills/homes-onsite-usb
 ```
+
+If you omit `--workspace`, `restore prepare` creates a timestamped drill
+workspace instead.
 
 When run with `sudo`, `restore prepare` creates the drill workspace as a
 root-owned workspace by design. Keep restore inspection and Duplicacy commands
@@ -144,15 +142,15 @@ Choose a revision that matches the recovery point you want to prove. Health
 status also shows the latest known revision and age, which is useful for
 confirming that the repository is current before a drill.
 
-If you prefer a guided selection flow, use the picker:
+If you prefer the guided operator flow, use the picker:
 
 ```bash
 sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
-The picker prints the exact primitive command or commands to run. It does not
-run `duplicacy restore` itself unless you pass `--execute` and confirm. In the
-tree picker:
+The picker prints the exact primitive command or commands that will be used for
+restore actions. It still asks for confirmation before any restore is
+performed. In the tree picker:
 
 - use the arrow keys to move through the snapshot tree
 - use `Right` to expand directories
@@ -162,17 +160,20 @@ tree picker:
 - use `g` to continue with the current selection and generate the restore commands
 - use `q` to quit
 
-By default, `restore prepare` now creates a timestamped drill workspace under
+By default, `restore prepare` creates a timestamped drill workspace under
 `restore-drills`, for example
-`/volume1/restore-drills/homes-onsite-usb-20260424-081530`. If you later run
-`restore run` or `restore select --execute` without `--workspace`, the wrapper
-reuses the newest prepared drill workspace for that label and target. Pass
-`--workspace` explicitly whenever you want to pin the flow to one known drill
-directory.
+`/volume1/restore-drills/homes-onsite-usb-20260424-081530`. In the guided
+`restore select` flow, restore actions instead default to a workspace named
+from the selected restore point, for example
+`/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3`. That gives
+the drill workspace an obvious link back to the restore point the operator
+chose. Pass `--workspace` explicitly whenever you want to pin the flow to one
+known drill directory.
 
 The common restore shapes are:
 
-- full revision: answer `no` when asked whether to restore a specific path
+- inspect only: choose `Inspect revision contents only`, browse, then press `q`
+- full restore: choose `Restore the full revision into the drill workspace`
 - one file: move to the file, toggle it with `Space`, then press `g`
 - one directory subtree: move to the directory, toggle it with `Space`, then press `g`; the picker generates a pattern such as `phillipmcmahon/code/*`
 - several files or subtrees: keep moving and toggling items, then press `g`
@@ -182,13 +183,6 @@ For large repositories, start from a useful subtree:
 
 ```bash
 sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-```
-
-If the workspace is already prepared and you want the picker to execute the
-selected restore after confirmation:
-
-```bash
-sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
 ## Full Restore Drill
@@ -303,7 +297,8 @@ wrapper useful for actual restore drills without turning it into an
 unreviewed live-data mutation tool.
 
 `duplicacy-backup restore select` is intentionally one step more conservative:
-without `--execute`, it performs interactive selection and command generation
-only. With `--execute`, it delegates to `restore run` after explicit
-confirmation. Any future command that automates copy-back into live data should
-be designed as a separate capability with its own safety review.
+it keeps inspect-only read-only, and for restore actions it still shows the
+explicit restore commands and requires confirmation before preparing the drill
+workspace and delegating to `restore run`. Any future command that automates
+copy-back into live data should be designed as a separate capability with its
+own safety review.

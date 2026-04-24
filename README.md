@@ -172,19 +172,16 @@ sudo duplicacy-backup health status --target onsite-usb homes
 # Gather a redacted support bundle for one label and target
 sudo duplicacy-backup diagnostics --target onsite-usb homes
 
-# Print a safe read-only restore drill plan
+# Start the guided operator restore flow
+sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+
+# Expert or scripted restore path
 sudo duplicacy-backup restore plan --target onsite-usb homes
-
-# Prepare the separate drill workspace without running a restore
 sudo duplicacy-backup restore prepare --target onsite-usb homes
-
-# Inspect revisions and restore only into the prepared workspace
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
@@ -224,6 +221,10 @@ Core operating rules:
   state under `/var/lib/duplicacy-backup/<label>.<target>.json`.
 - `diagnostics` prints a redacted label-target support bundle with resolved
   paths, storage scheme, state freshness, and permission summaries.
+- `restore select` is the primary operator restore path. It presents restore
+  points first, then supports inspect-only, full restore, or tree-based
+  selective restore. It previews the exact commands, asks for confirmation,
+  prepares the drill workspace when needed, and delegates to `restore run`.
 - `restore plan` is read-only. It prints the resolved context and Duplicacy
   commands for a safe drill workspace, but it does not execute restores.
 - `restore prepare` creates the separate drill workspace and writes Duplicacy
@@ -233,14 +234,16 @@ Core operating rules:
 - `restore run` restores only into a prepared workspace and never copies data
   back to the live source. Use `--path` for one file or a Duplicacy pattern
   such as `docs/*` for a subtree.
-- `restore select` is an interactive guide over the explicit restore commands.
-  It uses a tree picker with arrow-key navigation, `Space` to toggle files or
-  subtrees, `Tab` to inspect the primitive detail pane, `g` to continue with
-  the current selection, and `q` to cancel. It can generate commands only, or
-  confirm and delegate to `restore run` with `--execute`.
+- `restore select` uses a tree picker with arrow-key navigation, `Space` to
+  toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
+  to continue with the current selection and generate the restore commands,
+  and `q` to cancel.
+- `restore plan`, `restore prepare`, `restore revisions`, `restore files`, and
+  `restore run` remain the expert and scriptable restore primitives.
 - When `--workspace` is omitted, `restore prepare` creates a timestamped drill
-  directory under `restore-drills`, and later restore execution reuses the
-  newest prepared matching workspace by default.
+  directory under `restore-drills`. Guided restore actions in `restore select`
+  name the default workspace from the selected restore point, for example
+  `<label>-<target>-<restore-point-timestamp>-rev<id>`.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.

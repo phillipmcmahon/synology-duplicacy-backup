@@ -88,3 +88,25 @@ func TestCompileSelectionAcrossBranchesProducesMultipleCommands(t *testing.T) {
 		t.Fatalf("Notes = %#v, want multi-command note", preview.Notes)
 	}
 }
+
+func TestCompileSelectionFullRootUnderPathPrefixUsesSubtreePattern(t *testing.T) {
+	root := BuildTree([]string{
+		"phillipmcmahon/code/archive/v5.0.0/a.tar.gz",
+		"phillipmcmahon/code/archive/v5.1.0/b.tar.gz",
+		"phillipmcmahon/code/docs/readme.md",
+	})
+	ToggleSelection(root)
+
+	preview := CompileSelection(root, PrimitiveOptions{
+		RootPath:  "phillipmcmahon/code",
+		RootIsDir: true,
+	})
+
+	if preview.FullRestore {
+		t.Fatalf("FullRestore = true, want false for prefixed subtree")
+	}
+	want := []string{"phillipmcmahon/code/*"}
+	if len(preview.RestorePaths) != 1 || preview.RestorePaths[0] != want[0] {
+		t.Fatalf("RestorePaths = %#v, want %#v", preview.RestorePaths, want)
+	}
+}

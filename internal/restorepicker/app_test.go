@@ -194,6 +194,28 @@ func TestToggleSelectionAllowsSnapshotRootSelection(t *testing.T) {
 	}
 }
 
+func TestNewAppStartsAtPathPrefixNode(t *testing.T) {
+	root := BuildTree([]string{
+		"phillipmcmahon/code/archive/v5.0.0/a.tar.gz",
+		"phillipmcmahon/code/docs/readme.md",
+		"phillipmcmahon/music/song.flac",
+	})
+
+	app := NewApp(root, AppOptions{PathPrefix: "phillipmcmahon/code"})
+	tree, ok := app.GetFocus().(*tview.TreeView)
+	if !ok {
+		t.Fatalf("focus = %T, want *tview.TreeView", app.GetFocus())
+	}
+	current := tree.GetCurrentNode()
+	ref, _ := current.GetReference().(*Node)
+	if ref == nil {
+		t.Fatalf("current node reference is nil")
+	}
+	if ref.Path != "phillipmcmahon/code" {
+		t.Fatalf("current path = %q, want phillipmcmahon/code", ref.Path)
+	}
+}
+
 func TestHandleExpandRightExpandsCollapsedDirectory(t *testing.T) {
 	root := BuildTree([]string{
 		"docs/readme.md",

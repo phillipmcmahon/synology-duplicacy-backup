@@ -107,7 +107,16 @@ See also:
 The wrapper restores only into a separate drill workspace. It does not copy
 restored data back to the live source path.
 
-Use `restore plan` to gather that context and print safe next-step commands:
+For most operator restores, start with the guided flow:
+
+```bash
+sudo duplicacy-backup restore select --target <target> <label>
+```
+
+That path is revision-first: choose a restore point, inspect it read-only or
+restore from it, review the generated commands, then confirm the drill restore.
+
+Use `restore plan` when you want the explicit expert path and safe next-step commands:
 
 ```bash
 sudo duplicacy-backup restore plan --target <target> <label>
@@ -127,30 +136,16 @@ sudo duplicacy-backup restore revisions --target <target> <label>
 sudo duplicacy-backup restore files --target <target> --revision <id> --path <relative-path> <label>
 ```
 
-Use the guided picker when you want command generation help without executing a
-restore:
-
-```bash
-sudo duplicacy-backup restore select --target <target> <label>
-```
-
 For large repositories, start browsing under a known subtree:
 
 ```bash
 sudo duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
 ```
 
-If the workspace is already prepared and you want guarded execution through
-`restore run`, add `--execute` and confirm the generated command:
-
-```bash
-sudo duplicacy-backup restore select --target <target> --execute <label>
-```
-
 Restore into the prepared workspace only:
 
 ```bash
-sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --workspace /volume1/restore-drills/<label>-<target> --yes <label>
+sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --workspace /volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id> --yes <label>
 ```
 
 Use a snapshot-relative file path for one file, or a Duplicacy pattern such as

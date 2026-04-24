@@ -40,6 +40,23 @@ var runRestoreSelectPicker = func(paths []string, opts restorepicker.AppOptions)
 	return restorepicker.RunPicker(root, opts)
 }
 
+var runRestoreInspectPicker = func(paths []string, opts restorepicker.AppOptions) error {
+	filteredPaths, err := restorepicker.FilterPaths(paths, opts.PathPrefix)
+	if err != nil {
+		return err
+	}
+	root := restorepicker.BuildTree(filteredPaths)
+	return restorepicker.RunInspect(root, opts)
+}
+
+type restoreSelectIntent string
+
+const (
+	restoreSelectIntentInspect   restoreSelectIntent = "inspect"
+	restoreSelectIntentFull      restoreSelectIntent = "full"
+	restoreSelectIntentSelective restoreSelectIntent = "selective"
+)
+
 func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	switch req.RestoreCommand {
 	case "plan":
@@ -218,14 +235,11 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 	}
 	reader := bufio.NewReader(stdin)
 
-	ctx, commandWorkspace, workspacePrepared, cleanup, err := newRestoreSelectContext(req, meta, rt)
+	ctx, cleanup, err := newRestoreSelectContext(req, meta, rt)
 	if err != nil {
 		return "", err
 	}
 	defer cleanup()
-	if req.RestoreExecute && !workspacePrepared {
-		return "", NewRequestError("restore select --execute requires a prepared workspace; run restore prepare --target %s --workspace %s %s first", req.Target(), shellQuote(commandWorkspace), req.Source)
-	}
 
 	revisions, _, err := ctx.dup.ListVisibleRevisions()
 	if err != nil {
@@ -238,36 +252,65 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime) (string, error
 	if err != nil {
 		return "", err
 	}
-
-	restorePaths := []string{""}
-	selective, err := promptRestoreYesNo(reader, "Restore a specific path instead of the full revision? [y/N]: ")
+	intent, err := promptRestoreSelectIntent(reader, req.RestorePathPrefix)
 	if err != nil {
 		return "", err
 	}
-	if selective {
-		restorePaths, err = promptRestorePath(ctx, req, meta, revision)
+
+	if intent == restoreSelectIntentInspect {
+		if err := promptRestoreInspect(ctx, req, meta, revision.Revision); err != nil {
+			return "", err
+		}
+		return formatRestoreInspect(newRestoreInspectReport(req, ctx.plan, ctx.cfg.Storage, revision.Revision, req.RestorePathPrefix)), nil
+	}
+
+	restorePaths := []string{""}
+	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision)
+	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
+	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.SnapshotSource); err != nil {
+		return "", err
+	}
+	if intent == restoreSelectIntentFull {
+		pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
+		if err != nil {
+			return "", err
+		}
+		if pathPrefix != "" {
+			restorePaths = []string{restoreScopedDirectoryPattern(pathPrefix)}
+		}
+	}
+	if intent == restoreSelectIntentSelective {
+		restorePaths, err = promptRestorePath(ctx, req, meta, revision.Revision)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision, restorePaths)
+	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision.Revision, restorePaths)
 	selectOutput := formatRestoreSelect(report)
-	if !req.RestoreExecute {
-		return selectOutput, nil
-	}
 	confirmed, err := confirmRestoreSelectExecution(reader, report)
 	if err != nil {
 		return "", err
 	}
 	if !confirmed {
-		return "", NewRequestError("restore select execution cancelled")
+		return selectOutput, nil
 	}
 	outputs := []string{selectOutput}
+	if !workspacePrepared {
+		prepareReq := *req
+		prepareReq.RestoreCommand = "prepare"
+		prepareReq.RestoreWorkspace = commandWorkspace
+		prepareReq.RestoreExecute = false
+		prepareOutput, err := handleRestorePrepare(&prepareReq, meta, rt)
+		outputs = append(outputs, prepareOutput)
+		if err != nil {
+			return strings.Join(outputs, "\n"), err
+		}
+	}
 	for _, restorePath := range restorePaths {
 		runReq := *req
 		runReq.RestoreCommand = "run"
-		runReq.RestoreRevision = revision
+		runReq.RestoreRevision = revision.Revision
 		runReq.RestorePath = restorePath
 		runReq.RestoreWorkspace = commandWorkspace
 		runReq.RestoreYes = true
@@ -436,6 +479,18 @@ type restoreRunReport struct {
 	Guide       string
 }
 
+type restoreInspectReport struct {
+	Label      string
+	Target     string
+	Location   string
+	ConfigFile string
+	SourcePath string
+	Storage    string
+	Revision   int
+	PathPrefix string
+	Guide      string
+}
+
 type restoreSelectReport struct {
 	Label             string
 	Target            string
@@ -578,6 +633,24 @@ func newRestoreRunReport(req *Request, plan *Plan, storage, workspace, restorePa
 	}
 }
 
+func newRestoreInspectReport(req *Request, plan *Plan, storage string, revision int, pathPrefix string) *restoreInspectReport {
+	pathPrefix = strings.TrimSpace(pathPrefix)
+	if pathPrefix == "" {
+		pathPrefix = "<entire revision>"
+	}
+	return &restoreInspectReport{
+		Label:      req.Source,
+		Target:     req.Target(),
+		Location:   plan.Location,
+		ConfigFile: plan.ConfigFile,
+		SourcePath: plan.SnapshotSource,
+		Storage:    storage,
+		Revision:   revision,
+		PathPrefix: pathPrefix,
+		Guide:      "docs/restore-drills.md",
+	}
+}
+
 func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, workspace string, workspacePrepared bool, revision int, restorePaths []string) *restoreSelectReport {
 	return &restoreSelectReport{
 		Label:             req.Source,
@@ -636,10 +709,26 @@ func resolvedPreparedRestoreWorkspace(req *Request, plan *Plan) string {
 	return recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target())
 }
 
+func resolvedRestoreSelectWorkspace(req *Request, plan *Plan, revision duplicacy.RevisionInfo) string {
+	if strings.TrimSpace(req.RestoreWorkspace) != "" {
+		return resolvedRestoreWorkspace(req, plan)
+	}
+	return recommendedRestoreWorkspaceForRevision(plan.SnapshotSource, req.Source, req.Target(), revision)
+}
+
 func recommendedRestoreWorkspace(sourcePath, label, target string) string {
 	base := rootVolumeForSource(sourcePath)
 	timestamp := restoreWorkspaceNow().Local().Format("20060102-150405")
 	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s", label, target, timestamp))
+}
+
+func recommendedRestoreWorkspaceForRevision(sourcePath, label, target string, revision duplicacy.RevisionInfo) string {
+	base := rootVolumeForSource(sourcePath)
+	timestamp := restoreWorkspaceNow().Local().Format("20060102-150405")
+	if !revision.CreatedAt.IsZero() {
+		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
+	}
+	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
 }
 
 func latestPreparedRestoreWorkspace(sourcePath, label, target string) (string, bool) {
@@ -773,33 +862,27 @@ func restoreWorkspacePrepared(workspace string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func newRestoreSelectContext(req *Request, meta Metadata, rt Runtime) (*restoreExecutionContext, string, bool, func(), error) {
+func newRestoreSelectContext(req *Request, meta Metadata, rt Runtime) (*restoreExecutionContext, func(), error) {
 	planner := NewConfigPlanner(meta, rt)
 	planReq := configValidationRequest(req, req.Target())
 	plan := planner.derivePlan(planReq)
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
-		return nil, "", false, func() {}, err
+		return nil, func() {}, err
 	}
 	plan.applyConfig(cfg, rt)
 
-	commandWorkspace := resolvedPreparedRestoreWorkspace(req, plan)
-	if err := validateRestoreWorkspace(commandWorkspace, plan.SnapshotSource); err != nil {
-		return nil, "", false, func() {}, err
-	}
-	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
-
 	listingReq := *req
-	if workspacePrepared {
-		listingReq.RestoreWorkspace = commandWorkspace
+	if strings.TrimSpace(req.RestoreWorkspace) != "" && restoreWorkspacePrepared(resolvedRestoreWorkspace(req, plan)) {
+		listingReq.RestoreWorkspace = resolvedRestoreWorkspace(req, plan)
 	} else {
 		listingReq.RestoreWorkspace = ""
 	}
 	ctx, err := newRestoreExecutionContext(&listingReq, meta, rt, true)
 	if err != nil {
-		return nil, "", false, func() {}, err
+		return nil, func() {}, err
 	}
-	return ctx, commandWorkspace, workspacePrepared, ctx.cleanup, nil
+	return ctx, ctx.cleanup, nil
 }
 
 func cleanRestorePath(value string) (string, error) {
@@ -820,36 +903,99 @@ func cleanRestorePath(value string) (string, error) {
 	return filepath.ToSlash(cleaned), nil
 }
 
-func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionInfo, limit int) (int, error) {
+func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionInfo, limit int) (duplicacy.RevisionInfo, error) {
 	shown := revisions
 	if limit > 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	fmt.Fprintln(restorePromptOutput, "Available revisions:")
+	fmt.Fprintln(restorePromptOutput, "Available restore points:")
 	for i, revision := range shown {
-		value := strconv.Itoa(revision.Revision)
-		if createdAt := formatRevisionCreatedAt(revision); createdAt != "" {
-			value += " (" + createdAt + ")"
-		}
-		fmt.Fprintf(restorePromptOutput, "  %d. %s\n", i+1, value)
+		fmt.Fprintf(restorePromptOutput, "  %d. %s\n", i+1, formatRestorePointChoice(revision))
 	}
-	answer, err := promptRestoreLine(reader, "Select revision by list number or revision id: ")
+	answer, err := promptRestoreLine(reader, "Select restore point by list number or revision id: ")
 	if err != nil {
-		return 0, err
+		return duplicacy.RevisionInfo{}, err
 	}
 	choice, err := strconv.Atoi(strings.TrimSpace(answer))
 	if err != nil || choice <= 0 {
-		return 0, NewRequestError("restore select requires a positive revision selection")
+		return duplicacy.RevisionInfo{}, NewRequestError("restore select requires a positive revision selection")
 	}
 	if choice <= len(shown) {
-		return shown[choice-1].Revision, nil
+		return shown[choice-1], nil
 	}
 	for _, revision := range revisions {
 		if revision.Revision == choice {
-			return revision.Revision, nil
+			return revision, nil
 		}
 	}
-	return 0, NewRequestError("revision %d was not found in the visible revision list", choice)
+	return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found in the visible revision list", choice)
+}
+
+func formatRestorePointChoice(revision duplicacy.RevisionInfo) string {
+	if createdAt := formatRevisionCreatedAt(revision); createdAt != "" {
+		return fmt.Sprintf("%s | rev %d", createdAt, revision.Revision)
+	}
+	return fmt.Sprintf("rev %d", revision.Revision)
+}
+
+func promptRestoreSelectIntent(reader *bufio.Reader, pathPrefix string) (restoreSelectIntent, error) {
+	fmt.Fprintln(restorePromptOutput, "Choose what you want to do next:")
+	fmt.Fprintln(restorePromptOutput, "  1. Inspect revision contents only")
+	if strings.TrimSpace(pathPrefix) == "" {
+		fmt.Fprintln(restorePromptOutput, "  2. Restore the full revision into the drill workspace")
+	} else {
+		fmt.Fprintf(restorePromptOutput, "  2. Restore the full subtree under %q into the drill workspace\n", pathPrefix)
+	}
+	fmt.Fprintln(restorePromptOutput, "  3. Restore selected files or directories into the drill workspace")
+	answer, err := promptRestoreLine(reader, "Choose action [1-3]: ")
+	if err != nil {
+		return "", err
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "1", "inspect", "i":
+		return restoreSelectIntentInspect, nil
+	case "2", "full", "f":
+		return restoreSelectIntentFull, nil
+	case "3", "select", "selective", "s":
+		return restoreSelectIntentSelective, nil
+	default:
+		return "", NewRequestError("restore select requires action 1, 2, or 3")
+	}
+}
+
+func promptRestoreInspect(ctx *restoreExecutionContext, req *Request, meta Metadata, revision int) error {
+	pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
+	if err != nil {
+		return err
+	}
+	output, err := ctx.dup.ListRevisionFiles(revision)
+	if err != nil {
+		return err
+	}
+	paths := extractRestoreFilePaths(output)
+	if len(paths) == 0 {
+		return NewRequestError("restore select found no restorable paths in revision %d", revision)
+	}
+	if pathPrefix != "" && !restorePathPrefixHasMatches(paths, pathPrefix) {
+		return NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
+	}
+	if err := runRestoreInspectPicker(paths, restorepicker.AppOptions{
+		Title:      fmt.Sprintf("Restore inspection for %s/%s", req.Source, req.Target()),
+		PathPrefix: pathPrefix,
+		Primitive: restorepicker.PrimitiveOptions{
+			ScriptName: meta.ScriptName,
+			Source:     req.Source,
+			Target:     req.Target(),
+			Revision:   strconv.Itoa(revision),
+			Workspace:  ctx.workspace,
+		},
+	}); err != nil {
+		if errors.Is(err, restorepicker.ErrPickerCancelled) {
+			return NewRequestError("restore select cancelled")
+		}
+		return err
+	}
+	return nil
 }
 
 func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata, revision int) ([]string, error) {
@@ -868,6 +1014,7 @@ func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata
 	if pathPrefix != "" && !restorePathPrefixHasMatches(paths, pathPrefix) {
 		return nil, NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
 	}
+	rootPath, rootIsDir := restoreSelectionRoot(paths, pathPrefix)
 	restorePaths, err := runRestoreSelectPicker(paths, restorepicker.AppOptions{
 		Title:      fmt.Sprintf("Restore selection for %s/%s", req.Source, req.Target()),
 		PathPrefix: pathPrefix,
@@ -877,6 +1024,8 @@ func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata
 			Target:     req.Target(),
 			Revision:   strconv.Itoa(revision),
 			Workspace:  ctx.workspace,
+			RootPath:   rootPath,
+			RootIsDir:  rootIsDir,
 		},
 	})
 	if err != nil {
@@ -889,6 +1038,31 @@ func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata
 		return nil, NewRequestError("restore select requires at least one restore path")
 	}
 	return restorePaths, nil
+}
+
+func restoreSelectionRoot(paths []string, pathPrefix string) (string, bool) {
+	pathPrefix = strings.Trim(strings.TrimSpace(pathPrefix), "/")
+	if pathPrefix == "" {
+		return "", false
+	}
+	for _, path := range paths {
+		path = strings.Trim(filepath.ToSlash(path), "/")
+		if path == pathPrefix {
+			return pathPrefix, false
+		}
+		if strings.HasPrefix(path, pathPrefix+"/") {
+			return pathPrefix, true
+		}
+	}
+	return pathPrefix, true
+}
+
+func restoreScopedDirectoryPattern(path string) string {
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return ""
+	}
+	return path + "/*"
 }
 
 func restorePathPrefixHasMatches(paths []string, prefix string) bool {
@@ -912,7 +1086,7 @@ func promptRestoreYesNo(reader *bufio.Reader, prompt string) (bool, error) {
 }
 
 func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectReport) (bool, error) {
-	fmt.Fprintln(restorePromptOutput, "Ready to execute restore command(s):")
+	fmt.Fprintln(restorePromptOutput, "Review the generated restore command(s):")
 	fmt.Fprintf(restorePromptOutput, "  Revision : %d\n", report.Revision)
 	fmt.Fprintf(restorePromptOutput, "  Workspace: %s\n", report.Workspace)
 	for _, path := range restoreDisplayPaths(report.RestorePaths) {
@@ -921,7 +1095,10 @@ func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectRe
 	for _, command := range report.RestoreCommands {
 		fmt.Fprintf(restorePromptOutput, "  Command  : %s\n", command)
 	}
-	return promptRestoreYesNo(reader, "Execute restore into the prepared workspace? [y/N]: ")
+	if report.WorkspacePrepared {
+		return promptRestoreYesNo(reader, "Restore into the prepared workspace now? [y/N]: ")
+	}
+	return promptRestoreYesNo(reader, "Prepare the drill workspace and restore now? [y/N]: ")
 }
 
 func promptRestoreLine(reader *bufio.Reader, prompt string) (string, error) {
@@ -1348,6 +1525,30 @@ func formatRestoreRun(report *restoreRunReport) string {
 	return b.String()
 }
 
+func formatRestoreInspect(report *restoreInspectReport) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Restore inspection for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
+	writeRestoreLines(&b, []SummaryLine{
+		{Label: "Label", Value: report.Label},
+		{Label: "Target", Value: report.Target},
+		{Label: "Location", Value: report.Location},
+		{Label: "Read Only", Value: "true"},
+		{Label: "Executes Restore", Value: "false"},
+	})
+	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, "")
+	writeRestoreSection(&b, "Inspection", []SummaryLine{
+		{Label: "Revision", Value: strconv.Itoa(report.Revision)},
+		{Label: "Path Prefix", Value: report.PathPrefix},
+		{Label: "Mode", Value: "browse the revision contents and quit when done"},
+	})
+	writeRestoreSection(&b, "Safety", []SummaryLine{
+		{Label: "Generated Commands", Value: "none; inspect mode does not generate restore commands"},
+		{Label: "Restore Execution", Value: "not performed by this command"},
+		{Label: "Guide", Value: report.Guide},
+	})
+	return b.String()
+}
+
 func formatRestoreSelect(report *restoreSelectReport) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Restore selection for %s/%s\n", report.Label, report.Target)
@@ -1355,7 +1556,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
 		{Label: "Location", Value: report.Location},
-		{Label: "Executes Restore", Value: fmt.Sprintf("%t", report.Execute)},
+		{Label: "Executes Restore", Value: "after confirmation"},
 		{Label: "Copies Back", Value: "false"},
 	})
 	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, "")
@@ -1375,8 +1576,8 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 	}
 	writeRestoreSection(&b, "Generated Commands", commandLines)
 	writeRestoreSection(&b, "Safety", []SummaryLine{
-		{Label: "Command Model", Value: selectValue(report.Execute, "restore select delegates to restore run after confirmation", "restore select only generates primitive commands")},
-		{Label: "Restore Execution", Value: selectValue(report.Execute, "delegated to restore run after confirmation", "not performed by this command")},
+		{Label: "Command Model", Value: "restore select previews explicit restore commands and can prepare and delegate to restore run after confirmation"},
+		{Label: "Restore Execution", Value: "not performed unless you confirm after reviewing the commands"},
 		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
 		{Label: "Guide", Value: report.Guide},
 	})

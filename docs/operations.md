@@ -185,6 +185,16 @@ does not copy anything back to live source paths. Use
 [`restore-drills.md`](restore-drills.md) to practise recovery safely before any
 manual copy-back.
 
+For most live operator restores, start with `restore select`. The lower-level
+restore commands remain available as the expert and scriptable path.
+
+Use `restore select` for the guided operator flow:
+
+```bash
+sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+```
+
 Use `restore plan` to print the resolved context and suggested Duplicacy
 commands without creating the workspace or running a restore:
 
@@ -205,22 +215,15 @@ List revisions, inspect a revision, then restore into that prepared workspace:
 sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore files --target onsite-usb --revision 2403 --path docs homes
 sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-sudo duplicacy-backup restore select --target onsite-usb --execute homes
 ```
 
 At a high level:
 
 - use `config explain`, `config validate`, and `health status` to confirm the
   label, target, storage value, and repository health
-- create an empty restore-drill workspace away from the live source path
-- use `restore revisions` and `restore files` to choose a recovery point and
-  path
-- use `restore select` when you want an interactive guide over the same
-  explicit restore commands; add `--execute` only when the workspace is
-  prepared and you want it to delegate to `restore run` after confirmation;
-  add `--path-prefix` when you want the picker to start under a known subtree
+- use `restore select` first when you want the operator-focused guided flow
+- use `restore plan`, `restore prepare`, `restore revisions`, `restore files`,
+  and `restore run` when you want fully explicit step-by-step control
 - in the picker, move with the arrow keys, expand with `Right`, collapse with
   `Left`, toggle files or subtrees with `Space`, then press `g`
 - restore a full revision or selected paths into the drill workspace only

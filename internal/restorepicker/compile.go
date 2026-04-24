@@ -12,6 +12,8 @@ type PrimitiveOptions struct {
 	Target     string
 	Revision   string
 	Workspace  string
+	RootPath   string
+	RootIsDir  bool
 }
 
 type PrimitivePreview struct {
@@ -33,7 +35,7 @@ func DefaultPrimitiveOptions() PrimitiveOptions {
 
 func CompileSelection(root *Node, opts PrimitiveOptions) PrimitivePreview {
 	opts = normalisePrimitiveOptions(opts)
-	paths := compileSelectionPaths(root)
+	paths := compileSelectionPaths(root, opts)
 	preview := PrimitivePreview{
 		FullRestore:  len(paths) == 1 && paths[0] == "",
 		RestorePaths: append([]string(nil), paths...),
@@ -73,11 +75,14 @@ func normalisePrimitiveOptions(opts PrimitiveOptions) PrimitiveOptions {
 	return opts
 }
 
-func compileSelectionPaths(root *Node) []string {
+func compileSelectionPaths(root *Node, opts PrimitiveOptions) []string {
 	if root == nil || root.Selection == SelectionNone {
 		return nil
 	}
 	if root.Selection == SelectionFull {
+		if rooted := rootedSelectionPath(opts); rooted != "" {
+			return []string{rooted}
+		}
 		return []string{""}
 	}
 	var paths []string
@@ -85,6 +90,17 @@ func compileSelectionPaths(root *Node) []string {
 		paths = append(paths, compileSelectionPathsFromNode(child)...)
 	}
 	return uniqueSortedStrings(paths)
+}
+
+func rootedSelectionPath(opts PrimitiveOptions) string {
+	rootPath := strings.Trim(strings.TrimSpace(opts.RootPath), "/")
+	if rootPath == "" {
+		return ""
+	}
+	if opts.RootIsDir {
+		return directoryPattern(rootPath)
+	}
+	return rootPath
 }
 
 func compileSelectionPathsFromNode(node *Node) []string {

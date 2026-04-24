@@ -43,12 +43,11 @@ Common options:
 
 Command-specific options:
     --force                Prune: override thresholds; update: reinstall selected release
-    --workspace <path>     Override restore drill workspace
+    --workspace <path>     Override restore drill workspace for prepare, run, or guided restore
     --revision <id>        Restore files/run: select backup revision
     --path <path>          Restore files/run: filter or restore one snapshot-relative path or pattern
     --path-prefix <path>   Restore select: start browsing under a snapshot-relative prefix
     --limit <count>        Restore revisions/files: bound listed results
-    --execute              Restore select: confirm and execute through restore run
     --provider <name>      Select notification provider for notify test
     --check-only           Inspect update or rollback without changing install
     --yes                  Skip update, rollback, or restore confirmation
@@ -70,7 +69,6 @@ Examples:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --execute homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -127,7 +125,7 @@ COMMAND OVERVIEW:
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision, file, or pattern into a prepared workspace only
-      restore select        Build an interactive tree-based restore selection; optionally confirm and execute via restore run
+      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -146,12 +144,11 @@ COMMON OPTIONS:
 
 COMMAND-SPECIFIC OPTIONS:
     --force                  Prune: override thresholds; update: reinstall selected release
-    --workspace <path>       Override restore drill workspace
+    --workspace <path>       Override restore drill workspace for prepare, run, or guided restore
     --revision <id>          Restore files/run: select backup revision
     --path <path>            Restore files/run: filter or restore one snapshot-relative path or pattern
     --path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix
     --limit <count>          Restore revisions/files: bound listed results
-    --execute                Restore select: confirm and execute through restore run
     --provider <name>        Select notification provider for notify test
     --severity <level>       Select notification severity for notify test
     --event <name>           Select notification event for notify test
@@ -287,17 +284,22 @@ RESTORE EXECUTION:
     workspace has been prepared.
 
 RESTORE SELECTION:
-    restore select is an interactive guide over the explicit restore commands.
-    Without --execute, it guides revision and path selection, prints the exact
-    restore prepare and restore run commands, and stops. The tree picker lets
-    operators move through the snapshot tree, select one file, or select a
-    directory subtree as a Duplicacy pattern. Press g to continue with the
-    current selection and generate the restore commands, or q to cancel. Use
-    --path-prefix to start from a useful subtree in large backups.
-    With --execute, it shows the generated restore run command, requires a
-    prepared workspace, asks for confirmation, and delegates to restore run. It
-    refuses non-interactive use. The picker is convenience; the command model is
-    the contract.
+    restore select is the primary operator restore path. It first presents
+    restore points, then lets operators choose inspect-only, full restore, or
+    tree-based selective restore. For restore actions, it shows the exact
+    restore prepare and restore run commands, asks for confirmation, prepares
+    the drill workspace when needed, and then delegates to restore run. The
+    tree picker lets operators move through the snapshot tree, select one file,
+    or select a directory subtree as a Duplicacy pattern. Press g to continue
+    with the current selection and generate the restore commands, or q to
+    cancel. Use --path-prefix to start from a useful subtree in large backups.
+    Inspect-only remains read-only. The picker is convenience; the command
+    model is the contract.
+
+    restore plan, restore prepare, restore revisions, restore files, and
+    restore run remain the expert and scriptable restore primitives. Use them
+    when you want fully explicit step-by-step control, automation, or a
+    documented recovery procedure without the interactive guide.
 
 EXAMPLES:
     {{script}} backup --target onsite-usb homes
@@ -326,7 +328,6 @@ EXAMPLES:
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-    {{script}} restore select --target onsite-usb --execute homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
@@ -446,13 +447,13 @@ Restore commands:
 
 Options:
     --target <name>
-    --workspace <path>      (default prepare path: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
+    --workspace <path>      (prepare default: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
     --revision <id>         required for files and run
     --path <path>           optional snapshot-relative path or pattern for files and run
+    --path-prefix <path>    select only; start the tree picker under a useful subtree
     --limit <count>         revisions default: 50; files default: 200
     --dry-run               run only; print planned restore without executing
     --yes                   run only; skip interactive confirmation
-    --execute               select only; execute generated restore run after confirmation
     --json-summary          revisions/files only
     --config-dir <path>     (default: <binary-dir>/.config)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
@@ -466,7 +467,6 @@ Examples:
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore prepare --target offsite-storj --workspace /volume1/restore-drills/homes-offsite-storj homes
     {{script}} restore plan --target offsite-storj homes
 
@@ -486,18 +486,17 @@ RESTORE COMMANDS:
     revisions              List visible backup revisions without executing a restore
     files                  List files in one revision without executing a restore
     run                    Restore a revision, file, or pattern into a prepared workspace only
-    select                 Build an interactive tree-based restore selection; optionally confirm and execute via restore run
+    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
 
 OPTIONS:
     --target <name>        Select the named target (required)
-    --workspace <path>     Override drill workspace (default prepare path: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
+    --workspace <path>     Override drill workspace (prepare default: <source-volume>/restore-drills/<label>-<target>-<timestamp>)
     --revision <id>        Required for files and run
     --path <path>          Optional snapshot-relative path or pattern for files and run
     --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
     --limit <count>        Limit revision/file output (revisions default: 50; files default: 200)
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
-    --execute              select only; execute generated restore run after confirmation
     --json-summary         revisions/files only; write machine-readable output
     --config-dir <path>    Override config directory (default: <binary-dir>/.config)
     --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
@@ -505,6 +504,10 @@ OPTIONS:
     --help-full            Show the detailed restore help message
 
 BEHAVIOUR:
+    operator default:
+      - start with restore select for most live operator restores
+      - choose a restore point first, then inspect only or restore
+      - for restore actions, review the exact restore commands before confirming
     restore plan:
       - reads the selected label config
       - shows the resolved source path, storage value, config file, and applicable secrets file
@@ -539,7 +542,8 @@ BEHAVIOUR:
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
-      - guides revision selection and optional tree-based path selection
+      - is the primary operator restore flow
+      - guides restore-point selection before offering inspect-only, full restore, or tree-based selective restore
       - uses arrow keys to move through the snapshot tree
       - uses Right to expand directories and Left to collapse them
       - uses Space to select or clear the current file or subtree
@@ -548,11 +552,16 @@ BEHAVIOUR:
       - uses q to cancel
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
       - shows the exact restore run primitives that the current selection compiles to
-      - without --execute, does not run duplicacy restore
-      - with --execute, requires a prepared workspace
-      - with --execute and no --workspace, reuses the newest prepared drill workspace for the same label and target
-      - with --execute, delegates each selected path or pattern to restore run after explicit confirmation
+      - inspect-only remains read-only and does not run duplicacy restore
+      - for restore actions, shows the generated restore commands and asks for confirmation
+      - for restore actions, prepares the workspace when needed before delegating to restore run
+      - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point, for example <label>-<target>-<restore-point-timestamp>-rev<id>
       - never copies data back
+
+    expert path:
+      - use restore plan, restore prepare, restore revisions, restore files, and restore run for explicit, scriptable, or incident-runbook-driven recovery
+      - restore prepare defaults to a new timestamped drill workspace under restore-drills
+      - restore run reuses the newest prepared drill workspace for the same label and target when --workspace is omitted
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}
@@ -576,7 +585,6 @@ EXAMPLES:
     {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-    {{script}} restore select --target onsite-usb --execute homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{default_secrets_dir}}", config.DefaultSecretsDir,
