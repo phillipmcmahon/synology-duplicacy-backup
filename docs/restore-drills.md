@@ -4,6 +4,10 @@
 a safe drill workspace. It still does not copy data back to the live source.
 That final copy-back remains an operator decision after inspection.
 
+If you are connecting a replacement NAS to existing backup storage for the
+first time, start with [new-nas-restore.md](new-nas-restore.md). This guide
+assumes the tool is already installed and the selected repository can be read.
+
 The safe pattern is simple:
 
 - restore into a separate drill workspace

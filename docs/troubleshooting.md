@@ -107,6 +107,9 @@ See also:
 The wrapper restores only into a separate drill workspace. It does not copy
 restored data back to the live source path.
 
+If this is a replacement NAS and you have not connected it to the existing
+backup repository yet, start with [Restore onto a new NAS](new-nas-restore.md).
+
 For most operator restores, start with the guided flow:
 
 ```bash
@@ -152,6 +155,7 @@ directories.
 
 See also:
 
+- [Restore onto a new NAS](new-nas-restore.md)
 - [Restore drills](restore-drills.md)
 - [Operator cheat sheet](cheatsheet.md#restore-drills)
 
