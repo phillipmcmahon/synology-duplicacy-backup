@@ -44,25 +44,31 @@ delegates to `restore run`. Multiple selected paths become multiple explicit
 convenience; the command model is the contract. It still never copies data
 back to the live source.
 
-## What You Need
+## Start Here
 
-Pick the label and target you want to prove, then collect the current storage
-details:
+Pick the label and target you want to prove. For most operator restores, start
+with the guided flow:
 
 ```bash
 sudo duplicacy-backup config explain --target onsite-usb homes
 sudo duplicacy-backup config validate --target onsite-usb homes
 sudo duplicacy-backup health status --target onsite-usb homes
-sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore prepare --target onsite-usb homes
-sudo duplicacy-backup restore revisions --target onsite-usb homes
 sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
-Use the `Storage` value from `config explain` as the Duplicacy storage URL for
-the drill. `restore plan` prints that same value, the recommended drill
-workspace, and the Duplicacy commands that sit underneath the wrapper.
-`restore prepare` creates that separate workspace and writes
+Use the expert primitives when you want a step-by-step runbook instead:
+
+```bash
+sudo duplicacy-backup restore plan --target onsite-usb homes
+sudo duplicacy-backup restore prepare --target onsite-usb homes
+sudo duplicacy-backup restore revisions --target onsite-usb homes
+sudo duplicacy-backup restore files --target onsite-usb --revision <revision> --path "relative/path" homes
+sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --workspace <workspace> --yes homes
+```
+
+`restore plan` shows the same `Storage` value as `config explain`, the
+recommended drill workspace, and the Duplicacy commands that sit underneath
+the wrapper. `restore prepare` creates that separate workspace and writes
 `.duplicacy/preferences` there, but does not run a restore. For repositories
 created by this tool, the Duplicacy snapshot ID is `data`.
 

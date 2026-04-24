@@ -85,12 +85,12 @@ are not supported.
 
 | Command | Description |
 |---|---|
+| `restore select --target <target> [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
 | `restore plan --target <target> <label>` | Print a safe read-only restore drill plan for the selected label and target |
 | `restore prepare --target <target> [--workspace <path>] <label>` | Create the safe drill workspace and write Duplicacy preferences without executing a restore |
 | `restore revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
 | `restore files --target <target> --revision <id> [--path <relative-path>] [--limit <count>] <label>` | List files in one revision without executing a restore |
 | `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] --workspace <path> [--yes] <label>` | Restore into a prepared workspace only; never copy back to the live source |
-| `restore select --target <target> [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
 
 ## Update Command
 

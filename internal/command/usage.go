@@ -27,7 +27,7 @@ Commands:
     Runtime operations     backup, prune, cleanup-storage, fix-perms
     Config and inspection  config, diagnostics, health
     Notifications          notify test, notify test update
-    Restore drills         restore plan, restore prepare, restore revisions, restore files, restore run, restore select
+    Restore drills         restore select, restore plan, restore prepare, restore revisions, restore files, restore run
     Managed install        update, rollback
 
 Common options:
@@ -63,12 +63,9 @@ Examples:
     {{script}} diagnostics --target onsite-usb homes
     {{script}} health status --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
-    {{script}} restore plan --target onsite-usb homes
-    {{script}} restore prepare --target onsite-usb homes
-    {{script}} restore revisions --target onsite-usb homes
-    {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore plan --target onsite-usb homes
+    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -120,12 +117,12 @@ COMMAND OVERVIEW:
       notify test update    Send a simulated update notification through global update config
 
     Restore drills          Prepare and execute safe restore workflows without writing to the live source
+      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
       restore plan          Print a read-only Duplicacy restore-drill plan without executing a restore
       restore prepare       Prepare a safe drill workspace without executing a restore
       restore revisions     List visible backup revisions without executing a restore
       restore files         List files in one revision without executing a restore
       restore run           Restore a revision, file, or pattern into a prepared workspace only
-      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to prepare and restore when needed
 
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
@@ -319,6 +316,8 @@ EXAMPLES:
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
+    {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
     {{script}} restore prepare --target onsite-usb homes
@@ -326,8 +325,6 @@ EXAMPLES:
     {{script}} restore revisions --target onsite-usb homes
     {{script}} restore files --target onsite-usb --revision 2403 --path docs homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --workspace /volume1/restore-drills/homes-onsite-usb --yes homes
-    {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
