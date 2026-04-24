@@ -560,9 +560,15 @@ After this step, the plan is populated with things the executor can use directly
 - location
 
 Operationally, `source_path` is expected to be the real Btrfs volume or
-subvolume root for the label. Fine-grained inclusion and exclusion under that
-root is handled by Duplicacy filters, not by pointing `source_path` at an
-arbitrary nested child directory.
+subvolume root for the label when the NAS is going to run backups. Fine-grained
+inclusion and exclusion under that root is handled by Duplicacy filters, not by
+pointing `source_path` at an arbitrary nested child directory.
+
+Restore-only disaster recovery access is deliberately looser. Restore commands
+can read an existing repository without `source_path`, because the original
+source tree may not exist on a replacement NAS yet. In that mode, copy-back
+context is unavailable and the default drill workspace root is
+`/volume1/restore-drills`.
 
 ### `loadSecrets`
 

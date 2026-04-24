@@ -126,7 +126,10 @@ func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage strin
 		report.SecretsFile = plan.SecretsFile
 	}
 	report.InitCommand = fmt.Sprintf("duplicacy init %s %s", shellQuote(report.SnapshotID), shellQuote(storage))
-	report.CopyBackPreview = fmt.Sprintf("rsync -a --dry-run %s %s", shellQuote(filepath.Join(workspace, "relative/path")), shellQuote(filepath.Join(plan.SnapshotSource, "relative/path")))
+	report.CopyBackPreview = "Unavailable until source_path is configured"
+	if strings.TrimSpace(plan.SnapshotSource) != "" {
+		report.CopyBackPreview = fmt.Sprintf("rsync -a --dry-run %s %s", shellQuote(filepath.Join(workspace, "relative/path")), shellQuote(filepath.Join(plan.SnapshotSource, "relative/path")))
+	}
 	return report
 }
 

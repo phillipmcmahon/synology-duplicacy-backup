@@ -326,10 +326,9 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
 	}
-	if f.SourcePath == nil || strings.TrimSpace(*f.SourcePath) == "" {
-		return nil, apperrors.NewConfigError("source-path", fmt.Errorf("config file %s is missing required source_path value", path), "path", path)
+	if f.SourcePath != nil && strings.TrimSpace(*f.SourcePath) != "" {
+		values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 	}
-	values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 
 	selected, target, err := f.selectTarget(targetName, path)
 	if err != nil {
@@ -427,11 +426,10 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	if targetName != "" && targetName != resolvedTarget {
 		return nil, apperrors.NewConfigError("target-name", fmt.Errorf("config file %s defines target %q, expected %q", path, resolvedTarget, targetName), "path", path, "target", resolvedTarget)
 	}
-	if f.SourcePath == nil || strings.TrimSpace(*f.SourcePath) == "" {
-		return nil, apperrors.NewConfigError("source-path", fmt.Errorf("config file %s is missing required source_path value", path), "path", path)
+	if f.SourcePath != nil && strings.TrimSpace(*f.SourcePath) != "" {
+		values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 	}
 	values["TARGET"] = resolvedTarget
-	values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
 	}
@@ -698,6 +696,9 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 
 	if c.Storage == "" {
 		missing = append(missing, "targets.<name>.storage")
+	}
+	if doBackup && c.SourcePath == "" {
+		missing = append(missing, "source_path")
 	}
 	if doBackup && c.Threads == 0 {
 		missing = append(missing, "common.threads or targets.<name>.threads")

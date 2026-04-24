@@ -63,7 +63,7 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate the selected target from that label config and any required storage secrets |
+| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path, storage, repository, and any required storage secrets |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -182,6 +182,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   If `--workspace` is omitted, the workspace is derived from the restore point:
   `<label>-<target>-<restore-point-timestamp>-rev<id>`. Use a file path for
   one file or a Duplicacy pattern such as `docs/*` for a subtree.
+- Restore-only disaster recovery access does not require `source_path`; when it
+  is omitted, the default workspace root is `/volume1/restore-drills`.
 - `restore select` is the primary operator restore path. It first presents
   restore points, then offers inspect-only, full restore, or tree-based
   selective restore. For restore actions, it previews the explicit commands,

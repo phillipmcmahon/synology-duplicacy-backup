@@ -101,6 +101,11 @@ For example:
 /volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3
 ```
 
+If `source_path` is not configured, restore execution can still read the
+repository. In that restore-only DR mode, the default workspace root is
+`/volume1/restore-drills/...`. Provide `--workspace` if you want to pin the
+workspace somewhere else.
+
 Create a new, empty folder outside the live source tree only if you want to pin
 the workspace name yourself:
 
@@ -276,7 +281,10 @@ assuming a file-level copy is sufficient.
 ## Drill Checklist
 
 - Confirm the label and target with `config explain`.
-- Confirm `config validate` and `health status` before restoring.
+- On an existing NAS, confirm `config validate` and `health status` before
+  restoring.
+- On a replacement NAS where `source_path` is not configured yet, confirm
+  repository access with `restore list-revisions` before restoring.
 - Use `restore run` for wrapper-managed drill execution. Use Duplicacy `init`
   only when you are deliberately running a fully manual Duplicacy drill.
 - Use snapshot ID `data` for repositories created by this tool.

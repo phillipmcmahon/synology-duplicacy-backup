@@ -211,8 +211,11 @@ sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path doc
 
 At a high level:
 
-- use `config explain`, `config validate`, and `health status` to confirm the
-  label, target, storage value, and repository health
+- on an existing NAS, use `config explain`, `config validate`, and
+  `health status` to confirm the label, target, storage value, and repository
+  health
+- on a replacement NAS where `source_path` is not configured yet, use
+  `config explain` and `restore list-revisions` to prove restore access
 - use `restore select` first when you want the operator-focused guided flow
 - use `restore plan`, `restore list-revisions`, and `restore run`
   when you want fully explicit step-by-step control

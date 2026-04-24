@@ -201,6 +201,83 @@ func TestHandleRestoreCommand_PlanRemoteDoesNotLoadSecrets(t *testing.T) {
 	}
 }
 
+func TestHandleRestoreCommand_PlanAllowsMissingSourcePathForDR(t *testing.T) {
+	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
+	configDir := t.TempDir()
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", `
+label = "homes"
+
+[common]
+threads = 4
+prune = "-keep 0:365"
+
+[targets.offsite-storj]
+location = "remote"
+storage = "s3://gateway.example.invalid/bucket/homes"
+`)
+
+	req := &Request{RestoreCommand: "plan", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
+	out, err := restoreHandleCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	for _, token := range []string{
+		"Restore plan for homes/offsite-storj",
+		"Source Path",
+		"Not configured (restore-only access is allowed; copy-back context unavailable)",
+		"/volume1/restore-drills/homes-offsite-storj-20260424-081530",
+		"Copy Back Preview",
+		"Unavailable until source_path is configured",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+}
+
+func TestHandleRestoreCommand_RunDryRunDerivesWorkspaceWithoutSourcePath(t *testing.T) {
+	configDir := t.TempDir()
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", `
+label = "homes"
+
+[common]
+threads = 4
+prune = "-keep 0:365"
+
+[targets.onsite-usb]
+location = "local"
+storage = "/backups/homes"
+`)
+
+	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"})
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true, DryRun: true}
+	out, err := restoreHandleCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	for _, token := range []string{
+		"Restore run for homes/onsite-usb revision 2403",
+		"Source Path",
+		"Not configured (restore-only access is allowed; copy-back context unavailable)",
+		"/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403",
+		"Dry run",
+	} {
+		if !strings.Contains(out, token) {
+			t.Fatalf("output missing %q:\n%s", token, out)
+		}
+	}
+	if len(mock.Invocations) != 1 || strings.Join(mock.Invocations[0].Args, " ") != "list" {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
 func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")

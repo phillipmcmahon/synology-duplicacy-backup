@@ -215,9 +215,13 @@ func restoreDisplayPaths(restorePaths []string) []string {
 }
 
 func writeRestoreResolvedSection(b *strings.Builder, configFile, sourcePath, storage, secretsFile string) {
+	sourceDisplay := sourcePath
+	if strings.TrimSpace(sourceDisplay) == "" {
+		sourceDisplay = "Not configured (restore-only access is allowed; copy-back context unavailable)"
+	}
 	writeRestoreSection(b, "Resolved", []SummaryLine{
 		{Label: "Config File", Value: configFile},
-		{Label: "Source Path", Value: sourcePath},
+		{Label: "Source Path", Value: sourceDisplay},
 		{Label: "Storage", Value: storage},
 		{Label: "Secrets File", Value: secretsFile},
 	})

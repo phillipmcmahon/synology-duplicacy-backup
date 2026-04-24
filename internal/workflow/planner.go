@@ -182,9 +182,6 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	if cfg.Target == "" {
 		cfg.Target = plan.TargetName()
 	}
-	if cfg.SourcePath == "" {
-		cfg.SourcePath = filepath.Join(p.meta.RootVolume, plan.BackupLabel)
-	}
 	plan.applyConfigIdentity(cfg)
 	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
 

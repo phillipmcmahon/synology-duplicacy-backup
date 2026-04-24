@@ -232,6 +232,8 @@ Core operating rules:
 - `restore run` prepares or reuses a drill workspace, restores only there, and
   never copies data back to the live source. Use `--path` for one file or a
   Duplicacy pattern such as `docs/*` for a subtree.
+- Restore-only disaster recovery access does not require `source_path`; when it
+  is omitted, the default restore workspace root is `/volume1/restore-drills`.
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
   to continue with the current selection and generate the restore commands,

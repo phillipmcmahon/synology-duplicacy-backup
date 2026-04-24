@@ -67,10 +67,15 @@ The default installed paths are:
 /root/.secrets/
 ```
 
-## 2. Create The Intended Source Root
+## 2. Decide Whether You Know The Future Source Root
 
-The config needs a `source_path` even before you copy restored data back. On a
-new NAS, set it to the intended final source root for the label.
+Restore access does not require the original `source_path`. In a disaster
+recovery situation, the important first step is proving that the new NAS can
+read the backup repository.
+
+If you know the future live source root, you can include `source_path` in the
+config. This gives the tool better copy-back context and lets `config validate`
+perform the full source-path readiness check.
 
 Examples:
 
@@ -80,18 +85,22 @@ Examples:
 /volume1/source-plexaudio
 ```
 
-Create it if it does not already exist:
+Create it only when you are intentionally rebuilding that live source root:
 
 ```bash
 sudo mkdir -p /volume1/homes
 ```
 
-Restore execution will not write to this path. It uses the source volume to
-derive a separate drill workspace such as:
+Restore execution will not write to `source_path`. It restores into a separate
+drill workspace such as:
 
 ```text
 /volume1/restore-drills/homes-offsite-storj-20260424-070000-rev2403
 ```
+
+If `source_path` is omitted, restore commands still work. The default drill
+workspace is placed under `/volume1/restore-drills/...` unless you provide an
+explicit `--workspace`.
 
 ## 3. Create The Backup Config
 
@@ -114,7 +123,9 @@ S3-compatible Duplicacy backend.
 
 ```toml
 label = "homes"
-source_path = "/volume1/homes"
+# Optional for restore-only DR access.
+# Add this when the future live source root is known.
+# source_path = "/volume1/homes"
 
 [common]
 threads = 4
@@ -152,7 +163,9 @@ filesystem path.
 
 ```toml
 label = "homes"
-source_path = "/volume1/homes"
+# Optional for restore-only DR access.
+# Add this when the future live source root is known.
+# source_path = "/volume1/homes"
 
 [common]
 threads = 4
@@ -223,7 +236,7 @@ sudo chown root:root /root/.secrets/homes-secrets.toml
 sudo chmod 600 /root/.secrets/homes-secrets.toml
 ```
 
-## 5. Validate The Config And Repository
+## 5. Check The Config Shape
 
 First confirm the tool resolves the target you expect:
 
@@ -231,8 +244,8 @@ First confirm the tool resolves the target you expect:
 sudo duplicacy-backup config explain --target offsite-storj homes
 ```
 
-Check that the config, source path, storage settings, secrets, and repository
-readiness are valid:
+If you configured `source_path` and created that future live source root, you
+can also run full backup-readiness validation:
 
 ```bash
 sudo duplicacy-backup config validate --target offsite-storj homes
@@ -246,6 +259,11 @@ Repository Access  : Valid
 Target Settings    : Valid
 Result             : Passed
 ```
+
+If `source_path` is intentionally omitted, `config validate` may fail the
+source-path check. That does not mean restore access is blocked. Continue with
+`restore list-revisions`, which is the restore-specific repository connection
+test.
 
 If repository access is `Not initialized`, stop and check the `storage` value.
 On a replacement NAS you should be connecting to an existing repository, not
@@ -278,7 +296,7 @@ sudo duplicacy-backup restore plan --target offsite-storj homes
 The plan should show:
 
 - the expected config file
-- the intended source path
+- the intended source path, or a clear restore-only message if it is omitted
 - the exact storage value
 - the secrets file, if the backend needs one
 - the safe drill workspace pattern
@@ -321,11 +339,11 @@ Restored data goes into the drill workspace, not the live source path.
 
 - Install `duplicacy-backup`.
 - Confirm Duplicacy CLI is installed and on `PATH`.
-- Create the intended `source_path` directory.
 - Create `/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml`.
 - Create `/root/.secrets/<label>-secrets.toml` if the backend needs keys.
 - Run `config explain`.
-- Run `config validate` and confirm repository access is `Valid`.
+- Optional: add `source_path`, create the future live source root, then run
+  `config validate` for full backup-readiness checks.
 - Run `restore list-revisions` and confirm restore points are visible.
 - Run `restore select` in inspect-only mode before restoring.
 - Restore into the drill workspace first.

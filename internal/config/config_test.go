@@ -107,6 +107,31 @@ local_group = "users"
 	}
 }
 
+func TestParseFile_TargetConfigAllowsMissingSourcePathForRestoreOnlyUse(t *testing.T) {
+	p := writeTempConfig(t, `
+label = "homes"
+
+[targets.offsite-storj]
+location = "remote"
+storage = "s3://gateway.example.invalid/bucket/homes"
+`)
+
+	raw, err := ParseFile(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	values, err := raw.ResolveValues("offsite-storj", p)
+	if err != nil {
+		t.Fatalf("ResolveValues() error = %v", err)
+	}
+	if _, ok := values["SOURCE_PATH"]; ok {
+		t.Fatalf("SOURCE_PATH should be absent when source_path is omitted: %#v", values)
+	}
+	if values["STORAGE"] != "s3://gateway.example.invalid/bucket/homes" {
+		t.Fatalf("STORAGE = %q", values["STORAGE"])
+	}
+}
+
 func TestParseFile_ResolveHealthDefaultsAndOverrides(t *testing.T) {
 	p := writeTempConfig(t, `
 label = "homes"
@@ -721,22 +746,30 @@ func TestApply_InvalidNumericValues(t *testing.T) {
 }
 
 func TestValidateRequired(t *testing.T) {
-	cfg := &Config{Storage: "/vol/homes", Threads: 4, Prune: "-keep 0:30"}
+	cfg := &Config{SourcePath: "/volume1/homes", Storage: "/vol/homes", Threads: 4, Prune: "-keep 0:30"}
 	if err := cfg.ValidateRequired(true, true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if err := (&Config{Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
+	if err := (&Config{SourcePath: "/volume1/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing storage")
 	}
-	if err := (&Config{Storage: "/vol/homes", Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
+	if err := (&Config{Storage: "/vol/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
+		t.Fatal("expected missing source_path")
+	} else if !strings.Contains(err.Error(), "source_path") {
+		t.Fatalf("missing source_path error = %v", err)
+	}
+	if err := (&Config{SourcePath: "/volume1/homes", Storage: "/vol/homes", Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing threads")
 	} else if !strings.Contains(err.Error(), "common.threads or targets.<name>.threads") {
 		t.Fatalf("missing threads error = %v", err)
 	}
-	if err := (&Config{Storage: "/vol/homes", Threads: 4}).ValidateRequired(true, true); err == nil {
+	if err := (&Config{SourcePath: "/volume1/homes", Storage: "/vol/homes", Threads: 4}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing prune")
 	} else if !strings.Contains(err.Error(), "common.prune or targets.<name>.prune") {
 		t.Fatalf("missing prune error = %v", err)
+	}
+	if err := (&Config{Storage: "/vol/homes"}).ValidateRequired(false, false); err != nil {
+		t.Fatalf("restore-style required check should not require source_path: %v", err)
 	}
 }
 

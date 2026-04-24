@@ -10,6 +10,8 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
+const defaultRestoreWorkspaceRoot = "/volume1"
+
 func resolvedRestoreWorkspace(req *Request, plan *Plan, deps RestoreDeps) string {
 	workspace := req.RestoreWorkspace
 	if strings.TrimSpace(workspace) == "" {
@@ -37,18 +39,25 @@ func resolvedRestoreSelectWorkspace(req *Request, plan *Plan, revision duplicacy
 }
 
 func recommendedRestoreWorkspace(sourcePath, label, target string, deps RestoreDeps) string {
-	base := rootVolumeForSource(sourcePath)
+	base := restoreWorkspaceBase(sourcePath)
 	timestamp := deps.Now().Local().Format("20060102-150405")
 	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s", label, target, timestamp))
 }
 
 func recommendedRestoreWorkspaceForRevision(sourcePath, label, target string, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
-	base := rootVolumeForSource(sourcePath)
+	base := restoreWorkspaceBase(sourcePath)
 	timestamp := deps.Now().Local().Format("20060102-150405")
 	if !revision.CreatedAt.IsZero() {
 		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
 	}
 	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
+}
+
+func restoreWorkspaceBase(sourcePath string) string {
+	if strings.TrimSpace(sourcePath) == "" {
+		return defaultRestoreWorkspaceRoot
+	}
+	return rootVolumeForSource(sourcePath)
 }
 
 func validateRestoreWorkspace(workspace, sourcePath string) error {
@@ -58,6 +67,9 @@ func validateRestoreWorkspace(workspace, sourcePath string) error {
 	}
 	if !filepath.IsAbs(workspace) {
 		return NewRequestError("--workspace must be an absolute path: %s", workspace)
+	}
+	if strings.TrimSpace(sourcePath) == "" {
+		return nil
 	}
 	source := filepath.Clean(sourcePath)
 	if workspace == source {

@@ -140,7 +140,8 @@ Installer behaviour:
 
 ### Config and Validation
 
-- Keep `source_path` pointed at the real Btrfs volume or subvolume for the label, then use Duplicacy filters to include or exclude nested directories beneath that root.
+- Keep `source_path` pointed at the real Btrfs volume or subvolume for the label when the NAS will run backups, then use Duplicacy filters to include or exclude nested directories beneath that root.
+- For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - Non-root `config validate` is still useful, but checks that require root may show `Not checked`.
@@ -160,7 +161,8 @@ Installer behaviour:
 ### Restore Drills
 
 - `duplicacy-backup restore run` prepares or reuses a drill workspace, restores only there, and never copies data back to the live source.
-- Start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
+- On an existing NAS, start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
+- On a replacement NAS where `source_path` is not known yet, use `config explain` and `restore list-revisions` to prove restore access first.
 - Use snapshot ID `data` for repositories created by this tool.
 - `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.

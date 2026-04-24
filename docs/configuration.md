@@ -136,7 +136,7 @@ s3_secret = "..."
 | Key | Required | Description |
 |---|---|---|
 | `label` | Yes | Source label used on the CLI |
-| `source_path` | Yes | Btrfs source root for this label; must be a snapshot-safe volume or subvolume |
+| `source_path` | Required for backup and full `config validate`; optional for restore-only DR access | Btrfs source root for this label; must be a snapshot-safe volume or subvolume when configured |
 | `common.filter` | No | Default Duplicacy filter pattern |
 | `common.threads` | Yes for backup unless set on the target | Duplicacy threads; power of 2, max 16 |
 | `common.prune` | Yes for prune unless set on the target | Duplicacy prune policy |
@@ -374,8 +374,9 @@ storage = "minio://garage@192.168.202.24:3900/garage/homes"
 
 ## Source Path Rule
 
-`source_path` is the snapshot root for the label. It must be a Btrfs volume or
-subvolume that can be used directly as the source of a read-only snapshot.
+`source_path` is the snapshot root for the label when the NAS is expected to
+run backups. It must be a Btrfs volume or subvolume that can be used directly
+as the source of a read-only snapshot.
 
 Good examples:
 
@@ -393,6 +394,14 @@ When you need to include or exclude directories beneath the snapshot root, keep
 `source_path` pointed at the real Btrfs root location and use Duplicacy
 filters under `common.filter` or `targets.<name>.filter` to shape what is
 actually backed up.
+
+Restore-only disaster recovery access can omit `source_path`. Restore commands
+only need the label, target, storage value, and any storage secrets to read
+existing Duplicacy data. When `source_path` is omitted, restore output marks the
+live source as unavailable, copy-back previews are disabled, and the default
+drill workspace falls back to `/volume1/restore-drills/...`. Add `source_path`
+later when the live source root has been rebuilt and the NAS is ready for
+backup validation.
 
 ## Secrets
 
@@ -484,7 +493,7 @@ freshness signal.
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
 | target local-account consistency | `config validate`, path-based `fix-perms` |
-| Btrfs `source_path` check | `config validate`, backup |
+| Btrfs `source_path` check | `config validate`, backup; not required for restore-only access |
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | path-based `fix-perms` |

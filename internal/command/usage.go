@@ -104,7 +104,7 @@ COMMAND OVERVIEW:
       fix-perms             Normalise path-based storage ownership and permissions
 
     Config and inspection   Read, explain, validate, or diagnose configured targets
-      config validate       Validate the resolved config and configured secrets
+      config validate       Validate backup-readiness, including source path and configured secrets
       config explain        Show resolved config values for the selected target
       config paths          Show resolved config, source, log, and secrets paths
       diagnostics           Print a redacted support bundle for one label and target
@@ -170,7 +170,7 @@ CONFIG FILE LOCATION:
 
 CONFIG STRUCTURE:
     label config files define:
-      source_path
+      source_path       # required for backup/full config validate; optional for restore-only DR access
       [common]
       [health]
       [health.notify]
@@ -272,6 +272,8 @@ RESTORE EXECUTION:
     duplicacy restore only inside that workspace. When --workspace is omitted,
     the workspace is derived from the selected restore point:
     <source-volume>/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
+    If source_path is not configured, restore-only DR access still works and
+    the default workspace root is /volume1/restore-drills.
     It never restores over the live source path and never copies data back. Use
     --path for selective file restores or directory patterns, --dry-run to
     print the planned command, and --yes for unattended execution.
