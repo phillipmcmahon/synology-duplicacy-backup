@@ -263,6 +263,9 @@ func runRestoreSelectSelective(ctx *restoreExecutionContext, req *RestoreRequest
 }
 
 func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, restorePaths []string, deps RestoreDeps) (string, error) {
+	if err := validateRestoreWorkspaceRoot(req); err != nil {
+		return "", err
+	}
 	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
 	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
 	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.SnapshotSource); err != nil {

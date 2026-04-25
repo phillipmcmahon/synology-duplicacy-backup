@@ -235,7 +235,9 @@ Core operating rules:
   Duplicacy pattern such as `docs/*` for a subtree.
 - Restore workspaces default to
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
-  `source_path` is only live-source and copy-back context.
+  `source_path` is only live-source and copy-back context. Use
+  `--workspace-root` to place derived job folders under an existing
+  operator-managed shared-folder root.
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
   to continue with the current selection and generate the restore commands,

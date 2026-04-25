@@ -26,6 +26,9 @@ func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, st
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
 		return "", err
 	}
+	if err := validateRestoreWorkspaceRoot(req); err != nil {
+		return "", err
+	}
 	if strings.TrimSpace(req.Workspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps), nil
 	}
@@ -81,6 +84,24 @@ func validateRestoreWorkspaceSelection(req *RestoreRequest) error {
 	}
 	if strings.TrimSpace(req.WorkspaceRoot) != "" && !filepath.IsAbs(filepath.Clean(strings.TrimSpace(req.WorkspaceRoot))) {
 		return NewRequestError("--workspace-root must be an absolute path: %s", req.WorkspaceRoot)
+	}
+	return nil
+}
+
+func validateRestoreWorkspaceRoot(req *RestoreRequest) error {
+	if req == nil || strings.TrimSpace(req.WorkspaceRoot) == "" {
+		return nil
+	}
+	root := filepath.Clean(strings.TrimSpace(req.WorkspaceRoot))
+	info, err := os.Stat(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return NewRequestError("--workspace-root must already exist: %s", root)
+		}
+		return fmt.Errorf("restore workspace root is not accessible: %w", err)
+	}
+	if !info.IsDir() {
+		return NewRequestError("--workspace-root must be a directory: %s", root)
 	}
 	return nil
 }

@@ -44,7 +44,7 @@ Common options:
 Command-specific options:
     --force                Prune: override thresholds; update: reinstall selected release
     --workspace <path>     Use this exact restore drill workspace path
-    --workspace-root <path> Restore run/select: derive workspace under this root
+    --workspace-root <path> Restore run/select: derive under existing root
     --revision <id>        Restore run: select backup revision
     --path <path>          Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>   Restore select: start browsing under a snapshot-relative prefix
@@ -142,7 +142,7 @@ COMMON OPTIONS:
 COMMAND-SPECIFIC OPTIONS:
     --force                  Prune: override thresholds; update: reinstall selected release
     --workspace <path>       Use this exact restore drill workspace path
-    --workspace-root <path>  Restore run/select: derive workspace under this root
+    --workspace-root <path>  Restore run/select: derive under existing root
     --revision <id>          Restore run: select backup revision
     --path <path>            Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix
@@ -276,8 +276,8 @@ RESTORE EXECUTION:
     duplicacy restore only inside that workspace. When --workspace is omitted,
     the workspace is derived from the restore job:
     /volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
-    Use --workspace-root to choose the parent root while keeping the derived
-    job folder. Use --workspace only when you need an exact workspace path.
+    Use --workspace-root to choose an existing parent root while keeping the
+    derived job folder. Use --workspace only when you need an exact workspace path.
     source_path is only live-source and copy-back context; restore-only DR
     access does not require it.
     It never restores over the live source path and never copies data back. Use

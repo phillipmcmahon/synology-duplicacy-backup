@@ -404,6 +404,8 @@ Restore-only disaster recovery access can omit `source_path`. Restore commands
 only need the label, target, storage value, and any storage secrets to read
 existing Duplicacy data. Restore workspaces are derived from the restore job:
 `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+Use `--workspace-root` to place those derived job folders under an existing
+operator-managed root, such as a Synology shared folder.
 When `source_path` is omitted, restore output marks the live source as
 unavailable and copy-back previews are disabled. Add `source_path` later when
 the live source root has been rebuilt and the NAS is ready for backup

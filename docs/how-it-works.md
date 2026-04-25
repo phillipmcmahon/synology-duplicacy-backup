@@ -573,6 +573,8 @@ source tree may not exist on a replacement NAS yet. In that mode, copy-back
 context is unavailable. The default drill workspace is derived from the restore
 job itself:
 `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+If the operator supplies `--workspace-root`, that existing root remains
+operator-managed and the tool creates the derived job folder underneath it.
 
 ### `loadSecrets`
 

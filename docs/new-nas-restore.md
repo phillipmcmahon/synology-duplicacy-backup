@@ -100,9 +100,10 @@ drill workspace derived from the restore job:
 
 If `source_path` is omitted, restore commands still work. `source_path` is only
 live-source and copy-back context. Provide `--workspace-root` when you want the
-derived restore-job folder under a Synology shared folder you choose. Provide
-`--workspace` only when you want to override the derived workspace with an exact
-path.
+derived restore-job folder under a Synology shared folder you choose. Create
+that root folder first so its DSM permissions and ownership remain
+operator-managed. Provide `--workspace` only when you want to override the
+derived workspace with an exact path.
 
 ## 3. Create The Backup Config
 

@@ -214,6 +214,14 @@ func TestValidateRestoreWorkspaceSelection_RejectsRelativeRoot(t *testing.T) {
 	}
 }
 
+func TestValidateRestoreWorkspaceRoot_RejectsMissingRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing-restore-root")
+	err := validateRestoreWorkspaceRoot(&RestoreRequest{WorkspaceRoot: root})
+	if err == nil || !strings.Contains(err.Error(), "--workspace-root must already exist") {
+		t.Fatalf("validateRestoreWorkspaceRoot() err = %v", err)
+	}
+}
+
 func TestHandleRestoreCommand_RejectsWorkspaceAndRoot(t *testing.T) {
 	req := &Request{RestoreCommand: "run", Source: "homes", RequestedTarget: "onsite-usb", RestoreWorkspace: "/restore/exact", RestoreWorkspaceRoot: "/restore/root", RestoreRevision: 2403, RestoreYes: true}
 	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -708,6 +716,9 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	sourcePath := "/tmp/homes-run-self-prepare-test"
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := filepath.Join(t.TempDir(), "restore-drills")
+	if err := os.Mkdir(root, 0755); err != nil {
+		t.Fatalf("Mkdir(%q) error = %v", root, err)
+	}
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
@@ -745,6 +756,49 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats -- docs/readme.md" ||
 		mock.Invocations[1].Dir != wantWorkspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
+func TestHandleRestoreCommand_RunPreservesExistingWorkspaceRootPermissions(t *testing.T) {
+	configDir := t.TempDir()
+	sourcePath := "/tmp/homes-run-root-permissions-test"
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	root := filepath.Join(t.TempDir(), "restore-drills")
+	if err := os.Mkdir(root, 0755); err != nil {
+		t.Fatalf("Mkdir(%q) error = %v", root, err)
+	}
+	if err := os.Chmod(root, 0755); err != nil {
+		t.Fatalf("Chmod(%q) error = %v", root, err)
+	}
+	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
+		execpkg.MockResult{Stdout: "Restored docs/readme.md\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceRoot: root, RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	if _, err := restoreHandleCommand(req, meta, testRuntime()); err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("Stat(%q) error = %v", root, err)
+	}
+	if got := rootInfo.Mode().Perm(); got != 0755 {
+		t.Fatalf("workspace root mode = %v, want 0755", got)
+	}
+	workspaceInfo, err := os.Stat(wantWorkspace)
+	if err != nil {
+		t.Fatalf("Stat(%q) error = %v", wantWorkspace, err)
+	}
+	if got := workspaceInfo.Mode().Perm(); got != 0770 {
+		t.Fatalf("workspace mode = %v, want 0770", got)
 	}
 }
 
@@ -854,6 +908,9 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := filepath.Join(t.TempDir(), "restore-drills")
+	if err := os.Mkdir(root, 0755); err != nil {
+		t.Fatalf("Mkdir(%q) error = %v", root, err)
+	}
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260420-023000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))

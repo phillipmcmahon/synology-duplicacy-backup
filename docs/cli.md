@@ -185,8 +185,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   If `--workspace` is omitted, the workspace is derived from the restore job:
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
   Use `--workspace-root` to choose the parent folder while keeping the derived
-  restore-job folder name. Use `--workspace` only when you want an exact
-  workspace path; it cannot be combined with `--workspace-root`.
+  restore-job folder name. The root must already exist and remains
+  operator-managed, which is the recommended pattern for Synology shared-folder
+  visibility. Use `--workspace` only when you want an exact workspace path; it
+  cannot be combined with `--workspace-root`.
   Use a file path for one file or a Duplicacy pattern such as `docs/*` for a
   subtree. During execution, restore progress is printed to stderr while the
   final report remains on stdout. Successful restores show a compact Duplicacy

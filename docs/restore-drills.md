@@ -112,7 +112,12 @@ This default does not depend on `source_path`. `source_path` is only used as
 live-source and copy-back context when it is configured.
 
 Use `--workspace-root` when you want the tool to keep the predictable
-restore-job folder name but place it under a root you choose:
+restore-job folder name but place it under a root you choose. Create this root
+yourself first, ideally as a Synology shared folder if you want DSM visibility:
+
+```bash
+sudo mkdir -p /volume1/restore-drills
+```
 
 ```bash
 sudo duplicacy-backup restore run \
@@ -132,8 +137,15 @@ That command derives a workspace such as:
 Use `--workspace` only when you want to provide the exact workspace path
 yourself. `--workspace` and `--workspace-root` cannot be combined.
 
+When you use `--workspace-root`, the tool preserves the existing root folder
+permissions and creates or permissions only the derived restore-job child
+folder. This lets `/volume1/restore-drills` remain a DSM-visible shared-folder
+root while each job stays isolated below it. If you use `--workspace` and point
+it directly at `/volume1/restore-drills`, that path is the workspace itself and
+the tool may prepare or permission that exact folder.
+
 Create a new, empty folder outside the live source tree only if you want to pin
-the exact workspace name yourself:
+the exact workspace name yourself with `--workspace`:
 
 ```bash
 sudo mkdir -p /volume1/restore-drills/homes-onsite-usb
@@ -141,9 +153,10 @@ sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb
 cd /volume1/restore-drills/homes-onsite-usb
 ```
 
-When run with `sudo`, restore execution creates the drill workspace as a
+When run with `sudo`, restore execution creates the job workspace as a
 root-owned workspace by design. Keep restore inspection under `sudo` unless
-you deliberately change ownership for a manual drill.
+you deliberately change ownership for a manual drill. The parent
+`--workspace-root` remains operator-managed.
 
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the
@@ -234,6 +247,28 @@ For large repositories, start from a useful subtree:
 ```bash
 sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 ```
+
+## NAS Permission Smoke Check
+
+If `/volume1/restore-drills` is a Synology shared folder, validate the
+shared-folder root before and after a small restore drill:
+
+```bash
+stat -c '%a %U:%G %n' /volume1/restore-drills
+sudo duplicacy-backup restore run \
+  --target onsite-usb \
+  --revision <revision> \
+  --workspace-root /volume1/restore-drills \
+  --path "relative/file/or/pattern" \
+  --yes \
+  homes
+stat -c '%a %U:%G %n' /volume1/restore-drills
+find /volume1/restore-drills -maxdepth 1 -type d -name 'homes-onsite-usb-*' -print
+```
+
+The two `stat` lines for `/volume1/restore-drills` should match. The derived
+job folder beneath it is expected to be prepared for restore use and may have
+stricter root-owned permissions.
 
 ## Full Restore Drill
 
