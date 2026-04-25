@@ -72,7 +72,7 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 	if restoreReq.UsesProgress() {
 		log, err := initLogger(meta)
 		if err != nil {
-			return writeCommandFailure("", err)
+			return writeRestoreLoggerFailure(meta, rt, err)
 		}
 		defer log.Close()
 		output, err := workflow.HandleRestoreCommandWithLogger(req, meta, rt, log)
@@ -263,6 +263,14 @@ func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime
 		emitJSONFailureSummary(os.Stdout, req, nil, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))
 	}
 	return exitCodeGeneralFailure
+}
+
+func writeRestoreLoggerFailure(meta workflow.Metadata, rt workflow.Runtime, err error) int {
+	if rt.Geteuid() != 0 && meta.LogDir == "/var/log" {
+		fmt.Fprintln(os.Stderr, "[ERRO] restore progress logging cannot write to /var/log as the current user; re-run with sudo")
+		return exitCodeGeneralFailure
+	}
+	return writeCommandFailure("", fmt.Errorf("failed to initialise restore progress logger: %w", err))
 }
 
 func writeRuntimePrivilegeFailure(req *workflow.RuntimeRequest, rt workflow.Runtime) int {

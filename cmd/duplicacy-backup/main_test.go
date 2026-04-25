@@ -368,6 +368,24 @@ func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
 	}
 }
 
+func TestWriteRestoreLoggerFailureExplainsDefaultNonRootLogPermission(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", "/var/log")
+	rt := workflow.DefaultRuntime()
+	rt.Geteuid = func() int { return 1000 }
+
+	_, stderr := captureOutput(t, func() {
+		if code := writeRestoreLoggerFailure(meta, rt, os.ErrPermission); code != exitCodeGeneralFailure {
+			t.Fatalf("writeRestoreLoggerFailure() code = %d, want %d", code, exitCodeGeneralFailure)
+		}
+	})
+	if !strings.Contains(stderr, "restore progress logging cannot write to /var/log as the current user; re-run with sudo") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "failed to open log file") {
+		t.Fatalf("stderr exposed raw logger detail: %q", stderr)
+	}
+}
+
 func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
