@@ -25,7 +25,8 @@ var (
 )
 
 func restoreHandleCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
-	return handleRestoreCommand(req, meta, rt, RestoreDeps{
+	restoreReq := NewRestoreRequest(req)
+	return handleRestoreCommand(&restoreReq, meta, rt, RestoreDeps{
 		NewRunner:            newRestoreCommandRunner,
 		PromptOutput:         restorePromptOutput,
 		Now:                  restoreWorkspaceNow,

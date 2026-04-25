@@ -13,20 +13,12 @@ import (
 
 const updateNotifyScope = "update notification config"
 
-func UpdateNotifyConfigPath(req *Request, rt Runtime) string {
-	configDirFlag := ""
-	if req != nil {
-		configDirFlag = req.ConfigDir
-	}
+func UpdateNotifyConfigPath(configDirFlag string, rt Runtime) string {
 	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(rt))
 	return filepath.Join(configDir, config.DefaultAppConfigFile)
 }
 
-func LoadUpdateNotifyConfig(req *Request, rt Runtime) (config.HealthNotifyConfig, string, bool, error) {
-	configDirFlag := ""
-	if req != nil {
-		configDirFlag = req.ConfigDir
-	}
+func LoadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNotifyConfig, string, bool, error) {
 	return loadUpdateNotifyConfig(configDirFlag, rt)
 }
 

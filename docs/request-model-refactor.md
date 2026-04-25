@@ -1,7 +1,7 @@
 # Request Model Refactor
 
-This note tracks the incremental refactor from one broad workflow `Request`
-type toward command-specific input models.
+This note records the refactor from one broad workflow `Request` type toward
+command-specific input models.
 
 The goal is design clarity, not a command-line compatibility layer. The CLI
 parser may continue to produce the broad `Request` while each workflow handler
@@ -21,20 +21,22 @@ Command-specific request models make each workflow contract easier to review:
 - diagnostics code sees diagnostics fields only
 - runtime planning remains separate from non-runtime commands
 
-## Migration Shape
+## Final Shape
 
-The migration should stay incremental:
+The parser still returns a broad `Request` dispatch envelope because one CLI
+parser handles every command family. That broad shape should stay at the
+workflow boundary.
 
-1. Keep parser behaviour stable.
-2. Add a narrow request projection at a workflow boundary.
-3. Move internal helpers for that command to the narrow type.
-4. Keep adapters back to `Request` only where older planner code still needs
-   the broad shape.
-5. Remove each adapter once the planner or downstream code has a narrower
-   contract of its own.
+The workflow rule is:
 
-No command-surface changes should be introduced by this refactor unless they
-are separately approved.
+1. Dispatch receives the parsed `Request`.
+2. The handler immediately projects it into the command-specific request type.
+3. Internal helpers use the narrow type, not the parser envelope.
+4. Config loading uses `ConfigPlanRequest` when only label, target, config dir,
+   and secrets dir are needed.
+5. Runtime execution uses `RuntimeRequest` with one `RuntimeMode`.
+
+No command-surface changes were introduced by this refactor.
 
 ## Target Request Types
 
@@ -52,27 +54,21 @@ are separately approved.
 
 ## Current State
 
-Restore now uses `RestoreRequest` internally. `HandleRestoreCommand` still
-accepts the broad parser `Request`, then immediately projects it into
-`RestoreRequest`.
+Restore, update, rollback, notify, diagnostics, config, health, and runtime
+all use command-specific request types internally.
 
-Update and rollback now use `UpdateRequest` and `RollbackRequest` internally.
-Their command dispatch still receives the parser `Request`, projects at the
-boundary, and then passes only the narrow type into update/rollback execution.
-These command paths do not need adapters back to `Request`.
+The broad parser `Request` remains in `internal/workflow` as the compatibility
+shape returned by `internal/command.ParseRequest` and consumed by top-level
+dispatch. Residual uses should be limited to:
 
-Notify and diagnostics now use `NotifyRequest` and `DiagnosticsRequest`
-internally.
+- handler entry points that project immediately
+- projector constructors such as `NewRestoreRequest` or `NewRuntimeRequest`
+- parser tests and workflow tests that exercise the dispatch boundary
 
-Config planning now uses `ConfigPlanRequest`. Restore, notify, diagnostics,
-config, and health command paths all feed planner config loading through that
-narrow contract instead of adapting back to `Request`.
+It should not be threaded into lower-level command helpers, planner internals,
+or executor internals.
 
-Runtime planning now uses `RuntimeRequest`. The broad parser `Request` is no
-longer the input to `Planner.Build`, `Planner.FailureContext`, runtime failure
-presentation, or pre-run failure notifications.
-
-## Next Slices
-
-The remaining work is cleanup only: audit residual broad `Request` usage,
-remove stale comments, and update this note to describe the final state.
+`RuntimeRequest` is now the input to `Planner.Build`, `Planner.FailureContext`,
+runtime failure presentation, and pre-run failure notifications. The previous
+runtime mode booleans have been replaced at the runtime boundary by one
+`RuntimeMode`.

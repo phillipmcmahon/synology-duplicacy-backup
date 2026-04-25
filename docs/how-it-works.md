@@ -38,16 +38,24 @@ This is the longer walkthrough.
 
 ## Mental Model
 
-The application now follows an explicit:
+The application now follows an explicit command-specific request model:
 
 ```text
-Request -> Plan -> Execute
+parsed Request -> command-specific request -> handler
+```
+
+Only runtime operations continue into the full execution path:
+
+```text
+RuntimeRequest -> Plan -> Execute
 ```
 
 That is the core architectural idea.
 
-- `Request` means: what the user asked for on the CLI.
-- `Plan` means: the fully validated, resolved execution contract.
+- `Request` means: the parser envelope describing raw CLI intent.
+- command-specific request types mean: the narrow input each handler actually
+  needs.
+- `Plan` means: the fully validated, resolved runtime execution contract.
 - `Execute` means: the side-effecting runtime path that actually does the work.
 
 The main benefit of this split is that the code no longer mixes:
@@ -81,10 +89,10 @@ main
 In other words:
 
 1. Parse CLI intent.
-2. Print handled help/version output immediately, or dispatch the parsed
-   request to the matching command path.
-3. Initialise logging, build a plan, and execute only when the selected path
-   actually needs those runtime steps.
+2. Print handled help/version output immediately, or project the parsed request
+   into the matching command-specific request type.
+3. Initialise logging, build a plan, and execute only when the selected runtime
+   path actually needs those steps.
 
 Supporting packages now keep adjacent concerns together:
 - `internal/command` owns CLI request parsing and help text
@@ -269,7 +277,7 @@ It does not answer:
 
 ### What `Request` contains
 
-The `Request` type contains user intent only:
+The parser `Request` contains raw CLI intent only:
 
 - selected runtime command such as `backup`, `prune`, `cleanup-storage`, or
   `fix-perms`
@@ -281,25 +289,18 @@ The `Request` type contains user intent only:
 - command selectors for `config`, `diagnostics`, `notify`, `restore`,
   `rollback`, `update`, and `health`
 
-It also derives convenience booleans such as:
-
-- `DoBackup`
-- `DoPrune`
-- `DoCleanupStore`
-- `FixPermsOnly`
-
 Runtime operations are first-class CLI commands rather than combinable
-operation flags. Internally the request still uses focused booleans so the
-executor can reuse the same phase implementation:
+operation flags. Workflow projects the parser request into a `RuntimeRequest`
+with one `RuntimeMode`, so backup, prune, cleanup-storage, and fix-perms remain
+mutually exclusive inside the runtime planner:
 
 `cleanup-storage` requests `duplicacy prune -exhaustive -exclusive` as a
 standalone maintenance step. `prune --force` only affects prune threshold
-enforcement, so these are all valid and distinct intents:
+enforcement, so these are valid and distinct intents:
 
 - safe prune
 - storage cleanup
 - forced prune
-- forced prune + storage cleanup
 
 Those are still request-level concepts because they describe intent, not machine state.
 
@@ -333,7 +334,8 @@ Unresolved requests go through `dispatchRequest` in
 - `UpdateCommand` routes to the update adapter and the update notification hooks
 - `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
 - everything else is treated as a runtime backup/prune/cleanup/fix-perms
-  request and goes through `Planner.Build` followed by `Executor.Run`
+  request, projected to `RuntimeRequest`, and then passed through
+  `Planner.Build` followed by `Executor.Run`
 
 This dispatch point is why global commands such as `update`, `rollback`, and
 `notify test update` do not inherit label-target runtime requirements. It also
@@ -481,7 +483,7 @@ That is an important design rule.
 `Build` performs these steps:
 
 1. `validateEnvironment(req)`
-2. `derivePlan(req)`
+2. `deriveRuntimePlan(req)`
 3. `loadConfig(plan)`
 4. `plan.applyConfig(cfg, runtime)`
 5. `loadSecrets(plan)` when the selected storage value needs secrets
@@ -496,7 +498,7 @@ This checks:
 - `duplicacy` availability when backup/prune work is requested
 - `btrfs` availability when backup work is requested
 
-### `derivePlan`
+### `deriveRuntimePlan`
 
 This creates the first concrete runtime shape:
 
@@ -975,7 +977,8 @@ That path usually gives the clearest mental model with the least jumping around.
 If you want the shortest possible internal description:
 
 - `Request` captures CLI intent.
-- `Planner` turns intent into a validated execution contract.
+- workflow projects that parser envelope into command-specific request types.
+- `Planner` turns runtime intent into a validated execution contract.
 - `Executor` performs the side effects in order.
 - `Presenter` owns runtime rendering.
 - `messages.go` owns final operator-facing wording.

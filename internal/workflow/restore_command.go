@@ -23,23 +23,23 @@ type restoreRunInputs struct {
 }
 
 func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
-	return handleRestoreCommand(req, meta, rt, defaultRestoreDeps())
+	restoreReq := NewRestoreRequest(req)
+	return handleRestoreCommand(&restoreReq, meta, rt, defaultRestoreDeps())
 }
 
-func handleRestoreCommand(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
+func handleRestoreCommand(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	deps = deps.withDefaults()
-	restoreReq := NewRestoreRequest(req)
-	switch restoreReq.Command {
+	switch req.Command {
 	case "plan":
-		return handleRestorePlan(&restoreReq, meta, rt, deps)
+		return handleRestorePlan(req, meta, rt, deps)
 	case "list-revisions":
-		return handleRestoreRevisions(&restoreReq, meta, rt, deps)
+		return handleRestoreRevisions(req, meta, rt, deps)
 	case "run":
-		return handleRestoreRun(&restoreReq, meta, rt, deps)
+		return handleRestoreRun(req, meta, rt, deps)
 	case "select":
-		return handleRestoreSelect(&restoreReq, meta, rt, deps)
+		return handleRestoreSelect(req, meta, rt, deps)
 	default:
-		return "", NewRequestError("unsupported restore command %q", restoreReq.Command)
+		return "", NewRequestError("unsupported restore command %q", req.Command)
 	}
 }
 

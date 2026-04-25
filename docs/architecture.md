@@ -8,11 +8,12 @@ package boundaries, and where specific responsibilities now live, see
 
 ## Overview
 
-The application follows an explicit `Request -> Plan -> Execute` flow.
+The application follows an explicit command-specific request model.
 
-That split keeps the entrypoint small, keeps planning non-mutating, and makes
-tests easier to write around stable boundaries instead of one large
-coordinator type.
+The parser still produces one dispatch envelope, but each workflow command
+immediately projects that envelope into the narrow input type it actually
+needs. Only runtime backup, prune, cleanup-storage, and fix-perms operations
+continue into the `RuntimeRequest -> Plan -> Execute` path.
 
 ## Top-Level Flow
 
@@ -52,25 +53,26 @@ presentation, and JSON health report serialization.
 `internal/presentation` owns shared operator-facing text formatting and the
 runtime presenter used by workflow execution.
 
-The `Request` type is intentionally small. It describes what the user asked
-for, not what the application has resolved from the filesystem or config yet.
-Runtime operations are first-class commands, so the CLI contract is explicit:
-one command names the operation, and command-specific flags refine that
-operation.
+The parser `Request` remains the dispatch envelope between `internal/command`
+and `internal/workflow`. It describes the raw CLI intent before workflow code
+has resolved config, secrets, paths, or state.
 
-The next design step is to narrow that parsed request at workflow boundaries.
-Restore, update, rollback, notify, diagnostics, config, and health now project
-the parser `Request` into command-specific request types before doing command
-work, so those helpers no longer depend on unrelated flags. Config loading uses
-`ConfigPlanRequest`, a smaller planner contract for label/target/config/secrets
-resolution. Runtime planning uses `RuntimeRequest`, which replaces the old
-runtime mode booleans with one `RuntimeMode`. The broader migration plan is tracked in
-[request-model-refactor.md](request-model-refactor.md).
+Workflow handlers should not pass that broad shape deeper into command logic.
+The boundary pattern is:
+
+- project the parsed request into a command-specific request type
+- validate and execute against that narrow type
+- use `ConfigPlanRequest` when a command only needs label, target, config dir,
+  and secrets dir resolution
+- use `RuntimeRequest` only for backup, prune, cleanup-storage, and fix-perms
+
+This keeps restore, update, rollback, notify, diagnostics, config, health, and
+runtime concerns separated even though they share one command-line parser.
 
 ## Plan
 
-For runtime operations, `internal/workflow/planner.go` turns a `Request` into a
-validated `Plan`.
+For runtime operations, `internal/workflow/planner.go` turns a
+`RuntimeRequest` into a validated `Plan`.
 
 The `Plan` exposes smaller section views for review and tests:
 
