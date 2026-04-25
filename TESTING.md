@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v7.1.1`
+Current public release baseline: `v7.1.2`
 
 Active release-prep target: none
 
@@ -55,30 +55,29 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `84.1%`
-- `cmd/duplicacy-backup`: `90.8%`
-- `internal/workflow`: `83.2%`
+- overall coverage: `83.5%`
+- `cmd/duplicacy-backup`: `82.4%`
+- `internal/workflow`: `82.8%`
 - `internal/restorepicker`: `74.9%`
 - `internal/update`: `82.6%`
-- `internal/duplicacy`: `80.4%`
+- `internal/duplicacy`: `79.5%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `88.0%`
 
-Additional v7.1.1 validation:
+Additional v7.1.2 validation:
 
-- Release validation covers the request-model cleanup that narrows update,
-  rollback, notify, diagnostics, config, health, restore, and runtime command
-  paths to command-specific request types.
-- Runtime planning coverage now exercises the single `RuntimeMode` path rather
-  than carrying the old runtime mode booleans deeper into planner and executor
-  internals.
-- Documentation and help rendering checks now cover native `storj://` storage
-  key guidance alongside S3-compatible `s3`, `s3c`, `minio`, and `minios`
-  storage values.
-- Full documentation review confirmed the public help surface excludes retired
-  restore commands, the removed hidden `restore select --execute` path, and
-  old top-level runtime operation flags.
+- Restore output coverage now checks compact success summaries, diagnostic-only
+  failure output, and explicit messaging when Duplicacy emits no diagnostics.
+- Restore interrupt coverage now checks the Ctrl-C reporting contract:
+  workspace retained, no automatic deletion, completed path count, active path,
+  and live-source safety.
+- Restore command coverage now checks cancellation versus interruption
+  semantics so clean operator exits remain exit code 0 while active restore
+  interruption remains exit code 1.
+- Full documentation review confirmed the public help surface describes the
+  structured NAS smoke-test bundle layout and active-restore interrupt
+  behaviour.
 
 Additional v7.1.0 validation:
 

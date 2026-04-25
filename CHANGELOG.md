@@ -35,10 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux Go 1.26**: `go test -cover ./...`
 
 ### Coverage snapshot
-- overall coverage: `84.1%`
-- `cmd/duplicacy-backup`: `90.8%`
-- `internal/workflow`: `83.2%`
-- `internal/duplicacy`: `80.4%`
+- overall coverage: `83.5%`
+- `cmd/duplicacy-backup`: `82.4%`
+- `internal/workflow`: `82.8%`
+- `internal/duplicacy`: `79.5%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 
