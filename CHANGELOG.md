@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v7.1.2] - 2026-04-25
+
+### Changed
+- **Restore execution now gives clearer live progress**:
+  restore runs print coloured runtime status, show selection progress without
+  repeating large command blocks, and keep final reports focused on the
+  outcome operators need after the command completes.
+- **Successful restore reports now suppress noisy Duplicacy download detail**:
+  per-chunk and per-file download lines are hidden on success while Duplicacy
+  totals remain visible. Restore failures keep emitted diagnostic lines, and
+  explicitly say when Duplicacy did not provide useful diagnostics.
+- **Ctrl-C during active restore now reports a safe interruption outcome**:
+  the running Duplicacy process is cancelled, the drill workspace is retained,
+  no partially restored files are deleted automatically, and the output reports
+  completed paths, the active path when known, and live-source safety.
+- **NAS smoke-test packages now use a structured bundle layout**:
+  test bundles extract into `README.md`, `artifacts/`, `checksums/`, and
+  `instructions/`, with explicit config and secrets paths in the operator
+  smoke-test instructions.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `84.1%`
+- `cmd/duplicacy-backup`: `90.8%`
+- `internal/workflow`: `83.2%`
+- `internal/duplicacy`: `80.4%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `92.0%`
+
 ## [v7.1.1] - 2026-04-25
 
 ### Changed
