@@ -9,7 +9,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func handleUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+func handleUpdateRequest(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 	updater := update.New(meta.ScriptName, meta.Version, update.Runtime{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
@@ -26,7 +26,7 @@ func handleUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workf
 	return updater.RunResult(updateOptionsFromRequest(req))
 }
 
-func handleRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+func handleRollbackRequest(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
 	updater := update.New(meta.ScriptName, meta.Version, update.Runtime{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
@@ -43,28 +43,28 @@ func handleRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt wor
 	return updater.RollbackResult(rollbackOptionsFromRequest(req))
 }
 
-func updateOptionsFromRequest(req *workflow.Request) update.Options {
+func updateOptionsFromRequest(req *workflow.UpdateRequest) update.Options {
 	if req == nil {
 		return update.Options{Keep: update.DefaultKeep}
 	}
 	return update.Options{
-		RequestedVersion: req.UpdateVersion,
-		CheckOnly:        req.UpdateCheckOnly,
-		Force:            req.UpdateForce,
-		Yes:              req.UpdateYes,
-		Keep:             req.UpdateKeep,
-		Attestations:     req.UpdateAttestations,
+		RequestedVersion: req.Version,
+		CheckOnly:        req.CheckOnly,
+		Force:            req.Force,
+		Yes:              req.Yes,
+		Keep:             req.Keep,
+		Attestations:     req.Attestations,
 	}
 }
 
-func rollbackOptionsFromRequest(req *workflow.Request) update.RollbackOptions {
+func rollbackOptionsFromRequest(req *workflow.RollbackRequest) update.RollbackOptions {
 	if req == nil {
 		return update.RollbackOptions{}
 	}
 	return update.RollbackOptions{
-		RequestedVersion: req.RollbackVersion,
-		CheckOnly:        req.RollbackCheckOnly,
-		Yes:              req.RollbackYes,
+		RequestedVersion: req.Version,
+		CheckOnly:        req.CheckOnly,
+		Yes:              req.Yes,
 	}
 }
 

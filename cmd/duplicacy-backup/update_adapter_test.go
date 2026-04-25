@@ -10,13 +10,13 @@ import (
 )
 
 func TestUpdateOptionsFromRequestMapsCommandRequest(t *testing.T) {
-	got := updateOptionsFromRequest(&workflow.Request{
-		UpdateVersion:      "v4.1.8",
-		UpdateCheckOnly:    true,
-		UpdateForce:        true,
-		UpdateYes:          true,
-		UpdateKeep:         7,
-		UpdateAttestations: "required",
+	got := updateOptionsFromRequest(&workflow.UpdateRequest{
+		Version:      "v4.1.8",
+		CheckOnly:    true,
+		Force:        true,
+		Yes:          true,
+		Keep:         7,
+		Attestations: "required",
 	})
 
 	if got.RequestedVersion != "v4.1.8" || !got.CheckOnly || !got.Force || !got.Yes || got.Keep != 7 || got.Attestations != "required" {
@@ -25,10 +25,10 @@ func TestUpdateOptionsFromRequestMapsCommandRequest(t *testing.T) {
 }
 
 func TestRollbackOptionsFromRequestMapsCommandRequest(t *testing.T) {
-	got := rollbackOptionsFromRequest(&workflow.Request{
-		RollbackVersion:   "v5.1.1",
-		RollbackCheckOnly: true,
-		RollbackYes:       true,
+	got := rollbackOptionsFromRequest(&workflow.RollbackRequest{
+		Version:   "v5.1.1",
+		CheckOnly: true,
+		Yes:       true,
 	})
 
 	if got.RequestedVersion != "v5.1.1" || !got.CheckOnly || !got.Yes {
@@ -62,7 +62,7 @@ func TestUpdateStatusForWorkflowMappingContract(t *testing.T) {
 
 func TestHandleUpdateRequestUsesWorkflowRuntime(t *testing.T) {
 	_, err := handleUpdateRequest(
-		&workflow.Request{UpdateCommand: "update", UpdateCheckOnly: true, UpdateKeep: update.DefaultKeep},
+		&workflow.UpdateRequest{Command: "update", CheckOnly: true, Keep: update.DefaultKeep},
 		workflow.Metadata{ScriptName: "duplicacy-backup", Version: "v4.1.8"},
 		workflow.Runtime{
 			Stdin:        func() *os.File { return os.Stdin },

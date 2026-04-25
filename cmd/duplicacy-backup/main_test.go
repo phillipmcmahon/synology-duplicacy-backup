@@ -539,8 +539,8 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
-			if req.UpdateCommand != "update" || !req.UpdateCheckOnly || !req.UpdateForce || req.UpdateKeep != 2 {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			if req.Command != "update" || !req.CheckOnly || !req.Force || req.Keep != 2 {
 				t.Fatalf("req = %+v", req)
 			}
 			return update.Result{Output: "update ok\n", Status: update.StatusAvailable}, nil
@@ -586,8 +586,8 @@ func TestRunWithArgs_DiagnosticsDispatchReturnsZero(t *testing.T) {
 func TestRunWithArgs_RollbackCheckOnlyNonRootReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
-		handleRollbackCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
-			if req.RollbackCommand != "rollback" || !req.RollbackCheckOnly {
+		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+			if req.Command != "rollback" || !req.CheckOnly {
 				t.Fatalf("req = %+v", req)
 			}
 			return update.RollbackResult{Output: "rollback check ok\n"}, nil
@@ -611,7 +611,7 @@ func TestRunWithArgs_RollbackActivationNonRootFailsBeforeHandler(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		called := false
-		handleRollbackCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
 			called = true
 			return update.RollbackResult{}, nil
 		}
@@ -638,7 +638,7 @@ func TestRunWithArgs_UpdateInstallNonRootFailsBeforeHandler(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		called := false
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			called = true
 			return update.Result{}, nil
 		}
@@ -668,9 +668,9 @@ func TestRunWithArgs_UpdateInstallNonRootFailsBeforeHandler(t *testing.T) {
 func TestRunWithArgs_UpdateCheckOnlyNonRootReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
-			if !req.UpdateCheckOnly {
-				t.Fatalf("UpdateCheckOnly = false")
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+			if !req.CheckOnly {
+				t.Fatalf("CheckOnly = false")
 			}
 			return update.Result{Output: "check only ok\n", Status: update.StatusAvailable}, nil
 		}
@@ -700,7 +700,7 @@ func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
@@ -727,7 +727,7 @@ func TestRunWithArgs_UpdateFailureNotificationFailureDoesNotMaskUpdateError(t *t
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
@@ -752,7 +752,7 @@ func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testi
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "succeeded")
 
-		handleUpdateCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
 			return update.Result{
 				Output: "Update\n  Human text changed   : yes\n",
 				Status: update.StatusInstalled,

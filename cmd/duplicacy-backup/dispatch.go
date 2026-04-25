@@ -76,10 +76,11 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 }
 
 func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
-	if !req.RollbackCheckOnly && rt.Geteuid() != 0 {
+	rollbackReq := workflow.NewRollbackRequest(req)
+	if !rollbackReq.CheckOnly && rt.Geteuid() != 0 {
 		return writeRollbackPrivilegeFailure()
 	}
-	result, err := handleRollbackCommand(req, meta, rt)
+	result, err := handleRollbackCommand(&rollbackReq, meta, rt)
 	if err != nil {
 		return writeCommandFailure("", err)
 	}
@@ -88,19 +89,20 @@ func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workfl
 }
 
 func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
-	if !req.UpdateCheckOnly && rt.Geteuid() != 0 {
+	updateReq := workflow.NewUpdateRequest(req)
+	if !updateReq.CheckOnly && rt.Geteuid() != 0 {
 		return writeUpdatePrivilegeFailure()
 	}
-	result, err := handleUpdateCommand(req, meta, rt)
+	result, err := handleUpdateCommand(&updateReq, meta, rt)
 	updateStatus := updateStatusForWorkflow(result.Status)
 	if err != nil {
-		if notifyErr := workflow.MaybeSendUpdateFailureNotification(req, meta, rt, updateStatus, err); notifyErr != nil {
+		if notifyErr := workflow.MaybeSendUpdateFailureNotification(&updateReq, meta, rt, updateStatus, err); notifyErr != nil {
 			fmt.Fprintf(os.Stderr, "[WARN] Failed to send update failure notification: %s\n", workflow.OperatorMessage(notifyErr))
 		}
 		return writeCommandFailure("", err)
 	}
 	fmt.Print(result.Output)
-	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(req, meta, rt, updateStatus); notifyErr != nil {
+	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(&updateReq, meta, rt, updateStatus); notifyErr != nil {
 		fmt.Fprintf(os.Stderr, "[WARN] Failed to send update notification: %s\n", workflow.OperatorMessage(notifyErr))
 	}
 	return 0

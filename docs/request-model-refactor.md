@@ -40,20 +40,25 @@ are separately approved.
 
 | Area | Target input model | Notes |
 |---|---|---|
-| Restore | `RestoreRequest` | First slice. Carries label, target, config/secrets dirs, workspace, revision, path, prefix, limit, dry-run, JSON, and confirmation intent. |
+| Restore | `RestoreRequest` | Complete. Carries label, target, config/secrets dirs, workspace, revision, path, prefix, limit, dry-run, JSON, and confirmation intent. |
+| Update | `UpdateRequest` | Complete. Carries config dir, version, keep count, attestations, check-only, force, and confirmation. |
+| Rollback | `RollbackRequest` | Complete. Carries version, check-only, and confirmation. |
 | Runtime operations | `RuntimeRequest` | Backup, prune, cleanup-storage, and fix-perms. Should remain the only path into `Planner.Build` and `Executor.Run`. |
 | Config | `ConfigRequest` | Validate, explain, and paths. Should not carry runtime execution flags. |
 | Health | `HealthRequest` | Status, doctor, and verify. Should separate health command intent from backup execution state. |
 | Diagnostics | `DiagnosticsRequest` | Targeted support bundle generation and redaction options. |
 | Notify | `NotifyRequest` | Provider, event, severity, scope, summary, and message only. |
-| Update | `UpdateRequest` | Version, keep count, attestations, check-only, force, and confirmation. |
-| Rollback | `RollbackRequest` | Version, check-only, and confirmation. |
 
 ## Current State
 
 Restore now uses `RestoreRequest` internally. `HandleRestoreCommand` still
 accepts the broad parser `Request`, then immediately projects it into
 `RestoreRequest`.
+
+Update and rollback now use `UpdateRequest` and `RollbackRequest` internally.
+Their command dispatch still receives the parser `Request`, projects at the
+boundary, and then passes only the narrow type into update/rollback execution.
+These command paths do not need adapters back to `Request`.
 
 The only intentional bridge back to `Request` is
 `RestoreRequest.ConfigRequest()`, which feeds the existing config planner until
@@ -63,9 +68,8 @@ planning has its own narrower config-loading contract.
 
 The recommended order is:
 
-1. Update and rollback, because their inputs are compact and isolated.
-2. Notify and diagnostics, because they already dispatch through focused
+1. Notify and diagnostics, because they already dispatch through focused
    handlers.
-3. Config and health, because they share config-loading and validation paths.
-4. Runtime operations last, because they interact with the full plan/executor
+2. Config and health, because they share config-loading and validation paths.
+3. Runtime operations last, because they interact with the full plan/executor
    lifecycle.
