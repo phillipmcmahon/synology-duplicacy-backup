@@ -1,5 +1,10 @@
 # Configuration and Secrets
 
+Use this reference when you are creating or reviewing label config files,
+target definitions, health policy, notifications, and secrets. For copyable
+daily commands, use the [operator cheat sheet](cheatsheet.md); for restore
+procedure, use [restore-drills.md](restore-drills.md).
+
 ## Config File Location
 
 By default, the binary resolves config files relative to the executable:
@@ -455,6 +460,14 @@ s3_id = "your-access-key-id"
 s3_secret = "your-secret-access-key"
 ```
 
+Native Duplicacy `storj://` storage uses Storj-specific Duplicacy keys:
+
+```toml
+[targets.offsite-storj-native.keys]
+storj_key = "your-storj-access-grant"
+storj_passphrase = "your-storj-passphrase"
+```
+
 When run as `root`, the bundled installer ensures `/root/.secrets` exists with
 mode `700`, but it does not create or rewrite any individual secrets files.
 
@@ -498,7 +511,7 @@ freshness signal.
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | path-based `fix-perms` |
-| target secrets loading | known Duplicacy storage backends that require `[targets.<name>.keys]` |
+| target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
 
 ## Output Model
 

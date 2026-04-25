@@ -97,6 +97,14 @@ s3_id = "..."
 s3_secret = "..."
 ```
 
+For native Duplicacy `storj://` storage, use:
+
+```toml
+[targets.offsite-storj.keys]
+storj_key = "..."
+storj_passphrase = "..."
+```
+
 See also:
 
 - [Configuration and secrets](configuration.md#secrets)

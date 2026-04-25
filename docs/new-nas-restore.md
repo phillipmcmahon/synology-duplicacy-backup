@@ -223,6 +223,14 @@ s3_id = "..."
 s3_secret = "..."
 ```
 
+For native Duplicacy `storj://` storage, use:
+
+```toml
+[targets.offsite-storj-native.keys]
+storj_key = "your-storj-access-grant"
+storj_passphrase = "your-storj-passphrase"
+```
+
 Path-based storage usually does not need storage secrets. If no target needs
 credentials or notification tokens, you can skip the label secrets file.
 
@@ -275,6 +283,7 @@ If secrets are invalid, check that:
 - the target name matches the config
 - keys are under `[targets.<name>.keys]`
 - S3-compatible backends use `s3_id` and `s3_secret`
+- native `storj://` storage uses `storj_key` and `storj_passphrase`
 
 ## 6. Prove You Can See Restore Points
 

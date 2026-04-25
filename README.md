@@ -32,7 +32,8 @@ In practice:
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are
   loaded for known Duplicacy backends that require them; S3-compatible
   Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use
-  `s3_id` and `s3_secret`
+  `s3_id` and `s3_secret`, while native `storj://` uses `storj_key` and
+  `storj_passphrase`
 - `fix-perms` is only supported for path-based Duplicacy storage targets
 - runtime, health, `config explain`, and `config paths` surface target
   location in operator-facing output
@@ -241,9 +242,6 @@ Core operating rules:
   and `q` to cancel.
 - `restore plan`, `restore list-revisions`, and `restore run`
   remain the expert and scriptable restore primitives.
-- When `--workspace` is omitted, restore actions name the default workspace
-  from the selected restore point, for example
-  `<label>-<target>-<restore-point-timestamp>-rev<id>`.
 - Health and selected runtime notifications are configured under
   `[health.notify]` in the label config.
 - `update --check-only` is safe for routine inspection of published updates.

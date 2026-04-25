@@ -1,5 +1,9 @@
 # Update Trust Model
 
+Use this reference when you need to understand what `duplicacy-backup update`
+verifies before installing a managed release. For day-to-day update and
+rollback commands, use [Operations](operations.md#upgrade-and-rollback).
+
 The update command is designed for managed Synology installs that call the
 stable command path at `/usr/local/bin/duplicacy-backup`.
 
@@ -39,6 +43,5 @@ includes a compromised GitHub release, compromised maintainer account, or
 compromised GitHub attestation service, perform an out-of-band review before
 installing.
 
-For update and rollback commands, see [Operations](operations.md#upgrade-and-rollback).
 For release publishing and verification rules, see
 [Release Playbook](release-playbook.md).

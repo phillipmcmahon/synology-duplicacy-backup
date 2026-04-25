@@ -203,6 +203,9 @@ sudo duplicacy-backup restore run \
 ### Notifications and Secrets
 
 - Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple targets under that label.
+- S3-compatible storage uses `s3_id` and `s3_secret` under
+  `[targets.<name>.keys]`; native `storj://` storage uses `storj_key` and
+  `storj_passphrase`.
 - `[health.notify]` can opt runtime failure notifications in with `send_for = ["backup", "prune", "cleanup-storage"]`.
 - `notify test` validates provider delivery and auth for the selected target; it does not prove that a real backup or health event occurred.
 - `notify test update` validates the global update notification route without running a real update.

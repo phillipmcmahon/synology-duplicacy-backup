@@ -1,5 +1,8 @@
 # CLI Reference
 
+Use this document when you need the exact command surface and option meaning.
+For routine copyable commands, start with the [operator cheat sheet](cheatsheet.md).
+
 ## Usage
 
 ```text
@@ -206,7 +209,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - Storage keys live under `[targets.<name>.keys]` in the label secrets file
   when the selected backend requires them. For S3-compatible storage this
   means `s3_id` and `s3_secret`, including `s3://`, `s3c://`,
-  `minio://`, and `minios://` storage values; see
+  `minio://`, and `minios://` storage values. Native `storj://` storage uses
+  `storj_key` and `storj_passphrase`. See
   [configuration.md](configuration.md) for ownership, permissions, and
   notification-token details.
 - `update` uses the managed install layout under

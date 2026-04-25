@@ -190,6 +190,8 @@ CONFIG STRUCTURE:
       Use [targets.<name>.keys] tables with Duplicacy key names such as:
         s3_id      # s3, s3c, minio, minios
         s3_secret  # s3, s3c, minio, minios
+        storj_key        # native storj
+        storj_passphrase # native storj
       Use [targets.<name>] for:
         optional health_webhook_bearer_token
         optional health_ntfy_token

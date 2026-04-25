@@ -162,6 +162,9 @@ Under the current target model, every backup target delegates storage to
 Duplicacy; storage keys are needed only when the selected backend requires them.
 Path-based storage targets only need a secrets file if a notifying target uses
 authenticated webhook or `ntfy` delivery.
+S3-compatible storage uses `s3_id` and `s3_secret` under
+`[targets.<name>.keys]`; native `storj://` storage uses `storj_key` and
+`storj_passphrase`.
 
 To install a new binary without switching immediately:
 
