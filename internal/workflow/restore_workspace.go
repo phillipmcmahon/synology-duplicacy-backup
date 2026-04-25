@@ -26,6 +26,8 @@ func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, st
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
 		return "", err
 	}
+	// Keep pure request-shape validation before filesystem checks so malformed
+	// requests fail before we inspect operator-managed roots.
 	if err := validateRestoreWorkspaceRoot(req); err != nil {
 		return "", err
 	}
@@ -96,7 +98,7 @@ func validateRestoreWorkspaceRoot(req *RestoreRequest) error {
 	info, err := os.Stat(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return NewRequestError("--workspace-root must already exist: %s", root)
+			return NewRequestError("--workspace-root must already exist; create it via DSM as a shared folder, or with mkdir: %s", root)
 		}
 		return fmt.Errorf("restore workspace root is not accessible: %w", err)
 	}

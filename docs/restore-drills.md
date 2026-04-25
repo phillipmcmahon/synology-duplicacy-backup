@@ -263,6 +263,8 @@ sudo duplicacy-backup restore run \
   --yes \
   homes
 stat -c '%a %U:%G %n' /volume1/restore-drills
+find /volume1/restore-drills -maxdepth 1 -type d -name '<label>-<target>-*' -print
+# Example for homes/onsite-usb:
 find /volume1/restore-drills -maxdepth 1 -type d -name 'homes-onsite-usb-*' -print
 ```
 

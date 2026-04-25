@@ -101,6 +101,18 @@ func stubRestoreWorkspaceTime(t *testing.T, ts time.Time) {
 	t.Cleanup(func() { restoreWorkspaceNow = old })
 }
 
+func setupRestoreWorkspaceRoot(t *testing.T) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "restore-drills")
+	if err := os.Mkdir(root, 0755); err != nil {
+		t.Fatalf("Mkdir(%q) error = %v", root, err)
+	}
+	if err := os.Chmod(root, 0755); err != nil {
+		t.Fatalf("Chmod(%q) error = %v", root, err)
+	}
+	return root
+}
+
 func stubRestoreProgress(t *testing.T, progress RestoreProgress) {
 	t.Helper()
 	old := restoreProgress
@@ -715,10 +727,7 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := "/tmp/homes-run-self-prepare-test"
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	root := filepath.Join(t.TempDir(), "restore-drills")
-	if err := os.Mkdir(root, 0755); err != nil {
-		t.Fatalf("Mkdir(%q) error = %v", root, err)
-	}
+	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
@@ -763,13 +772,7 @@ func TestHandleRestoreCommand_RunPreservesExistingWorkspaceRootPermissions(t *te
 	configDir := t.TempDir()
 	sourcePath := "/tmp/homes-run-root-permissions-test"
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	root := filepath.Join(t.TempDir(), "restore-drills")
-	if err := os.Mkdir(root, 0755); err != nil {
-		t.Fatalf("Mkdir(%q) error = %v", root, err)
-	}
-	if err := os.Chmod(root, 0755); err != nil {
-		t.Fatalf("Chmod(%q) error = %v", root, err)
-	}
+	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
@@ -907,10 +910,7 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	root := filepath.Join(t.TempDir(), "restore-drills")
-	if err := os.Mkdir(root, 0755); err != nil {
-		t.Fatalf("Mkdir(%q) error = %v", root, err)
-	}
+	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260420-023000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
