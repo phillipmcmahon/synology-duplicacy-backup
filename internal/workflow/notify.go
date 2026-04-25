@@ -22,16 +22,16 @@ func shouldSendConfiguredNotification(rt Runtime, interactive bool, cfg config.H
 	return containsString(cfg.SendFor, sendFor)
 }
 
-func buildTestNotificationPayload(rt Runtime, label, target, location string, req *Request) *notify.Payload {
+func buildTestNotificationPayload(rt Runtime, label, target, location string, req *NotifyRequest) *notify.Payload {
 	return notify.BuildTestPayload(
 		rt.Now(),
 		rt.Getpid(),
 		label,
 		target,
 		location,
-		req.NotifySeverity,
-		req.NotifySummary,
-		req.NotifyMessage,
+		req.Severity,
+		req.Summary,
+		req.Message,
 	)
 }
 

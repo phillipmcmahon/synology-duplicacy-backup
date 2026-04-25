@@ -59,10 +59,10 @@ one command names the operation, and command-specific flags refine that
 operation.
 
 The next design step is to narrow that parsed request at workflow boundaries.
-Restore, update, and rollback now project the parser `Request` into
-command-specific request types before doing command work, so those helpers no
-longer depend on unrelated flags. The broader migration plan is tracked in
-[request-model-refactor.md](request-model-refactor.md).
+Restore, update, rollback, notify, and diagnostics now project the parser
+`Request` into command-specific request types before doing command work, so
+those helpers no longer depend on unrelated flags. The broader migration plan is
+tracked in [request-model-refactor.md](request-model-refactor.md).
 
 ## Plan
 

@@ -72,21 +72,21 @@ func MaybeSendUpdateSuccessNotification(req *UpdateRequest, meta Metadata, rt Ru
 	})
 }
 
-func BuildUpdateTestNotificationPayload(req *Request, meta Metadata, rt Runtime) *notify.Payload {
-	event := strings.TrimSpace(req.NotifyEvent)
+func BuildUpdateTestNotificationPayload(req *NotifyRequest, meta Metadata, rt Runtime) *notify.Payload {
+	event := strings.TrimSpace(string(req.Event))
 	if event == "" {
 		event = string(notify.EventUpdateInstallFailed)
 	}
 	status := updateStatusForEvent(event)
-	summary := strings.TrimSpace(req.NotifySummary)
+	summary := strings.TrimSpace(req.Summary)
 	if summary == "" {
 		summary = updateTestSummary(event)
 	}
-	message := strings.TrimSpace(req.NotifyMessage)
+	message := strings.TrimSpace(req.Message)
 	if message == "" {
 		message = "This is a simulated operator-initiated update notification."
 	}
-	return notify.NewPayload(rt.Now(), rt.Getpid(), req.NotifySeverity, "maintenance", event, summary,
+	return notify.NewPayload(rt.Now(), rt.Getpid(), req.Severity, "maintenance", event, summary,
 		"", "", "", "update", "", status,
 		map[string]any{
 			"message":         message,

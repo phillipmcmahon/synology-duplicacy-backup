@@ -47,8 +47,9 @@ type DiagnosticsPathSummary struct {
 }
 
 func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+	diagnosticsReq := NewDiagnosticsRequest(req)
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
+	planReq := configValidationRequest(diagnosticsReq.legacyConfigRequest(), diagnosticsReq.Target())
 	plan := planner.derivePlan(planReq)
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -56,8 +57,8 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 	}
 	plan.applyConfig(cfg, rt)
 
-	report := newDiagnosticsReport(req, meta, plan)
-	if req.JSONSummary {
+	report := newDiagnosticsReport(&diagnosticsReq, meta, plan)
+	if diagnosticsReq.JSONSummary {
 		body, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
 			return "", fmt.Errorf("failed to encode diagnostics report: %w", err)
@@ -67,10 +68,10 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 	return formatDiagnosticsReport(report), nil
 }
 
-func newDiagnosticsReport(req *Request, meta Metadata, plan *Plan) *DiagnosticsReport {
+func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan) *DiagnosticsReport {
 	storage := duplicacy.NewStorageSpec(plan.BackupTarget)
 	report := &DiagnosticsReport{
-		Label:         req.Source,
+		Label:         req.Label,
 		Target:        req.Target(),
 		Location:      plan.Location,
 		ConfigDir:     plan.ConfigDir,
@@ -79,14 +80,14 @@ func newDiagnosticsReport(req *Request, meta Metadata, plan *Plan) *DiagnosticsR
 		SourcePath:    plan.SnapshotSource,
 		Storage:       redactStorageValue(plan.BackupTarget),
 		StorageScheme: storage.Scheme(),
-		StateFile:     stateFilePath(meta, req.Source, req.Target()),
+		StateFile:     stateFilePath(meta, req.Label, req.Target()),
 		StateStatus:   "Not found",
 		Paths: []DiagnosticsPathSummary{
 			pathSummary("Config Dir", plan.ConfigDir),
 			pathSummary("Config File", plan.ConfigFile),
 			pathSummary("Source Path", plan.SnapshotSource),
 			pathSummary("State Dir", meta.StateDir),
-			pathSummary("State File", stateFilePath(meta, req.Source, req.Target())),
+			pathSummary("State File", stateFilePath(meta, req.Label, req.Target())),
 			pathSummary("Log Dir", meta.LogDir),
 		},
 	}
@@ -100,7 +101,7 @@ func newDiagnosticsReport(req *Request, meta Metadata, plan *Plan) *DiagnosticsR
 		})
 	}
 	report.applySecretsStatus(storage)
-	report.applyState(meta, req.Source, req.Target())
+	report.applyState(meta, req.Label, req.Target())
 	return report
 }
 

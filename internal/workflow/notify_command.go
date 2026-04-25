@@ -9,21 +9,22 @@ import (
 
 func HandleNotifyCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	planner := NewPlanner(meta, rt, nil, newConfigCommandRunner())
+	notifyReq := NewNotifyRequest(req)
 
-	switch req.NotifyCommand {
+	switch notifyReq.Command {
 	case "test":
-		return handleNotifyTest(req, planner)
+		return handleNotifyTest(&notifyReq, planner)
 	default:
-		return "", NewRequestError("unsupported notify command %q", req.NotifyCommand)
+		return "", NewRequestError("unsupported notify command %q", notifyReq.Command)
 	}
 }
 
-func handleNotifyTest(req *Request, planner *Planner) (string, error) {
-	if req.NotifyScope == "update" {
+func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
+	if req.Scope == "update" {
 		return handleUpdateNotifyTest(req, planner.meta, planner.rt)
 	}
 
-	plan := planner.derivePlan(configValidationRequest(req, req.Target()))
+	plan := planner.derivePlan(configValidationRequest(req.legacyConfigRequest(), req.Target()))
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err
@@ -35,7 +36,7 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 	plan.SecretsFile = secretsFileForPlan(plan)
 
 	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.Target, cfg.Location, req)
-	destinations, err := notify.ConfiguredDestinations(cfg.Health.Notify, req.NotifyProvider)
+	destinations, err := notify.ConfiguredDestinations(cfg.Health.Notify, req.Provider)
 	if err != nil {
 		report := newNotifyTestReport(req, cfg, payload, nil, "failed")
 		output := notify.FormatTestOutput(report, req.JSONSummary)
@@ -60,7 +61,7 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 		plan.SecretsFile,
 		cfg.Target,
 		payload,
-		req.NotifyProvider,
+		req.Provider,
 		notify.SendOptions{IgnoreOptionalAuthLoadErrors: true},
 	)
 	report.Providers = results
@@ -81,8 +82,8 @@ func handleNotifyTest(req *Request, planner *Planner) (string, error) {
 	return notify.FormatTestOutput(report, req.JSONSummary), nil
 }
 
-func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, error) {
-	cfg, configPath, ok, err := LoadUpdateNotifyConfig(req, rt)
+func handleUpdateNotifyTest(req *NotifyRequest, meta Metadata, rt Runtime) (string, error) {
+	cfg, configPath, ok, err := loadUpdateNotifyConfig(req.ConfigDir, rt)
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +97,7 @@ func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, er
 		}
 	}
 
-	destinations, err := notify.ConfiguredDestinationsForScope(cfg, req.NotifyProvider, updateNotifyScope)
+	destinations, err := notify.ConfiguredDestinationsForScope(cfg, req.Provider, updateNotifyScope)
 	if err != nil {
 		report := newUpdateNotifyTestReport(req, payload, nil, "failed")
 		output := notify.FormatTestOutput(report, req.JSONSummary)
@@ -121,7 +122,7 @@ func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, er
 		"",
 		"",
 		payload,
-		req.NotifyProvider,
+		req.Provider,
 		notify.SendOptions{IgnoreOptionalAuthLoadErrors: true},
 	)
 	report.Providers = results
@@ -142,13 +143,13 @@ func handleUpdateNotifyTest(req *Request, meta Metadata, rt Runtime) (string, er
 	return notify.FormatTestOutput(report, req.JSONSummary), nil
 }
 
-func newNotifyTestReport(req *Request, cfg *config.Config, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
+func newNotifyTestReport(req *NotifyRequest, cfg *config.Config, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
 	return notify.NewTestReport(notify.TestReportInput{
 		Command:  "test",
 		Label:    cfg.Label,
 		Target:   cfg.Target,
 		Location: cfg.Location,
-		Provider: req.NotifyProvider,
+		Provider: req.Provider,
 		Severity: payload.Severity,
 		Category: payload.Category,
 		Event:    payload.Event,
@@ -158,11 +159,11 @@ func newNotifyTestReport(req *Request, cfg *config.Config, payload *notify.Paylo
 	}, destinations, result)
 }
 
-func newUpdateNotifyTestReport(req *Request, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
+func newUpdateNotifyTestReport(req *NotifyRequest, payload *notify.Payload, destinations []notify.Destination, result string) *notify.TestReport {
 	return notify.NewTestReport(notify.TestReportInput{
 		Command:  "test",
 		Scope:    "update",
-		Provider: req.NotifyProvider,
+		Provider: req.Provider,
 		Severity: payload.Severity,
 		Category: payload.Category,
 		Event:    payload.Event,
