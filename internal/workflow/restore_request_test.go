@@ -59,3 +59,25 @@ func TestRestoreRequestConfigRequestKeepsPlannerInputsOnly(t *testing.T) {
 		t.Fatalf("config request paths = %#v", got)
 	}
 }
+
+func TestRestoreRequestUsesProgressOnlyForExecutingRestoreCommands(t *testing.T) {
+	tests := []struct {
+		command string
+		want    bool
+	}{
+		{command: "run", want: true},
+		{command: "select", want: true},
+		{command: "plan", want: false},
+		{command: "list-revisions", want: false},
+		{command: "inspect", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.command, func(t *testing.T) {
+			got := (RestoreRequest{Command: tt.command}).UsesProgress()
+			if got != tt.want {
+				t.Fatalf("UsesProgress() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}

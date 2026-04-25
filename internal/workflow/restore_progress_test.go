@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -78,4 +79,60 @@ func TestRestoreProgressInterruptedExplainsWorkspaceAndCleanup(t *testing.T) {
 			t.Fatalf("interrupt output missing %q\noutput:\n%s", want, output)
 		}
 	}
+}
+
+func TestRestoreProgressActivitiesDescribeFullAndSelectiveRuns(t *testing.T) {
+	full := restoreProgressActivity(restoreRunInputs{Revision: 8})
+	if full != "Restoring revision 8 into drill workspace" {
+		t.Fatalf("restoreProgressActivity(full) = %q", full)
+	}
+
+	selective := restoreProgressActivity(restoreRunInputs{Revision: 8, RestorePath: "phillipmcmahon/code/*"})
+	if selective != "Restoring selected path from revision 8 into drill workspace" {
+		t.Fatalf("restoreProgressActivity(selective) = %q", selective)
+	}
+
+	longPath := strings.Repeat("a", 100)
+	status := restoreSelectionProgressActivity(2, 12, longPath)
+	if !strings.HasPrefix(status, "Restoring selection 2 of 12: ") {
+		t.Fatalf("restoreSelectionProgressActivity() = %q, want selection prefix", status)
+	}
+	if len(strings.TrimPrefix(status, "Restoring selection 2 of 12: ")) != 90 {
+		t.Fatalf("short path length mismatch in %q", status)
+	}
+	if !strings.HasSuffix(status, "...") {
+		t.Fatalf("restoreSelectionProgressActivity() = %q, want ellipsis", status)
+	}
+}
+
+func TestRestoreInterruptTrackerClampsCurrentProgressAndMarksUnstartedInterrupt(t *testing.T) {
+	tracker := &restoreInterruptTracker{}
+	tracker.setCurrent(0, 3, "")
+	info := tracker.markInterrupted(os.Interrupt)
+	if info.Completed != 0 {
+		t.Fatalf("Completed = %d, want clamped zero", info.Completed)
+	}
+	if info.CurrentPath != "<full revision>" {
+		t.Fatalf("CurrentPath = %q, want full revision marker", info.CurrentPath)
+	}
+
+	tracker = &restoreInterruptTracker{}
+	info = tracker.markInterrupted(os.Interrupt)
+	if info.Total != 1 {
+		t.Fatalf("Total = %d, want default 1 for unstarted interrupt", info.Total)
+	}
+	if restoreInterruptProgress(info) != "0 of 1" {
+		t.Fatalf("restoreInterruptProgress() = %q, want 0 of 1", restoreInterruptProgress(info))
+	}
+}
+
+func TestRestoreProgressNoopIsSafe(t *testing.T) {
+	progress := NewRestoreProgress(Metadata{}, Runtime{}, nil)
+	progress.PrintRunStart(nil, nil, restoreRunInputs{}, time.Time{})
+	progress.PrintSelectionStart(nil, nil, 0, "", 0, time.Time{})
+	progress.PrintStatus("status")
+	progress.StartActivity("activity")()
+	progress.StartSelectionActivity(1, 1, "docs/readme.md")()
+	progress.PrintInterrupted(restoreInterruptInfo{})
+	progress.PrintRunCompletion(true, time.Time{})
 }

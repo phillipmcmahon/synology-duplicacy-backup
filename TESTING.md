@@ -55,15 +55,33 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `83.5%`
+- overall coverage: `84.2%`
 - `cmd/duplicacy-backup`: `82.4%`
-- `internal/workflow`: `82.8%`
-- `internal/restorepicker`: `74.9%`
+- `internal/workflow`: `83.2%`
+- `internal/restorepicker`: `75.3%`
 - `internal/update`: `82.6%`
-- `internal/duplicacy`: `79.5%`
+- `internal/duplicacy`: `83.5%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `88.0%`
+- `internal/presentation`: `91.5%`
+
+Additional #206 validation:
+
+- Coverage/quality review identified the best short-term value in Duplicacy
+  storage/list parsing, restore primitive compilation, restore progress and
+  interrupt helpers, and shared presentation text helpers.
+- Duplicacy parser coverage now checks status/summary-line filtering,
+  duplicate suppression, minute-precision timestamps, and digest validation.
+- Storage backend coverage now checks `Value`, `NeedsSecrets`, nil-secret
+  failures, and no-op secret validation for backends without known required
+  keys.
+- Restore picker coverage now checks no-selection previews, prefixed file
+  selections, command quoting, and complex multi-command selection notes.
+- Restore progress coverage now checks full/selective activity text, path
+  shortening, no-op progress safety, and interrupt progress clamping.
+- Presentation helper coverage now pins title-casing and blank-value fallback
+  behaviour used in operator-facing reports.
 
 Additional v7.2.0 validation:
 

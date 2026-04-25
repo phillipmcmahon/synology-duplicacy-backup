@@ -40,6 +40,12 @@ func TestStorageSpecClassifiesDuplicacyBackends(t *testing.T) {
 			if strings.Join(spec.RequiredSecretKeys(), ",") != strings.Join(tt.keys, ",") {
 				t.Fatalf("RequiredSecretKeys() = %v, want %v", spec.RequiredSecretKeys(), tt.keys)
 			}
+			if spec.NeedsSecrets() != (len(tt.keys) > 0) {
+				t.Fatalf("NeedsSecrets() = %t, want %t", spec.NeedsSecrets(), len(tt.keys) > 0)
+			}
+			if spec.Value() != tt.storage {
+				t.Fatalf("Value() = %q, want %q", spec.Value(), tt.storage)
+			}
 		})
 	}
 }
@@ -53,6 +59,15 @@ func TestStorageSpecValidateSecrets(t *testing.T) {
 	err := spec.ValidateSecrets(&secrets.Secrets{Keys: map[string]string{"s3_id": "id"}})
 	if err == nil || !strings.Contains(err.Error(), "s3_id and s3_secret") {
 		t.Fatalf("ValidateSecrets() error = %v, want missing key message", err)
+	}
+
+	err = spec.ValidateSecrets(nil)
+	if err == nil || !strings.Contains(err.Error(), "s3_id and s3_secret") {
+		t.Fatalf("ValidateSecrets(nil) error = %v, want missing key message", err)
+	}
+
+	if err := NewStorageSpec("b2://bucket/homes").ValidateSecrets(nil); err != nil {
+		t.Fatalf("ValidateSecrets() for backend without known keys = %v, want nil", err)
 	}
 }
 

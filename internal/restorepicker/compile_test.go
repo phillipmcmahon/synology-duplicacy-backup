@@ -137,3 +137,65 @@ func TestCompileSelectionDirectoryCommandUsesDuplicacySubtreePattern(t *testing.
 		t.Fatalf("Commands = %#v, want [%q]", preview.Commands, wantCommand)
 	}
 }
+
+func TestCompileSelectionNoSelectionProducesNoCommands(t *testing.T) {
+	root := BuildTree([]string{"docs/readme.md"})
+
+	preview := CompileSelection(root, PrimitiveOptions{})
+	if preview.FullRestore {
+		t.Fatalf("FullRestore = true, want false")
+	}
+	if len(preview.RestorePaths) != 0 || len(preview.Commands) != 0 || len(preview.Notes) != 0 {
+		t.Fatalf("preview = %#v, want empty preview", preview)
+	}
+}
+
+func TestCompileSelectionRootPathFileUsesExactPath(t *testing.T) {
+	root := BuildTree([]string{"phillipmcmahon/code/readme.md"})
+	ToggleSelection(root)
+
+	preview := CompileSelection(root, PrimitiveOptions{
+		RootPath:  "phillipmcmahon/code/readme.md",
+		RootIsDir: false,
+	})
+
+	if preview.FullRestore {
+		t.Fatalf("FullRestore = true, want false for prefixed file")
+	}
+	want := "phillipmcmahon/code/readme.md"
+	if len(preview.RestorePaths) != 1 || preview.RestorePaths[0] != want {
+		t.Fatalf("RestorePaths = %#v, want [%q]", preview.RestorePaths, want)
+	}
+}
+
+func TestCompileSelectionEscapesShellArgumentsAndAddsComplexSelectionNote(t *testing.T) {
+	paths := make([]string, 0, 12)
+	for i := 0; i < 12; i++ {
+		paths = append(paths, "dir"+string(rune('a'+i))+"/file.txt")
+	}
+	root := BuildTree(paths)
+	for _, child := range root.Children[:11] {
+		ToggleSelection(child.Children[0])
+	}
+
+	preview := CompileSelection(root, PrimitiveOptions{
+		ScriptName: "duplicacy-backup",
+		Source:     "home's",
+		Target:     "onsite-usb",
+		Revision:   "2403",
+		Workspace:  "/volume1/restore drill",
+	})
+
+	if len(preview.Commands) != 11 {
+		t.Fatalf("len(Commands) = %d, want 11", len(preview.Commands))
+	}
+	if len(preview.Notes) != 2 || !strings.Contains(preview.Notes[1], "current contract can become verbose") {
+		t.Fatalf("Notes = %#v, want complex selection note", preview.Notes)
+	}
+	if !strings.Contains(preview.Commands[0], "'/volume1/restore drill'") {
+		t.Fatalf("command did not quote workspace with space: %s", preview.Commands[0])
+	}
+	if !strings.Contains(preview.Commands[0], "'home'\\''s'") {
+		t.Fatalf("command did not escape source quote: %s", preview.Commands[0])
+	}
+}
