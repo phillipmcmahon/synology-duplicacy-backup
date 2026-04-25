@@ -110,3 +110,30 @@ func TestCompileSelectionFullRootUnderPathPrefixUsesSubtreePattern(t *testing.T)
 		t.Fatalf("RestorePaths = %#v, want %#v", preview.RestorePaths, want)
 	}
 }
+
+func TestCompileSelectionDirectoryCommandUsesDuplicacySubtreePattern(t *testing.T) {
+	root := BuildTree([]string{
+		"docs/readme.md",
+		"phillipmcmahon/code/archive/v5.0.0/a.tar.gz",
+		"phillipmcmahon/code/archive/v5.1.0/b.tar.gz",
+		"phillipmcmahon/music/song.flac",
+	})
+	ToggleSelection(root.Children[1].Children[0])
+
+	preview := CompileSelection(root, PrimitiveOptions{
+		ScriptName: "duplicacy-backup",
+		Source:     "homes",
+		Target:     "onsite-usb",
+		Revision:   "2403",
+		Workspace:  "/volume1/restore-drills/homes-onsite-usb",
+	})
+
+	wantPath := "phillipmcmahon/code/*"
+	wantCommand := "sudo 'duplicacy-backup' restore run --target 'onsite-usb' --revision 2403 --workspace '/volume1/restore-drills/homes-onsite-usb' --yes --path 'phillipmcmahon/code/*' 'homes'"
+	if len(preview.RestorePaths) != 1 || preview.RestorePaths[0] != wantPath {
+		t.Fatalf("RestorePaths = %#v, want [%q]", preview.RestorePaths, wantPath)
+	}
+	if len(preview.Commands) != 1 || preview.Commands[0] != wantCommand {
+		t.Fatalf("Commands = %#v, want [%q]", preview.Commands, wantCommand)
+	}
+}

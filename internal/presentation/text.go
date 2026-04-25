@@ -25,3 +25,10 @@ func Title(value string) string {
 	}
 	return b.String()
 }
+
+func DisplayEmpty(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}

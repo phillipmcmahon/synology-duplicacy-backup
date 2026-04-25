@@ -32,7 +32,7 @@ type DiagnosticsReport struct {
 	LastRunCompleted  string                   `json:"last_run_completed_at,omitempty"`
 	LastSuccessfulRun string                   `json:"last_successful_run_at,omitempty"`
 	LastBackup        string                   `json:"last_successful_backup_at,omitempty"`
-	LastBackupRev     int                      `json:"last_successful_backup_revision,omitempty"`
+	LastBackupRev     *int                     `json:"last_successful_backup_revision,omitempty"`
 	LastFailure       string                   `json:"last_failure_summary,omitempty"`
 	LastStatus        string                   `json:"last_status_at,omitempty"`
 	LastDoctor        string                   `json:"last_doctor_at,omitempty"`
@@ -148,7 +148,8 @@ func (r *DiagnosticsReport) applyState(meta Metadata, label, target string) {
 	r.LastRunCompleted = state.LastRunCompletedAt
 	r.LastSuccessfulRun = state.LastSuccessfulRunAt
 	r.LastBackup = state.LastSuccessfulBackupAt
-	r.LastBackupRev = state.LastSuccessfulBackupRevision
+	lastBackupRev := state.LastSuccessfulBackupRevision
+	r.LastBackupRev = &lastBackupRev
 	r.LastFailure = state.LastFailureSummary
 	r.LastStatus = state.LastStatusAt
 	r.LastDoctor = state.LastDoctorAt
@@ -226,7 +227,7 @@ func formatDiagnosticsReport(report *DiagnosticsReport) string {
 		{Label: "Storage Scheme", Value: report.StorageScheme},
 	}))
 	writeDiagnosticsSection(&b, "Secrets", []SummaryLine{
-		{Label: "Secrets File", Value: displayEmpty(report.SecretsFile, "Not required")},
+		{Label: "Secrets File", Value: presentation.DisplayEmpty(report.SecretsFile, "Not required")},
 		{Label: "Secrets Status", Value: report.SecretsStatus},
 	})
 	writeDiagnosticsSection(&b, "State", diagnosticsStateLines(report))
@@ -248,8 +249,8 @@ func diagnosticsStateLines(report *DiagnosticsReport) []SummaryLine {
 	if report.LastSuccessfulRun != "" {
 		lines = append(lines, SummaryLine{Label: "Last Successful Run", Value: report.LastSuccessfulRun})
 	}
-	if report.LastBackupRev > 0 {
-		lines = append(lines, SummaryLine{Label: "Last Backup Rev", Value: fmt.Sprintf("%d", report.LastBackupRev)})
+	if report.LastBackupRev != nil {
+		lines = append(lines, SummaryLine{Label: "Last Backup Rev", Value: fmt.Sprintf("%d", *report.LastBackupRev)})
 	}
 	if report.LastBackup != "" {
 		lines = append(lines, SummaryLine{Label: "Last Backup", Value: report.LastBackup})
@@ -282,11 +283,4 @@ func writeDiagnosticsSection(b *strings.Builder, name string, lines []SummaryLin
 	for _, line := range lines {
 		fmt.Fprintf(b, "    %-18s : %s\n", line.Label, line.Value)
 	}
-}
-
-func displayEmpty(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
 }

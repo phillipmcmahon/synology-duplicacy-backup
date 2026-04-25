@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,15 +17,12 @@ func marshalRestoreJSON(value interface{}) (string, error) {
 }
 
 func confirmRestoreRun(rt Runtime, report *restoreRunReport) (bool, error) {
-	if rt.StdinIsTTY == nil || !rt.StdinIsTTY() {
+	reader, interactive := runtimeStdinReader(rt)
+	if !interactive {
 		return false, NewRequestError("restore run requires --yes when not running interactively")
 	}
-	stdin := os.Stdin
-	if rt.Stdin != nil && rt.Stdin() != nil {
-		stdin = rt.Stdin()
-	}
 	fmt.Fprintf(os.Stdout, "Restore revision %d into %s? [y/N]: ", report.Revision, report.Workspace)
-	answer, err := bufio.NewReader(stdin).ReadString('\n')
+	answer, err := reader.ReadString('\n')
 	if err != nil && strings.TrimSpace(answer) == "" {
 		return false, fmt.Errorf("failed to read restore confirmation: %w", err)
 	}

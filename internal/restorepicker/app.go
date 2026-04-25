@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/rivo/tview"
 )
 
@@ -287,13 +288,6 @@ func findTreeNodeByPath(node *tview.TreeNode, path string) *tview.TreeNode {
 	return nil
 }
 
-func displayEmpty(value, fallback string) string {
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-
 func nodeLabel(node *Node) string {
 	name := node.Name
 	if node.Path == "" {
@@ -359,10 +353,10 @@ func updateDetail(detail *tview.TextView, root *Node, node *tview.TreeNode, opts
 	}
 	detail.SetText(fmt.Sprintf(
 		"[yellow]Title:[-] %s\n[yellow]Prefix:[-] %s\n[yellow]Kind:[-] %s\n[yellow]Path:[-] %s\n[yellow]State:[-] %s\n[yellow]Visible Children:[-] %d\n\n[yellow]Selection Summary:[-]\n  Full directories : %d\n  Partial dirs     : %d\n  Selected files   : %d\n\n[yellow]Current breadcrumb:[-] %s%s\n[yellow]Primitive Preview:[-]\n%s",
-		displayEmpty(opts.Title, "Restore Tree Picker POC"),
-		displayEmpty(opts.PathPrefix, "<snapshot root>"),
+		presentation.DisplayEmpty(opts.Title, "Restore Tree Picker POC"),
+		presentation.DisplayEmpty(opts.PathPrefix, "<snapshot root>"),
 		kind,
-		displayEmpty(ref.Path, "<snapshot root>"),
+		presentation.DisplayEmpty(ref.Path, "<snapshot root>"),
 		selectionName(ref.Selection),
 		children,
 		summary.FullDirectories,

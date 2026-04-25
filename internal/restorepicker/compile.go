@@ -125,6 +125,8 @@ func directoryPattern(path string) string {
 	if path == "" {
 		return ""
 	}
+	// Duplicacy restore accepts this path glob as the subtree selection form
+	// used by the existing NAS restore smoke tests.
 	return path + "/*"
 }
 

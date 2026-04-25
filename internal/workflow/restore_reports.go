@@ -165,8 +165,8 @@ func newRestoreRevisionsReport(req *Request, ctx *restoreExecutionContext, revis
 	}
 }
 
-func newRestoreRunReport(req *Request, plan *Plan, storage, workspace, restorePath string) *restoreRunReport {
-	command := fmt.Sprintf("duplicacy restore -r %d -stats", req.RestoreRevision)
+func newRestoreRunReport(req *Request, plan *Plan, storage, workspace string, revision int, restorePath string, dryRun bool) *restoreRunReport {
+	command := fmt.Sprintf("duplicacy restore -r %d -stats", revision)
 	if restorePath != "" {
 		command += " -- " + shellQuote(restorePath)
 	}
@@ -179,10 +179,10 @@ func newRestoreRunReport(req *Request, plan *Plan, storage, workspace, restorePa
 		Storage:           storage,
 		Workspace:         workspace,
 		WorkspacePrepared: restoreWorkspacePrepared(workspace),
-		Revision:          req.RestoreRevision,
+		Revision:          revision,
 		RestorePath:       restorePath,
 		Command:           command,
-		DryRun:            req.DryRun,
+		DryRun:            dryRun,
 		Result:            "Pending confirmation",
 		Guide:             "docs/restore-drills.md",
 	}

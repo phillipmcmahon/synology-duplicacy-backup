@@ -97,3 +97,25 @@ func TestHandleDiagnosticsCommand_JSONSummary(t *testing.T) {
 		t.Fatalf("diagnostics JSON did not redact storage secrets:\n%s", out)
 	}
 }
+
+func TestHandleDiagnosticsCommand_JSONSummaryIncludesZeroRevisionWhenStateExists(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", t.TempDir(), t.TempDir(), "", "", 4, ""))
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
+		LastRunResult:                "success",
+		LastSuccessfulBackupRevision: 0,
+	}); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", JSONSummary: true}
+	out, err := HandleDiagnosticsCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
+	}
+	if !strings.Contains(out, `"last_successful_backup_revision": 0`) {
+		t.Fatalf("diagnostics JSON should include zero revision when state exists:\n%s", out)
+	}
+}

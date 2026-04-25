@@ -226,7 +226,7 @@ func restorePathPrefixHasMatches(paths []string, prefix string) bool {
 	return false
 }
 
-func promptRestoreYesNo(reader *bufio.Reader, prompt string, deps RestoreDeps) (bool, error) {
+func promptRestoreYesNo(reader restoreLineReader, prompt string, deps RestoreDeps) (bool, error) {
 	answer, err := promptRestoreLine(reader, prompt, deps)
 	if err != nil {
 		return false, err
@@ -235,7 +235,7 @@ func promptRestoreYesNo(reader *bufio.Reader, prompt string, deps RestoreDeps) (
 	return answer == "y" || answer == "yes", nil
 }
 
-func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectReport, deps RestoreDeps) (bool, error) {
+func confirmRestoreSelectExecution(reader restoreLineReader, report *restoreSelectReport, deps RestoreDeps) (bool, error) {
 	fmt.Fprintln(deps.PromptOutput, "Review the generated restore command(s):")
 	fmt.Fprintf(deps.PromptOutput, "  Revision : %d\n", report.Revision)
 	fmt.Fprintf(deps.PromptOutput, "  Workspace: %s\n", report.Workspace)
@@ -251,7 +251,7 @@ func confirmRestoreSelectExecution(reader *bufio.Reader, report *restoreSelectRe
 	return promptRestoreYesNo(reader, "Prepare this drill workspace and restore now? [y/N]: ", deps)
 }
 
-func promptRestoreLine(reader *bufio.Reader, prompt string, deps RestoreDeps) (string, error) {
+func promptRestoreLine(reader restoreLineReader, prompt string, deps RestoreDeps) (string, error) {
 	fmt.Fprint(deps.PromptOutput, prompt)
 	answer, err := reader.ReadString('\n')
 	if err != nil && strings.TrimSpace(answer) == "" {
