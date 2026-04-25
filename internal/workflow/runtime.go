@@ -82,6 +82,10 @@ type Metadata struct {
 	StateDir   string
 }
 
+// DefaultMetadata returns metadata rooted around an explicit log directory.
+// Production entry points should use DefaultMetadataForRuntime so defaults
+// follow the invoking user's runtime profile; this helper remains useful for
+// tests and other callers that need deterministic sibling state/lock roots.
 func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
 	baseDir := filepath.Dir(logDir)
 	logName := filepath.Base(logDir)
