@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v7.1.0] - 2026-04-25
+
+### Added
+- **New replacement-NAS restore guide**:
+  added `docs/new-nas-restore.md` for operators who need to install the tool
+  on a new NAS, recreate the minimum config and secrets files, prove existing
+  backup storage is reachable, and start restore inspection safely.
+
+### Changed
+- **Restore access no longer requires historical `source_path` knowledge**:
+  restore-oriented flows can connect to existing Duplicacy storage without a
+  configured live source path. `source_path` is now treated as backup-readiness
+  and copy-back context, not a hard prerequisite for reading backup data during
+  disaster recovery.
+- **Default restore workspaces are independent of `source_path`**:
+  when `--workspace` is omitted, restore execution derives the drill workspace
+  from the restore job itself:
+  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+  Explicit `--workspace` values are still honoured directly.
+- **Restore and DR documentation was realigned**:
+  README, CLI, configuration, restore-drill, operations, cheatsheet, and
+  how-it-works documentation now distinguish backup-readiness validation from
+  restore repository access.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: pending release prep
+- `internal/workflow`: pending release prep
+
 ## [v7.0.0] - 2026-04-24
 
 ### Changed
