@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v7.1.0`
+Current public release baseline: `v7.1.1`
 
 Active release-prep target: none
 
@@ -55,15 +55,30 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `83.9%`
-- `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `83.0%`
-- `internal/restorepicker`: `73.9%`
+- overall coverage: `84.1%`
+- `cmd/duplicacy-backup`: `90.8%`
+- `internal/workflow`: `83.2%`
+- `internal/restorepicker`: `74.9%`
 - `internal/update`: `82.6%`
-- `internal/duplicacy`: `81.6%`
+- `internal/duplicacy`: `80.4%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
-- `internal/config`: `87.6%`
+- `internal/config`: `88.0%`
+
+Additional v7.1.1 validation:
+
+- Release validation covers the request-model cleanup that narrows update,
+  rollback, notify, diagnostics, config, health, restore, and runtime command
+  paths to command-specific request types.
+- Runtime planning coverage now exercises the single `RuntimeMode` path rather
+  than carrying the old runtime mode booleans deeper into planner and executor
+  internals.
+- Documentation and help rendering checks now cover native `storj://` storage
+  key guidance alongside S3-compatible `s3`, `s3c`, `minio`, and `minios`
+  storage values.
+- Full documentation review confirmed the public help surface excludes retired
+  restore commands, the removed hidden `restore select --execute` path, and
+  old top-level runtime operation flags.
 
 Additional v7.1.0 validation:
 
