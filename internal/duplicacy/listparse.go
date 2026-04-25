@@ -20,7 +20,7 @@ func ParseListFilesOutput(r io.Reader) ([]string, error) {
 	var paths []string
 	seen := map[string]bool{}
 	for scanner.Scan() {
-		path := filepath.ToSlash(strings.TrimSpace(ExtractListFilePath(scanner.Text())))
+		path := filepath.ToSlash(strings.TrimSpace(extractListFilePath(scanner.Text())))
 		if path == "" || seen[path] {
 			continue
 		}
@@ -33,9 +33,9 @@ func ParseListFilesOutput(r io.Reader) ([]string, error) {
 	return paths, nil
 }
 
-func ExtractListFilePath(line string) string {
+func extractListFilePath(line string) string {
 	line = strings.TrimSpace(line)
-	if line == "" || IsIgnoredListFilesLine(line) {
+	if line == "" || isIgnoredListFilesLine(line) {
 		return ""
 	}
 	fields, remainder := splitLeadingFields(line, 4)
@@ -51,7 +51,7 @@ func ExtractListFilePath(line string) string {
 	return strings.TrimSpace(remainder)
 }
 
-func IsIgnoredListFilesLine(line string) bool {
+func isIgnoredListFilesLine(line string) bool {
 	line = strings.TrimSpace(line)
 	switch {
 	case line == "":

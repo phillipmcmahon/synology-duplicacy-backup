@@ -192,10 +192,6 @@ func runRestoreSelectSelective(ctx *restoreExecutionContext, req *Request, meta 
 	return runRestoreSelectExecution(ctx, req, meta, rt, reader, revision, restorePaths, deps)
 }
 
-type restoreLineReader interface {
-	ReadString(delim byte) (string, error)
-}
-
 func runRestoreSelectExecution(ctx *restoreExecutionContext, req *Request, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, restorePaths []string, deps RestoreDeps) (string, error) {
 	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
 	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)

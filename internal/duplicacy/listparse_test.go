@@ -32,8 +32,8 @@ Total size: 287254112235, file chunks: 6658, metadata chunks: 4
 }
 
 func TestExtractListFilePathKeepsMalformedRowsAsPlainPaths(t *testing.T) {
-	got := ExtractListFilePath("1234 not-a-date 19:29:38 45fcaf55 docs/readme.md")
+	got := extractListFilePath("1234 not-a-date 19:29:38 45fcaf55 docs/readme.md")
 	if got != "1234 not-a-date 19:29:38 45fcaf55 docs/readme.md" {
-		t.Fatalf("ExtractListFilePath() = %q", got)
+		t.Fatalf("extractListFilePath() = %q", got)
 	}
 }
