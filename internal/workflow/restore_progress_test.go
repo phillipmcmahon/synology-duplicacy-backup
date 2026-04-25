@@ -81,6 +81,49 @@ func TestRestoreProgressInterruptedExplainsWorkspaceAndCleanup(t *testing.T) {
 	}
 }
 
+func TestRestoreProgressSelectionStartStatusActivityAndCompletion(t *testing.T) {
+	output := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		defer log.Close()
+
+		progress := NewRestoreProgress(
+			Metadata{},
+			Runtime{Now: func() time.Time { return time.Date(2026, 4, 25, 16, 0, 0, 0, time.UTC) }},
+			log,
+		)
+
+		progress.PrintSelectionStart(
+			&RestoreRequest{Label: "homes", TargetName: "onsite-usb"},
+			&Plan{Location: locationLocal},
+			8,
+			"/volume1/restore-drills/homes-onsite-usb-20260425-130000-rev8",
+			3,
+			time.Date(2026, 4, 25, 16, 0, 0, 0, time.UTC),
+		)
+		progress.PrintStatus("Preparing drill workspace")
+		progress.StartActivity("Restoring selected path")()
+		progress.StartSelectionActivity(1, 3, "phillipmcmahon/code/*")()
+		progress.PrintRunCompletion(false, time.Date(2026, 4, 25, 16, 0, 0, 0, time.UTC))
+	})
+
+	for _, want := range []string{
+		"Operation", "Restore selection",
+		"Restore paths", "3",
+		"Status", "Preparing drill workspace",
+		"Status", "Restoring selected path",
+		"Status", "Restoring selection 1 of 3: phillipmcmahon/code/*",
+		"Result", "Failed",
+		"Code", "1",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q\noutput:\n%s", want, output)
+		}
+	}
+}
+
 func TestRestoreProgressActivitiesDescribeFullAndSelectiveRuns(t *testing.T) {
 	full := restoreProgressActivity(restoreRunInputs{Revision: 8})
 	if full != "Restoring revision 8 into drill workspace" {
@@ -135,4 +178,11 @@ func TestRestoreProgressNoopIsSafe(t *testing.T) {
 	progress.StartSelectionActivity(1, 1, "docs/readme.md")()
 	progress.PrintInterrupted(restoreInterruptInfo{})
 	progress.PrintRunCompletion(true, time.Time{})
+
+	noop := noopRestoreProgress{}
+	noop.PrintRunStart(nil, nil, restoreRunInputs{}, time.Time{})
+	noop.PrintSelectionStart(nil, nil, 0, "", 0, time.Time{})
+	noop.PrintStatus("status")
+	noop.PrintInterrupted(restoreInterruptInfo{})
+	noop.PrintRunCompletion(false, time.Time{})
 }

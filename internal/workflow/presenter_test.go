@@ -77,3 +77,40 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestPresenterPreRunFailureContextAndStatus(t *testing.T) {
+	log, logDir := newPresenterTestLogger(t)
+	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
+
+	presenter.PrintPreRunFailureContext(&RuntimeRequest{
+		Mode:       RuntimeModePrune,
+		Label:      "homes",
+		TargetName: "onsite-usb",
+	})
+	presenter.PrintStatus("Preparing drill workspace")
+	presenter.PrintSummary(nil)
+	presenter.PrintPreRunFailureContext(nil)
+	presenter.PrintPreRunFailurePlan(nil)
+	log.Close()
+
+	output := readSingleLogFile(t, logDir)
+	for _, token := range []string{"Run could not start", "Operation", "Safe prune", "Label", "homes", "Target", "onsite-usb", "Status", "Preparing drill workspace"} {
+		if !strings.Contains(output, token) {
+			t.Fatalf("output missing %q:\n%s", token, output)
+		}
+	}
+}
+
+func TestPresenterHeaderDataNilPlan(t *testing.T) {
+	log, logDir := newPresenterTestLogger(t)
+	start := time.Date(2026, 4, 25, 17, 0, 0, 0, time.UTC)
+	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
+
+	presenter.PrintHeader(nil, start, "")
+	log.Close()
+
+	output := readSingleLogFile(t, logDir)
+	if !strings.Contains(output, "Run started - 2026-04-25 17:00:00") {
+		t.Fatalf("output = %s", output)
+	}
+}

@@ -120,6 +120,8 @@ func TestValidate_RejectsEmptyStorageKeyValues(t *testing.T) {
 		sec  Secrets
 		want string
 	}{
+		{"empty key", Secrets{Keys: map[string]string{"": "secret"}}, "names must not be empty"},
+		{"blank key", Secrets{Keys: map[string]string{"   ": "secret"}}, "names must not be empty"},
 		{"empty value", Secrets{Keys: map[string]string{"s3_secret": ""}}, "s3_secret"},
 		{"blank value", Secrets{Keys: map[string]string{"s3_secret": "   "}}, "s3_secret"},
 	}
@@ -204,6 +206,9 @@ func TestValidateFileAccess(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+	if err := (*Secrets)(nil).Validate(); err != nil {
+		t.Fatalf("nil secrets should validate: %v", err)
+	}
 	if err := (&Secrets{Keys: map[string]string{"s3_id": validID(), "s3_secret": validSecret()}}).Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -259,6 +264,9 @@ func TestParseSecrets_MissingTargetTable(t *testing.T) {
 }
 
 func TestMaskedHelpers(t *testing.T) {
+	if (*Secrets)(nil).MaskedKeys() != "<none>" {
+		t.Fatal("nil masked keys should be explicit")
+	}
 	if (&Secrets{Keys: map[string]string{"s3_id": "ABCDEFGHIJ"}}).MaskedKeys() != "**** (1 key)" {
 		t.Fatal("unexpected masked key summary")
 	}

@@ -26,6 +26,20 @@ func TestNewConfigRequestProjectsOnlyConfigIntent(t *testing.T) {
 	}
 }
 
+func TestNewConfigRequestFromNilIsZeroValue(t *testing.T) {
+	got := NewConfigRequest(nil)
+	if got != (ConfigRequest{}) {
+		t.Fatalf("NewConfigRequest(nil) = %#v", got)
+	}
+	plan := NewConfigPlanRequest(nil)
+	if plan != (ConfigPlanRequest{}) {
+		t.Fatalf("NewConfigPlanRequest(nil) = %#v", plan)
+	}
+	if plan.Target() != "" {
+		t.Fatalf("ConfigPlanRequest.Target() = %q", plan.Target())
+	}
+}
+
 func TestConfigRequestPlanRequestCarriesPlannerInputsOnly(t *testing.T) {
 	req := ConfigRequest{
 		Command:    "explain",

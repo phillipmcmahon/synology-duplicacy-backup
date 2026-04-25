@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -325,6 +326,138 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+}
+
+func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	rt := workflow.DefaultRuntime()
+
+	cases := []struct {
+		name       string
+		output     string
+		err        error
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{name: "success", output: "restore plan\n", wantCode: 0, wantStdout: "restore plan\n"},
+		{name: "cancelled", err: workflow.ErrRestoreCancelled, wantCode: 0, wantStderr: "Restore cancelled by operator"},
+		{name: "interrupted", output: "partial report\n", err: workflow.ErrRestoreInterrupted, wantCode: exitCodeGeneralFailure, wantStdout: "partial report\n", wantStderr: "Restore interrupted by operator"},
+		{name: "failed", output: "failure report\n", err: workflow.NewRequestError("restore failed"), wantCode: exitCodeGeneralFailure, wantStdout: "failure report\n", wantStderr: "[ERRO] restore failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withTestGlobals(t, func() {
+				handleRestoreCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+					return tc.output, tc.err
+				}
+				stdout, stderr := captureOutput(t, func() {
+					code := runRestoreRequest(&workflow.Request{RestoreCommand: "plan", Source: "homes", RequestedTarget: "onsite-usb"}, meta, rt)
+					if code != tc.wantCode {
+						t.Fatalf("code = %d, want %d", code, tc.wantCode)
+					}
+				})
+				if !strings.Contains(stdout, tc.wantStdout) {
+					t.Fatalf("stdout = %q, want contains %q", stdout, tc.wantStdout)
+				}
+				if !strings.Contains(stderr, tc.wantStderr) {
+					t.Fatalf("stderr = %q, want contains %q", stderr, tc.wantStderr)
+				}
+			})
+		})
+	}
+}
+
+func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	rt := workflow.DefaultRuntime()
+
+	withTestGlobals(t, func() {
+		rt.Geteuid = func() int { return 1000 }
+		_, stderr := captureOutput(t, func() {
+			code := runRollbackRequest(&workflow.Request{RollbackCommand: "rollback"}, meta, rt)
+			if code != exitCodeGeneralFailure {
+				t.Fatalf("code = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "rollback activation must be run as root") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+
+	withTestGlobals(t, func() {
+		rt.Geteuid = func() int { return 0 }
+		handleRollbackCommand = func(*workflow.RollbackRequest, workflow.Metadata, workflow.Runtime) (update.RollbackResult, error) {
+			return update.RollbackResult{Output: "Rollback\n  Result               : Ready to rollback\n"}, nil
+		}
+		stdout, stderr := captureOutput(t, func() {
+			code := runRollbackRequest(&workflow.Request{RollbackCommand: "rollback", RollbackCheckOnly: true}, meta, rt)
+			if code != 0 {
+				t.Fatalf("code = %d", code)
+			}
+		})
+		if stderr != "" || !strings.Contains(stdout, "Ready to rollback") {
+			t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+		}
+	})
+}
+
+func TestRunHealthPrivilegeFailureAndJSON(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	rt := workflow.DefaultRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	rt.Now = func() time.Time { return time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC) }
+
+	stdout, stderr := captureOutput(t, func() {
+		code := runHealthRequest(&workflow.Request{HealthCommand: "status", Source: "homes", RequestedTarget: "onsite-usb", JSONSummary: true}, meta, rt)
+		if code != exitCodeHealthUnhealthy {
+			t.Fatalf("code = %d", code)
+		}
+	})
+	if !strings.Contains(stderr, "health commands must be run as root") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !strings.Contains(stdout, `"status": "unhealthy"`) || !strings.Contains(stdout, `"label": "homes"`) {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestUpdateAndRollbackOptionAdapters(t *testing.T) {
+	if got := updateOptionsFromRequest(nil); got.Keep != update.DefaultKeep {
+		t.Fatalf("nil update options = %#v", got)
+	}
+	updateReq := workflow.UpdateRequest{Version: "v7.2.1", CheckOnly: true, Force: true, Yes: true, Keep: 5, Attestations: "required"}
+	if got := updateOptionsFromRequest(&updateReq); got.RequestedVersion != "v7.2.1" || !got.CheckOnly || !got.Force || !got.Yes || got.Keep != 5 || got.Attestations != "required" {
+		t.Fatalf("update options = %#v", got)
+	}
+	if got := rollbackOptionsFromRequest(nil); got != (update.RollbackOptions{}) {
+		t.Fatalf("nil rollback options = %#v", got)
+	}
+	rollbackReq := workflow.RollbackRequest{Version: "v7.1.1", CheckOnly: true, Yes: true}
+	if got := rollbackOptionsFromRequest(&rollbackReq); got.RequestedVersion != "v7.1.1" || !got.CheckOnly || !got.Yes {
+		t.Fatalf("rollback options = %#v", got)
+	}
+}
+
+func TestRunUpdateRequestFailureNotificationWarning(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	rt := workflow.DefaultRuntime()
+	rt.Geteuid = func() int { return 0 }
+
+	withTestGlobals(t, func() {
+		handleUpdateCommand = func(*workflow.UpdateRequest, workflow.Metadata, workflow.Runtime) (update.Result, error) {
+			return update.Result{Status: update.StatusFailed}, errors.New("install failed")
+		}
+		_, stderr := captureOutput(t, func() {
+			code := runUpdateRequest(&workflow.Request{UpdateCommand: "update", UpdateYes: true}, meta, rt)
+			if code != exitCodeGeneralFailure {
+				t.Fatalf("code = %d", code)
+			}
+		})
+		if !strings.Contains(stderr, "[ERRO] install failed") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
 }
 
 func TestRun_UsesCLIArgs(t *testing.T) {

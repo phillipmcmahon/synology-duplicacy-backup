@@ -1,6 +1,7 @@
 package duplicacy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -509,6 +510,190 @@ func TestGetTotalRevisionCount_FailsClosedOnError(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("expected count=0 on error, got %d", count)
+	}
+}
+
+func TestGetLatestRevision(t *testing.T) {
+	t.Run("dry run", func(t *testing.T) {
+		s, _ := newTestSetup(t, true)
+		revision, output, err := s.GetLatestRevision()
+		if err != nil {
+			t.Fatalf("GetLatestRevision() error = %v", err)
+		}
+		if revision != 0 || output != "" {
+			t.Fatalf("revision=%d output=%q", revision, output)
+		}
+	})
+
+	t.Run("selects highest revision", func(t *testing.T) {
+		s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "revision 4\nrevision 10\nrevision 7\n"})
+		revision, output, err := s.GetLatestRevision()
+		if err != nil {
+			t.Fatalf("GetLatestRevision() error = %v", err)
+		}
+		if revision != 10 || !strings.Contains(output, "revision 10") {
+			t.Fatalf("revision=%d output=%q", revision, output)
+		}
+		if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != s.DuplicacyRoot {
+			t.Fatalf("invocations = %#v", mock.Invocations)
+		}
+	})
+
+	t.Run("errors on list failure", func(t *testing.T) {
+		s, _ := newTestSetup(t, false, execpkg.MockResult{Stderr: "denied\n", Err: errors.New("list failed")})
+		revision, output, err := s.GetLatestRevision()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if revision != 0 || !strings.Contains(output, "denied") {
+			t.Fatalf("revision=%d output=%q err=%v", revision, output, err)
+		}
+	})
+}
+
+func TestListVisibleRevisionsAndLatestInfo(t *testing.T) {
+	output := strings.Join([]string{
+		"Snapshot data at revision 1 created at 2026-04-23 02:30",
+		"Snapshot data at revision 3 created at 2026-04-24 13:00:00",
+		"Snapshot data at revision 2",
+	}, "\n")
+	s, _ := newTestSetup(t, false, execpkg.MockResult{Stdout: output}, execpkg.MockResult{Stdout: output})
+
+	revisions, combined, err := s.ListVisibleRevisions()
+	if err != nil {
+		t.Fatalf("ListVisibleRevisions() error = %v", err)
+	}
+	if len(revisions) != 3 || revisions[0].Revision != 3 || revisions[1].Revision != 2 || revisions[2].Revision != 1 {
+		t.Fatalf("revisions = %#v", revisions)
+	}
+	if revisions[0].CreatedAt.IsZero() || revisions[2].CreatedAt.IsZero() {
+		t.Fatalf("expected created timestamps: %#v", revisions)
+	}
+	if !strings.Contains(combined, "revision 3") {
+		t.Fatalf("combined = %q", combined)
+	}
+
+	info, _, err := s.GetLatestRevisionInfo()
+	if err != nil {
+		t.Fatalf("GetLatestRevisionInfo() error = %v", err)
+	}
+	if info == nil || info.Revision != 3 {
+		t.Fatalf("latest = %#v", info)
+	}
+}
+
+func TestListVisibleRevisionsErrorAndDryRun(t *testing.T) {
+	s, _ := newTestSetup(t, true)
+	revisions, output, err := s.ListVisibleRevisions()
+	if err != nil || revisions != nil || output != "" {
+		t.Fatalf("dry-run revisions=%#v output=%q err=%v", revisions, output, err)
+	}
+	info, output, err := s.GetLatestRevisionInfo()
+	if err != nil || info != nil || output != "" {
+		t.Fatalf("dry-run latest=%#v output=%q err=%v", info, output, err)
+	}
+
+	s, _ = newTestSetup(t, false, execpkg.MockResult{Stderr: "list failed\n", Err: errors.New("boom")})
+	revisions, output, err = s.ListVisibleRevisions()
+	if err == nil || revisions != nil || !strings.Contains(output, "list failed") {
+		t.Fatalf("revisions=%#v output=%q err=%v", revisions, output, err)
+	}
+}
+
+func TestListRevisionFilesAndRestoreRevision(t *testing.T) {
+	s, mock := newTestSetup(t, false,
+		execpkg.MockResult{Stdout: "files\n"},
+		execpkg.MockResult{Stdout: "restored\n"},
+		execpkg.MockResult{Stdout: "full restore\n"},
+	)
+
+	output, err := s.ListRevisionFiles(42)
+	if err != nil || output != "files\n" {
+		t.Fatalf("ListRevisionFiles() output=%q err=%v", output, err)
+	}
+	output, err = s.RestoreRevision(42, "path/with spaces.txt")
+	if err != nil || output != "restored\n" {
+		t.Fatalf("RestoreRevision() output=%q err=%v", output, err)
+	}
+	output, err = s.RestoreRevisionContext(context.TODO(), 42, "")
+	if err != nil || output != "full restore\n" {
+		t.Fatalf("RestoreRevisionContext(nil) output=%q err=%v", output, err)
+	}
+	if got := strings.Join(mock.Invocations[0].Args, " "); got != "list -files -r 42" {
+		t.Fatalf("list args = %q", got)
+	}
+	if got := strings.Join(mock.Invocations[1].Args, " "); got != "restore -r 42 -stats -- path/with spaces.txt" {
+		t.Fatalf("restore args = %q", got)
+	}
+	if got := strings.Join(mock.Invocations[2].Args, " "); got != "restore -r 42 -stats" {
+		t.Fatalf("full restore args = %q", got)
+	}
+}
+
+func TestListRevisionFilesAndRestoreErrors(t *testing.T) {
+	s, _ := newTestSetup(t, true)
+	if output, err := s.ListRevisionFiles(1); err != nil || output != "" {
+		t.Fatalf("dry-run ListRevisionFiles() output=%q err=%v", output, err)
+	}
+	if output, err := s.RestoreRevisionContext(context.Background(), 1, "path"); err != nil || output != "" {
+		t.Fatalf("dry-run RestoreRevisionContext() output=%q err=%v", output, err)
+	}
+
+	s, _ = newTestSetup(t, false,
+		execpkg.MockResult{Stderr: "list failed\n", Err: errors.New("boom")},
+		execpkg.MockResult{Stderr: "restore failed\n", Err: errors.New("boom")},
+	)
+	if output, err := s.ListRevisionFiles(7); err == nil || !strings.Contains(output, "list failed") {
+		t.Fatalf("ListRevisionFiles() output=%q err=%v", output, err)
+	}
+	if output, err := s.RestoreRevisionContext(context.Background(), 7, "path"); err == nil || !strings.Contains(output, "restore failed") {
+		t.Fatalf("RestoreRevisionContext() output=%q err=%v", output, err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	s, _ = newTestSetup(t, false, execpkg.MockResult{Stderr: "interrupted\n", Err: context.Canceled})
+	if output, err := s.RestoreRevisionContext(ctx, 7, "path"); err == nil || !strings.Contains(output, "interrupted") || !strings.Contains(err.Error(), "interrupted") {
+		t.Fatalf("RestoreRevisionContext(cancelled) output=%q err=%v", output, err)
+	}
+}
+
+func TestParseVisibleRevisionsAndCheckResults(t *testing.T) {
+	created, err := parseRevisionCreatedAt("2026-04-24 13:00")
+	if err != nil {
+		t.Fatalf("parseRevisionCreatedAt(short) error = %v", err)
+	}
+	if created.IsZero() {
+		t.Fatal("created timestamp should be populated")
+	}
+	if _, err := parseRevisionCreatedAt("not a time"); err == nil {
+		t.Fatal("expected parseRevisionCreatedAt to reject unsupported timestamp")
+	}
+
+	revisions := parseVisibleRevisions(strings.Join([]string{
+		"Snapshot data at revision 5 created at 2026-04-25 13:00:00",
+		"Snapshot data at revision 4 created at 2026-04-25 07:00",
+		"Snapshot data at revision 3",
+		"revision not-a-number",
+	}, "\n"))
+	if len(revisions) != 3 || revisions[0].Revision != 5 || revisions[1].Revision != 4 || revisions[2].Revision != 3 {
+		t.Fatalf("revisions = %#v", revisions)
+	}
+	if got := parseVisibleRevisions(""); got != nil {
+		t.Fatalf("empty parseVisibleRevisions() = %#v", got)
+	}
+
+	checks := parseRevisionCheckResults(strings.Join([]string{
+		"All chunks referenced by snapshot data at revision 5 exist",
+		"Some chunks referenced by snapshot data at revision 4 are missing",
+		"Chunk abcdef referenced by snapshot data at revision 3 does not exist",
+		"All chunks referenced by snapshot data at revision 3 exist",
+	}, "\n"))
+	if len(checks) != 3 || checks[0].Revision != 5 || checks[0].Result != "pass" || checks[1].Result != "fail" || checks[2].Result != "fail" {
+		t.Fatalf("checks = %#v", checks)
+	}
+	if got := parseRevisionCheckResults(""); got != nil {
+		t.Fatalf("empty parseRevisionCheckResults() = %#v", got)
 	}
 }
 

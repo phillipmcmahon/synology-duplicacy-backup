@@ -38,6 +38,13 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	}
 }
 
+func TestNewRestoreRequestFromNilIsZeroValue(t *testing.T) {
+	got := NewRestoreRequest(nil)
+	if got != (RestoreRequest{}) {
+		t.Fatalf("NewRestoreRequest(nil) = %#v", got)
+	}
+}
+
 func TestRestoreRequestConfigRequestKeepsPlannerInputsOnly(t *testing.T) {
 	restoreReq := RestoreRequest{
 		Label:       "homes",

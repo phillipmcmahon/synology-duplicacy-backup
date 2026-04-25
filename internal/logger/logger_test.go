@@ -328,6 +328,24 @@ func TestColourizeForLevel(t *testing.T) {
 	if !strings.Contains(got, "Invalid") || !strings.Contains(got, colourError) || !strings.Contains(got, colourReset) {
 		t.Fatalf("ColourizeForLevel() with colour = %q", got)
 	}
+	for _, tc := range []struct {
+		level  Level
+		colour string
+	}{
+		{DEBUG, colourDebug},
+		{INFO, colourInfo},
+		{SUCCESS, colourSuccess},
+		{WARNING, colourWarn},
+		{ERROR, colourError},
+	} {
+		got := ColourizeForLevel(tc.level, "value", true)
+		if !strings.Contains(got, tc.colour) || !strings.Contains(got, colourReset) {
+			t.Fatalf("ColourizeForLevel(%s) = %q", tc.level, got)
+		}
+	}
+	if got := ColourizeForLevel(Level(99), "plain", true); got != "plain" {
+		t.Fatalf("unknown levels should not be colourized, got %q", got)
+	}
 }
 
 // ─── Log and convenience method tests ───────────────────────────────────────
@@ -374,6 +392,36 @@ func TestLog_FileHasNoColour(t *testing.T) {
 	}
 	if !strings.Contains(content, "[ERRO] error msg") {
 		t.Errorf("log file should contain plain message, got: %s", content)
+	}
+}
+
+func TestRecordWritesOnlyToLogFile(t *testing.T) {
+	log := newTestLogger(t, false)
+	var stderr bytes.Buffer
+	log.stderr = &stderr
+
+	log.Record(INFO, "recorded %s", "entry")
+
+	if stderr.String() != "" {
+		t.Fatalf("Record() wrote to stderr: %q", stderr.String())
+	}
+	content := readLogFile(t, log)
+	if !strings.Contains(content, "[INFO] recorded entry") {
+		t.Fatalf("log content = %q", content)
+	}
+}
+
+func TestInteractiveAndVerboseAccessors(t *testing.T) {
+	log := &Logger{interactive: true}
+	if !log.Interactive() {
+		t.Fatal("Interactive() should reflect logger state")
+	}
+	if log.Verbose() {
+		t.Fatal("Verbose() should default false")
+	}
+	log.SetVerbose(true)
+	if !log.Verbose() {
+		t.Fatal("Verbose() should reflect SetVerbose")
 	}
 }
 

@@ -55,19 +55,27 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `85.2%`
-- `cmd/duplicacy-backup`: `82.4%`
-- `internal/workflow`: `83.2%`
+- package coverage floor: `85.0%`
+- overall coverage: `87.8%`
+- `cmd/duplicacy-backup`: `85.7%`
+- `internal/workflow`: `86.1%`
 - `internal/restorepicker`: `88.8%`
-- `internal/update`: `82.6%`
-- `internal/duplicacy`: `83.5%`
+- `internal/update`: `85.2%`
+- `internal/duplicacy`: `89.6%`
 - `internal/exec`: `95.2%`
-- `internal/secrets`: `92.0%`
+- `internal/secrets`: `93.8%`
 - `internal/config`: `88.0%`
+- `internal/health`: `94.3%`
+- `internal/logger`: `89.7%`
 - `internal/presentation`: `91.5%`
 
 Additional #206 validation:
 
+- The minimum package coverage floor is now 85%; the current development
+  snapshot keeps every package at or above that threshold.
+- CLI dispatch coverage now checks restore cancellation/interruption outcomes,
+  rollback privilege gating, update failure handling, and health JSON failure
+  output.
 - Coverage/quality review identified the best short-term value in Duplicacy
   storage/list parsing, restore primitive compilation, restore progress and
   interrupt helpers, and shared presentation text helpers.
@@ -82,6 +90,9 @@ Additional #206 validation:
   fallbacks, and tree navigation edge cases.
 - Restore progress coverage now checks full/selective activity text, path
   shortening, no-op progress safety, and interrupt progress clamping.
+- Workflow coverage now checks restore prompt helpers, restore confirmation
+  handling, restore dependency defaults, plan section copies, narrow request
+  projections, and presenter failure/status paths.
 - Presentation helper coverage now pins title-casing and blank-value fallback
   behaviour used in operator-facing reports.
 

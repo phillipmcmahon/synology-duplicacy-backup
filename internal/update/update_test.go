@@ -109,6 +109,27 @@ func TestDefaultRuntimeAndNewFillDefaults(t *testing.T) {
 		rt.MkdirTemp == nil || rt.RemoveAll == nil {
 		t.Fatalf("DefaultRuntime did not populate all runtime hooks: %#v", rt)
 	}
+	if rt.Stdin() == nil {
+		t.Fatal("DefaultRuntime Stdin returned nil")
+	}
+	_ = rt.StdinIsTTY()
+	if rt.CommandPath() == "" {
+		t.Fatal("DefaultRuntime CommandPath returned empty")
+	}
+	if _, err := rt.Executable(); err != nil {
+		t.Fatalf("DefaultRuntime Executable() error = %v", err)
+	}
+	if rt.TempDir() == "" {
+		t.Fatal("DefaultRuntime TempDir returned empty")
+	}
+	tempRoot := t.TempDir()
+	made, err := rt.MkdirTemp(tempRoot, "runtime-*")
+	if err != nil {
+		t.Fatalf("DefaultRuntime MkdirTemp() error = %v", err)
+	}
+	if err := rt.RemoveAll(made); err != nil {
+		t.Fatalf("DefaultRuntime RemoveAll() error = %v", err)
+	}
 
 	updater := New("duplicacy-backup", "v4.3.1", Runtime{})
 	if updater.Repo != DefaultRepo {
@@ -543,6 +564,147 @@ func TestAttestationResultDisplay(t *testing.T) {
 	for _, tt := range tests {
 		if got := tt.result.Display(); got != tt.want {
 			t.Fatalf("Display(%q) = %q, want %q", tt.result, got, tt.want)
+		}
+	}
+}
+
+func TestNormalizeAttestationModeAndErrors(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  AttestationMode
+	}{
+		{"", AttestationOff},
+		{"off", AttestationOff},
+		{"auto", AttestationAuto},
+		{"required", AttestationRequired},
+	} {
+		got, err := normalizeAttestationMode(tc.value)
+		if err != nil {
+			t.Fatalf("normalizeAttestationMode(%q) error = %v", tc.value, err)
+		}
+		if got != tc.want {
+			t.Fatalf("normalizeAttestationMode(%q) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+	if _, err := normalizeAttestationMode("strict"); err == nil {
+		t.Fatal("expected invalid attestation mode error")
+	} else if !strings.Contains(err.Error(), "off, auto, or required") {
+		t.Fatalf("err = %v", err)
+	}
+	if got := NewAttestationModeError("strict").Error(); !strings.Contains(got, "strict") {
+		t.Fatalf("NewAttestationModeError().Error() = %q", got)
+	}
+}
+
+func TestFormatCommandOutput(t *testing.T) {
+	if got := formatCommandOutput(nil); got != "" {
+		t.Fatalf("empty output should stay empty, got %q", got)
+	}
+	if got := formatCommandOutput([]byte("  line one\nline two\n")); got != "\nline one\nline two" {
+		t.Fatalf("formatCommandOutput() = %q", got)
+	}
+}
+
+func TestFormatVersionAndRequestTimeout(t *testing.T) {
+	if got := formatVersion(""); got != "<unknown>" {
+		t.Fatalf("formatVersion(empty) = %q", got)
+	}
+	if got := formatVersion("7.2.0"); got != "v7.2.0" {
+		t.Fatalf("formatVersion() = %q", got)
+	}
+	if got := formatVersion("v7.2.0"); got != "v7.2.0" {
+		t.Fatalf("formatVersion(v-prefixed) = %q", got)
+	}
+	if got := requestTimeout(5*time.Second, 10*time.Second); got != 5*time.Second {
+		t.Fatalf("requestTimeout(configured) = %s", got)
+	}
+	if got := requestTimeout(0, 10*time.Second); got != 10*time.Second {
+		t.Fatalf("requestTimeout(fallback) = %s", got)
+	}
+}
+
+func TestParseAndValidateDownloadURLs(t *testing.T) {
+	if _, err := parseDownloadURL("/relative", "asset.tar.gz", "release asset URL"); err == nil {
+		t.Fatal("expected relative URLs to be rejected")
+	}
+	if _, err := parseDownloadURL("https://user@example.com/asset.tar.gz", "asset.tar.gz", "release asset URL"); err == nil {
+		t.Fatal("expected userinfo URLs to be rejected")
+	}
+
+	u := New("duplicacy-backup", "7.1.0", testRuntime(""))
+	assetName := "duplicacy-backup_7.2.0_linux_amd64.tar.gz"
+	if err := u.validateReleaseAssetURL(githubReleaseAssetURL("7.2.0", assetName), assetName); err != nil {
+		t.Fatalf("validateReleaseAssetURL() error = %v", err)
+	}
+	if err := u.validateReleaseAssetURL("http://github.com/phillipmcmahon/synology-duplicacy-backup/releases/download/v7.2.0/"+assetName, assetName); err == nil {
+		t.Fatal("expected non-https release asset URL to be rejected")
+	}
+	if err := u.validateReleaseAssetURL("https://evil.example.com/phillipmcmahon/synology-duplicacy-backup/releases/download/v7.2.0/"+assetName, assetName); err == nil {
+		t.Fatal("expected unexpected release asset host to be rejected")
+	}
+	if err := u.validateReleaseAssetURL("https://github.com/other/repo/releases/download/v7.2.0/"+assetName, assetName); err == nil {
+		t.Fatal("expected wrong release path to be rejected")
+	}
+	if err := u.validateReleaseAssetURL("https://github.com/phillipmcmahon/synology-duplicacy-backup/releases/download/v7.2.0/wrong.tar.gz", assetName); err == nil {
+		t.Fatal("expected wrong asset name to be rejected")
+	}
+
+	for _, rawURL := range []string{
+		"https://github.com/phillipmcmahon/synology-duplicacy-backup/releases/download/v7.2.0/" + assetName,
+		"https://objects.githubusercontent.com/github-production-release-asset/asset",
+		"https://release-assets.githubusercontent.com/github-production-release-asset/asset",
+		"https://github-releases.githubusercontent.com/asset",
+	} {
+		if err := u.validateDownloadRedirectURL(rawURL, assetName); err != nil {
+			t.Fatalf("validateDownloadRedirectURL(%q) error = %v", rawURL, err)
+		}
+	}
+	if err := u.validateDownloadRedirectURL("https://evil.example.com/asset", assetName); err == nil {
+		t.Fatal("expected unexpected redirect host to be rejected")
+	}
+
+	custom := New("duplicacy-backup", "7.1.0", testRuntime(""))
+	custom.APIBase = "https://github.example.test/api/v3"
+	if err := custom.validateReleaseAssetURL("https://github.example.test/assets/"+assetName, assetName); err != nil {
+		t.Fatalf("custom API asset URL should be accepted: %v", err)
+	}
+}
+
+func TestRenderReportsIncludeOptionalSections(t *testing.T) {
+	planned := &plan{
+		CurrentVersion: "7.1.0",
+		ReleaseTag:     "v7.2.0",
+		AssetName:      "duplicacy-backup_7.2.0_linux_amd64.tar.gz",
+		InstallRoot:    "/usr/local/lib/duplicacy-backup",
+		BinDir:         "/usr/local/bin",
+		Keep:           2,
+		Force:          true,
+		Attestations:   AttestationRequired,
+		Attestation:    AttestationResultVerified,
+	}
+	output := renderReport(planned, "Installed", "line one\nline two\n")
+	for _, want := range []string{"Current Version", "v7.1.0", "Attestation Result", "Verified", "Section: Installer", "line one", "line two"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("renderReport() missing %q:\n%s", want, output)
+		}
+	}
+
+	rollback := &rollbackPlan{
+		CurrentVersion: "7.2.0",
+		TargetVersion:  "7.1.1",
+		InstallRoot:    "/usr/local/lib/duplicacy-backup",
+		BinDir:         "/usr/local/bin",
+		CheckOnly:      true,
+		Explicit:       true,
+		Candidates: []rollbackCandidate{
+			{Version: "7.2.0", Active: true},
+			{Version: "7.1.1"},
+		},
+	}
+	output = renderRollbackReport(rollback, "Ready to rollback", "Activated: current -> previous\nStable command path: /usr/local/bin/duplicacy-backup")
+	for _, want := range []string{"Rollback", "Explicit Version", "Section: Retained Versions", "current", "available", "Section: Activation", "Stable command path"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("renderRollbackReport() missing %q:\n%s", want, output)
 		}
 	}
 }
