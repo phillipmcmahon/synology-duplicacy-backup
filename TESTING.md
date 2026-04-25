@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v7.1.2`
+Current public release baseline: `v7.2.0`
 
 Active release-prep target: none
 
@@ -64,6 +64,21 @@ Current Linux Go 1.26 development validation snapshot:
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `88.0%`
+
+Additional v7.2.0 validation:
+
+- Restore workspace coverage now checks `--workspace-root` for `restore run`
+  and `restore select`, including predictable derived job folders beneath an
+  existing operator-managed parent.
+- Restore workspace-root validation now rejects missing parent roots with an
+  operator-actionable error and refuses ambiguous `--workspace` plus
+  `--workspace-root` combinations.
+- Restore workspace permission coverage now confirms the existing root folder
+  mode is preserved while the derived restore job workspace is prepared
+  safely beneath it.
+- Restore help and documentation now distinguish exact `--workspace` overrides
+  from `--workspace-root` parent selection and include a NAS smoke check for
+  Synology shared-folder visibility.
 
 Additional v7.1.2 validation:
 

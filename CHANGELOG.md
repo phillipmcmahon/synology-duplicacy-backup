@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v7.2.0] - 2026-04-25
+
+### Added
+- **Restore now supports an operator-managed workspace root**:
+  `restore run` and `restore select` accept `--workspace-root <path>` so
+  operators can choose an existing parent such as a Synology shared folder
+  while the tool still derives the restore job directory from label, target,
+  restore-point timestamp, and revision:
+  `<label>-<target>-<restore-point-timestamp>-rev<id>`.
+
+### Changed
+- **Restore workspace handling now preserves Synology shared-folder visibility**:
+  when `--workspace-root` is used, the root folder must already exist and the
+  tool creates only the derived job workspace beneath it. The root folder's
+  ownership and mode are left untouched so DSM-visible restore-drill shares stay
+  operator-managed.
+- **Restore help and documentation now distinguish exact workspaces from
+  workspace roots**: `--workspace` remains an exact drill workspace override,
+  while `--workspace-root` keeps predictable restore-job naming under an
+  existing parent. The restore-drill guide now includes a NAS smoke check for
+  verifying root permissions before and after a restore.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `83.5%`
+- `cmd/duplicacy-backup`: `82.4%`
+- `internal/workflow`: `82.8%`
+- `internal/duplicacy`: `79.5%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `92.0%`
+
 ## [v7.1.2] - 2026-04-25
 
 ### Changed
