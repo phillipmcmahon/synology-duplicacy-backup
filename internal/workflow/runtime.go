@@ -153,18 +153,18 @@ func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	if v := rt.Getenv(envVar); v != "" {
+	if v := runtimeEnv(rt, envVar); v != "" {
 		return v
 	}
 	return defaultDir
 }
 
 func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
-	configRoot := rt.Getenv("XDG_CONFIG_HOME")
+	configRoot := runtimeEnv(rt, "XDG_CONFIG_HOME")
 	if configRoot == "" {
 		configRoot = filepath.Join(userHomeDir(rt), ".config")
 	}
-	stateRoot := rt.Getenv("XDG_STATE_HOME")
+	stateRoot := runtimeEnv(rt, "XDG_STATE_HOME")
 	if stateRoot == "" {
 		stateRoot = filepath.Join(userHomeDir(rt), ".local", "state")
 	}
@@ -180,7 +180,7 @@ func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
 }
 
 func userHomeDir(rt Runtime) string {
-	if home := rt.Getenv("HOME"); home != "" {
+	if home := runtimeEnv(rt, "HOME"); home != "" {
 		return home
 	}
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
@@ -190,17 +190,24 @@ func userHomeDir(rt Runtime) string {
 }
 
 func EffectiveConfigDir(rt Runtime) string {
-	if v := rt.Getenv("DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
+	if v := runtimeEnv(rt, "DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
 		return v
 	}
 	return DefaultUserProfileDirs(rt).ConfigDir
 }
 
 func EffectiveSecretsDir(rt Runtime) string {
-	if v := rt.Getenv("DUPLICACY_BACKUP_SECRETS_DIR"); v != "" {
+	if v := runtimeEnv(rt, "DUPLICACY_BACKUP_SECRETS_DIR"); v != "" {
 		return v
 	}
 	return DefaultUserProfileDirs(rt).SecretsDir
+}
+
+func runtimeEnv(rt Runtime, name string) string {
+	if rt.Getenv == nil {
+		return os.Getenv(name)
+	}
+	return rt.Getenv(name)
 }
 
 func SignalSet() []os.Signal {

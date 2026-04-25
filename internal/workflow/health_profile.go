@@ -48,7 +48,7 @@ func rootProfileConfigWarning(req *HealthRequest, rt Runtime, candidateFiles []s
 func rootProfileCandidateConfigFiles(label string, rt Runtime) []string {
 	filename := label + "-backup.toml"
 	candidates := make([]string, 0, 8)
-	if sudoUser := strings.TrimSpace(rt.Getenv("SUDO_USER")); sudoUser != "" && sudoUser != "root" {
+	if sudoUser := strings.TrimSpace(runtimeEnv(rt, "SUDO_USER")); sudoUser != "" && sudoUser != "root" {
 		for _, home := range []string{
 			filepath.Join("/volume1/homes", sudoUser),
 			filepath.Join("/home", sudoUser),

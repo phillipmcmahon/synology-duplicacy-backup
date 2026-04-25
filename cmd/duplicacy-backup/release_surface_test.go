@@ -275,6 +275,22 @@ func TestRuntimeProfileMigrationScript_MoveRemovesLegacyFiles(t *testing.T) {
 	}
 }
 
+func TestRuntimeProfileMigrationScript_RootShellRequiresTargetUser(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("root-shell migration guard only applies when tests run as root")
+	}
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
+	cmd := exec.Command("sh", scriptPath, "--dry-run")
+	cmd.Env = append(os.Environ(), "SUDO_USER=root")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("migration script unexpectedly succeeded:\n%s", output)
+	}
+	if !strings.Contains(string(output), "root shell migration needs --target-user") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
 func TestInstallScript_DoesNotManageRuntimeConfigOrSecrets(t *testing.T) {
 	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
 	tempDir := t.TempDir()

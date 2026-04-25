@@ -153,10 +153,10 @@ sudo chown "$(id -un):users" /volume1/restore-drills/homes-onsite-usb
 cd /volume1/restore-drills/homes-onsite-usb
 ```
 
-When run with `sudo`, restore execution creates the job workspace as a
-root-owned workspace by design. Keep restore inspection under `sudo` unless
-you deliberately change ownership for a manual drill. The parent
-`--workspace-root` remains operator-managed.
+Restore execution creates the job workspace as the user running the command.
+Keep restore inspection under that same user unless you deliberately change
+ownership for a manual drill. The parent `--workspace-root` remains
+operator-managed.
 
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the

@@ -87,3 +87,18 @@ func TestRuntimeHelpers(t *testing.T) {
 		t.Fatalf("DefaultUserProfileDirs() = %#v", dirs)
 	}
 }
+
+func TestRuntimeUserProfileDefaultsTolerateZeroRuntime(t *testing.T) {
+	t.Setenv("DUPLICACY_BACKUP_CONFIG_DIR", "")
+	t.Setenv("DUPLICACY_BACKUP_SECRETS_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_STATE_HOME", "")
+
+	dirs := DefaultUserProfileDirs(Runtime{})
+	if dirs.ConfigDir == "" || dirs.SecretsDir == "" || dirs.LogDir == "" || dirs.StateDir == "" || dirs.LockDir == "" {
+		t.Fatalf("DefaultUserProfileDirs(Runtime{}) = %#v", dirs)
+	}
+	if got := ResolveDir(Runtime{}, "", "DUPLICACY_BACKUP_CONFIG_DIR", "/fallback"); got != "/fallback" {
+		t.Fatalf("ResolveDir(Runtime{}) = %q, want /fallback", got)
+	}
+}

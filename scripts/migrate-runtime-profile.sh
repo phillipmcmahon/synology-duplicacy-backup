@@ -30,7 +30,8 @@ to 0600. When run as root, destination files are chowned to the target user.
 
 Options:
   --target-user <name>       User that should own the migrated files
-                             default: SUDO_USER when set, otherwise current user
+                             default: SUDO_USER when run via sudo, otherwise current user
+                             required when running from a direct root shell
   --target-home <path>       Home directory for the target user
                              default: inferred from passwd or HOME
   --legacy-config-dir <path> Legacy config directory
@@ -82,6 +83,9 @@ resolve_target_user() {
     if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER:-}" != "root" ]; then
         printf '%s\n' "$SUDO_USER"
         return 0
+    fi
+    if [ "$(id -u)" -eq 0 ]; then
+        fail "root shell migration needs --target-user <operator-user> or sudo from the operator account"
     fi
     current_user
 }
