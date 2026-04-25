@@ -21,6 +21,8 @@ func resolvedRestoreWorkspace(req *RestoreRequest, plan *Plan, deps RestoreDeps)
 }
 
 func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
+	// Defence in depth: restore run normally enters through handleRestoreCommand,
+	// but select-action handoffs also resolve a run workspace directly.
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
 		return "", err
 	}
@@ -55,6 +57,8 @@ func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision d
 }
 
 func restoreWorkspaceRoot(deps RestoreDeps) string {
+	// This is the deps fallback half of restoreWorkspaceRootForRequest; request
+	// values win when the operator supplies --workspace-root.
 	if strings.TrimSpace(deps.RestoreWorkspaceRoot) == "" {
 		return defaultRestoreWorkspaceRoot
 	}
