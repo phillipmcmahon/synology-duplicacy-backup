@@ -180,30 +180,30 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	}
 }
 
-func TestOperationMode_CombinedOperations(t *testing.T) {
-	req := &Request{DoBackup: true, DoPrune: true, FixPerms: true}
-	if got := OperationMode(req); got != "Backup + Safe prune + Fix permissions" {
+func TestOperationMode_Backup(t *testing.T) {
+	req := &RuntimeRequest{Mode: RuntimeModeBackup}
+	if got := OperationMode(req); got != "Backup" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }
 
 func TestOperationMode_ForcedPrune(t *testing.T) {
-	req := &Request{DoBackup: true, DoPrune: true, ForcePrune: true, FixPerms: true}
-	if got := OperationMode(req); got != "Backup + Forced prune + Fix permissions" {
+	req := &RuntimeRequest{Mode: RuntimeModePrune, ForcePrune: true}
+	if got := OperationMode(req); got != "Forced prune" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }
 
-func TestOperationMode_BackupDeepPruneWithFixPerms(t *testing.T) {
-	req := &Request{DoBackup: true, DoCleanupStore: true, FixPerms: true}
-	if got := OperationMode(req); got != "Backup + Storage cleanup + Fix permissions" {
+func TestOperationMode_CleanupStorage(t *testing.T) {
+	req := &RuntimeRequest{Mode: RuntimeModeCleanupStorage}
+	if got := OperationMode(req); got != "Storage cleanup" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }
 
-func TestOperationMode_BackupForcedDeepPruneWithFixPerms(t *testing.T) {
-	req := &Request{DoBackup: true, DoPrune: true, DoCleanupStore: true, ForcePrune: true, FixPerms: true}
-	if got := OperationMode(req); got != "Backup + Forced prune + Storage cleanup + Fix permissions" {
+func TestOperationMode_FixPerms(t *testing.T) {
+	req := &RuntimeRequest{Mode: RuntimeModeFixPerms}
+	if got := OperationMode(req); got != "Fix permissions" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }

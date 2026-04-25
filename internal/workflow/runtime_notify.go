@@ -47,8 +47,8 @@ func runtimeNotificationSendFor(report *RunReport, visibleRunStarted bool) strin
 	}
 }
 
-func MaybeSendPreRunFailureNotification(rt Runtime, interactive bool, plan *Plan, req *Request, startedAt, completedAt time.Time, err error) error {
-	if plan == nil || req == nil || err == nil || !req.DoBackup {
+func MaybeSendPreRunFailureNotification(rt Runtime, interactive bool, plan *Plan, req *RuntimeRequest, startedAt, completedAt time.Time, err error) error {
+	if plan == nil || req == nil || err == nil || !req.DoBackup() {
 		return nil
 	}
 	if plan.DryRun {

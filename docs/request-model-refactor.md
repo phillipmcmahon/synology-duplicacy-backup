@@ -48,7 +48,7 @@ are separately approved.
 | Config planning | `ConfigPlanRequest` | Complete. Carries only label, target, config dir, and secrets dir for planner config loading. |
 | Config | `ConfigRequest` | Complete. Carries validate, explain, and paths command intent without runtime execution flags. |
 | Health | `HealthRequest` | Complete. Carries status, doctor, and verify intent without backup execution state. |
-| Runtime operations | `RuntimeRequest` | Backup, prune, cleanup-storage, and fix-perms. Should remain the only path into `Planner.Build` and `Executor.Run`. |
+| Runtime operations | `RuntimeRequest` | Complete. Carries one `RuntimeMode` plus label, target, config/secrets dirs, dry-run, JSON, verbose, force-prune, and default notice. |
 
 ## Current State
 
@@ -68,9 +68,11 @@ Config planning now uses `ConfigPlanRequest`. Restore, notify, diagnostics,
 config, and health command paths all feed planner config loading through that
 narrow contract instead of adapting back to `Request`.
 
+Runtime planning now uses `RuntimeRequest`. The broad parser `Request` is no
+longer the input to `Planner.Build`, `Planner.FailureContext`, runtime failure
+presentation, or pre-run failure notifications.
+
 ## Next Slices
 
-The recommended order is:
-
-1. Runtime operations last, because they interact with the full plan/executor
-   lifecycle.
+The remaining work is cleanup only: audit residual broad `Request` usage,
+remove stale comments, and update this note to describe the final state.

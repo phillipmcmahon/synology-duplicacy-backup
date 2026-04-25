@@ -27,7 +27,7 @@ func (p *Presenter) PrintSummary(plan *Plan) {
 	p.runtime.PrintSummary(plan.Summary)
 }
 
-func (p *Presenter) PrintPreRunFailureContext(req *Request) {
+func (p *Presenter) PrintPreRunFailureContext(req *RuntimeRequest) {
 	if req == nil {
 		return
 	}
@@ -87,10 +87,10 @@ func (p *Presenter) headerData(plan *Plan, startedAt time.Time) presentation.Hea
 	}
 }
 
-func (p *Presenter) preRunFailureDataFromRequest(req *Request) presentation.PreRunFailureData {
+func (p *Presenter) preRunFailureDataFromRequest(req *RuntimeRequest) presentation.PreRunFailureData {
 	return presentation.PreRunFailureData{
 		Operation: OperationMode(req),
-		Label:     req.Source,
+		Label:     req.Label,
 		Target:    req.Target(),
 	}
 }

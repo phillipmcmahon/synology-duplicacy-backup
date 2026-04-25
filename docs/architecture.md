@@ -63,7 +63,8 @@ Restore, update, rollback, notify, diagnostics, config, and health now project
 the parser `Request` into command-specific request types before doing command
 work, so those helpers no longer depend on unrelated flags. Config loading uses
 `ConfigPlanRequest`, a smaller planner contract for label/target/config/secrets
-resolution. The broader migration plan is tracked in
+resolution. Runtime planning uses `RuntimeRequest`, which replaces the old
+runtime mode booleans with one `RuntimeMode`. The broader migration plan is tracked in
 [request-model-refactor.md](request-model-refactor.md).
 
 ## Plan

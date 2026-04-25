@@ -76,7 +76,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	return nil, 1
 }
 
-func emitJSONFailureSummary(w io.Writer, req *workflow.Request, plan *workflow.Plan, startedAt, completedAt time.Time, message string) {
+func emitJSONFailureSummary(w io.Writer, req *workflow.RuntimeRequest, plan *workflow.Plan, startedAt, completedAt time.Time, message string) {
 	if w == nil {
 		return
 	}

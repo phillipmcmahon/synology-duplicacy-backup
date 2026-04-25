@@ -1415,8 +1415,8 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 			`send_for = ["backup"]`,
 		}, "\n"))
 
-		captured := make(chan *workflow.Request, 1)
-		maybeSendPreRunFailureNotification = func(rt workflow.Runtime, interactive bool, plan *workflow.Plan, req *workflow.Request, startedAt, completedAt time.Time, err error) error {
+		captured := make(chan *workflow.RuntimeRequest, 1)
+		maybeSendPreRunFailureNotification = func(rt workflow.Runtime, interactive bool, plan *workflow.Plan, req *workflow.RuntimeRequest, startedAt, completedAt time.Time, err error) error {
 			captured <- req
 			return nil
 		}
@@ -1437,13 +1437,13 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 			t.Fatalf("stderr = %q", stderr)
 		}
 
-		var req *workflow.Request
+		var req *workflow.RuntimeRequest
 		select {
 		case req = <-captured:
 		case <-time.After(2 * time.Second):
 			t.Fatal("timed out waiting for pre-run notification call")
 		}
-		if req == nil || req.Source != "homes" || req.Target() != "onsite-usb" || !req.DoBackup {
+		if req == nil || req.Label != "homes" || req.Target() != "onsite-usb" || !req.DoBackup() {
 			t.Fatalf("captured request = %#v", req)
 		}
 	})
@@ -1648,7 +1648,7 @@ func TestEmitJSONFailureSummary(t *testing.T) {
 	emitJSONFailureSummary(nil, nil, nil, startedAt, completedAt, "ignored")
 
 	var buf bytes.Buffer
-	emitJSONFailureSummary(&buf, &workflow.Request{Source: "homes", RequestedTarget: "onsite-usb"}, &workflow.Plan{Location: "local"}, startedAt, completedAt, "boom")
+	emitJSONFailureSummary(&buf, &workflow.RuntimeRequest{Label: "homes", TargetName: "onsite-usb"}, &workflow.Plan{Location: "local"}, startedAt, completedAt, "boom")
 	if !strings.Contains(buf.String(), `"result": "failed"`) || !strings.Contains(buf.String(), `"target": "onsite-usb"`) || !strings.Contains(buf.String(), `"location": "local"`) || strings.Contains(buf.String(), `"storage_type"`) {
 		t.Fatalf("summary = %q", buf.String())
 	}

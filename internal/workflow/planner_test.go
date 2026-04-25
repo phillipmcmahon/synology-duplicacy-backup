@@ -64,6 +64,11 @@ func currentUserGroup(t *testing.T) (string, string) {
 	return u.Username, g.Name
 }
 
+func runtimeRequestForTest(req *Request) *RuntimeRequest {
+	runtimeReq := NewRuntimeRequest(req)
+	return &runtimeReq
+}
+
 func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, ""))
@@ -79,7 +84,7 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), runner)
 	req.ConfigDir = dir
 
-	plan, err := planner.Build(req)
+	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -118,7 +123,7 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	req.ConfigDir = dir
 
-	plan, err := planner.Build(req)
+	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -158,7 +163,7 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	)
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
-	plan, err := planner.Build(req)
+	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -192,7 +197,7 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	)
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
-	plan, err := planner.Build(req)
+	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -220,7 +225,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 		rt := testRuntime()
 		rt.Geteuid = func() int { return 1000 }
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || err.Error() != "must be run as root" {
+		if err := planner.validateEnvironment(runtimeRequestForTest(&Request{DoBackup: true})); err == nil || err.Error() != "must be run as root" {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -234,7 +239,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 			return "/usr/bin/true", nil
 		}
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoPrune: true}); err == nil || !strings.Contains(err.Error(), "required command 'duplicacy' not found") {
+		if err := planner.validateEnvironment(runtimeRequestForTest(&Request{DoPrune: true})); err == nil || !strings.Contains(err.Error(), "required command 'duplicacy' not found") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -248,7 +253,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 			return "/usr/bin/true", nil
 		}
 		planner.rt = rt
-		if err := planner.validateEnvironment(&Request{DoBackup: true}); err == nil || !strings.Contains(err.Error(), "required command 'btrfs' not found") {
+		if err := planner.validateEnvironment(runtimeRequestForTest(&Request{DoBackup: true})); err == nil || !strings.Contains(err.Error(), "required command 'btrfs' not found") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -403,7 +408,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	plan := planner.deriveRuntimePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir, RequestedTarget: "onsite-usb"})
+	plan := planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", DoBackup: true, ConfigDir: dir, RequestedTarget: "onsite-usb"}))
 
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -423,7 +428,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	if err := planner.validateBackupFilesystem(plan); err != nil {
 		t.Fatalf("validateBackupFilesystem() error = %v", err)
 	}
-	if err := planner.validateBackupFilesystem(planner.deriveRuntimePlan(&Request{Source: "homes", RequestedTarget: "onsite-usb"})); err != nil {
+	if err := planner.validateBackupFilesystem(planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", RequestedTarget: "onsite-usb"}))); err != nil {
 		t.Fatalf("validateBackupFilesystem(no backup) error = %v", err)
 	}
 	if got := splitNonEmptyLines("a\n\nb\n"); len(got) != 2 || got[0] != "a" || got[1] != "b" {

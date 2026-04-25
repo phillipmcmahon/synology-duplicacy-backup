@@ -33,7 +33,7 @@ func NewConfigPlanner(meta Metadata, rt Runtime) *Planner {
 	return NewPlanner(meta, rt, nil, nil)
 }
 
-func (p *Planner) Build(req *Request) (*Plan, error) {
+func (p *Planner) Build(req *RuntimeRequest) (*Plan, error) {
 	if err := p.validateEnvironment(req); err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 	return plan, nil
 }
 
-func (p *Planner) FailureContext(req *Request) *Plan {
+func (p *Planner) FailureContext(req *RuntimeRequest) *Plan {
 	if req == nil {
 		return nil
 	}
@@ -78,16 +78,16 @@ func (p *Planner) FailureContext(req *Request) *Plan {
 	return nil
 }
 
-func (p *Planner) validateEnvironment(req *Request) error {
+func (p *Planner) validateEnvironment(req *RuntimeRequest) error {
 	if p.rt.Geteuid() != 0 {
 		return fmt.Errorf("must be run as root")
 	}
-	if req.DoBackup || req.DoPrune || req.DoCleanupStore {
+	if req.DoBackup() || req.DoPrune() || req.DoCleanupStore() {
 		if _, err := p.rt.LookPath("duplicacy"); err != nil {
 			return fmt.Errorf("required command 'duplicacy' not found")
 		}
 	}
-	if req.DoBackup {
+	if req.DoBackup() {
 		if _, err := p.rt.LookPath("btrfs"); err != nil {
 			return fmt.Errorf("required command 'btrfs' not found (needed for backup snapshots)")
 		}
@@ -104,25 +104,25 @@ func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {
 	})
 }
 
-func (p *Planner) deriveRuntimePlan(req *Request) *Plan {
+func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
 	return p.derivePlanFromInput(planDerivationInput{
-		label:               req.Source,
+		label:               req.Label,
 		target:              req.Target(),
 		configDir:           req.ConfigDir,
 		secretsDir:          req.SecretsDir,
-		doBackup:            req.DoBackup,
-		doPrune:             req.DoPrune,
-		doCleanupStore:      req.DoCleanupStore,
-		fixPerms:            req.FixPerms,
-		fixPermsOnly:        req.FixPermsOnly,
+		doBackup:            req.DoBackup(),
+		doPrune:             req.DoPrune(),
+		doCleanupStore:      req.DoCleanupStore(),
+		fixPerms:            req.FixPerms(),
+		fixPermsOnly:        req.FixPermsOnly(),
 		forcePrune:          req.ForcePrune,
 		dryRun:              req.DryRun,
 		verbose:             req.Verbose,
 		jsonSummary:         req.JSONSummary,
 		defaultNotice:       req.DefaultNotice,
 		operationMode:       OperationMode(req),
-		needsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
-		needsSnapshot:       req.DoBackup,
+		needsDuplicacySetup: req.DoBackup() || req.DoPrune() || req.DoCleanupStore(),
+		needsSnapshot:       req.DoBackup(),
 	})
 }
 

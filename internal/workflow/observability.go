@@ -63,7 +63,7 @@ func (r *RunReport) ResetStart(startedAt time.Time) {
 	r.DurationSecond = 0
 }
 
-func NewFailureRunReport(req *Request, plan *Plan, startedAt time.Time, completedAt time.Time, exitCode int, message string) *RunReport {
+func NewFailureRunReport(req *RuntimeRequest, plan *Plan, startedAt time.Time, completedAt time.Time, exitCode int, message string) *RunReport {
 	report := &RunReport{
 		Result:         "failed",
 		ExitCode:       exitCode,
@@ -74,7 +74,7 @@ func NewFailureRunReport(req *Request, plan *Plan, startedAt time.Time, complete
 		FailureMessage: message,
 	}
 	if req != nil {
-		report.Label = req.Source
+		report.Label = req.Label
 		report.Target = req.Target()
 		report.Operation = OperationMode(req)
 		report.Mode = req.Target()

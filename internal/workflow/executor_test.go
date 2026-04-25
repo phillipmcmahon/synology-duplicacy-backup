@@ -102,8 +102,8 @@ func newTempInputFile(t *testing.T, content string) *os.File {
 }
 
 func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
-	req := &Request{DoCleanupStore: true, FixPerms: true}
-	if got := OperationMode(req); got != "Storage cleanup + Fix permissions" {
+	req := &RuntimeRequest{Mode: RuntimeModeCleanupStorage}
+	if got := OperationMode(req); got != "Storage cleanup" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }

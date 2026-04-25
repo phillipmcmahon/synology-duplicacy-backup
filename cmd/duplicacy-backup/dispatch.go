@@ -141,21 +141,22 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	runtimeReq := workflow.NewRuntimeRequest(req)
 	if rt.Geteuid() != 0 {
-		return writeRuntimePrivilegeFailure(req, rt)
+		return writeRuntimePrivilegeFailure(&runtimeReq, rt)
 	}
 	log, err := initLogger(meta)
 	if err != nil {
-		return writeRuntimeLoggerFailure(req, rt, err)
+		return writeRuntimeLoggerFailure(&runtimeReq, rt, err)
 	}
-	log.SetVerbose(req.Verbose)
+	log.SetVerbose(runtimeReq.Verbose)
 	startedAt := rt.Now()
 
-	runner := execpkg.NewCommandRunner(log, req.DryRun)
+	runner := execpkg.NewCommandRunner(log, runtimeReq.DryRun)
 	planner := workflow.NewPlanner(meta, rt, log, runner)
-	plan, err := planner.Build(req)
+	plan, err := planner.Build(&runtimeReq)
 	if err != nil {
-		return handlePlannerFailure(req, planner.FailureContext(req), meta, rt, log, startedAt, err)
+		return handlePlannerFailure(&runtimeReq, planner.FailureContext(&runtimeReq), meta, rt, log, startedAt, err)
 	}
 
 	executor := workflow.NewExecutor(meta, rt, log, runner, plan)
@@ -217,7 +218,7 @@ func writeHealthPrivilegeFailure(req *workflow.HealthRequest, rt workflow.Runtim
 	return exitCodeHealthUnhealthy
 }
 
-func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err error) int {
+func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime, err error) int {
 	fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
 	if req.JSONSummary {
 		now := rt.Now()
@@ -226,7 +227,7 @@ func writeRuntimeLoggerFailure(req *workflow.Request, rt workflow.Runtime, err e
 	return exitCodeGeneralFailure
 }
 
-func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) int {
+func writeRuntimePrivilegeFailure(req *workflow.RuntimeRequest, rt workflow.Runtime) int {
 	message := "must be run as root"
 	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
 	if req.JSONSummary {
@@ -236,7 +237,7 @@ func writeRuntimePrivilegeFailure(req *workflow.Request, rt workflow.Runtime) in
 	return exitCodeGeneralFailure
 }
 
-func handlePlannerFailure(req *workflow.Request, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time, err error) int {
+func handlePlannerFailure(req *workflow.RuntimeRequest, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time, err error) int {
 	presenter := workflow.NewPresenter(meta, rt, log, false)
 	if failurePlan != nil {
 		presenter.PrintPreRunFailurePlan(failurePlan)

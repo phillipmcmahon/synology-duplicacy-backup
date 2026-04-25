@@ -2,39 +2,31 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 type SummaryLine = presentation.Line
 
-func OperationMode(req *Request) string {
-	var parts []string
-	if req.DoBackup {
-		parts = append(parts, "Backup")
-	}
-	if req.DoPrune {
-		if req.ForcePrune {
-			parts = append(parts, "Forced prune")
-		} else {
-			parts = append(parts, "Safe prune")
-		}
-	}
-	if req.DoCleanupStore {
-		parts = append(parts, "Storage cleanup")
-	}
-	if req.FixPerms {
-		parts = append(parts, "Fix permissions")
-	}
-
-	if len(parts) == 0 {
+func OperationMode(req *RuntimeRequest) string {
+	if req == nil {
 		return ""
 	}
-	if len(parts) == 1 {
-		return parts[0]
+	switch req.Mode {
+	case RuntimeModeBackup:
+		return "Backup"
+	case RuntimeModePrune:
+		if req.ForcePrune {
+			return "Forced prune"
+		}
+		return "Safe prune"
+	case RuntimeModeCleanupStorage:
+		return "Storage cleanup"
+	case RuntimeModeFixPerms:
+		return "Fix permissions"
+	default:
+		return ""
 	}
-	return strings.Join(parts, " + ")
 }
 
 func SummaryLines(plan *Plan) []SummaryLine {
