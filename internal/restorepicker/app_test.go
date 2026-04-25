@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -432,5 +433,145 @@ func TestSelectionNameReturnsOperatorWords(t *testing.T) {
 		if got := selectionName(tc.state); got != tc.want {
 			t.Fatalf("selectionName(%v) = %q, want %q", tc.state, got, tc.want)
 		}
+	}
+}
+
+func TestPickerInputCaptureTogglesSelectionAndGeneratesPrimitives(t *testing.T) {
+	root := BuildTree([]string{
+		"docs/readme.md",
+		"music/song.flac",
+	})
+	session := &pickerSession{cancelled: true}
+	app := newApp(root, AppOptions{
+		Primitive: PrimitiveOptions{
+			ScriptName: "duplicacy-backup",
+			Source:     "homes",
+			Target:     "onsite-usb",
+			Revision:   "2403",
+			Workspace:  "/volume1/restore-drills/homes",
+		},
+	}, session)
+
+	tree, ok := app.GetFocus().(*tview.TreeView)
+	if !ok {
+		t.Fatalf("focus = %T, want *tview.TreeView", app.GetFocus())
+	}
+	capture := tree.GetInputCapture()
+	if capture == nil {
+		t.Fatal("tree input capture is nil")
+	}
+
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, ' ', tcell.ModNone)); event != nil {
+		t.Fatalf("space event returned %v, want consumed", event)
+	}
+	if root.Selection != SelectionFull {
+		t.Fatalf("root selection = %v, want full", root.Selection)
+	}
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, 'g', tcell.ModNone)); event != nil {
+		t.Fatalf("generate event returned %v, want consumed", event)
+	}
+	if !session.generated || session.cancelled {
+		t.Fatalf("session = %#v, want generated and not cancelled", session)
+	}
+	if len(session.result) != 1 || session.result[0] != "" {
+		t.Fatalf("session result = %#v, want full revision marker", session.result)
+	}
+}
+
+func TestPickerInputCaptureReportsEmptySelectionAndCancel(t *testing.T) {
+	root := BuildTree([]string{"docs/readme.md"})
+	session := &pickerSession{cancelled: true}
+	app := newApp(root, AppOptions{}, session)
+	tree := app.GetFocus().(*tview.TreeView)
+	capture := tree.GetInputCapture()
+
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, 'g', tcell.ModNone)); event != nil {
+		t.Fatalf("generate event returned %v, want consumed", event)
+	}
+	if session.generated {
+		t.Fatalf("session generated = true, want false")
+	}
+	if !strings.Contains(session.status, "Select at least one") {
+		t.Fatalf("session status = %q, want empty-selection guidance", session.status)
+	}
+
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, 'q', tcell.ModNone)); event != nil {
+		t.Fatalf("cancel event returned %v, want consumed", event)
+	}
+	if !session.cancelled {
+		t.Fatalf("session cancelled = false, want true")
+	}
+}
+
+func TestPickerInputCaptureSwitchesFocusAndInspectModeIgnoresSelection(t *testing.T) {
+	root := BuildTree([]string{"docs/readme.md"})
+	session := &pickerSession{cancelled: true}
+	app := newApp(root, AppOptions{InspectOnly: true}, session)
+	tree := app.GetFocus().(*tview.TreeView)
+	capture := tree.GetInputCapture()
+
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, ' ', tcell.ModNone)); event != nil {
+		t.Fatalf("inspect space event returned %v, want consumed", event)
+	}
+	if root.Selection != SelectionNone {
+		t.Fatalf("root selection = %v, want unchanged none", root.Selection)
+	}
+	if event := capture(tcell.NewEventKey(tcell.KeyRune, 'g', tcell.ModNone)); event != nil {
+		t.Fatalf("inspect generate event returned %v, want consumed", event)
+	}
+	if session.generated {
+		t.Fatalf("session generated = true, want false in inspect mode")
+	}
+
+	if event := capture(tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)); event != nil {
+		t.Fatalf("tab event returned %v, want consumed", event)
+	}
+	detail, ok := app.GetFocus().(*tview.TextView)
+	if !ok {
+		t.Fatalf("focus = %T, want *tview.TextView", app.GetFocus())
+	}
+	detailCapture := detail.GetInputCapture()
+	if event := detailCapture(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)); event != nil {
+		t.Fatalf("escape event returned %v, want consumed", event)
+	}
+	if _, ok := app.GetFocus().(*tview.TreeView); !ok {
+		t.Fatalf("focus = %T, want tree after escape", app.GetFocus())
+	}
+}
+
+func TestSessionStatusAndUpdateDetailHandleEmptyInputs(t *testing.T) {
+	if got := sessionStatus(nil); got != "" {
+		t.Fatalf("sessionStatus(nil) = %q, want empty", got)
+	}
+	if got := sessionStatus(&pickerSession{status: "  ready  "}); got != "ready" {
+		t.Fatalf("sessionStatus(trim) = %q, want ready", got)
+	}
+
+	detail := tview.NewTextView()
+	updateDetail(detail, BuildTree([]string{"docs/readme.md"}), nil, AppOptions{}, "ignored")
+	if got := detail.GetText(false); got != "" {
+		t.Fatalf("detail text after nil node = %q, want empty", got)
+	}
+	updateDetail(detail, BuildTree([]string{"docs/readme.md"}), tview.NewTreeNode("empty"), AppOptions{}, "ignored")
+	if got := detail.GetText(false); got != "" {
+		t.Fatalf("detail text after nil ref = %q, want empty", got)
+	}
+}
+
+func TestTreeNavigationHelpersHandleMissingOrLeafNodes(t *testing.T) {
+	tree := tview.NewTreeView()
+	if handleExpandRight(nil, nil) || handleExpandRight(tree, nil) {
+		t.Fatalf("handleExpandRight nil cases returned true")
+	}
+	leaf := buildTreeNode(BuildTree([]string{"docs/readme.md"}).Children[0].Children[0])
+	tree.SetRoot(leaf).SetCurrentNode(leaf)
+	if handleExpandRight(tree, leaf) {
+		t.Fatalf("handleExpandRight leaf = true, want false")
+	}
+	if handleCollapseLeft(nil, nil) || handleCollapseLeft(tree, nil) {
+		t.Fatalf("handleCollapseLeft nil cases returned true")
+	}
+	if handleCollapseLeft(tree, leaf) {
+		t.Fatalf("handleCollapseLeft root leaf = true, want false")
 	}
 }
