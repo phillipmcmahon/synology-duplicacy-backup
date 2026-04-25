@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v7.1.1] - 2026-04-25
+
+### Changed
+- **Operator documentation and help text were realigned**:
+  README, CLI, configuration, new-NAS restore, operations, troubleshooting,
+  cheat sheet, update trust model, and generated help text were reviewed for
+  current behaviour, clearer document purpose, and reduced duplication.
+- **Storage-key guidance now covers native Storj and S3-compatible backends**:
+  operator docs and `--help-full` now distinguish S3-compatible storage keys
+  (`s3_id`, `s3_secret`) from native Duplicacy `storj://` keys
+  (`storj_key`, `storj_passphrase`).
+- **Internal command request models were narrowed**:
+  update, rollback, notify, diagnostics, config, health, restore, and runtime
+  command paths now use focused request types internally. Runtime planning now
+  uses a single `RuntimeMode`, keeping non-runtime command fields out of the
+  planner and executor path.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `pending`
+- `cmd/duplicacy-backup`: `pending`
+- `internal/workflow`: `pending`
+- `internal/duplicacy`: `pending`
+- `internal/exec`: `pending`
+- `internal/secrets`: `pending`
+
 ## [v7.1.0] - 2026-04-25
 
 ### Added
