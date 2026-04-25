@@ -373,7 +373,7 @@ func TestParseRequest_RestoreListRevisions(t *testing.T) {
 
 func TestParseRequest_RestoreRun(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace", "/restore/homes", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace-root", "/restore", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -381,7 +381,7 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 		result.Request.Target() != "onsite-usb" ||
 		result.Request.RestoreRevision != 2403 ||
 		result.Request.RestorePath != "docs" ||
-		result.Request.RestoreWorkspace != "/restore/homes" ||
+		result.Request.RestoreWorkspaceRoot != "/restore" ||
 		!result.Request.DryRun ||
 		!result.Request.RestoreYes ||
 		result.Request.Source != "homes" {
@@ -391,13 +391,13 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 
 func TestParseRequest_RestoreSelect(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace", "/restore/homes", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace-root", "/restore", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if result.Request.RestoreCommand != "select" ||
 		result.Request.Target() != "onsite-usb" ||
-		result.Request.RestoreWorkspace != "/restore/homes" ||
+		result.Request.RestoreWorkspaceRoot != "/restore" ||
 		result.Request.RestorePathPrefix != "phillipmcmahon/code" ||
 		result.Request.ConfigDir != "/cfg" ||
 		result.Request.SecretsDir != "/sec" ||

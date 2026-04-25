@@ -43,7 +43,8 @@ Restore commands:
 
 Options:
     --target <name>
-    --workspace <path>      override the derived drill workspace
+    --workspace <path>      use this exact drill workspace path
+    --workspace-root <path> run/select only; derive the drill workspace under this root
     --revision <id>         required for run
     --path <path>           optional snapshot-relative path or pattern for run
     --path-prefix <path>    select only; start the tree picker under a useful subtree
@@ -87,7 +88,9 @@ RESTORE COMMANDS:
 
 OPTIONS:
     --target <name>        Select the named target (required)
-    --workspace <path>     Override derived drill workspace; honored exactly when supplied
+    --workspace <path>     Use this exact drill workspace path
+    --workspace-root <path>
+                           Run/select only; derive the drill workspace under this root; cannot be combined with --workspace
     --revision <id>        Required for run
     --path <path>          Optional snapshot-relative path or pattern for run
     --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
@@ -119,6 +122,8 @@ BEHAVIOUR:
     restore run:
       - requires --revision <id>
       - when --workspace is omitted, derives a predictable workspace from label, target, restore-point timestamp, and revision id
+      - uses --workspace-root <path> to derive that predictable workspace under an operator-chosen parent
+      - uses --workspace <path> only when you need an exact workspace path
       - creates that workspace and writes .duplicacy/preferences when needed
       - rejects the live source path, source-child workspaces, and non-empty unprepared workspaces
       - runs duplicacy restore only from the drill workspace
@@ -145,12 +150,14 @@ BEHAVIOUR:
       - shows listing progress before the picker and restore progress after confirmation
       - delegates restore actions to restore run, which prepares the workspace when needed
       - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point, for example <label>-<target>-<restore-point-timestamp>-rev<id>
+      - accepts --workspace-root to place that derived workspace under a chosen shared-folder root
       - never copies data back
 
     expert path:
       - use restore plan, restore list-revisions, and restore run for explicit, scriptable, or incident-runbook-driven recovery
       - restore run self-prepares a predictable drill workspace when --workspace is omitted
-      - pass --workspace only when you need a specific operator-chosen destination
+      - pass --workspace-root when you want a chosen parent with a derived restore-job folder
+      - pass --workspace only when you need a specific exact destination
 
     cancellation:
       - use q at restore select prompts or inside the picker to leave without restoring
@@ -169,12 +176,14 @@ SAFETY MODEL:
 
 EXAMPLES:
     {{script}} restore select --target onsite-usb homes
+    {{script}} restore select --target onsite-usb --workspace-root /volume1/restore-drills homes
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
     {{script}} restore list-revisions --target onsite-usb homes
     {{script}} restore list-revisions --target offsite-storj --json-summary homes
     {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
+    {{script}} restore run --target onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
     {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,

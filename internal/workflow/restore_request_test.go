@@ -4,22 +4,23 @@ import "testing"
 
 func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	req := &Request{
-		RestoreCommand:    "run",
-		Source:            "homes",
-		RequestedTarget:   " onsite-usb ",
-		ConfigDir:         "/etc/duplicacy-backup",
-		SecretsDir:        "/root/.secrets",
-		JSONSummary:       true,
-		DryRun:            true,
-		RestoreWorkspace:  "/volume1/restore-drills/homes",
-		RestoreRevision:   2403,
-		RestorePath:       "phillipmcmahon/code",
-		RestorePathPrefix: "phillipmcmahon",
-		RestoreLimit:      25,
-		RestoreYes:        true,
-		DoBackup:          true,
-		NotifyProvider:    "ntfy",
-		UpdateVersion:     "v9.9.9",
+		RestoreCommand:       "run",
+		Source:               "homes",
+		RequestedTarget:      " onsite-usb ",
+		ConfigDir:            "/etc/duplicacy-backup",
+		SecretsDir:           "/root/.secrets",
+		JSONSummary:          true,
+		DryRun:               true,
+		RestoreWorkspace:     "/volume1/restore-drills/homes",
+		RestoreWorkspaceRoot: "/volume1/restore-drills",
+		RestoreRevision:      2403,
+		RestorePath:          "phillipmcmahon/code",
+		RestorePathPrefix:    "phillipmcmahon",
+		RestoreLimit:         25,
+		RestoreYes:           true,
+		DoBackup:             true,
+		NotifyProvider:       "ntfy",
+		UpdateVersion:        "v9.9.9",
 	}
 
 	got := NewRestoreRequest(req)
@@ -29,7 +30,7 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
 		t.Fatalf("restore config projection failed: %#v", got)
 	}
-	if got.Workspace != "/volume1/restore-drills/homes" || got.Revision != 2403 || got.Path != "phillipmcmahon/code" || got.PathPrefix != "phillipmcmahon" {
+	if got.Workspace != "/volume1/restore-drills/homes" || got.WorkspaceRoot != "/volume1/restore-drills" || got.Revision != 2403 || got.Path != "phillipmcmahon/code" || got.PathPrefix != "phillipmcmahon" {
 		t.Fatalf("restore operation projection failed: %#v", got)
 	}
 	if !got.JSONSummary || !got.DryRun || !got.Yes || got.Limit != 25 {

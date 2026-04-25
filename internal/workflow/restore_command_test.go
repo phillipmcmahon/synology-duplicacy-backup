@@ -177,7 +177,7 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 
 func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "restore-drills")
-	req := &RestoreRequest{Label: "homes", TargetName: "onsite-usb"}
+	req := &RestoreRequest{Label: "homes", TargetName: "onsite-usb", WorkspaceRoot: root}
 	plan := &Plan{SnapshotSource: "/tmp/homes"}
 	revision := duplicacy.RevisionInfo{
 		Revision:  2403,
@@ -185,11 +185,47 @@ func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T)
 	}
 
 	deps := defaultRestoreDeps()
-	deps.RestoreWorkspaceRoot = root
 	got := resolvedRestoreSelectWorkspace(req, plan, revision, deps)
 	want := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
+	}
+}
+
+func TestResolvedRestoreSelectWorkspace_UsesExplicitWorkspace(t *testing.T) {
+	req := &RestoreRequest{Label: "homes", TargetName: "onsite-usb", Workspace: "/restore/exact"}
+	plan := &Plan{SnapshotSource: "/tmp/homes"}
+	revision := duplicacy.RevisionInfo{
+		Revision:  2403,
+		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
+	}
+
+	got := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
+	want := "/restore/exact"
+	if got != want {
+		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
+	}
+}
+
+func TestValidateRestoreWorkspaceSelection_RejectsWorkspaceAndRoot(t *testing.T) {
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{Workspace: "/restore/exact", WorkspaceRoot: "/restore/root"})
+	if err == nil || !strings.Contains(err.Error(), "--workspace and --workspace-root cannot be used together") {
+		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
+	}
+}
+
+func TestValidateRestoreWorkspaceSelection_RejectsRelativeRoot(t *testing.T) {
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceRoot: "restore-drills"})
+	if err == nil || !strings.Contains(err.Error(), "--workspace-root must be an absolute path") {
+		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
+	}
+}
+
+func TestHandleRestoreCommand_RejectsWorkspaceAndRoot(t *testing.T) {
+	req := &Request{RestoreCommand: "run", Source: "homes", RequestedTarget: "onsite-usb", RestoreWorkspace: "/restore/exact", RestoreWorkspaceRoot: "/restore/root", RestoreRevision: 2403, RestoreYes: true}
+	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	if err == nil || !strings.Contains(err.Error(), "--workspace and --workspace-root cannot be used together") {
+		t.Fatalf("restoreHandleCommand() err = %v", err)
 	}
 }
 
@@ -679,7 +715,6 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	sourcePath := "/tmp/homes-run-self-prepare-test"
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := filepath.Join(t.TempDir(), "restore-drills")
-	stubRestoreWorkspaceRoot(t, root)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
@@ -694,7 +729,7 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	newRestoreCommandRunner = func() execpkg.Runner { return mock }
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
-	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceRoot: root, RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
 	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
 		t.Fatalf("restoreHandleCommand() error = %v", err)
@@ -825,6 +860,8 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	root := filepath.Join(t.TempDir(), "restore-drills")
+	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260420-023000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
 
@@ -833,7 +870,7 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	newRestoreCommandRunner = func() execpkg.Runner { return mock }
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
-	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceRoot: root}
 	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n2\nn\n"))
 	if err != nil {
 		t.Fatalf("restoreHandleCommand() error = %v", err)
@@ -847,6 +884,7 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 		"Restore Command",
 		"restore run",
 		"--revision 2403",
+		wantWorkspace,
 		"<full revision>",
 		"restore select previews explicit restore run commands; restore run prepares the workspace and restores only there",
 	} {

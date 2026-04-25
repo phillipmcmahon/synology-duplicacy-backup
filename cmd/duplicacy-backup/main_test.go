@@ -444,6 +444,7 @@ func TestRunWithArgs_RestoreHelpReturnsZero(t *testing.T) {
 	if !strings.Contains(stdout, "Restore commands:") ||
 		!strings.Contains(stdout, "--target <name>") ||
 		!strings.Contains(stdout, "--workspace <path>") ||
+		!strings.Contains(stdout, "--workspace-root <path>") ||
 		!strings.Contains(stdout, "--config-dir <path>") ||
 		!strings.Contains(stdout, "--secrets-dir <path>") ||
 		!strings.Contains(stdout, "restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes") ||

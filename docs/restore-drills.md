@@ -109,11 +109,31 @@ For example:
 ```
 
 This default does not depend on `source_path`. `source_path` is only used as
-live-source and copy-back context when it is configured. Provide `--workspace`
-if you want to pin the workspace somewhere else.
+live-source and copy-back context when it is configured.
+
+Use `--workspace-root` when you want the tool to keep the predictable
+restore-job folder name but place it under a root you choose:
+
+```bash
+sudo duplicacy-backup restore run \
+  --target onsite-usb \
+  --revision 2403 \
+  --workspace-root /volume1/restore-drills \
+  --path 'phillipmcmahon/code/*' \
+  --yes homes
+```
+
+That command derives a workspace such as:
+
+```text
+/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403
+```
+
+Use `--workspace` only when you want to provide the exact workspace path
+yourself. `--workspace` and `--workspace-root` cannot be combined.
 
 Create a new, empty folder outside the live source tree only if you want to pin
-the workspace name yourself:
+the exact workspace name yourself:
 
 ```bash
 sudo mkdir -p /volume1/restore-drills/homes-onsite-usb
@@ -196,8 +216,9 @@ By default, restore actions use a workspace named from the selected restore
 point, for example
 `/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3`. That gives
 the drill workspace an obvious link back to the restore point the operator
-chose. Pass `--workspace` explicitly whenever you want to pin the flow to one
-known drill directory.
+chose. Pass `--workspace-root` when you want that derived folder under a
+specific shared-folder root. Pass `--workspace` explicitly only when you want
+to pin the flow to one exact drill directory.
 
 The common restore shapes are:
 

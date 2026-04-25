@@ -15,12 +15,15 @@ const defaultRestoreWorkspaceRoot = "/volume1/restore-drills"
 func resolvedRestoreWorkspace(req *RestoreRequest, plan *Plan, deps RestoreDeps) string {
 	workspace := req.Workspace
 	if strings.TrimSpace(workspace) == "" {
-		workspace = recommendedRestoreWorkspace(req.Label, req.Target(), deps)
+		workspace = recommendedRestoreWorkspaceRoot(req.Label, req.Target(), restoreWorkspaceRootForRequest(req, deps), deps)
 	}
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
 func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
+	if err := validateRestoreWorkspaceSelection(req); err != nil {
+		return "", err
+	}
 	if strings.TrimSpace(req.Workspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps), nil
 	}
@@ -28,27 +31,35 @@ func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, st
 	if err != nil {
 		return "", err
 	}
-	return recommendedRestoreWorkspaceForRevision(req.Label, req.Target(), revision, deps), nil
+	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), deps), nil
 }
 
 func resolvedRestoreSelectWorkspace(req *RestoreRequest, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
 	if strings.TrimSpace(req.Workspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps)
 	}
-	return recommendedRestoreWorkspaceForRevision(req.Label, req.Target(), revision, deps)
+	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), deps)
 }
 
 func recommendedRestoreWorkspace(label, target string, deps RestoreDeps) string {
+	return recommendedRestoreWorkspaceRoot(label, target, restoreWorkspaceRootForRequest(nil, deps), deps)
+}
+
+func recommendedRestoreWorkspaceRoot(label, target string, root string, deps RestoreDeps) string {
 	timestamp := deps.Now().Local().Format("20060102-150405")
-	return filepath.Join(restoreWorkspaceRoot(deps), fmt.Sprintf("%s-%s-%s", label, target, timestamp))
+	return filepath.Join(root, fmt.Sprintf("%s-%s-%s", label, target, timestamp))
 }
 
 func recommendedRestoreWorkspaceForRevision(label, target string, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
+	return recommendedRestoreWorkspaceForRevisionRoot(label, target, revision, restoreWorkspaceRootForRequest(nil, deps), deps)
+}
+
+func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision duplicacy.RevisionInfo, root string, deps RestoreDeps) string {
 	timestamp := deps.Now().Local().Format("20060102-150405")
 	if !revision.CreatedAt.IsZero() {
 		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
 	}
-	return filepath.Join(restoreWorkspaceRoot(deps), fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
+	return filepath.Join(root, fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
 }
 
 func restoreWorkspaceRoot(deps RestoreDeps) string {
@@ -56,6 +67,26 @@ func restoreWorkspaceRoot(deps RestoreDeps) string {
 		return defaultRestoreWorkspaceRoot
 	}
 	return filepath.Clean(strings.TrimSpace(deps.RestoreWorkspaceRoot))
+}
+
+func restoreWorkspaceRootForRequest(req *RestoreRequest, deps RestoreDeps) string {
+	if req != nil && strings.TrimSpace(req.WorkspaceRoot) != "" {
+		return filepath.Clean(strings.TrimSpace(req.WorkspaceRoot))
+	}
+	return restoreWorkspaceRoot(deps)
+}
+
+func validateRestoreWorkspaceSelection(req *RestoreRequest) error {
+	if req == nil {
+		return nil
+	}
+	if strings.TrimSpace(req.Workspace) != "" && strings.TrimSpace(req.WorkspaceRoot) != "" {
+		return NewRequestError("--workspace and --workspace-root cannot be used together")
+	}
+	if strings.TrimSpace(req.WorkspaceRoot) != "" && !filepath.IsAbs(filepath.Clean(strings.TrimSpace(req.WorkspaceRoot))) {
+		return NewRequestError("--workspace-root must be an absolute path: %s", req.WorkspaceRoot)
+	}
+	return nil
 }
 
 func validateRestoreWorkspace(workspace, sourcePath string) error {

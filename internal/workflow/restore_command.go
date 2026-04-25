@@ -52,6 +52,9 @@ func HandleRestoreCommandWithLogger(req *Request, meta Metadata, rt Runtime, log
 
 func handleRestoreCommand(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	deps = deps.withDefaults()
+	if err := validateRestoreWorkspaceSelection(req); err != nil {
+		return "", err
+	}
 	switch req.Command {
 	case "plan":
 		return handleRestorePlan(req, meta, rt, deps)
