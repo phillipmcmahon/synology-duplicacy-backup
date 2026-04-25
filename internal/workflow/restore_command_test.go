@@ -101,13 +101,6 @@ func stubRestoreWorkspaceTime(t *testing.T, ts time.Time) {
 	t.Cleanup(func() { restoreWorkspaceNow = old })
 }
 
-func stubRestoreWorkspaceRoot(t *testing.T, root string) {
-	t.Helper()
-	old := testRestoreWorkspaceRoot
-	testRestoreWorkspaceRoot = root
-	t.Cleanup(func() { testRestoreWorkspaceRoot = old })
-}
-
 func stubRestoreProgress(t *testing.T, progress RestoreProgress) {
 	t.Helper()
 	old := restoreProgress

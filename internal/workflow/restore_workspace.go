@@ -41,17 +41,9 @@ func resolvedRestoreSelectWorkspace(req *RestoreRequest, plan *Plan, revision du
 	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), deps)
 }
 
-func recommendedRestoreWorkspace(label, target string, deps RestoreDeps) string {
-	return recommendedRestoreWorkspaceRoot(label, target, restoreWorkspaceRootForRequest(nil, deps), deps)
-}
-
 func recommendedRestoreWorkspaceRoot(label, target string, root string, deps RestoreDeps) string {
 	timestamp := deps.Now().Local().Format("20060102-150405")
 	return filepath.Join(root, fmt.Sprintf("%s-%s-%s", label, target, timestamp))
-}
-
-func recommendedRestoreWorkspaceForRevision(label, target string, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
-	return recommendedRestoreWorkspaceForRevisionRoot(label, target, revision, restoreWorkspaceRootForRequest(nil, deps), deps)
 }
 
 func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision duplicacy.RevisionInfo, root string, deps RestoreDeps) string {
