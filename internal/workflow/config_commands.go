@@ -23,16 +23,17 @@ var newConfigCommandRunner = func() execpkg.Runner {
 
 func HandleConfigCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	planner := NewPlanner(meta, rt, nil, newConfigCommandRunner())
+	configReq := NewConfigRequest(req)
 
-	switch req.ConfigCommand {
+	switch configReq.Command {
 	case "validate":
-		return handleConfigValidate(req, planner)
+		return handleConfigValidate(&configReq, planner)
 	case "explain":
-		return handleConfigExplain(req, planner)
+		return handleConfigExplain(&configReq, planner)
 	case "paths":
-		return handleConfigPaths(req, meta, planner), nil
+		return handleConfigPaths(&configReq, meta, planner), nil
 	default:
-		return "", NewRequestError("unsupported config command %q", req.ConfigCommand)
+		return "", NewRequestError("unsupported config command %q", configReq.Command)
 	}
 }
 
@@ -53,11 +54,10 @@ func ConfigCommandOutput(err error) string {
 	return ""
 }
 
-func handleConfigValidate(req *Request, planner *Planner) (string, error) {
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) {
+	plan := planner.derivePlan(req.PlanRequest())
 	resolved := []SummaryLine{
-		{Label: "Label", Value: req.Source},
+		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Config File", Value: plan.ConfigFile},
 	}
@@ -167,7 +167,7 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 	}
 
 	if collector.failed() {
-		title := fmt.Sprintf("Config validation failed for %s/%s", req.Source, plan.TargetName())
+		title := fmt.Sprintf("Config validation failed for %s/%s", req.Label, plan.TargetName())
 		output := formatConfigValidationOutput(title, resolved, collector.lines, "Failed")
 		message := title
 		if hint := collector.failureHint(); hint != "" {
@@ -179,12 +179,11 @@ func handleConfigValidate(req *Request, planner *Planner) (string, error) {
 		}
 	}
 
-	return formatConfigValidationOutput(fmt.Sprintf("Config validation succeeded for %s/%s", req.Source, plan.TargetName()), resolved, collector.lines, "Passed"), nil
+	return formatConfigValidationOutput(fmt.Sprintf("Config validation succeeded for %s/%s", req.Label, plan.TargetName()), resolved, collector.lines, "Passed"), nil
 }
 
-func handleConfigExplain(req *Request, planner *Planner) (string, error) {
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err
@@ -201,7 +200,7 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 	plan.LocalGroup = cfg.LocalGroup
 
 	lines := []SummaryLine{
-		{Label: "Label", Value: req.Source},
+		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Location", Value: cfg.Location},
 		{Label: "Config File", Value: plan.ConfigFile},
@@ -232,11 +231,11 @@ func handleConfigExplain(req *Request, planner *Planner) (string, error) {
 		)
 	}
 
-	return formatConfigOutput(fmt.Sprintf("Config explanation for %s/%s", req.Source, plan.TargetName()), lines), nil
+	return formatConfigOutput(fmt.Sprintf("Config explanation for %s/%s", req.Label, plan.TargetName()), lines), nil
 }
 
-func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
-	plan := planner.derivePlan(req)
+func handleConfigPaths(req *ConfigRequest, meta Metadata, planner *Planner) string {
+	plan := planner.derivePlan(req.PlanRequest())
 	if cfg, err := planner.loadConfig(plan); err == nil {
 		plan.Target = cfg.Target
 		plan.Location = cfg.Location
@@ -245,7 +244,7 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		plan.BackupTarget = cfg.Storage
 	}
 	lines := []SummaryLine{
-		{Label: "Label", Value: req.Source},
+		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Location", Value: plan.Location},
 		{Label: "Config Dir", Value: plan.ConfigDir},
@@ -260,20 +259,7 @@ func handleConfigPaths(req *Request, meta Metadata, planner *Planner) string {
 		)
 	}
 
-	return formatConfigOutput(fmt.Sprintf("Resolved paths for %s", req.Source), lines)
-}
-
-func configValidationRequest(req *Request, target string) *Request {
-	return &Request{
-		Source:          req.Source,
-		ConfigDir:       req.ConfigDir,
-		SecretsDir:      req.SecretsDir,
-		RequestedTarget: target,
-		DoBackup:        false,
-		DoPrune:         false,
-		DoCleanupStore:  false,
-		FixPerms:        false,
-	}
+	return formatConfigOutput(fmt.Sprintf("Resolved paths for %s", req.Label), lines)
 }
 
 func formatConfigOutput(title string, lines []SummaryLine) string {

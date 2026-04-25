@@ -45,16 +45,16 @@ func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execp
 	}
 }
 
-func NewFailureHealthReport(req *Request, checkType, message string, checkedAt time.Time) *HealthReport {
+func NewFailureHealthReport(req *HealthRequest, checkType, message string, checkedAt time.Time) *HealthReport {
 	mode := ""
 	label := ""
 	target := ""
 	if req != nil {
-		label = req.Source
+		label = req.Label
 		target = req.Target()
 		mode = req.Target()
 		if checkType == "" {
-			checkType = req.HealthCommand
+			checkType = req.Command
 		}
 	}
 	return healthpkg.NewFailureReport(checkType, label, target, mode, message, checkedAt)
@@ -65,11 +65,16 @@ func WriteHealthReport(w io.Writer, report *HealthReport) error {
 }
 
 func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
+	healthReq := NewHealthRequest(req)
+	return h.run(&healthReq)
+}
+
+func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	checkedAt := h.rt.Now()
 	report := &HealthReport{
 		Status:    "healthy",
-		CheckType: req.HealthCommand,
-		Label:     req.Source,
+		CheckType: req.Command,
+		Label:     req.Label,
 		Target:    req.Target(),
 		Mode:      req.Target(),
 		CheckedAt: formatReportTime(checkedAt),
@@ -91,10 +96,10 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	report.Location = plan.Location
 	h.presenter.PrintHeader(report)
 
-	state, stateErr := loadRunState(h.meta, req.Source, req.Target())
+	state, stateErr := loadRunState(h.meta, req.Label, req.Target())
 	if stateErr != nil {
 		if os.IsNotExist(stateErr) {
-			report.AddCheck("Backup state", "warn", fmt.Sprintf("No prior backup state found at %s", stateFilePath(h.meta, req.Source, req.Target())))
+			report.AddCheck("Backup state", "warn", fmt.Sprintf("No prior backup state found at %s", stateFilePath(h.meta, req.Label, req.Target())))
 		} else {
 			report.AddCheck("Backup state", "warn", fmt.Sprintf("Could not read backup state: %v", stateErr))
 		}
@@ -103,7 +108,7 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 		report.LastSuccessAt = chooseLocalSuccessTime(state)
 	}
 
-	lockStatus, lockErr := lock.InspectTarget(h.meta.LockParent, req.Source, req.Target())
+	lockStatus, lockErr := lock.InspectTarget(h.meta.LockParent, req.Label, req.Target())
 	if lockErr != nil {
 		report.AddCheck("Lock", "warn", OperatorMessage(lockErr))
 	} else {
@@ -128,14 +133,14 @@ func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
 	defer dup.Cleanup()
 
 	visibleRevisions := h.runStatusChecks(report, req, cfg, plan, state, dup)
-	if req.HealthCommand == "doctor" || req.HealthCommand == "verify" {
+	if req.Command == "doctor" || req.Command == "verify" {
 		h.runDoctorChecks(report, req, cfg, plan, dup)
 	}
-	if req.HealthCommand == "verify" {
+	if req.Command == "verify" {
 		h.runVerifyChecks(report, cfg, dup, visibleRevisions)
 	}
 
-	if err := updateHealthCheckState(h.meta, req.Source, req.Target(), req.HealthCommand, checkedAt); err != nil {
+	if err := updateHealthCheckState(h.meta, req.Label, req.Target(), req.Command, checkedAt); err != nil {
 		report.AddCheck("Health state", "warn", err.Error())
 	}
 

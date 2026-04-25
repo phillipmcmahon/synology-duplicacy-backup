@@ -11,7 +11,7 @@ import (
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 )
 
-func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
+func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	report.AddCheck("Config file", "pass", plan.ConfigFile)
 	defer func() {
 		if plan.Secrets != nil {
@@ -23,7 +23,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	revisions, _, err := dup.ListVisibleRevisions()
 	stopInspecting()
 	if err != nil {
-		if req.HealthCommand == "verify" {
+		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureListingFailed)
 		}
 		report.AddCheck("Latest revision", "fail", OperatorMessage(err))
@@ -73,7 +73,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *Request, cfg *
 	return revisions
 }
 
-func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
+func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
 	if _, err := os.Stat(plan.SnapshotSource); err != nil {
 		report.AddCheck("Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
 	} else {
@@ -96,7 +96,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *Request, cfg *
 	stopValidating := h.presenter.StartStatusActivity("Validating repository access")
 	if err := dup.ValidateRepo(); err != nil {
 		stopValidating()
-		if req.HealthCommand == "verify" {
+		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
 		}
 		report.AddCheck("Repository access", "fail", OperatorMessage(err))

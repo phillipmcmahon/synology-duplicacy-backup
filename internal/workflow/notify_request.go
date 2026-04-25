@@ -48,11 +48,11 @@ func (r NotifyRequest) Target() string {
 	return r.TargetName
 }
 
-func (r NotifyRequest) legacyConfigRequest() *Request {
-	return &Request{
-		Source:          r.Label,
-		ConfigDir:       r.ConfigDir,
-		SecretsDir:      r.SecretsDir,
-		RequestedTarget: r.Target(),
+func (r NotifyRequest) PlanRequest() ConfigPlanRequest {
+	return ConfigPlanRequest{
+		Label:      r.Label,
+		TargetName: r.Target(),
+		ConfigDir:  r.ConfigDir,
+		SecretsDir: r.SecretsDir,
 	}
 }

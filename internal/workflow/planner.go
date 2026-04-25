@@ -38,7 +38,7 @@ func (p *Planner) Build(req *Request) (*Plan, error) {
 		return nil, err
 	}
 
-	plan := p.derivePlan(req)
+	plan := p.deriveRuntimePlan(req)
 
 	cfg, err := p.loadConfig(plan)
 	if err != nil {
@@ -68,7 +68,7 @@ func (p *Planner) FailureContext(req *Request) *Plan {
 		return nil
 	}
 
-	plan := p.derivePlan(req)
+	plan := p.deriveRuntimePlan(req)
 	if _, err := p.loadConfigForValidation(plan); err == nil {
 		return plan
 	}
@@ -95,10 +95,61 @@ func (p *Planner) validateEnvironment(req *Request) error {
 	return nil
 }
 
-func (p *Planner) derivePlan(req *Request) *Plan {
+func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {
+	return p.derivePlanFromInput(planDerivationInput{
+		label:      req.Label,
+		target:     req.Target(),
+		configDir:  req.ConfigDir,
+		secretsDir: req.SecretsDir,
+	})
+}
+
+func (p *Planner) deriveRuntimePlan(req *Request) *Plan {
+	return p.derivePlanFromInput(planDerivationInput{
+		label:               req.Source,
+		target:              req.Target(),
+		configDir:           req.ConfigDir,
+		secretsDir:          req.SecretsDir,
+		doBackup:            req.DoBackup,
+		doPrune:             req.DoPrune,
+		doCleanupStore:      req.DoCleanupStore,
+		fixPerms:            req.FixPerms,
+		fixPermsOnly:        req.FixPermsOnly,
+		forcePrune:          req.ForcePrune,
+		dryRun:              req.DryRun,
+		verbose:             req.Verbose,
+		jsonSummary:         req.JSONSummary,
+		defaultNotice:       req.DefaultNotice,
+		operationMode:       OperationMode(req),
+		needsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
+		needsSnapshot:       req.DoBackup,
+	})
+}
+
+type planDerivationInput struct {
+	label               string
+	target              string
+	configDir           string
+	secretsDir          string
+	doBackup            bool
+	doPrune             bool
+	doCleanupStore      bool
+	fixPerms            bool
+	fixPermsOnly        bool
+	forcePrune          bool
+	dryRun              bool
+	verbose             bool
+	jsonSummary         bool
+	defaultNotice       string
+	operationMode       string
+	needsDuplicacySetup bool
+	needsSnapshot       bool
+}
+
+func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 	runTimestamp := p.rt.Now().Format("20060102-150405")
-	backupLabel := req.Source
-	target := req.Target()
+	backupLabel := input.label
+	target := input.target
 	workRoot := filepath.Join(
 		p.rt.TempDir(),
 		fmt.Sprintf("%s-%s-%s-%d", p.meta.ScriptName, backupLabel, runTimestamp, p.rt.Getpid()),
@@ -106,26 +157,26 @@ func (p *Planner) derivePlan(req *Request) *Plan {
 	snapshotSource := filepath.Join(p.meta.RootVolume, backupLabel)
 	snapshotTarget := filepath.Join(p.meta.RootVolume, fmt.Sprintf("%s-%s-%s-%d", backupLabel, target, runTimestamp, p.rt.Getpid()))
 	repositoryPath := snapshotSource
-	if req.DoBackup {
+	if input.doBackup {
 		repositoryPath = snapshotTarget
 	}
-	configDir := ResolveDir(p.rt, req.ConfigDir, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(p.rt))
-	secretsDir := ResolveDir(p.rt, req.SecretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
+	configDir := ResolveDir(p.rt, input.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(p.rt))
+	secretsDir := ResolveDir(p.rt, input.secretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
 
 	return &Plan{
-		DoBackup:            req.DoBackup,
-		DoPrune:             req.DoPrune,
-		DoCleanupStore:      req.DoCleanupStore,
-		FixPerms:            req.FixPerms,
-		FixPermsOnly:        req.FixPermsOnly,
-		ForcePrune:          req.ForcePrune,
-		DryRun:              req.DryRun,
-		Verbose:             req.Verbose,
-		JSONSummary:         req.JSONSummary,
-		NeedsDuplicacySetup: req.DoBackup || req.DoPrune || req.DoCleanupStore,
-		NeedsSnapshot:       req.DoBackup,
-		DefaultNotice:       req.DefaultNotice,
-		OperationMode:       OperationMode(req),
+		DoBackup:            input.doBackup,
+		DoPrune:             input.doPrune,
+		DoCleanupStore:      input.doCleanupStore,
+		FixPerms:            input.fixPerms,
+		FixPermsOnly:        input.fixPermsOnly,
+		ForcePrune:          input.forcePrune,
+		DryRun:              input.dryRun,
+		Verbose:             input.verbose,
+		JSONSummary:         input.jsonSummary,
+		NeedsDuplicacySetup: input.needsDuplicacySetup,
+		NeedsSnapshot:       input.needsSnapshot,
+		DefaultNotice:       input.defaultNotice,
+		OperationMode:       input.operationMode,
 		ModeDisplay:         modeDisplay(target),
 		Target:              target,
 		BackupLabel:         backupLabel,

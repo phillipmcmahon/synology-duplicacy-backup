@@ -403,7 +403,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	plan := planner.derivePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir, RequestedTarget: "onsite-usb"})
+	plan := planner.deriveRuntimePlan(&Request{Source: "homes", DoBackup: true, DoPrune: true, FixPerms: true, ConfigDir: dir, RequestedTarget: "onsite-usb"})
 
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -423,7 +423,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	if err := planner.validateBackupFilesystem(plan); err != nil {
 		t.Fatalf("validateBackupFilesystem() error = %v", err)
 	}
-	if err := planner.validateBackupFilesystem(planner.derivePlan(&Request{Source: "homes", RequestedTarget: "onsite-usb"})); err != nil {
+	if err := planner.validateBackupFilesystem(planner.deriveRuntimePlan(&Request{Source: "homes", RequestedTarget: "onsite-usb"})); err != nil {
 		t.Fatalf("validateBackupFilesystem(no backup) error = %v", err)
 	}
 	if got := splitNonEmptyLines("a\n\nb\n"); len(got) != 2 || got[0] != "a" || got[1] != "b" {

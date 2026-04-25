@@ -35,7 +35,8 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	switch failureContext.Kind {
 	case command.FailureRequestHealth:
 		req := failureContext.Request
-		_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(req, req.HealthCommand, workflow.OperatorMessage(err), completedAt))
+		healthReq := workflow.NewHealthRequest(req)
+		_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(&healthReq, healthReq.Command, workflow.OperatorMessage(err), completedAt))
 	case command.FailureRequestNotify:
 		req := failureContext.Request
 		commandName := req.NotifyCommand

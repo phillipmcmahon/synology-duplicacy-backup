@@ -32,11 +32,11 @@ func (r DiagnosticsRequest) Target() string {
 	return r.TargetName
 }
 
-func (r DiagnosticsRequest) legacyConfigRequest() *Request {
-	return &Request{
-		Source:          r.Label,
-		ConfigDir:       r.ConfigDir,
-		SecretsDir:      r.SecretsDir,
-		RequestedTarget: r.Target(),
+func (r DiagnosticsRequest) PlanRequest() ConfigPlanRequest {
+	return ConfigPlanRequest{
+		Label:      r.Label,
+		TargetName: r.Target(),
+		ConfigDir:  r.ConfigDir,
+		SecretsDir: r.SecretsDir,
 	}
 }

@@ -548,7 +548,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 }
 
 func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
-	report := NewFailureHealthReport(&Request{HealthCommand: "doctor", Source: "homes", RequestedTarget: "onsite-usb"}, "doctor", "boom", time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC))
+	report := NewFailureHealthReport(&HealthRequest{Command: "doctor", Label: "homes", TargetName: "onsite-usb"}, "doctor", "boom", time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC))
 
 	var buf bytes.Buffer
 	if err := WriteHealthReport(&buf, report); err != nil {

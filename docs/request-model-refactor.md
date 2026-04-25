@@ -45,9 +45,10 @@ are separately approved.
 | Rollback | `RollbackRequest` | Complete. Carries version, check-only, and confirmation. |
 | Diagnostics | `DiagnosticsRequest` | Complete. Carries label, target, config/secrets dirs, and JSON output intent. |
 | Notify | `NotifyRequest` | Complete. Carries label/target when needed, config/secrets dirs, provider, event, severity, scope, summary, message, dry-run, and JSON output intent. |
+| Config planning | `ConfigPlanRequest` | Complete. Carries only label, target, config dir, and secrets dir for planner config loading. |
+| Config | `ConfigRequest` | Complete. Carries validate, explain, and paths command intent without runtime execution flags. |
+| Health | `HealthRequest` | Complete. Carries status, doctor, and verify intent without backup execution state. |
 | Runtime operations | `RuntimeRequest` | Backup, prune, cleanup-storage, and fix-perms. Should remain the only path into `Planner.Build` and `Executor.Run`. |
-| Config | `ConfigRequest` | Validate, explain, and paths. Should not carry runtime execution flags. |
-| Health | `HealthRequest` | Status, doctor, and verify. Should separate health command intent from backup execution state. |
 
 ## Current State
 
@@ -61,18 +62,15 @@ boundary, and then passes only the narrow type into update/rollback execution.
 These command paths do not need adapters back to `Request`.
 
 Notify and diagnostics now use `NotifyRequest` and `DiagnosticsRequest`
-internally. They still use a temporary private bridge into the existing config
-planner until `ConfigPlanRequest` lands.
+internally.
 
-The only intentional bridge back to `Request` is
-`RestoreRequest.ConfigRequest()`, plus temporary notify/diagnostics config
-planner bridges, while planning waits for its own narrower config-loading
-contract.
+Config planning now uses `ConfigPlanRequest`. Restore, notify, diagnostics,
+config, and health command paths all feed planner config loading through that
+narrow contract instead of adapting back to `Request`.
 
 ## Next Slices
 
 The recommended order is:
 
-1. Config and health, because they share config-loading and validation paths.
-2. Runtime operations last, because they interact with the full plan/executor
+1. Runtime operations last, because they interact with the full plan/executor
    lifecycle.

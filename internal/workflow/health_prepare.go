@@ -7,7 +7,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
-func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Secrets, error) {
+func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secrets.Secrets, error) {
 	if h.rt.Geteuid() != 0 {
 		return nil, nil, nil, NewMessageError("health commands must be run as root")
 	}
@@ -16,10 +16,9 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	}
 
 	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)
-	plan := planner.derivePlan(req)
+	plan := planner.derivePlan(req.PlanRequest())
 
-	cfgReq := configValidationRequest(req, req.Target())
-	cfgPlan := planner.derivePlan(cfgReq)
+	cfgPlan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(cfgPlan)
 	if err != nil {
 		return nil, nil, nil, err
@@ -33,7 +32,7 @@ func (h *HealthRunner) prepare(req *Request) (*config.Config, *Plan, *secrets.Se
 	plan.SnapshotSource = cfg.SourcePath
 	plan.RepositoryPath = cfg.SourcePath
 	plan.ModeDisplay = modeDisplay(plan.TargetName())
-	plan.OperationMode = "Health " + presentation.Title(req.HealthCommand)
+	plan.OperationMode = "Health " + presentation.Title(req.Command)
 	plan.LocalOwner = cfg.LocalOwner
 	plan.LocalGroup = cfg.LocalGroup
 	plan.LogRetentionDays = cfg.LogRetentionDays

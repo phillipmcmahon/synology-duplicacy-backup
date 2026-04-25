@@ -49,8 +49,7 @@ type DiagnosticsPathSummary struct {
 func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	diagnosticsReq := NewDiagnosticsRequest(req)
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(diagnosticsReq.legacyConfigRequest(), diagnosticsReq.Target())
-	plan := planner.derivePlan(planReq)
+	plan := planner.derivePlan(diagnosticsReq.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err

@@ -48,15 +48,11 @@ func (r RestoreRequest) Target() string {
 	return strings.TrimSpace(r.TargetName)
 }
 
-func (r RestoreRequest) ConfigRequest() *Request {
-	return &Request{
-		Source:          r.Label,
-		ConfigDir:       r.ConfigDir,
-		SecretsDir:      r.SecretsDir,
-		RequestedTarget: r.Target(),
-		DoBackup:        false,
-		DoPrune:         false,
-		DoCleanupStore:  false,
-		FixPerms:        false,
+func (r RestoreRequest) PlanRequest() ConfigPlanRequest {
+	return ConfigPlanRequest{
+		Label:      r.Label,
+		TargetName: r.Target(),
+		ConfigDir:  r.ConfigDir,
+		SecretsDir: r.SecretsDir,
 	}
 }

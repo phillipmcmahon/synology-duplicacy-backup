@@ -14,7 +14,7 @@ import (
 
 func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.ConfigRequest())
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, func() {}, err

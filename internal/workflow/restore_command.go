@@ -45,7 +45,7 @@ func handleRestoreCommand(req *Request, meta Metadata, rt Runtime, deps RestoreD
 
 func handleRestorePlan(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.ConfigRequest())
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err

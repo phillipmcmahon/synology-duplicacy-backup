@@ -24,7 +24,7 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 		return handleUpdateNotifyTest(req, planner.meta, planner.rt)
 	}
 
-	plan := planner.derivePlan(configValidationRequest(req.legacyConfigRequest(), req.Target()))
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err

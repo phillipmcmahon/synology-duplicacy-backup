@@ -29,7 +29,7 @@ type restoreRunContext struct {
 
 func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.ConfigRequest())
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 
 func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.ConfigRequest())
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, err

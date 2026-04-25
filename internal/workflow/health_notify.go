@@ -5,11 +5,11 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 )
 
-func (h *HealthRunner) shouldSendNotification(req *Request, cfg config.HealthConfig, status string) bool {
+func (h *HealthRunner) shouldSendNotification(req *HealthRequest, cfg config.HealthConfig, status string) bool {
 	if req == nil {
 		return false
 	}
-	if !shouldSendConfiguredNotification(h.rt, h.log.Interactive(), cfg.Notify, req.HealthCommand) {
+	if !shouldSendConfiguredNotification(h.rt, h.log.Interactive(), cfg.Notify, req.Command) {
 		return false
 	}
 	if !containsString(cfg.Notify.NotifyOn, status) {
@@ -18,7 +18,7 @@ func (h *HealthRunner) shouldSendNotification(req *Request, cfg config.HealthCon
 	return true
 }
 
-func (h *HealthRunner) maybeSendEarlyNotification(req *Request, report *HealthReport) {
+func (h *HealthRunner) maybeSendEarlyNotification(req *HealthRequest, report *HealthReport) {
 	if req == nil || report == nil {
 		return
 	}
@@ -38,13 +38,13 @@ func (h *HealthRunner) maybeSendEarlyNotification(req *Request, report *HealthRe
 	report.AddCheck("Notification", "pass", "Delivered")
 }
 
-func (h *HealthRunner) loadHealthNotifyConfig(req *Request) (config.HealthConfig, string, bool) {
-	if req == nil || req.Source == "" {
+func (h *HealthRunner) loadHealthNotifyConfig(req *HealthRequest) (config.HealthConfig, string, bool) {
+	if req == nil || req.Label == "" {
 		return config.HealthConfig{}, "", false
 	}
 
 	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)
-	plan := planner.derivePlan(configValidationRequest(req, req.Target()))
+	plan := planner.derivePlan(req.PlanRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return config.HealthConfig{}, "", false

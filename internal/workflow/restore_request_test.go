@@ -50,17 +50,11 @@ func TestRestoreRequestConfigRequestKeepsPlannerInputsOnly(t *testing.T) {
 		JSONSummary: true,
 	}
 
-	got := restoreReq.ConfigRequest()
-	if got.Source != "homes" || got.RequestedTarget != "onsite-usb" {
+	got := restoreReq.PlanRequest()
+	if got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("config request identity = %#v", got)
 	}
 	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
 		t.Fatalf("config request paths = %#v", got)
-	}
-	if got.DryRun || got.JSONSummary || got.RestoreRevision != 0 || got.RestorePath != "" {
-		t.Fatalf("config request leaked restore-only fields: %#v", got)
-	}
-	if got.DoBackup || got.DoPrune || got.DoCleanupStore || got.FixPerms {
-		t.Fatalf("config request should not carry runtime modes: %#v", got)
 	}
 }
