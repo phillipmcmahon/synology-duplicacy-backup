@@ -16,6 +16,8 @@ release notes from memory, or generate release artefacts on the macOS host.
   Dependabot monitors that Dockerfile for image updates.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
+- Keep `CHANGELOG.md` as the repo-rooted, offline-greppable mirror of the
+  operator-facing GitHub release story.
 - If one or more release attempts were superseded, fold their user-facing
   changes into the successful release notes so nothing important disappears.
 - Let the tag-triggered GitHub Actions workflow build and publish the release

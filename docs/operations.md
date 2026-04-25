@@ -138,6 +138,10 @@ Test that route without running a real update:
 /usr/local/bin/duplicacy-backup notify test update --provider ntfy
 ```
 
+Update notification failures are reported as warnings. They should not mask the
+primary update result; use Synology scheduled-task output as the fallback signal
+if the notification route itself is unavailable.
+
 Config and secrets stay in their existing directories during upgrades, so you
 do not need to copy TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,

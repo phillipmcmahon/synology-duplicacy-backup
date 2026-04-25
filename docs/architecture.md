@@ -23,14 +23,15 @@ continue into the `RuntimeRequest -> Plan -> Execute` path.
 runWithArgs
   -> command.ParseRequest
   -> handled help/version output, or dispatchRequest
-       -> config / diagnostics / notify / rollback / update / health / runtime
+       -> config / diagnostics / notify / restore / rollback / update / health / runtime
 ```
 
 Only the runtime backup/prune/cleanup/fix-perms path goes through the full
 `Planner.Build -> Executor.Run` sequence. Config, diagnostics, notify,
-rollback, update, and health commands dispatch to their own narrower handlers
-so they do not inherit runtime requirements such as root access, logger setup,
-or target storage secrets unless that command actually needs them.
+restore, rollback, update, and health commands dispatch to their own narrower
+handlers so they do not inherit runtime requirements such as root access,
+logger setup, or target storage secrets unless that command actually needs
+them.
 
 ## Request
 
@@ -186,6 +187,18 @@ It should own:
 It should not be the default home for new provider logic, parser logic,
 formatting logic, or health-specific semantics just because those features
 happen to be used during execution.
+
+## Future Watch
+
+Two architecture pressure points are worth keeping visible:
+
+- If `internal/workflow` grows another subsystem comparable in size to restore,
+  health, or update, consider splitting that subsystem into a focused
+  subpackage rather than continuing to expand the orchestration package.
+- `Plan` currently exposes section views while still storing flat fields. If
+  plan mutation or review complexity grows again, consider a deliberate sprint
+  to make those section views the composed storage model rather than only a
+  read-side view.
 
 ## Main Packages
 
