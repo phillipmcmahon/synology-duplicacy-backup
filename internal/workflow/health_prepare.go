@@ -8,9 +8,6 @@ import (
 )
 
 func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secrets.Secrets, error) {
-	if h.rt.Geteuid() != 0 {
-		return nil, nil, nil, NewMessageError("health commands must be run as root")
-	}
 	if _, err := h.rt.LookPath("duplicacy"); err != nil {
 		return nil, nil, nil, NewMessageError("required command 'duplicacy' not found")
 	}

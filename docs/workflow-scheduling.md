@@ -172,7 +172,11 @@ For each task:
 
 1. Open `Control Panel` -> `Task Scheduler`
 2. Create `Triggered Task` -> `User-defined script`
-3. Run as `root`
+3. Choose the run-as user:
+   - use `root` for `backup` and `fix-perms`
+   - use the operator user for health, prune, cleanup, diagnostics, and restore
+     checks when that user owns the config, secrets, state, log, lock, and
+     storage access paths
 4. Use `/usr/local/bin/duplicacy-backup`
 5. Keep one task per operation
 

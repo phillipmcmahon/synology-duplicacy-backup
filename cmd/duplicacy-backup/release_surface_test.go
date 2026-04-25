@@ -21,8 +21,29 @@ func repoRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
+func currentUsername(t *testing.T) string {
+	t.Helper()
+	if user := os.Getenv("USER"); user != "" {
+		return user
+	}
+	output, err := exec.Command("id", "-un").Output()
+	if err != nil {
+		t.Fatalf("id -un failed: %v", err)
+	}
+	return strings.TrimSpace(string(output))
+}
+
 func TestInstallScript_Syntax(t *testing.T) {
 	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
+	cmd := exec.Command("sh", "-n", scriptPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sh -n %s failed: %v\n%s", scriptPath, err, output)
+	}
+}
+
+func TestRuntimeProfileMigrationScript_Syntax(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
 	cmd := exec.Command("sh", "-n", scriptPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -107,11 +128,11 @@ func TestInstallScript_HelpMentionsCurrentLayout(t *testing.T) {
 	help := string(output)
 	required := []string{
 		"/usr/local/lib/duplicacy-backup",
-		"/root/.secrets/",
+		"$HOME/.config/duplicacy-backup",
+		"$HOME/.local/state/duplicacy-backup",
+		"migrate-runtime-profile.sh",
 		"--no-activate",
 		"--keep",
-		"--config-group",
-		".config/",
 	}
 	for _, token := range required {
 		if !strings.Contains(help, token) {
@@ -120,15 +141,150 @@ func TestInstallScript_HelpMentionsCurrentLayout(t *testing.T) {
 	}
 }
 
-func TestInstallScript_NormalisesConfigPermissions(t *testing.T) {
+func TestRuntimeProfileMigrationScript_HelpMentionsLegacyAndUserProfilePaths(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
+	cmd := exec.Command("sh", scriptPath, "--help")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("migration help failed: %v\n%s", err, output)
+	}
+
+	help := string(output)
+	required := []string{
+		"/usr/local/lib/duplicacy-backup/.config",
+		"/root/.secrets",
+		"$HOME/.config/duplicacy-backup",
+		"--target-user",
+		"--move",
+		"--dry-run",
+	}
+	for _, token := range required {
+		if !strings.Contains(help, token) {
+			t.Fatalf("migration help missing %q:\n%s", token, help)
+		}
+	}
+}
+
+func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
+	tempDir := t.TempDir()
+	legacyConfig := filepath.Join(tempDir, "legacy-config")
+	legacySecrets := filepath.Join(tempDir, "legacy-secrets")
+	targetHome := filepath.Join(tempDir, "operator-home")
+	configDir := filepath.Join(targetHome, ".config", "duplicacy-backup")
+	secretsDir := filepath.Join(configDir, "secrets")
+	if err := os.MkdirAll(legacyConfig, 0755); err != nil {
+		t.Fatalf("MkdirAll(legacy config) failed: %v", err)
+	}
+	if err := os.MkdirAll(legacySecrets, 0755); err != nil {
+		t.Fatalf("MkdirAll(legacy secrets) failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyConfig, "homes-backup.toml"), []byte("label = \"homes\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(config) failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacySecrets, "homes-secrets.toml"), []byte("[targets.onsite.keys]\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(secrets) failed: %v", err)
+	}
+
+	cmd := exec.Command("sh", scriptPath,
+		"--target-user", currentUsername(t),
+		"--target-home", targetHome,
+		"--legacy-config-dir", legacyConfig,
+		"--legacy-secrets-dir", legacySecrets,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("migration script failed: %v\n%s", err, output)
+	}
+
+	for _, path := range []string{configDir, secretsDir} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("Stat(%q) failed: %v", path, err)
+		}
+		if got := info.Mode().Perm(); got != 0700 {
+			t.Fatalf("%s perms = %04o, want 0700", path, got)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(configDir, "homes-backup.toml"),
+		filepath.Join(secretsDir, "homes-secrets.toml"),
+	} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("Stat(%q) failed: %v", path, err)
+		}
+		if got := info.Mode().Perm(); got != 0600 {
+			t.Fatalf("%s perms = %04o, want 0600", path, got)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(legacyConfig, "homes-backup.toml")); err != nil {
+		t.Fatalf("source config should remain after copy mode: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(legacySecrets, "homes-secrets.toml")); err != nil {
+		t.Fatalf("source secrets should remain after copy mode: %v", err)
+	}
+}
+
+func TestRuntimeProfileMigrationScript_MoveRemovesLegacyFiles(t *testing.T) {
+	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
+	tempDir := t.TempDir()
+	legacyConfig := filepath.Join(tempDir, "legacy-config")
+	legacySecrets := filepath.Join(tempDir, "legacy-secrets")
+	targetHome := filepath.Join(tempDir, "operator-home")
+	if err := os.MkdirAll(legacyConfig, 0755); err != nil {
+		t.Fatalf("MkdirAll(legacy config) failed: %v", err)
+	}
+	if err := os.MkdirAll(legacySecrets, 0755); err != nil {
+		t.Fatalf("MkdirAll(legacy secrets) failed: %v", err)
+	}
+	configSource := filepath.Join(legacyConfig, "homes-backup.toml")
+	secretsSource := filepath.Join(legacySecrets, "homes-secrets.toml")
+	if err := os.WriteFile(configSource, []byte("label = \"homes\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(config) failed: %v", err)
+	}
+	if err := os.WriteFile(secretsSource, []byte("[targets.onsite.keys]\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(secrets) failed: %v", err)
+	}
+
+	cmd := exec.Command("sh", scriptPath,
+		"--target-user", currentUsername(t),
+		"--target-home", targetHome,
+		"--legacy-config-dir", legacyConfig,
+		"--legacy-secrets-dir", legacySecrets,
+		"--move",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("migration script failed: %v\n%s", err, output)
+	}
+
+	if _, err := os.Stat(configSource); !os.IsNotExist(err) {
+		t.Fatalf("source config exists or unexpected error after --move: %v", err)
+	}
+	if _, err := os.Stat(secretsSource); !os.IsNotExist(err) {
+		t.Fatalf("source secrets exists or unexpected error after --move: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(targetHome, ".config", "duplicacy-backup", "homes-backup.toml"),
+		filepath.Join(targetHome, ".config", "duplicacy-backup", "secrets", "homes-secrets.toml"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("destination missing after --move: %s: %v", path, err)
+		}
+	}
+}
+
+func TestInstallScript_DoesNotManageRuntimeConfigOrSecrets(t *testing.T) {
 	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
 	tempDir := t.TempDir()
 	installRoot := filepath.Join(tempDir, "install-root")
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(filepath.Join(installRoot, ".config"), 0755); err != nil {
+	configDir := filepath.Join(installRoot, ".config")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatalf("MkdirAll(.config) failed: %v", err)
 	}
-	configFile := filepath.Join(installRoot, ".config", "homes-backup.toml")
+	configFile := filepath.Join(configDir, "homes-backup.toml")
 	if err := os.WriteFile(configFile, []byte("label = \"homes\"\n"), 0644); err != nil {
 		t.Fatalf("WriteFile(config) failed: %v", err)
 	}
@@ -141,40 +297,37 @@ func TestInstallScript_NormalisesConfigPermissions(t *testing.T) {
 		"--binary", binaryPath,
 		"--install-root", installRoot,
 		"--bin-dir", binDir,
-		"--config-group", "staff",
 	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("install script failed: %v\n%s", err, output)
 	}
 
-	configInfo, err := os.Stat(filepath.Join(installRoot, ".config"))
+	configInfo, err := os.Stat(configDir)
 	if err != nil {
 		t.Fatalf("Stat(.config) failed: %v", err)
 	}
-	if got := configInfo.Mode().Perm(); got != 0750 {
-		t.Fatalf(".config perms = %04o, want 0750", got)
+	if got := configInfo.Mode().Perm(); got != 0755 {
+		t.Fatalf(".config perms = %04o, want unchanged 0755", got)
 	}
 
 	fileInfo, err := os.Stat(configFile)
 	if err != nil {
 		t.Fatalf("Stat(config file) failed: %v", err)
 	}
-	if got := fileInfo.Mode().Perm(); got != 0640 {
-		t.Fatalf("config file perms = %04o, want 0640", got)
+	if got := fileInfo.Mode().Perm(); got != 0644 {
+		t.Fatalf("config file perms = %04o, want unchanged 0644", got)
 	}
 
 	installOutput := string(output)
-	if !strings.Contains(installOutput, "Secrets directory: /root/.secrets") {
-		t.Fatalf("install output missing secrets directory guidance:\n%s", installOutput)
-	}
-	if os.Geteuid() == 0 {
-		if !strings.Contains(installOutput, "ensured as root:root (700); secrets files are not modified") {
-			t.Fatalf("install output missing root secrets guidance:\n%s", installOutput)
-		}
-	} else {
-		if !strings.Contains(installOutput, "run installer as root to create or normalise it") {
-			t.Fatalf("install output missing non-root secrets guidance:\n%s", installOutput)
+	for _, token := range []string{
+		"Runtime config default: $HOME/.config/duplicacy-backup",
+		"Runtime secrets default: $HOME/.config/duplicacy-backup/secrets",
+		"Runtime config and secrets are not migrated automatically",
+		"Migration helper: ./migrate-runtime-profile.sh --dry-run --target-user <operator-user>",
+	} {
+		if !strings.Contains(installOutput, token) {
+			t.Fatalf("install output missing %q:\n%s", token, installOutput)
 		}
 	}
 }
@@ -192,10 +345,10 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"restore list-revisions",
 			"update --check-only",
 			"health status",
-			"/var/lib/duplicacy-backup/<label>.<target>.json",
+			"$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json",
 			"[health.notify]",
-			"/usr/local/lib/duplicacy-backup/.config",
-			"/root/.secrets",
+			"$HOME/.config/duplicacy-backup",
+			"$HOME/.config/duplicacy-backup/secrets",
 			"S3-compatible",
 		},
 		filepath.Join(root, "docs", "cli.md"): {
@@ -218,8 +371,8 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		},
 		filepath.Join(root, "docs", "operations.md"): {
 			"/usr/local/bin/duplicacy-backup",
-			"/usr/local/lib/duplicacy-backup/.config",
-			"/root/.secrets",
+			"$HOME/.config/duplicacy-backup",
+			"$HOME/.local/state/duplicacy-backup",
 			"--no-activate",
 			"duplicacy-backup update --check-only",
 			"health status --target onsite-usb homes",
@@ -229,7 +382,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"storage keys are needed only when the selected backend requires them",
 		},
 		filepath.Join(root, "docs", "configuration.md"): {
-			"/root/.secrets/<label>-secrets.toml",
+			"$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml",
 			"Duplicacy storage",
 			"[targets.<name>.keys]",
 			"s3_secret",
@@ -237,7 +390,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"[health.notify]",
 			"health_webhook_bearer_token",
 			"health_ntfy_token",
-			"/var/lib/duplicacy-backup/<label>.<target>.json",
+			"$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json",
 		},
 		filepath.Join(root, "TESTING.md"): {
 			"install script help/output",

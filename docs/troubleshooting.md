@@ -16,8 +16,8 @@ inconsistent.
 Useful first commands:
 
 ```bash
-sudo duplicacy-backup config validate --target <target> <label>
-sudo duplicacy-backup health status --target <target> <label>
+duplicacy-backup config validate --target <target> <label>
+duplicacy-backup health status --target <target> <label>
 ```
 
 If the problem came from Synology Task Scheduler, also read the task's captured
@@ -68,7 +68,7 @@ state no longer meets policy.
 Run a JSON summary when you need precise automation detail:
 
 ```bash
-sudo duplicacy-backup health verify --json-summary --target <target> <label>
+duplicacy-backup health verify --json-summary --target <target> <label>
 ```
 
 Look for `failure_code`, `failure_codes`, and `recommended_action_codes`, then
@@ -121,7 +121,7 @@ backup repository yet, start with [Restore onto a new NAS](new-nas-restore.md).
 For most operator restores, start with the guided flow:
 
 ```bash
-sudo duplicacy-backup restore select --target <target> <label>
+duplicacy-backup restore select --target <target> <label>
 ```
 
 That path is revision-first: choose a restore point, inspect it read-only or
@@ -130,25 +130,25 @@ restore from it, review the generated commands, then confirm the drill restore.
 Use `restore plan` when you want the explicit expert path and safe next-step commands:
 
 ```bash
-sudo duplicacy-backup restore plan --target <target> <label>
+duplicacy-backup restore plan --target <target> <label>
 ```
 
 List revisions before restoring:
 
 ```bash
-sudo duplicacy-backup restore list-revisions --target <target> <label>
+duplicacy-backup restore list-revisions --target <target> <label>
 ```
 
 For large repositories, start browsing under a known subtree:
 
 ```bash
-sudo duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
+duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
 ```
 
 Restore into the drill workspace only:
 
 ```bash
-sudo duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --yes <label>
+duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --yes <label>
 ```
 
 Use a snapshot-relative file path for one file, or a Duplicacy pattern such as
@@ -215,9 +215,11 @@ See also:
 step, usually because the check needs root-only paths or permissions. It is not
 the same as a failed check.
 
-Non-root validation can still be useful for syntax and some path checks, but
-run the same command with `sudo` before treating the config as fully validated
-for scheduled NAS operation.
+Non-root validation is the default and is enough for restore, health, and other
+operator-user workflows when the selected paths are accessible. If you are
+validating a backup or permission-repair task that will run as root, run the
+same validation with `sudo` before treating that root scheduled job as fully
+validated.
 
 See also:
 
@@ -226,15 +228,16 @@ See also:
 
 ## Log File Permission Is Denied
 
-Installed NAS runtime and health commands normally write logs under `/var/log`
-and should be run with `sudo`. A normal-user run can fail before the operation
-starts if it cannot open the log file.
+Runtime logs are written under
+`$HOME/.local/state/duplicacy-backup/logs` by default. A log permission error
+usually means the current user cannot write to their own state directory or an
+explicit log path has been configured with restrictive permissions.
 
-Use normal-user commands only where they are designed to avoid protected
-runtime paths, such as `config paths`, `diagnostics`, `update --check-only`,
-`rollback --check-only`, and dry-run notification tests. For scheduled backup,
-prune, health, cleanup, and permission-fix jobs, use the installed command with
-root privileges.
+Use `sudo` only for commands that need root-level OS operations. Scheduled
+backup and permission-fix jobs normally run as root; health, restore,
+diagnostics, prune, cleanup, and notification checks can run as the operator
+user when their config, secrets, state, log, lock, storage, and workspace paths
+are accessible.
 
 See also:
 

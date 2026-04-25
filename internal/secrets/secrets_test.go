@@ -83,14 +83,10 @@ func TestLoadSecretsFile_Permissions(t *testing.T) {
 	}
 }
 
-func TestLoadSecretsFile_OwnershipCheck(t *testing.T) {
+func TestLoadSecretsFile_CurrentUserOwnershipCheck(t *testing.T) {
 	p := writeTempSecrets(t, validSecretContent(), 0600)
-	_, err := LoadSecretsFile(p, "offsite-storj")
-	if isRoot() && err != nil {
-		t.Fatalf("unexpected error as root: %v", err)
-	}
-	if !isRoot() && err == nil {
-		t.Fatal("expected ownership error as non-root")
+	if _, err := LoadSecretsFile(p, "offsite-storj"); err != nil {
+		t.Fatalf("unexpected ownership error for current user: %v", err)
 	}
 }
 

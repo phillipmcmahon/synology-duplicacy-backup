@@ -63,8 +63,8 @@ The default installed paths are:
 
 ```text
 /usr/local/bin/duplicacy-backup
-/usr/local/lib/duplicacy-backup/.config/
-/root/.secrets/
+$HOME/.config/duplicacy-backup/
+$HOME/.config/duplicacy-backup/secrets/
 ```
 
 ## 2. Decide Whether You Know The Future Source Root
@@ -110,13 +110,14 @@ derived workspace with an exact path.
 Create one config file per label:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
+$HOME/.config/duplicacy-backup/<label>-backup.toml
 ```
 
 For example:
 
 ```bash
-sudo vi /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+mkdir -p "$HOME/.config/duplicacy-backup"
+vi "$HOME/.config/duplicacy-backup/homes-backup.toml"
 ```
 
 ### Template: S3-Compatible Remote Storage
@@ -196,10 +197,8 @@ local_group = "users"
 Set safe permissions on the config:
 
 ```bash
-sudo chown root:administrators /usr/local/lib/duplicacy-backup/.config
-sudo chmod 750 /usr/local/lib/duplicacy-backup/.config
-sudo chown root:administrators /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
-sudo chmod 640 /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+chmod 700 "$HOME/.config/duplicacy-backup"
+chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 ```
 
 ## 4. Create The Secrets File
@@ -208,7 +207,7 @@ Create one secrets file per label only when the selected target needs storage
 credentials or notification tokens:
 
 ```text
-/root/.secrets/<label>-secrets.toml
+$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml
 ```
 
 For S3-compatible storage, use Duplicacy's generic key names:
@@ -240,11 +239,9 @@ credentials or notification tokens, you can skip the label secrets file.
 Set safe permissions if you created a secrets file:
 
 ```bash
-sudo mkdir -p /root/.secrets
-sudo chown root:root /root/.secrets
-sudo chmod 700 /root/.secrets
-sudo chown root:root /root/.secrets/homes-secrets.toml
-sudo chmod 600 /root/.secrets/homes-secrets.toml
+mkdir -p "$HOME/.config/duplicacy-backup/secrets"
+chmod 700 "$HOME/.config/duplicacy-backup/secrets"
+chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ```
 
 ## 5. Check The Config Shape
@@ -252,14 +249,14 @@ sudo chmod 600 /root/.secrets/homes-secrets.toml
 First confirm the tool resolves the target you expect:
 
 ```bash
-sudo duplicacy-backup config explain --target offsite-storj homes
+duplicacy-backup config explain --target offsite-storj homes
 ```
 
 If you configured `source_path` and created that future live source root, you
 can also run full backup-readiness validation:
 
 ```bash
-sudo duplicacy-backup config validate --target offsite-storj homes
+duplicacy-backup config validate --target offsite-storj homes
 ```
 
 You want to see:
@@ -293,7 +290,7 @@ If secrets are invalid, check that:
 List available revisions without restoring data:
 
 ```bash
-sudo duplicacy-backup restore list-revisions --target offsite-storj homes
+duplicacy-backup restore list-revisions --target offsite-storj homes
 ```
 
 This proves the new NAS can initialise a temporary Duplicacy workspace and read
@@ -302,7 +299,7 @@ the existing backup history.
 You can also print the read-only restore plan:
 
 ```bash
-sudo duplicacy-backup restore plan --target offsite-storj homes
+duplicacy-backup restore plan --target offsite-storj homes
 ```
 
 The plan should show:
@@ -318,7 +315,7 @@ The plan should show:
 Start the guided restore flow:
 
 ```bash
-sudo duplicacy-backup restore select --target offsite-storj homes
+duplicacy-backup restore select --target offsite-storj homes
 ```
 
 Choose a restore point, then choose inspect-only first. This lets you browse
@@ -331,7 +328,7 @@ progress.
 For very large repositories, start under a known subtree:
 
 ```bash
-sudo duplicacy-backup restore select \
+duplicacy-backup restore select \
   --target offsite-storj \
   --path-prefix phillipmcmahon/code \
   homes
@@ -341,7 +338,7 @@ When you are ready to restore, use the same guided flow or the explicit
 primitive:
 
 ```bash
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target offsite-storj \
   --revision <revision> \
   --path "relative/path/or/pattern" \
@@ -355,8 +352,8 @@ Restored data goes into the drill workspace, not the live source path.
 
 - Install `duplicacy-backup`.
 - Confirm Duplicacy CLI is installed and on `PATH`.
-- Create `/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml`.
-- Create `/root/.secrets/<label>-secrets.toml` if the backend needs keys.
+- Create `$HOME/.config/duplicacy-backup/<label>-backup.toml`.
+- Create `$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml` if the backend needs keys.
 - Run `config explain`.
 - Optional: add `source_path`, create the future live source root, then run
   `config validate` for full backup-readiness checks.

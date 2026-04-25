@@ -41,6 +41,14 @@ type Runtime struct {
 	SignalNotify  func(chan<- os.Signal, ...os.Signal)
 }
 
+type UserProfileDirs struct {
+	ConfigDir  string
+	SecretsDir string
+	LogDir     string
+	StateDir   string
+	LockDir    string
+}
+
 func DefaultRuntime() Runtime {
 	return Runtime{
 		Geteuid:       os.Geteuid,
@@ -75,14 +83,31 @@ type Metadata struct {
 }
 
 func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
+	baseDir := filepath.Dir(logDir)
+	logName := filepath.Base(logDir)
+	stateRoot := filepath.Join(baseDir, logName+"-state")
+	lockRoot := filepath.Join(baseDir, logName+"-locks")
 	return Metadata{
 		ScriptName: scriptName,
 		Version:    version,
 		BuildTime:  buildTime,
 		RootVolume: "/volume1",
-		LockParent: "/var/lock",
+		LockParent: lockRoot,
 		LogDir:     logDir,
-		StateDir:   "/var/lib/duplicacy-backup",
+		StateDir:   stateRoot,
+	}
+}
+
+func DefaultMetadataForRuntime(scriptName, version, buildTime string, rt Runtime) Metadata {
+	dirs := DefaultUserProfileDirs(rt)
+	return Metadata{
+		ScriptName: scriptName,
+		Version:    version,
+		BuildTime:  buildTime,
+		RootVolume: "/volume1",
+		LockParent: dirs.LockDir,
+		LogDir:     dirs.LogDir,
+		StateDir:   dirs.StateDir,
 	}
 }
 
@@ -134,23 +159,48 @@ func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
 	return defaultDir
 }
 
-func ExecutableConfigDir(rt Runtime) string {
-	exe, err := rt.Executable()
-	if err != nil {
-		return filepath.Join(".", ".config")
+func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
+	configRoot := rt.Getenv("XDG_CONFIG_HOME")
+	if configRoot == "" {
+		configRoot = filepath.Join(userHomeDir(rt), ".config")
 	}
-	exe, err = rt.EvalSymlinks(exe)
-	if err != nil {
-		return filepath.Join(".", ".config")
+	stateRoot := rt.Getenv("XDG_STATE_HOME")
+	if stateRoot == "" {
+		stateRoot = filepath.Join(userHomeDir(rt), ".local", "state")
 	}
-	return filepath.Join(filepath.Dir(exe), ".config")
+	appConfig := filepath.Join(configRoot, "duplicacy-backup")
+	appState := filepath.Join(stateRoot, "duplicacy-backup")
+	return UserProfileDirs{
+		ConfigDir:  appConfig,
+		SecretsDir: filepath.Join(appConfig, "secrets"),
+		LogDir:     filepath.Join(appState, "logs"),
+		StateDir:   filepath.Join(appState, "state"),
+		LockDir:    filepath.Join(appState, "locks"),
+	}
+}
+
+func userHomeDir(rt Runtime) string {
+	if home := rt.Getenv("HOME"); home != "" {
+		return home
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home
+	}
+	return "."
 }
 
 func EffectiveConfigDir(rt Runtime) string {
 	if v := rt.Getenv("DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
 		return v
 	}
-	return ExecutableConfigDir(rt)
+	return DefaultUserProfileDirs(rt).ConfigDir
+}
+
+func EffectiveSecretsDir(rt Runtime) string {
+	if v := rt.Getenv("DUPLICACY_BACKUP_SECRETS_DIR"); v != "" {
+		return v
+	}
+	return DefaultUserProfileDirs(rt).SecretsDir
 }
 
 func SignalSet() []os.Signal {

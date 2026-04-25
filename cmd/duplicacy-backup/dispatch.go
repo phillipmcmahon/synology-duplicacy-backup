@@ -72,7 +72,7 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 	if restoreReq.UsesProgress() {
 		log, err := initLogger(meta)
 		if err != nil {
-			return writeRestoreLoggerFailure(meta, rt, err)
+			return writeRestoreLoggerFailure(err)
 		}
 		defer log.Close()
 		output, err := workflow.HandleRestoreCommandWithLogger(req, meta, rt, log)
@@ -160,9 +160,6 @@ func writeRollbackPrivilegeFailure() int {
 
 func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
 	healthReq := workflow.NewHealthRequest(req)
-	if rt.Geteuid() != 0 {
-		return writeHealthPrivilegeFailure(&healthReq, rt)
-	}
 	log, err := initLogger(meta)
 	if err != nil {
 		return writeHealthLoggerFailure(&healthReq, rt, err)
@@ -180,9 +177,6 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 
 func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
 	runtimeReq := workflow.NewRuntimeRequest(req)
-	if rt.Geteuid() != 0 {
-		return writeRuntimePrivilegeFailure(&runtimeReq, rt)
-	}
 	log, err := initLogger(meta)
 	if err != nil {
 		return writeRuntimeLoggerFailure(&runtimeReq, rt, err)
@@ -246,16 +240,6 @@ func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Runtime, 
 	return exitCodeHealthUnhealthy
 }
 
-func writeHealthPrivilegeFailure(req *workflow.HealthRequest, rt workflow.Runtime) int {
-	message := "health commands must be run as root"
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
-	if req.JSONSummary {
-		report := workflow.NewFailureHealthReport(req, req.Command, message, rt.Now())
-		_ = workflow.WriteHealthReport(os.Stdout, report)
-	}
-	return exitCodeHealthUnhealthy
-}
-
 func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime, err error) int {
 	fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
 	if req.JSONSummary {
@@ -265,22 +249,8 @@ func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime
 	return exitCodeGeneralFailure
 }
 
-func writeRestoreLoggerFailure(meta workflow.Metadata, rt workflow.Runtime, err error) int {
-	if rt.Geteuid() != 0 && meta.LogDir == "/var/log" {
-		fmt.Fprintln(os.Stderr, "[ERRO] restore progress logging cannot write to /var/log as the current user; re-run with sudo")
-		return exitCodeGeneralFailure
-	}
+func writeRestoreLoggerFailure(err error) int {
 	return writeCommandFailure("", fmt.Errorf("failed to initialise restore progress logger: %w", err))
-}
-
-func writeRuntimePrivilegeFailure(req *workflow.RuntimeRequest, rt workflow.Runtime) int {
-	message := "must be run as root"
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
-	if req.JSONSummary {
-		now := rt.Now()
-		emitJSONFailureSummary(os.Stdout, req, nil, now, now, message)
-	}
-	return exitCodeGeneralFailure
 }
 
 func handlePlannerFailure(req *workflow.RuntimeRequest, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time, err error) int {

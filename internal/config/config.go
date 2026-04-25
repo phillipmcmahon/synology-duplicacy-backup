@@ -23,7 +23,6 @@ const (
 	DefaultSafePruneMaxDeleteCount     = 25
 	DefaultSafePruneMinTotalForPercent = 20
 	DefaultLogRetentionDays            = 30
-	DefaultSecretsDir                  = "/root/.secrets"
 	DefaultAppConfigFile               = "duplicacy-backup.toml"
 	MaxThreads                         = 16
 	MaxHealthThresholdHours            = 24 * 366

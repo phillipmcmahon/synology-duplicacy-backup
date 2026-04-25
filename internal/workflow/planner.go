@@ -80,7 +80,12 @@ func (p *Planner) FailureContext(req *RuntimeRequest) *Plan {
 
 func (p *Planner) validateEnvironment(req *RuntimeRequest) error {
 	if p.rt.Geteuid() != 0 {
-		return fmt.Errorf("must be run as root")
+		switch {
+		case req.DoBackup():
+			return fmt.Errorf("backup must be run as root because it creates btrfs snapshots and reads the full source tree")
+		case req.FixPerms():
+			return fmt.Errorf("fix-perms must be run as root because it changes ownership and permissions")
+		}
 	}
 	if req.DoBackup() || req.DoPrune() || req.DoCleanupStore() {
 		if _, err := p.rt.LookPath("duplicacy"); err != nil {
@@ -161,8 +166,8 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 	if input.doBackup {
 		repositoryPath = snapshotTarget
 	}
-	configDir := ResolveDir(p.rt, input.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(p.rt))
-	secretsDir := ResolveDir(p.rt, input.secretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", config.DefaultSecretsDir)
+	configDir := ResolveDir(p.rt, input.configDir, "DUPLICACY_BACKUP_CONFIG_DIR", EffectiveConfigDir(p.rt))
+	secretsDir := ResolveDir(p.rt, input.secretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", EffectiveSecretsDir(p.rt))
 
 	return &Plan{
 		DoBackup:            input.doBackup,

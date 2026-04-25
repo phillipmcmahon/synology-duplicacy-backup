@@ -14,7 +14,7 @@ import (
 const updateNotifyScope = "update notification config"
 
 func UpdateNotifyConfigPath(configDirFlag string, rt Runtime) string {
-	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(rt))
+	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", EffectiveConfigDir(rt))
 	return filepath.Join(configDir, config.DefaultAppConfigFile)
 }
 
@@ -23,7 +23,7 @@ func LoadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNoti
 }
 
 func loadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNotifyConfig, string, bool, error) {
-	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", ExecutableConfigDir(rt))
+	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", EffectiveConfigDir(rt))
 	path := filepath.Join(configDir, config.DefaultAppConfigFile)
 	appCfg, err := config.LoadAppConfig(path)
 	if err != nil {

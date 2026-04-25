@@ -340,10 +340,6 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testin
 }
 
 func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote health output requires root-owned secrets file")
-	}
-
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()

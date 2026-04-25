@@ -3,7 +3,6 @@ package command
 import (
 	"strings"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -52,7 +51,7 @@ Options:
     --dry-run               run only; print planned restore without executing
     --yes                   run only; skip interactive confirmation
     --json-summary          list-revisions only
-    --config-dir <path>     (default: <binary-dir>/.config)
+    --config-dir <path>     (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
     --help-full
@@ -75,7 +74,7 @@ Use --help-full for the detailed restore reference.
 `,
 		"{{restore_usage}}", restoreUsage(meta),
 		"{{restore_commands}}", restoreShortCommandHelpBlock(),
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 	)
 }
 
@@ -98,7 +97,7 @@ OPTIONS:
     --dry-run              run only; print planned restore without executing
     --yes                  run only; skip interactive confirmation
     --json-summary         list-revisions only; write machine-readable output
-    --config-dir <path>    Override config directory (default: <binary-dir>/.config)
+    --config-dir <path>    Override config directory (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>   Override secrets directory (default: {{default_secrets_dir}})
     --help                 Show the concise restore help message
     --help-full            Show the detailed restore help message
@@ -189,7 +188,7 @@ EXAMPLES:
 `,
 		"{{restore_usage}}", restoreUsage(meta),
 		"{{restore_commands}}", restoreCommandHelpBlock(),
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 		"{{config_dir}}", cfgDir,
 	)
 }

@@ -41,7 +41,7 @@ func GetSecretsFilePath(secretsDir, label string) string {
 }
 
 // ValidateFileAccess checks that the secrets file at path exists, has 0600
-// permissions, and is owned by root:root.
+// permissions, and is owned by the effective execution user.
 func ValidateFileAccess(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -57,8 +57,9 @@ func ValidateFileAccess(path string) error {
 	}
 
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		if stat.Uid != 0 || stat.Gid != 0 {
-			return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file ownership is %d:%d, expected 0:0 (root:root): %s", stat.Uid, stat.Gid, path), "path", path)
+		expectedUID := uint32(os.Geteuid())
+		if stat.Uid != expectedUID {
+			return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file owner is uid %d, expected uid %d for the current execution user: %s", stat.Uid, expectedUID, path), "path", path)
 		}
 	}
 	return nil

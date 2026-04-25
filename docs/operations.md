@@ -11,7 +11,6 @@ Example installed layout:
 /usr/local/lib/duplicacy-backup/
   duplicacy-backup_<version>_linux_<arch>
   current -> duplicacy-backup_<version>_linux_<arch>
-  .config/
 
 /usr/local/bin/
   duplicacy-backup -> /usr/local/lib/duplicacy-backup/current
@@ -22,8 +21,8 @@ Why this layout works well:
 - scheduled tasks always call `/usr/local/bin/duplicacy-backup`
 - the real binary still includes the version in its filename
 - upgrades only need a symlink update, not a Task Scheduler edit
-- the default config directory stays stable at:
-  `/usr/local/lib/duplicacy-backup/.config`
+- runtime config stays in the user profile by default:
+  `$HOME/.config/duplicacy-backup`
 
 ### Install from a release tarball
 
@@ -38,14 +37,24 @@ By default, it will:
 - copy the versioned binary into `/usr/local/lib/duplicacy-backup`
 - create or update `current`
 - create or update `/usr/local/bin/duplicacy-backup`
-- create `/usr/local/lib/duplicacy-backup/.config` if needed
-- when run as `root`, normalise `/usr/local/lib/duplicacy-backup/.config` to
-  `root:administrators` with mode `750`
-- when run as `root`, normalise any existing `*-backup.toml` files in that
-  directory to `root:administrators` with mode `640`
-- when run as `root`, ensure `/root/.secrets` exists as `root:root` with mode
-  `700`
-- never create, rewrite, or chmod individual secrets files
+- leave runtime config, secrets, logs, state, and locks in the user profile
+- never migrate config or secrets automatically
+
+Release packages include `migrate-runtime-profile.sh` for one-time upgrades
+from the legacy root-owned layout:
+
+```bash
+# Review first
+sudo ./migrate-runtime-profile.sh --dry-run --target-user <operator-user>
+
+# Copy files into the operator profile and remove legacy source files
+sudo ./migrate-runtime-profile.sh --move --target-user <operator-user>
+```
+
+The helper copies `*.toml` from `/usr/local/lib/duplicacy-backup/.config` and
+`/root/.secrets` by default, creates the destination directories with mode
+`0700`, sets migrated files to `0600`, and chowns them to the target user when
+run as root.
 
 ### Installer options
 
@@ -61,9 +70,6 @@ sudo ./install.sh --no-activate
 
 # Use custom install locations
 sudo ./install.sh --install-root /volume1/tools/duplicacy-backup --bin-dir /usr/local/bin
-
-# Use a different trusted operator group for config access
-sudo ./install.sh --config-group users
 
 # Keep only the 3 newest installed binaries
 sudo ./install.sh --keep 3
@@ -120,7 +126,7 @@ For the focused trust-model reference, including `--attestations required`,
 
 Unattended update failures can use the same notification providers as the rest
 of the tool, but the config is global rather than label-specific. Put update
-notification settings in `/usr/local/lib/duplicacy-backup/.config/duplicacy-backup.toml`:
+notification settings in `$HOME/.config/duplicacy-backup/duplicacy-backup.toml`:
 
 ```toml
 [update.notify]
@@ -198,22 +204,22 @@ restore commands remain available as the expert and scriptable path.
 Use `restore select` for the guided operator flow:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 ```
 
 Use `restore plan` to print the resolved context and suggested Duplicacy
 commands without creating the workspace or running a restore:
 
 ```bash
-sudo duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore plan --target onsite-usb homes
 ```
 
 List revisions, then restore into a drill workspace:
 
 ```bash
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 At a high level:
@@ -238,25 +244,30 @@ At a high level:
   downloaded chunk or file
 - inspect the restored data before any deliberate copy-back step
 
-### Config location after install
+### Runtime locations after install
 
-With the recommended layout, the effective default config file path becomes:
+The install location does not define runtime config. The effective defaults are
+owned by the user running the command:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
+$HOME/.config/duplicacy-backup/<label>-backup.toml
+$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml
+$HOME/.local/state/duplicacy-backup/
 ```
 
-Recommended Synology permissions:
+Recommended permissions:
 
-- config directory: `root:administrators` with mode `750`
-- config files: `root:administrators` with mode `640`
-- secrets directory: `root:root` with mode `700`
-- secrets files: `root:root` with mode `600`
+- config directory: user-owned with mode `0700`
+- config files: user-owned with mode `0600`
+- secrets directory: user-owned with mode `0700`
+- secrets files: user-owned with mode `0600`
 
 You can still override this with:
 
 - `--config-dir`
 - `DUPLICACY_BACKUP_CONFIG_DIR`
+- `--secrets-dir`
+- `DUPLICACY_BACKUP_SECRETS_DIR`
 
 ## Synology Task Scheduler
 
@@ -267,7 +278,8 @@ example across multiple labels and targets, see
 1. Open **Control Panel > Task Scheduler**
 2. Create a **Triggered Task > User-defined script**
 3. Set the schedule
-4. Run as `root`
+4. Run as `root` for `backup` and `fix-perms`; use the operator user for
+   non-root-capable checks when paths are accessible
 5. Use a command such as:
 
 ```bash

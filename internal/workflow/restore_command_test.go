@@ -535,10 +535,6 @@ func TestHandleRestoreCommand_RunReportsInterruptedRestore(t *testing.T) {
 }
 
 func TestHandleRestoreCommand_RunRemoteLoadsSecretsWithoutPrintingValues(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote restore run requires root-owned secrets file")
-	}
-
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")

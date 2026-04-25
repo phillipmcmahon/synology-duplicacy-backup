@@ -368,21 +368,14 @@ func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
 	}
 }
 
-func TestWriteRestoreLoggerFailureExplainsDefaultNonRootLogPermission(t *testing.T) {
-	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", "/var/log")
-	rt := workflow.DefaultRuntime()
-	rt.Geteuid = func() int { return 1000 }
-
+func TestWriteRestoreLoggerFailureWrapsLoggerError(t *testing.T) {
 	_, stderr := captureOutput(t, func() {
-		if code := writeRestoreLoggerFailure(meta, rt, os.ErrPermission); code != exitCodeGeneralFailure {
+		if code := writeRestoreLoggerFailure(os.ErrPermission); code != exitCodeGeneralFailure {
 			t.Fatalf("writeRestoreLoggerFailure() code = %d, want %d", code, exitCodeGeneralFailure)
 		}
 	})
-	if !strings.Contains(stderr, "restore progress logging cannot write to /var/log as the current user; re-run with sudo") {
+	if !strings.Contains(stderr, "failed to initialise restore progress logger") {
 		t.Fatalf("stderr = %q", stderr)
-	}
-	if strings.Contains(stderr, "failed to open log file") {
-		t.Fatalf("stderr exposed raw logger detail: %q", stderr)
 	}
 }
 
@@ -420,7 +413,7 @@ func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 	})
 }
 
-func TestRunHealthPrivilegeFailureAndJSON(t *testing.T) {
+func TestRunHealthNonRootReachesRealDependencyFailure(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 	rt.Geteuid = func() int { return 1000 }
@@ -432,7 +425,7 @@ func TestRunHealthPrivilegeFailureAndJSON(t *testing.T) {
 			t.Fatalf("code = %d", code)
 		}
 	})
-	if !strings.Contains(stderr, "health commands must be run as root") {
+	if !strings.Contains(stderr, "Required command 'duplicacy' not found") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stdout, `"status": "unhealthy"`) || !strings.Contains(stdout, `"label": "homes"`) {
@@ -506,8 +499,8 @@ func TestRunWithArgs_ConfigHelpReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "Config commands:") ||
-		!strings.Contains(stdout, "--config-dir <path>     (default: <binary-dir>/.config)") ||
-		!strings.Contains(stdout, "--secrets-dir <path>    (default: /root/.secrets)") ||
+		!strings.Contains(stdout, "--config-dir <path>     (default: $HOME/.config/duplicacy-backup)") ||
+		!strings.Contains(stdout, ".config/duplicacy-backup/secrets") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed config reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -525,8 +518,8 @@ func TestRunWithArgs_NotifyHelpReturnsZero(t *testing.T) {
 	if !strings.Contains(stdout, "Notify commands:") ||
 		!strings.Contains(stdout, "--provider <all|webhook|ntfy>        (default: all)") ||
 		!strings.Contains(stdout, "--severity <warning|critical|info>   (default: warning)") ||
-		!strings.Contains(stdout, "--config-dir <path>                  (default: <binary-dir>/.config)") ||
-		!strings.Contains(stdout, "--secrets-dir <path>                 (default: /root/.secrets)") ||
+		!strings.Contains(stdout, "--config-dir <path>                  (default: $HOME/.config/duplicacy-backup)") ||
+		!strings.Contains(stdout, ".config/duplicacy-backup/secrets") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed notify reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -545,7 +538,7 @@ func TestRunWithArgs_UpdateHelpReturnsZero(t *testing.T) {
 		!strings.Contains(stdout, "--keep <count>                       (default: 2)") ||
 		!strings.Contains(stdout, "--version <tag>                      (default: latest)") ||
 		!strings.Contains(stdout, "--attestations <off|auto|required>   (default: off)") ||
-		!strings.Contains(stdout, "--config-dir <path>                  (default: <binary-dir>/.config)") ||
+		!strings.Contains(stdout, "--config-dir <path>                  (default: $HOME/.config/duplicacy-backup)") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed update reference.") {
 		t.Fatalf("stdout = %q", stdout)
 	}
@@ -957,7 +950,7 @@ func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 				t.Fatalf("runWithArgs(health status non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "health commands must be run as root") {
+		if !strings.Contains(stderr, "Configuration file not found") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -1081,7 +1074,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "must be run as root") {
+		if !strings.Contains(stderr, "fix-perms must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -1090,7 +1083,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 	})
 }
 
-func TestRunWithArgs_NonRootPruneJSONFailureDoesNotRequireLogger(t *testing.T) {
+func TestRunWithArgs_NonRootPruneJSONReachesConfigFailure(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		stdout, stderr := captureOutput(t, func() {
@@ -1098,13 +1091,13 @@ func TestRunWithArgs_NonRootPruneJSONFailureDoesNotRequireLogger(t *testing.T) {
 				t.Fatalf("runWithArgs(non-root prune json) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "must be run as root") {
+		if !strings.Contains(stderr, "configuration file not found") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stdout, `"result": "failed"`) || !strings.Contains(stdout, `"failure_message": "must be run as root"`) {
+		if !strings.Contains(stdout, `"result": "failed"`) || !strings.Contains(stdout, `"failure_message": "configuration file not found`) {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -1447,7 +1440,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Cannot create the lock directory parent at") || !strings.Contains(stderr, "check that the lock parent path exists and is writable by root") {
+		if !strings.Contains(stderr, "Cannot create the lock directory parent at") || !strings.Contains(stderr, "check that the lock parent path exists and is writable by the user running this command") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		assertFailureFooter(t, stderr)

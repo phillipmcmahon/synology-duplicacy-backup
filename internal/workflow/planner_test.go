@@ -145,10 +145,6 @@ func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
 }
 
 func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets access validation requires root-owned test file")
-	}
-
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, ""))
@@ -179,10 +175,6 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 }
 
 func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("duplicacy storage secrets access validation requires root-owned test file")
-	}
-
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, ""))
@@ -225,7 +217,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 		rt := testRuntime()
 		rt.Geteuid = func() int { return 1000 }
 		planner.rt = rt
-		if err := planner.validateEnvironment(runtimeRequestForTest(&Request{DoBackup: true})); err == nil || err.Error() != "must be run as root" {
+		if err := planner.validateEnvironment(runtimeRequestForTest(&Request{DoBackup: true})); err == nil || !strings.Contains(err.Error(), "backup must be run as root") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -260,18 +252,11 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 }
 
 func TestPlannerLoadSecrets(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets access validation requires root-owned test file")
-	}
-
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
 	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
-	}
-	if err := os.Chown(secretsFile, 0, 0); err != nil {
-		t.Fatalf("Chown() error = %v", err)
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
@@ -344,18 +329,11 @@ func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 }
 
 func TestPlannerLoadSecrets_Invalid(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets access validation requires root-owned test file")
-	}
-
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
 	body := "[targets.offsite-storj.keys]\ns3_id = \"\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
-	}
-	if err := os.Chown(secretsFile, 0, 0); err != nil {
-		t.Fatalf("Chown() error = %v", err)
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
@@ -366,18 +344,11 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 }
 
 func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets access validation requires root-owned test file")
-	}
-
 	secretsDir := t.TempDir()
 	legacyFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
 	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(legacyFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
-	}
-	if err := os.Chown(legacyFile, 0, 0); err != nil {
-		t.Fatalf("Chown() error = %v", err)
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())

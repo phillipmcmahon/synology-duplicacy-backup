@@ -78,7 +78,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "secrets stat includes creation hint",
 			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml"),
-			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under /root/.secrets and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys; run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
+			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 		},
 		{
 			name: "permissions chown includes target hint",
@@ -195,7 +195,7 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "secrets ownership",
 			err:  apperrors.NewSecretsError("ownership", errors.New("secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml")),
-			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; run chown root:root on the target secrets file",
+			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; make the secrets file owned by the user running this command",
 		},
 		{
 			name: "secrets parse",
@@ -205,7 +205,7 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "lock create parent",
 			err:  apperrors.NewLockError("create-parent", errors.New("boom"), "path", "/var/lock"),
-			want: "Cannot create the lock directory parent at /var/lock; check that the lock parent path exists and is writable by root",
+			want: "Cannot create the lock directory parent at /var/lock; check that the lock parent path exists and is writable by the user running this command",
 		},
 		{
 			name: "lock stale retry",

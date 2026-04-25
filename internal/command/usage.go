@@ -80,6 +80,13 @@ func scriptTemplate(meta workflow.Metadata, template string, replacements ...str
 	return strings.NewReplacer(pairs...).Replace(template)
 }
 
+func defaultSecretsDirDisplay(rt workflow.Runtime) string {
+	if rt.Getenv("DUPLICACY_BACKUP_SECRETS_DIR") != "" {
+		return workflow.EffectiveSecretsDir(rt)
+	}
+	return "$HOME/.config/duplicacy-backup/secrets"
+}
+
 func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
@@ -133,7 +140,7 @@ COMMON OPTIONS:
     --dry-run                Simulate supported actions without making changes
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable command summary to stdout
-    --config-dir <path>      Override config directory (default: <binary-dir>/.config)
+    --config-dir <path>      Override config directory (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>     Override secrets directory (default: {{default_secrets_dir}})
     --help                   Show the concise help message
     --help-full              Show the detailed help message
@@ -165,7 +172,7 @@ SAFE PRUNE THRESHOLDS:
     Min revisions for % check: {{safe_prune_min_total_for_percent}} (default {{safe_prune_min_total_for_percent}})
 
 CONFIG FILE LOCATION:
-    <binary-dir>/.config/<label>-backup.toml
+    $HOME/.config/duplicacy-backup/<label>-backup.toml
     Effective default: {{config_dir}}/<label>-backup.toml
     Override with --config-dir or DUPLICACY_BACKUP_CONFIG_DIR
     Global app config, when used: {{config_dir}}/{{app_config_file}}
@@ -338,7 +345,7 @@ EXAMPLES:
     {{script}} update --check-only
     {{script}} update --yes
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 		"{{default_keep}}", fmt.Sprint(updatepkg.DefaultKeep),
 		"{{safe_prune_max_delete_percent}}", fmt.Sprint(config.DefaultSafePruneMaxDeletePercent),
 		"{{safe_prune_max_delete_count}}", fmt.Sprint(config.DefaultSafePruneMaxDeleteCount),
@@ -359,7 +366,7 @@ Config commands:
 
 Options:
     --target <name>
-    --config-dir <path>     (default: <binary-dir>/.config)
+    --config-dir <path>     (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
     --help-full
@@ -371,7 +378,7 @@ Examples:
 
 Use --help-full for the detailed config reference.
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 	)
 }
 
@@ -381,7 +388,7 @@ func DiagnosticsUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
 Diagnostics options:
     --target <name>
     --json-summary
-    --config-dir <path>     (default: <binary-dir>/.config)
+    --config-dir <path>     (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    (default: {{default_secrets_dir}})
     --help
     --help-full
@@ -392,7 +399,7 @@ Examples:
 
 Use --help-full for the detailed diagnostics reference.
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 	)
 }
 
@@ -406,7 +413,7 @@ DIAGNOSTICS COMMAND:
 OPTIONS:
     --target <name>         Select the named target (required)
     --json-summary          Write the diagnostics report as machine-readable JSON
-    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --config-dir <path>     Override config directory (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
     --help                  Show the concise diagnostics help message
     --help-full             Show the detailed diagnostics help message
@@ -431,7 +438,7 @@ EXAMPLES:
     {{script}} diagnostics --target offsite-storj --json-summary homes
     {{script}} diagnostics --target onsite-usb --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 		"{{config_dir}}", cfgDir,
 		"{{state_dir}}", meta.StateDir,
 		"{{log_dir}}", meta.LogDir,
@@ -453,7 +460,7 @@ Options:
     --message <text>
     --dry-run
     --json-summary
-    --config-dir <path>                  (default: <binary-dir>/.config)
+    --config-dir <path>                  (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>                 (default: {{default_secrets_dir}})
     --help
     --help-full
@@ -466,7 +473,7 @@ Examples:
 
 Use --help-full for the detailed notify reference.
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 	)
 }
 
@@ -486,7 +493,7 @@ OPTIONS:
     --message <text>        Override the default synthetic message body
     --dry-run               Preview the resolved destinations and synthetic payload without sending
     --json-summary          Write a machine-readable test summary to stdout
-    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --config-dir <path>     Override config directory (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
     --help                  Show the concise notify help message
     --help-full             Show the detailed notify help message
@@ -520,7 +527,7 @@ EXAMPLES:
     {{script}} notify test update --provider ntfy --event update_install_failed
     {{script}} notify test update --provider ntfy --severity critical --dry-run
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 		"{{app_config_file}}", config.DefaultAppConfigFile,
 	)
 }
@@ -535,7 +542,7 @@ Update options:
     --keep <count>                       (default: {{default_keep}})
     --version <tag>                      (default: latest)
     --attestations <off|auto|required>   (default: off)
-    --config-dir <path>                  (default: <binary-dir>/.config)
+    --config-dir <path>                  (default: $HOME/.config/duplicacy-backup)
     --help
     --help-full
 
@@ -544,7 +551,7 @@ Examples:
     {{script}} update --yes
     {{script}} update --attestations required --yes
     {{script}} update --version v4.1.8 --yes
-    {{script}} update --yes --config-dir /usr/local/lib/duplicacy-backup/.config
+    {{script}} update --yes --config-dir "$HOME/.config/duplicacy-backup"
 
 Use --help-full for the detailed update reference.
 `,
@@ -626,7 +633,7 @@ OPTIONS:
     --keep <count>         Keep this many newest installed binaries after activation (default: {{default_keep}})
     --version <tag>        Install one specific published release tag instead of the latest release
     --attestations <mode>  Verify GitHub release attestations: off, auto, or required (default: off)
-    --config-dir <path>    Override config directory for update notifications (default: <binary-dir>/.config)
+    --config-dir <path>    Override config directory for update notifications (default: $HOME/.config/duplicacy-backup)
     --help                 Show the concise update help message
     --help-full            Show the detailed update help message
 
@@ -697,7 +704,7 @@ CONFIG COMMANDS:
 
 OPTIONS:
     --target <name>         Select the named target (required)
-    --config-dir <path>     Override config directory (default: <binary-dir>/.config)
+    --config-dir <path>     Override config directory (default: $HOME/.config/duplicacy-backup)
     --secrets-dir <path>    Override secrets directory (default: {{default_secrets_dir}})
     --help                  Show the concise help message
     --help-full             Show the detailed config help message
@@ -717,7 +724,7 @@ EXAMPLES:
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
 `,
-		"{{default_secrets_dir}}", config.DefaultSecretsDir,
+		"{{default_secrets_dir}}", defaultSecretsDirDisplay(rt),
 		"{{config_dir}}", cfgDir,
 	)
 }

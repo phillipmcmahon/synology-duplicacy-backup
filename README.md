@@ -88,48 +88,40 @@ sudo ./install.sh
 ```
 
 See [`docs/operations.md`](docs/operations.md) for the recommended install
-layout and upgrade workflow.
+layout and upgrade workflow. See [`docs/privilege-model.md`](docs/privilege-model.md)
+for the non-root default model and the commands that still require root.
 
 ### 3. Create config
 
-With the recommended installer layout, the default config location is:
+The default config location is user-owned:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
+$HOME/.config/duplicacy-backup/<label>-backup.toml
 ```
 
 Example:
 
 ```bash
-mkdir -p /usr/local/lib/duplicacy-backup/.config
-cp examples/homes-backup.toml /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
-chown root:administrators /usr/local/lib/duplicacy-backup/.config
-chmod 750 /usr/local/lib/duplicacy-backup/.config
-chown root:administrators /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
-chmod 640 /usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+mkdir -p "$HOME/.config/duplicacy-backup"
+cp examples/homes-backup.toml "$HOME/.config/duplicacy-backup/homes-backup.toml"
+chmod 700 "$HOME/.config/duplicacy-backup"
+chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 ```
 
-When it is run as `root`, the Synology installer also:
-
-- normalises `.config` to `root:administrators` with mode `750`
-- normalises any existing `*-backup.toml` files there to mode `640`
-- ensures `/root/.secrets` exists as `root:root` with mode `700`
-
-Use `./install.sh --config-group <name>` if you want a different trusted
-operator group for config access. The installer never creates or rewrites
-individual secrets files.
+The installer manages the binary only. For upgrades from the old root-era
+layout, run `migrate-runtime-profile.sh --dry-run` from the release package,
+then rerun it with `--move` only when you are ready to remove the legacy files.
 
 For labels with Duplicacy storage targets, or for any target that needs
 authenticated notification delivery, create a matching label secrets file under
-`/root/.secrets` and add target-specific entries inside it:
+`$HOME/.config/duplicacy-backup/secrets` and add target-specific entries inside
+it:
 
 ```bash
-mkdir -p /root/.secrets
-chown root:root /root/.secrets
-chmod 700 /root/.secrets
-cp examples/homes-secrets.toml /root/.secrets/homes-secrets.toml
-chown root:root /root/.secrets/homes-secrets.toml
-chmod 600 /root/.secrets/homes-secrets.toml
+mkdir -p "$HOME/.config/duplicacy-backup/secrets"
+cp examples/homes-secrets.toml "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
+chmod 700 "$HOME/.config/duplicacy-backup/secrets"
+chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ```
 
 Duplicacy storage keys live under `[targets.<name>.keys]` and are written to
@@ -169,7 +161,7 @@ Start with validation and a dry run before scheduling anything:
 
 ```bash
 # Validate the selected target from the homes config
-sudo duplicacy-backup config validate --target onsite-usb homes
+duplicacy-backup config validate --target onsite-usb homes
 
 # Preview a backup without changing storage
 sudo duplicacy-backup backup --target onsite-usb --dry-run homes
@@ -178,19 +170,19 @@ sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 sudo duplicacy-backup backup --target onsite-usb homes
 
 # Check backup freshness and repository status
-sudo duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup health status --target onsite-usb homes
 
 # Gather a redacted support bundle for one label and target
-sudo duplicacy-backup diagnostics --target onsite-usb homes
+duplicacy-backup diagnostics --target onsite-usb homes
 
 # Start the guided operator restore flow
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert or scripted restore path
-sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
@@ -228,7 +220,8 @@ Core operating rules:
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific
-  state under `/var/lib/duplicacy-backup/<label>.<target>.json`.
+  state under `$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json`
+  by default.
 - `diagnostics` prints a redacted label-target support bundle with resolved
   paths, storage scheme, state freshness, and permission summaries.
 - `restore select` is the primary operator restore path. It presents restore

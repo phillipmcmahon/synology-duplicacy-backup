@@ -171,6 +171,7 @@ GO_CMD="$(resolve_go_command)"
 
 [ -f "$REPO_ROOT/README.md" ] || fail "repo root not valid: $REPO_ROOT"
 [ -f "$REPO_ROOT/scripts/install-synology.sh" ] || fail "installer script not found"
+[ -f "$REPO_ROOT/scripts/migrate-runtime-profile.sh" ] || fail "runtime migration script not found"
 
 ARCH_SUFFIX="$(arch_suffix)"
 BASENAME="duplicacy-backup_${VERSION}_${GOOS}_${ARCH_SUFFIX}"
@@ -201,8 +202,10 @@ PACKAGE_ROOT="$PKG_DIR/$BASENAME"
 mkdir -p "$PACKAGE_ROOT"
 cp "$BINARY_PATH" "$PACKAGE_ROOT/"
 cp "$REPO_ROOT/scripts/install-synology.sh" "$PACKAGE_ROOT/install.sh"
+cp "$REPO_ROOT/scripts/migrate-runtime-profile.sh" "$PACKAGE_ROOT/migrate-runtime-profile.sh"
 cp "$REPO_ROOT/README.md" "$REPO_ROOT/LICENSE" "$PACKAGE_ROOT/"
 chmod 755 "$PACKAGE_ROOT/install.sh"
+chmod 755 "$PACKAGE_ROOT/migrate-runtime-profile.sh"
 
 tar -czf "$ARCHIVE_PATH" -C "$PKG_DIR" "$BASENAME"
 (
@@ -216,12 +219,14 @@ tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR"
 EXTRACTED_ROOT="$EXTRACT_DIR/$BASENAME"
 EXTRACTED_BINARY="$EXTRACTED_ROOT/$BASENAME"
 EXTRACTED_INSTALLER="$EXTRACTED_ROOT/install.sh"
+EXTRACTED_MIGRATOR="$EXTRACTED_ROOT/migrate-runtime-profile.sh"
 
 [ -d "$EXTRACTED_ROOT" ] || fail "packaged root missing from archive"
 [ -f "$EXTRACTED_ROOT/README.md" ] || fail "README.md missing from archive"
 [ -f "$EXTRACTED_ROOT/LICENSE" ] || fail "LICENSE missing from archive"
 [ -x "$EXTRACTED_BINARY" ] || fail "binary missing or not executable in archive"
 [ -x "$EXTRACTED_INSTALLER" ] || fail "install.sh missing or not executable in archive"
+[ -x "$EXTRACTED_MIGRATOR" ] || fail "migrate-runtime-profile.sh missing or not executable in archive"
 
 EXPECTED_PATTERN="$(expected_file_pattern "$GOOS" "$GOARCH")"
 FILE_OUTPUT="$(file "$EXTRACTED_BINARY")"
@@ -236,5 +241,6 @@ else
 fi
 
 sh "$EXTRACTED_INSTALLER" --help >/dev/null
+sh "$EXTRACTED_MIGRATOR" --help >/dev/null
 
 printf '%s\n' "$BASENAME"

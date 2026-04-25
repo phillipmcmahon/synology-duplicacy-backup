@@ -23,10 +23,6 @@ func stubConfigCommandRunner(t *testing.T, results ...execpkg.MockResult) {
 }
 
 func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -267,10 +263,6 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 }
 
 func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -439,10 +431,6 @@ func TestHandleConfigCommand_ValidateFailsWhenDuplicacyStorageIsInvalid(t *testi
 }
 
 func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 	)
@@ -455,9 +443,6 @@ func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *tes
 	body := "[targets.offsite-storj.keys]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsPath, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
-	}
-	if err := os.Chown(secretsPath, 0, 0); err != nil {
-		t.Fatalf("Chown() error = %v", err)
 	}
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
@@ -504,10 +489,6 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 }
 
 func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -570,10 +551,6 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 }
 
 func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},
@@ -796,10 +773,6 @@ func TestColourizeConfigValidationValue(t *testing.T) {
 }
 
 func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("remote secrets validation requires root-owned test file")
-	}
-
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{},

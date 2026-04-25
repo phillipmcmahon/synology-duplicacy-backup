@@ -7,48 +7,32 @@ procedure, use [restore-drills.md](restore-drills.md).
 
 ## Config File Location
 
-By default, the binary resolves config files relative to the executable:
+By default, the binary resolves config files under the user profile:
 
 ```text
-<binary-dir>/.config/<label>-backup.toml
+$HOME/.config/duplicacy-backup/<label>-backup.toml
 ```
 
-With the recommended installer layout from [`operations.md`](operations.md),
-that becomes:
+When `XDG_CONFIG_HOME` is set, the default becomes:
 
 ```text
-/usr/local/lib/duplicacy-backup/.config/homes-backup.toml
+$XDG_CONFIG_HOME/duplicacy-backup/<label>-backup.toml
 ```
-
-If you are using the stable installer path:
-
-```text
-/usr/local/bin/duplicacy-backup
-```
-
-the config still resolves under:
-
-```text
-/usr/local/lib/duplicacy-backup/.config/
-```
-
-because `/usr/local/bin/duplicacy-backup` is just a symlink to the real
-installed binary under `/usr/local/lib/duplicacy-backup/`.
 
 Overrides:
 
 - `--config-dir <path>`
 - `DUPLICACY_BACKUP_CONFIG_DIR`
 
-Recommended Synology permissions for the installed layout:
+Recommended permissions:
 
-- config directory: `root:administrators` with mode `750`
-- config files: `root:administrators` with mode `640`
+- config directory: owned by the operator user with mode `0700`
+- config files: owned by the operator user with mode `0600`
 
-When the bundled installer is run as `root`, it applies that policy
-automatically to the default `.config` directory and any existing
-`*-backup.toml` files. Use `./install.sh --config-group <name>` if you want a
-different trusted operator group.
+The installer manages the binary only. It does not automatically move runtime
+config or secrets. Release packages include `migrate-runtime-profile.sh` for
+operators moving from the legacy root-era layout into the user-owned profile.
+Run it with `--dry-run` first.
 
 ## Config File Format
 
@@ -418,7 +402,7 @@ authenticated notification delivery can optionally read target-scoped tokens
 from:
 
 ```text
-/root/.secrets/<label>-secrets.toml
+$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml
 ```
 
 Overrides:
@@ -443,7 +427,7 @@ health_ntfy_token = "optional-ntfy-bearer-token"
 
 Requirements:
 
-- owned by `root:root`
+- owned by the user running `duplicacy-backup`
 - secrets directory permissions `0700`
 - permissions `0600`
 - storage keys live under `[targets.<name>.keys]` and are loaded for known Duplicacy backends that require them
@@ -470,8 +454,7 @@ storj_key = "your-storj-access-grant"
 storj_passphrase = "your-storj-passphrase"
 ```
 
-When run as `root`, the bundled installer ensures `/root/.secrets` exists with
-mode `700`, but it does not create or rewrite any individual secrets files.
+The bundled installer does not create or rewrite secrets directories or files.
 
 Path-based storage targets do not load storage keys.
 They only need a matching secrets file if a notifying target uses
@@ -492,8 +475,11 @@ Use `prune --force` to override threshold enforcement.
 Successful runs update a target-specific state file under:
 
 ```text
-/var/lib/duplicacy-backup/<label>.<target>.json
+$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json
 ```
+
+When `XDG_STATE_HOME` is set, the state root is
+`$XDG_STATE_HOME/duplicacy-backup/state`.
 
 `health status`, `health doctor`, and `health verify` combine this target-specific state
 with live Duplicacy storage inspection. When `duplicacy list` exposes revision

@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,6 +25,9 @@ func TestRuntimeHelpers(t *testing.T) {
 		if key == "TEST_ENV_DIR" {
 			return "/env/config"
 		}
+		if key == "HOME" {
+			return "/home/operator"
+		}
 		return ""
 	}
 	if got := ResolveDir(rt, "/flag/config", "TEST_ENV_DIR", "/default/config"); got != "/flag/config" {
@@ -38,33 +40,50 @@ func TestRuntimeHelpers(t *testing.T) {
 		t.Fatalf("ResolveDir(default) = %q", got)
 	}
 
-	base := t.TempDir()
-	exePath := filepath.Join(base, "bin", "duplicacy-backup")
-	if err := os.MkdirAll(filepath.Dir(exePath), 0755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-	rt.Executable = func() (string, error) { return exePath, nil }
-	rt.EvalSymlinks = func(path string) (string, error) { return path, nil }
-
-	if got := ExecutableConfigDir(rt); got != filepath.Join(filepath.Dir(exePath), ".config") {
-		t.Fatalf("ExecutableConfigDir() = %q", got)
-	}
-	if got := EffectiveConfigDir(rt); got != filepath.Join(filepath.Dir(exePath), ".config") {
+	if got := EffectiveConfigDir(rt); got != "/home/operator/.config/duplicacy-backup" {
 		t.Fatalf("EffectiveConfigDir() = %q", got)
+	}
+	if got := EffectiveSecretsDir(rt); got != "/home/operator/.config/duplicacy-backup/secrets" {
+		t.Fatalf("EffectiveSecretsDir() = %q", got)
 	}
 
 	rt.Getenv = func(key string) string {
 		if key == "DUPLICACY_BACKUP_CONFIG_DIR" {
 			return "/override/config"
 		}
+		if key == "DUPLICACY_BACKUP_SECRETS_DIR" {
+			return "/override/secrets"
+		}
+		if key == "HOME" {
+			return "/home/operator"
+		}
 		return ""
 	}
 	if got := EffectiveConfigDir(rt); got != "/override/config" {
 		t.Fatalf("EffectiveConfigDir(env override) = %q", got)
 	}
+	if got := EffectiveSecretsDir(rt); got != "/override/secrets" {
+		t.Fatalf("EffectiveSecretsDir(env override) = %q", got)
+	}
 
-	rt.Executable = func() (string, error) { return "", os.ErrNotExist }
-	if got := ExecutableConfigDir(rt); got != filepath.Join(".", ".config") {
-		t.Fatalf("ExecutableConfigDir(fallback) = %q", got)
+	rt.Getenv = func(key string) string {
+		switch key {
+		case "XDG_CONFIG_HOME":
+			return "/xdg/config"
+		case "XDG_STATE_HOME":
+			return "/xdg/state"
+		case "HOME":
+			return "/home/operator"
+		default:
+			return ""
+		}
+	}
+	dirs := DefaultUserProfileDirs(rt)
+	if dirs.ConfigDir != filepath.Join("/xdg/config", "duplicacy-backup") ||
+		dirs.SecretsDir != filepath.Join("/xdg/config", "duplicacy-backup", "secrets") ||
+		dirs.LogDir != filepath.Join("/xdg/state", "duplicacy-backup", "logs") ||
+		dirs.StateDir != filepath.Join("/xdg/state", "duplicacy-backup", "state") ||
+		dirs.LockDir != filepath.Join("/xdg/state", "duplicacy-backup", "locks") {
+		t.Fatalf("DefaultUserProfileDirs() = %#v", dirs)
 	}
 }

@@ -31,7 +31,7 @@ var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotifica
 
 const scriptName = "duplicacy-backup"
 
-var logDir = "/var/log"
+var logDir string
 
 func main() {
 	os.Exit(run())
@@ -42,12 +42,15 @@ func run() int {
 }
 
 func runWithArgs(args []string) int {
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logDir)
 	rt := workflow.DefaultRuntime()
 	rt.Geteuid = geteuid
 	rt.LookPath = lookPath
 	rt.NewLock = newLock
 	rt.NewSourceLock = newSourceLock
+	meta := workflow.DefaultMetadataForRuntime(scriptName, version, buildTime, rt)
+	if logDir != "" {
+		meta.LogDir = logDir
+	}
 
 	result, code := buildRequest(args, meta, rt)
 	if code != 0 {

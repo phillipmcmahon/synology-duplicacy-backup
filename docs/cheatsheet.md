@@ -1,8 +1,8 @@
 # Operator Cheat Sheet
 
-Use `sudo` for most installed NAS operations. `config paths`,
-`diagnostics`, `update --check-only`, `rollback --check-only`, and dry-run
-notification tests are common normal-user exceptions.
+Run commands as the operator user by default. Use `sudo` only for operations
+that need root-level OS access, such as `backup`, `fix-perms`, and managed
+install activation with `update --yes` or `rollback --yes`.
 
 Despite its historical name, `duplicacy-backup` is now the operator entrypoint
 for backup, prune, health, diagnostics, restore drills, update, and rollback
@@ -29,7 +29,7 @@ Target model:
 sudo duplicacy-backup backup --target onsite-usb homes
 
 # Safe prune homes on target onsite-usb
-sudo duplicacy-backup prune --target onsite-usb homes
+duplicacy-backup prune --target onsite-usb homes
 
 # Backup homes to target offsite-storj
 sudo duplicacy-backup backup --target offsite-storj homes
@@ -44,10 +44,10 @@ sudo duplicacy-backup backup --target offsite-usb homes
 sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 
 # Preview prune for homes on target onsite-usb with detailed logs
-sudo duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
+duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
 
 # Run storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup cleanup-storage --target onsite-usb homes
+duplicacy-backup cleanup-storage --target onsite-usb homes
 
 # Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup fix-perms --target onsite-usb homes
@@ -57,16 +57,16 @@ sudo duplicacy-backup fix-perms --target onsite-usb homes
 
 ```bash
 # Fast health summary for homes on target onsite-usb
-sudo duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup health status --target onsite-usb homes
 
 # Run a doctor check for homes on target onsite-usb
-sudo duplicacy-backup health doctor --target onsite-usb homes
+duplicacy-backup health doctor --target onsite-usb homes
 
 # Run verify for homes on target onsite-usb
-sudo duplicacy-backup health verify --target onsite-usb homes
+duplicacy-backup health verify --target onsite-usb homes
 
 # Write a JSON verify report for homes on target onsite-usb
-sudo duplicacy-backup health verify --json-summary --target onsite-usb homes
+duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
 Exit codes:
@@ -82,13 +82,13 @@ logger or privilege problem exits `2`.
 
 ```bash
 # Validate config for homes on target onsite-usb
-sudo duplicacy-backup config validate --target onsite-usb homes
+duplicacy-backup config validate --target onsite-usb homes
 
 # Explain config for homes on target onsite-usb
-sudo duplicacy-backup config explain --target onsite-usb homes
+duplicacy-backup config explain --target onsite-usb homes
 
 # Explain config for homes on target offsite-storj
-sudo duplicacy-backup config explain --target offsite-storj homes
+duplicacy-backup config explain --target offsite-storj homes
 
 # Show paths for homes on target onsite-usb
 duplicacy-backup config paths --target onsite-usb homes
@@ -115,21 +115,22 @@ duplicacy-backup diagnostics --target offsite-storj --json-summary homes
 
 ```text
 /usr/local/bin/duplicacy-backup
-/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml
-/root/.secrets/<label>-secrets.toml  # Duplicacy storage keys and notification auth tokens when needed
-/var/lib/duplicacy-backup/<label>.<target>.json
+$HOME/.config/duplicacy-backup/<label>-backup.toml
+$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml  # Duplicacy storage keys and notification auth tokens when needed
+$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json
 ```
 
 Recommended permissions:
-- `/usr/local/lib/duplicacy-backup/.config`: `root:administrators` `750`
-- `/usr/local/lib/duplicacy-backup/.config/<label>-backup.toml`: `root:administrators` `640`
-- `/root/.secrets`: `root:root` `700`
-- `/root/.secrets/<label>-secrets.toml`: `root:root` `600`
+- `$HOME/.config/duplicacy-backup`: user-owned `700`
+- `$HOME/.config/duplicacy-backup/<label>-backup.toml`: user-owned `600`
+- `$HOME/.config/duplicacy-backup/secrets`: user-owned `700`
+- `$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml`: user-owned `600`
 
 Installer behaviour:
-- `install.sh` creates or normalises `/usr/local/lib/duplicacy-backup/.config`
-- when run as `root`, `install.sh` also creates or normalises `/root/.secrets`
-- `install.sh` never writes or rewrites individual secrets files
+- `install.sh` installs and activates the binary
+- `install.sh` never migrates runtime config or secrets automatically
+- `migrate-runtime-profile.sh --dry-run` previews root-era config/secrets migration
+- `migrate-runtime-profile.sh --move --target-user <user>` moves legacy TOML files into that user's profile
 
 ## General Guidelines
 
@@ -177,20 +178,20 @@ Installer behaviour:
 
 ```bash
 # Confirm the selected repository before a restore drill
-sudo duplicacy-backup config explain --target onsite-usb homes
-sudo duplicacy-backup config validate --target onsite-usb homes
-sudo duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup config explain --target onsite-usb homes
+duplicacy-backup config validate --target onsite-usb homes
+duplicacy-backup health status --target onsite-usb homes
 
 # Guided operator restore
-sudo duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb homes
 
 # Start the picker under a known subtree in a large backup
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
-sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run \
+duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/Documents/tax.pdf" \
@@ -198,7 +199,7 @@ sudo duplicacy-backup restore run \
   homes
 
 # Restore a directory subtree into the drill workspace
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/code/*" \

@@ -13,6 +13,23 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Changed
+- **Runtime defaults now follow a non-root operator model**:
+  config defaults to `$HOME/.config/duplicacy-backup`, secrets default to
+  `$HOME/.config/duplicacy-backup/secrets`, and logs/state/locks default to
+  `$HOME/.local/state/duplicacy-backup`. Root is now required only for
+  operations that fundamentally need privileged OS access, such as btrfs backup
+  snapshots, `fix-perms`, and managed install activation.
+- **The Synology installer no longer manages runtime config or secrets**:
+  install and update flows manage the versioned binary and symlinks only.
+  Operators own their config, secrets, state, log, and lock paths explicitly,
+  which keeps restore, health, diagnostics, prune, cleanup, and notification
+  checks usable as a normal user when the selected paths are accessible.
+- **Release packages now include a runtime profile migration helper**:
+  `migrate-runtime-profile.sh` copies legacy TOML files from
+  `/usr/local/lib/duplicacy-backup/.config` and `/root/.secrets` into the
+  operator user's profile with `0700` directories and `0600` files. It supports
+  `--dry-run` for review and `--move` when operators are ready to remove the
+  legacy source files after a successful copy.
 - **Coverage documentation now distinguishes floor and aggregate metrics**:
   the current quality gate is a package-level minimum of 85.0%, while the
   aggregate Linux Go 1.26 coverage snapshot is higher at 87.8%. This avoids

@@ -258,7 +258,7 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		if path := err.Context["path"]; path != "" {
 			return withHint(
 				fmt.Sprintf("Secrets file not found: %s", path),
-				"create <label>-secrets.toml under /root/.secrets and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys; run as root if the file stays under /root/.secrets or override the directory with --secrets-dir",
+				"create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 			)
 		}
 	case "permissions":
@@ -267,7 +267,7 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		}
 	case "ownership":
 		if err.Cause != nil {
-			return withHint(err.Cause.Error(), "run chown root:root on the target secrets file")
+			return withHint(err.Cause.Error(), "make the secrets file owned by the user running this command")
 		}
 	case "parse":
 		if err.Cause != nil {
@@ -297,7 +297,7 @@ func operatorLockMessage(err *apperrors.LockError) string {
 	case "create-parent":
 		return withHint(
 			fmt.Sprintf("Cannot create the lock directory parent at %s", valueOrUnknown(err.Context["path"])),
-			"check that the lock parent path exists and is writable by root",
+			"check that the lock parent path exists and is writable by the user running this command",
 		)
 	case "stale-retry":
 		return withHint(

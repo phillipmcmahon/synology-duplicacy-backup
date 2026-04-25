@@ -60,18 +60,18 @@ Pick the label and target you want to prove. For most operator restores, start
 with the guided flow:
 
 ```bash
-sudo duplicacy-backup config explain --target onsite-usb homes
-sudo duplicacy-backup config validate --target onsite-usb homes
-sudo duplicacy-backup health status --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup config explain --target onsite-usb homes
+duplicacy-backup config validate --target onsite-usb homes
+duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb homes
 ```
 
 Use the expert primitives when you want a step-by-step runbook instead:
 
 ```bash
-sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
+duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
 ```
 
 `restore plan` shows the same `Storage` value as `config explain`, the
@@ -120,7 +120,7 @@ sudo mkdir -p /volume1/restore-drills
 ```
 
 ```bash
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --workspace-root /volume1/restore-drills \
@@ -194,7 +194,7 @@ rerun the restore or remove the workspace manually when it is no longer useful.
 List available backup revisions with the wrapper:
 
 ```bash
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -204,7 +204,7 @@ confirming that the repository is current before a drill.
 If you prefer the guided operator flow, use the picker:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb homes
 ```
 
 The picker prints the exact primitive command or commands that will be used for
@@ -245,7 +245,7 @@ The common restore shapes are:
 For large repositories, start from a useful subtree:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 ```
 
 ## NAS Permission Smoke Check
@@ -255,7 +255,7 @@ shared-folder root before and after a small restore drill:
 
 ```bash
 stat -c '%a %U:%G %n' /volume1/restore-drills
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --workspace-root /volume1/restore-drills \
@@ -270,14 +270,14 @@ find /volume1/restore-drills -maxdepth 1 -type d -name 'homes-onsite-usb-*' -pri
 
 The two `stat` lines for `/volume1/restore-drills` should match. The derived
 job folder beneath it is expected to be prepared for restore use and may have
-stricter root-owned permissions.
+stricter permissions owned by the user that ran the restore.
 
 ## Full Restore Drill
 
 Run the restore into the drill workspace:
 
 ```bash
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --yes \
@@ -309,7 +309,7 @@ Duplicacy restore accepts command-line patterns, so you can restore one file
 or a directory subtree into the drill workspace:
 
 ```bash
-sudo duplicacy-backup restore run \
+duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --path "relative/file/or/pattern" \
@@ -320,8 +320,8 @@ sudo duplicacy-backup restore run \
 Examples:
 
 ```bash
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
+duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
+duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,

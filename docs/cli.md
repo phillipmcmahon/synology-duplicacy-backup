@@ -138,27 +138,27 @@ sudo duplicacy-backup backup --target onsite-usb homes
 sudo duplicacy-backup backup --target onsite-usb --json-summary --dry-run homes
 
 # Config command
-sudo duplicacy-backup config validate --target onsite-usb homes
+duplicacy-backup config validate --target onsite-usb homes
 
 # Health command
-sudo duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup health status --target onsite-usb homes
 
 # Redacted support bundle
 duplicacy-backup diagnostics --target onsite-usb homes
 
 # Label-scoped notification test
-sudo duplicacy-backup notify test --target onsite-usb homes
+duplicacy-backup notify test --target onsite-usb homes
 
 # Guided operator restore
-sudo duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup restore select --target onsite-usb homes
 
 # Start the picker from a useful subtree in a large backup
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
-sudo duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
