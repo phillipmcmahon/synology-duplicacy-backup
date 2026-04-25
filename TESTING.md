@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v7.0.0`
+Current public release baseline: `v7.1.0`
 
 Active release-prep target: none
 
@@ -55,15 +55,30 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
-- overall coverage: `83.8%`
+- overall coverage: `83.9%`
 - `cmd/duplicacy-backup`: `90.6%`
-- `internal/workflow`: `82.8%`
+- `internal/workflow`: `83.0%`
 - `internal/restorepicker`: `73.9%`
 - `internal/update`: `82.6%`
 - `internal/duplicacy`: `81.6%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `92.0%`
 - `internal/config`: `87.6%`
+
+Additional v7.1.0 validation:
+
+- New NAS restore documentation now covers installing the tool on replacement
+  hardware, recreating minimum config/secrets files, and proving restore access
+  before rebuilding live source paths.
+- Restore access coverage now allows restore-oriented flows without
+  `source_path`, while backup/full `config validate` still requires source
+  readiness.
+- Restore workspace coverage now pins the default
+  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`
+  naming model independently of `source_path`.
+- Restore help and documentation now consistently describe `source_path` as
+  live-source and copy-back context, not a prerequisite for reading backup
+  data.
 
 Additional v7.0.0 validation:
 

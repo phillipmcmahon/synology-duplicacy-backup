@@ -39,8 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux Go 1.26**: `go test -cover ./...`
 
 ### Coverage snapshot
-- overall coverage: pending release prep
-- `internal/workflow`: pending release prep
+- overall coverage: `83.9%`
+- `cmd/duplicacy-backup`: `90.6%`
+- `internal/workflow`: `83.0%`
+- `internal/duplicacy`: `81.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `92.0%`
 
 ## [v7.0.0] - 2026-04-24
 
