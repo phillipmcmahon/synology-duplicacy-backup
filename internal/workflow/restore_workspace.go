@@ -10,12 +10,12 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
-const defaultRestoreWorkspaceRoot = "/volume1"
+const defaultRestoreWorkspaceRoot = "/volume1/restore-drills"
 
 func resolvedRestoreWorkspace(req *Request, plan *Plan, deps RestoreDeps) string {
 	workspace := req.RestoreWorkspace
 	if strings.TrimSpace(workspace) == "" {
-		workspace = recommendedRestoreWorkspace(plan.SnapshotSource, req.Source, req.Target(), deps)
+		workspace = recommendedRestoreWorkspace(req.Source, req.Target(), deps)
 	}
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
@@ -28,36 +28,34 @@ func resolvedRestoreRunWorkspace(req *Request, rt Runtime, plan *Plan, storage s
 	if err != nil {
 		return "", err
 	}
-	return recommendedRestoreWorkspaceForRevision(plan.SnapshotSource, req.Source, req.Target(), revision, deps), nil
+	return recommendedRestoreWorkspaceForRevision(req.Source, req.Target(), revision, deps), nil
 }
 
 func resolvedRestoreSelectWorkspace(req *Request, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
 	if strings.TrimSpace(req.RestoreWorkspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps)
 	}
-	return recommendedRestoreWorkspaceForRevision(plan.SnapshotSource, req.Source, req.Target(), revision, deps)
+	return recommendedRestoreWorkspaceForRevision(req.Source, req.Target(), revision, deps)
 }
 
-func recommendedRestoreWorkspace(sourcePath, label, target string, deps RestoreDeps) string {
-	base := restoreWorkspaceBase(sourcePath)
+func recommendedRestoreWorkspace(label, target string, deps RestoreDeps) string {
 	timestamp := deps.Now().Local().Format("20060102-150405")
-	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s", label, target, timestamp))
+	return filepath.Join(restoreWorkspaceRoot(deps), fmt.Sprintf("%s-%s-%s", label, target, timestamp))
 }
 
-func recommendedRestoreWorkspaceForRevision(sourcePath, label, target string, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
-	base := restoreWorkspaceBase(sourcePath)
+func recommendedRestoreWorkspaceForRevision(label, target string, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
 	timestamp := deps.Now().Local().Format("20060102-150405")
 	if !revision.CreatedAt.IsZero() {
 		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
 	}
-	return filepath.Join(base, "restore-drills", fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
+	return filepath.Join(restoreWorkspaceRoot(deps), fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
 }
 
-func restoreWorkspaceBase(sourcePath string) string {
-	if strings.TrimSpace(sourcePath) == "" {
+func restoreWorkspaceRoot(deps RestoreDeps) string {
+	if strings.TrimSpace(deps.RestoreWorkspaceRoot) == "" {
 		return defaultRestoreWorkspaceRoot
 	}
-	return rootVolumeForSource(sourcePath)
+	return filepath.Clean(strings.TrimSpace(deps.RestoreWorkspaceRoot))
 }
 
 func validateRestoreWorkspace(workspace, sourcePath string) error {

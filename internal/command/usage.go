@@ -270,10 +270,10 @@ RESTORE PLANNING AND DISCOVERY:
 RESTORE EXECUTION:
     restore run prepares the drill workspace when needed and then executes
     duplicacy restore only inside that workspace. When --workspace is omitted,
-    the workspace is derived from the selected restore point:
-    <source-volume>/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
-    If source_path is not configured, restore-only DR access still works and
-    the default workspace root is /volume1/restore-drills.
+    the workspace is derived from the restore job:
+    /volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
+    source_path is only live-source and copy-back context; restore-only DR
+    access does not require it.
     It never restores over the live source path and never copies data back. Use
     --path for selective file restores or directory patterns, --dry-run to
     print the planned command, and --yes for unattended execution.

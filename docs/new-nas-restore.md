@@ -92,15 +92,15 @@ sudo mkdir -p /volume1/homes
 ```
 
 Restore execution will not write to `source_path`. It restores into a separate
-drill workspace such as:
+drill workspace derived from the restore job:
 
 ```text
 /volume1/restore-drills/homes-offsite-storj-20260424-070000-rev2403
 ```
 
-If `source_path` is omitted, restore commands still work. The default drill
-workspace is placed under `/volume1/restore-drills/...` unless you provide an
-explicit `--workspace`.
+If `source_path` is omitted, restore commands still work. `source_path` is only
+live-source and copy-back context. Provide `--workspace` only when you want to
+override the derived workspace directly.
 
 ## 3. Create The Backup Config
 

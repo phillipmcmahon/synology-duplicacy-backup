@@ -88,11 +88,10 @@ Primary Duplicacy references:
 ## Drill Workspace
 
 For restore execution, the wrapper prepares the drill workspace for you. When
-`--workspace` is omitted, it derives a predictable path from the selected
-restore point:
+`--workspace` is omitted, it derives a predictable path from the restore job:
 
 ```text
-<source-volume>/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>
+/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>
 ```
 
 For example:
@@ -101,10 +100,9 @@ For example:
 /volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3
 ```
 
-If `source_path` is not configured, restore execution can still read the
-repository. In that restore-only DR mode, the default workspace root is
-`/volume1/restore-drills/...`. Provide `--workspace` if you want to pin the
-workspace somewhere else.
+This default does not depend on `source_path`. `source_path` is only used as
+live-source and copy-back context when it is configured. Provide `--workspace`
+if you want to pin the workspace somewhere else.
 
 Create a new, empty folder outside the live source tree only if you want to pin
 the workspace name yourself:

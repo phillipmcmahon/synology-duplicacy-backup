@@ -10,11 +10,12 @@ import (
 )
 
 type RestoreDeps struct {
-	NewRunner        func() execpkg.Runner
-	PromptOutput     io.Writer
-	Now              func() time.Time
-	RunSelectPicker  func(paths []string, opts restorepicker.AppOptions) ([]string, error)
-	RunInspectPicker func(paths []string, opts restorepicker.AppOptions) error
+	NewRunner            func() execpkg.Runner
+	PromptOutput         io.Writer
+	Now                  func() time.Time
+	RestoreWorkspaceRoot string
+	RunSelectPicker      func(paths []string, opts restorepicker.AppOptions) ([]string, error)
+	RunInspectPicker     func(paths []string, opts restorepicker.AppOptions) error
 }
 
 func defaultRestoreDeps() RestoreDeps {
@@ -24,8 +25,9 @@ func defaultRestoreDeps() RestoreDeps {
 			runner.SetDebugCommands(false)
 			return runner
 		},
-		PromptOutput: os.Stdout,
-		Now:          time.Now,
+		PromptOutput:         os.Stdout,
+		Now:                  time.Now,
+		RestoreWorkspaceRoot: defaultRestoreWorkspaceRoot,
 		RunSelectPicker: func(paths []string, opts restorepicker.AppOptions) ([]string, error) {
 			filteredPaths, err := restorepicker.FilterPaths(paths, opts.PathPrefix)
 			if err != nil {
@@ -55,6 +57,9 @@ func (deps RestoreDeps) withDefaults() RestoreDeps {
 	}
 	if deps.Now == nil {
 		deps.Now = defaults.Now
+	}
+	if deps.RestoreWorkspaceRoot == "" {
+		deps.RestoreWorkspaceRoot = defaults.RestoreWorkspaceRoot
 	}
 	if deps.RunSelectPicker == nil {
 		deps.RunSelectPicker = defaults.RunSelectPicker

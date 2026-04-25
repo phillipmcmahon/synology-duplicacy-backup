@@ -179,11 +179,12 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   temporary Duplicacy workspace unless `--workspace` is supplied.
 - `restore run` prepares the drill workspace when needed, executes
   `duplicacy restore` only inside that workspace, and never copies data back.
-  If `--workspace` is omitted, the workspace is derived from the restore point:
-  `<label>-<target>-<restore-point-timestamp>-rev<id>`. Use a file path for
-  one file or a Duplicacy pattern such as `docs/*` for a subtree.
-- Restore-only disaster recovery access does not require `source_path`; when it
-  is omitted, the default workspace root is `/volume1/restore-drills`.
+  If `--workspace` is omitted, the workspace is derived from the restore job:
+  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+  Use a file path for one file or a Duplicacy pattern such as `docs/*` for a
+  subtree.
+- Restore-only disaster recovery access does not require `source_path`.
+  `source_path` is only live-source and copy-back context.
 - `restore select` is the primary operator restore path. It first presents
   restore points, then offers inspect-only, full restore, or tree-based
   selective restore. For restore actions, it previews the explicit commands,

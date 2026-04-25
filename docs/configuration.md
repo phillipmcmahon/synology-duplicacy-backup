@@ -397,11 +397,12 @@ actually backed up.
 
 Restore-only disaster recovery access can omit `source_path`. Restore commands
 only need the label, target, storage value, and any storage secrets to read
-existing Duplicacy data. When `source_path` is omitted, restore output marks the
-live source as unavailable, copy-back previews are disabled, and the default
-drill workspace falls back to `/volume1/restore-drills/...`. Add `source_path`
-later when the live source root has been rebuilt and the NAS is ready for
-backup validation.
+existing Duplicacy data. Restore workspaces are derived from the restore job:
+`/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+When `source_path` is omitted, restore output marks the live source as
+unavailable and copy-back previews are disabled. Add `source_path` later when
+the live source root has been rebuilt and the NAS is ready for backup
+validation.
 
 ## Secrets
 

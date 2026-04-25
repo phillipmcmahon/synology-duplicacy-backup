@@ -567,8 +567,9 @@ pointing `source_path` at an arbitrary nested child directory.
 Restore-only disaster recovery access is deliberately looser. Restore commands
 can read an existing repository without `source_path`, because the original
 source tree may not exist on a replacement NAS yet. In that mode, copy-back
-context is unavailable and the default drill workspace root is
-`/volume1/restore-drills`.
+context is unavailable. The default drill workspace is derived from the restore
+job itself:
+`/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
 
 ### `loadSecrets`
 

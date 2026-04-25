@@ -16,20 +16,22 @@ import (
 )
 
 var (
-	restorePromptOutput     io.Writer = os.Stdout
-	runRestoreSelectPicker            = defaultRestoreDeps().RunSelectPicker
-	runRestoreInspectPicker           = defaultRestoreDeps().RunInspectPicker
-	restoreWorkspaceNow               = defaultRestoreDeps().Now
-	newRestoreCommandRunner           = defaultRestoreDeps().NewRunner
+	restorePromptOutput      io.Writer = os.Stdout
+	runRestoreSelectPicker             = defaultRestoreDeps().RunSelectPicker
+	runRestoreInspectPicker            = defaultRestoreDeps().RunInspectPicker
+	restoreWorkspaceNow                = defaultRestoreDeps().Now
+	testRestoreWorkspaceRoot           = defaultRestoreDeps().RestoreWorkspaceRoot
+	newRestoreCommandRunner            = defaultRestoreDeps().NewRunner
 )
 
 func restoreHandleCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	return handleRestoreCommand(req, meta, rt, RestoreDeps{
-		NewRunner:        newRestoreCommandRunner,
-		PromptOutput:     restorePromptOutput,
-		Now:              restoreWorkspaceNow,
-		RunSelectPicker:  runRestoreSelectPicker,
-		RunInspectPicker: runRestoreInspectPicker,
+		NewRunner:            newRestoreCommandRunner,
+		PromptOutput:         restorePromptOutput,
+		Now:                  restoreWorkspaceNow,
+		RestoreWorkspaceRoot: testRestoreWorkspaceRoot,
+		RunSelectPicker:      runRestoreSelectPicker,
+		RunInspectPicker:     runRestoreInspectPicker,
 	})
 }
 
@@ -90,6 +92,13 @@ func stubRestoreWorkspaceTime(t *testing.T, ts time.Time) {
 	old := restoreWorkspaceNow
 	restoreWorkspaceNow = func() time.Time { return ts }
 	t.Cleanup(func() { restoreWorkspaceNow = old })
+}
+
+func stubRestoreWorkspaceRoot(t *testing.T, root string) {
+	t.Helper()
+	old := testRestoreWorkspaceRoot
+	testRestoreWorkspaceRoot = root
+	t.Cleanup(func() { testRestoreWorkspaceRoot = old })
 }
 
 func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
@@ -153,16 +162,33 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 }
 
 func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T) {
-	sourcePath := "/tmp/homes"
+	root := filepath.Join(t.TempDir(), "restore-drills")
 	req := &Request{Source: "homes", RequestedTarget: "onsite-usb"}
-	plan := &Plan{SnapshotSource: sourcePath}
+	plan := &Plan{SnapshotSource: "/tmp/homes"}
+	revision := duplicacy.RevisionInfo{
+		Revision:  2403,
+		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
+	}
+
+	deps := defaultRestoreDeps()
+	deps.RestoreWorkspaceRoot = root
+	got := resolvedRestoreSelectWorkspace(req, plan, revision, deps)
+	want := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
+	if got != want {
+		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
+	}
+}
+
+func TestResolvedRestoreSelectWorkspace_DefaultRootIgnoresSourcePath(t *testing.T) {
+	req := &Request{Source: "homes", RequestedTarget: "onsite-usb"}
+	plan := &Plan{SnapshotSource: "/volumeUSB2/historical-source"}
 	revision := duplicacy.RevisionInfo{
 		Revision:  2403,
 		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
 	}
 
 	got := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
-	want := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills", "homes-onsite-usb-20260424-070000-rev2403")
+	want := "/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403"
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
 	}
@@ -525,7 +551,9 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := "/tmp/homes-run-self-prepare-test"
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	wantWorkspace := filepath.Join(rootVolumeForSource(sourcePath), "restore-drills", "homes-onsite-usb-20260424-070000-rev2403")
+	root := filepath.Join(t.TempDir(), "restore-drills")
+	stubRestoreWorkspaceRoot(t, root)
+	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
