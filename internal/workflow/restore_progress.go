@@ -38,6 +38,10 @@ type loggerRestoreProgress struct {
 	log     *logger.Logger
 }
 
+// Restore run/select are the only restore commands with live progress output.
+// Restore plan/list-revisions/inspection are read-only formatter paths, so
+// their operation labels are emitted by restore_format.go instead of the
+// runtime presenter.
 func NewRestoreProgress(meta Metadata, rt Runtime, log *logger.Logger) RestoreProgress {
 	if log == nil {
 		return noopRestoreProgress{}

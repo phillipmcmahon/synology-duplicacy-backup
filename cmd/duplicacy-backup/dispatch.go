@@ -68,7 +68,8 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
-	if restoreCommandUsesProgress(req) {
+	restoreReq := workflow.NewRestoreRequest(req)
+	if restoreReq.UsesProgress() {
 		log, err := initLogger(meta)
 		if err != nil {
 			return writeCommandFailure("", err)
@@ -110,13 +111,6 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 	}
 	fmt.Print(output)
 	return 0
-}
-
-func restoreCommandUsesProgress(req *workflow.Request) bool {
-	if req == nil {
-		return false
-	}
-	return req.RestoreCommand == "run" || req.RestoreCommand == "select"
 }
 
 func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {

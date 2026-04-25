@@ -58,14 +58,16 @@ func (t *restoreInterruptTracker) setCurrent(current, total int, path string) {
 	if t == nil {
 		return
 	}
+	completed := current - 1
+	if completed < 0 {
+		completed = 0
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.started = true
 	t.info.Total = total
 	t.info.CurrentPath = restoreProgressPath(path)
-	if current > 0 {
-		t.info.Completed = current - 1
-	}
+	t.info.Completed = completed
 }
 
 func (t *restoreInterruptTracker) setCompleted(completed, total int) {

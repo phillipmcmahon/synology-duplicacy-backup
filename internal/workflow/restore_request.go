@@ -48,6 +48,10 @@ func (r RestoreRequest) Target() string {
 	return r.TargetName
 }
 
+func (r RestoreRequest) UsesProgress() bool {
+	return r.Command == "run" || r.Command == "select"
+}
+
 func (r RestoreRequest) PlanRequest() ConfigPlanRequest {
 	return ConfigPlanRequest{
 		Label:      r.Label,

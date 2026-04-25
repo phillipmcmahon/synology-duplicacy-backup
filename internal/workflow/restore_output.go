@@ -8,7 +8,7 @@ import (
 var (
 	restoreDownloadedSummaryPattern = regexp.MustCompile(`^Downloaded\s+\d+\s+files?[, ]`)
 	restoreSkippedSummaryPattern    = regexp.MustCompile(`^Skipped\s+\d+\s+files?[, ]`)
-	restoreDiagnosticPattern        = regexp.MustCompile(`(?i)\b(error|failed|failure|unable|cannot|denied|corrupt|missing|incomplete|invalid)\b`)
+	restoreDiagnosticPattern        = regexp.MustCompile(`(?i)\b(?:error|failed|failure|unable|cannot|denied|corrupt|missing|incomplete|invalid)\b`)
 )
 
 func restoreOutputForReport(output string, success bool) string {

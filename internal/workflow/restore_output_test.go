@@ -77,6 +77,19 @@ func TestRestoreOutputForReportFailureWithoutDiagnosticsUsesExplicitMessage(t *t
 	}
 }
 
+func TestRestoreDiagnosticPatternDoesNotMatchPartialWords(t *testing.T) {
+	output := strings.Join([]string{
+		"validation proceeded without terror",
+		"Downloaded chunk 1 size 25348363",
+	}, "\n")
+
+	got := restoreOutputForReport(output, false)
+	want := "restore failed; Duplicacy did not emit diagnostic lines"
+	if got != want {
+		t.Fatalf("restoreOutputForReport() = %q, want %q", got, want)
+	}
+}
+
 func TestRestoreDuplicacyOutputFromRestoreRunExtractsMultilineSummary(t *testing.T) {
 	output := strings.Join([]string{
 		"Restore run for homes/onsite-usb revision 2403",
