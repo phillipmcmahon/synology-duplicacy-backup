@@ -155,7 +155,10 @@ Use a snapshot-relative file path for one file, or a Duplicacy pattern such as
 `phillipmcmahon/code/*` for a directory subtree. In `restore select`, use the
 arrow keys to move through the tree, `Right` and `Left` to expand and collapse
 directories, `Space` to toggle the current file or subtree, and `g` to
-generate the matching primitive `restore run` commands.
+generate the matching primitive `restore run` commands. Use `q` at prompts or
+inside the picker to cancel before execution. During an active restore,
+`Ctrl-C` cancels Duplicacy, keeps the drill workspace, does not delete restored
+files, and reports progress.
 
 Do not restore directly over the live source path as the first step. Restore
 elsewhere, inspect the result, and copy back only the intended files or

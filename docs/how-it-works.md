@@ -344,7 +344,8 @@ keeps diagnostics and restore drill commands out of the runtime executor path:
 read-only, `restore select` is an interactive revision-first guide that can
 inspect or delegate a restore only after explicit confirmation, and
 `restore run` prepares or reuses a drill workspace before executing Duplicacy
-only inside that workspace.
+only inside that workspace. Restore execution prints operator progress to
+stderr while keeping the final report on stdout.
 
 ### Why this matters
 

@@ -140,11 +140,19 @@ Local packaging is optional here and should be treated as a test-package flow
 only, not as the source of truth for public release artefacts. Any local test
 package must be written under the structured `build/test-packages` tree:
 
-- `build/test-packages/release/` for standard `duplicacy-backup` package output
-- `build/test-packages/poc/<name>/` for experimental or proof-of-concept bundles
+- `build/test-packages/release/<run-id>/` for standard `duplicacy-backup`
+  package output and NAS smoke bundles
+- `build/test-packages/poc/<name>/<run-id>/` for experimental or
+  proof-of-concept bundles
 
 Do not create ad-hoc package directories elsewhere under `build/`, and do not
-drop new artefacts flat into the root of `build/test-packages`.
+drop new artefacts flat into `build/test-packages` or
+`build/test-packages/release`.
+
+Use `scripts/package-test-bundle.sh` for operator-facing smoke packages that
+need bundled instructions. It creates one self-contained per-run folder and a
+bundle whose extracted layout is `README.md`, `artifacts/`, `checksums/`, and
+`instructions/`.
 
 ### 4. Write Release Notes
 

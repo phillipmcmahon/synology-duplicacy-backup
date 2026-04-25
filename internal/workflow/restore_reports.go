@@ -73,6 +73,23 @@ type restoreRunReport struct {
 	Guide             string
 }
 
+type restoreBatchRunReport struct {
+	Label        string
+	Target       string
+	Location     string
+	Workspace    string
+	Revision     int
+	RestorePaths []string
+	Results      []restoreBatchPathResult
+	Guide        string
+}
+
+type restoreBatchPathResult struct {
+	Path   string
+	Result string
+	Output string
+}
+
 type restoreInspectReport struct {
 	Label      string
 	Target     string

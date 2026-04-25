@@ -320,6 +320,10 @@ sudo duplicacy-backup restore select --target offsite-storj homes
 
 Choose a restore point, then choose inspect-only first. This lets you browse
 the revision contents without restoring data.
+Use `q` at restore-select prompts or inside the tree picker to cancel before
+execution. During an active restore, `Ctrl-C` cancels the running Duplicacy
+process, keeps the drill workspace, does not delete restored files, and reports
+progress.
 
 For very large repositories, start under a known subtree:
 

@@ -239,7 +239,15 @@ Core operating rules:
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
   to continue with the current selection and generate the restore commands,
-  and `q` to cancel.
+  and `q` to cancel. Restore-select text prompts also accept `q` before
+  execution. During an active restore, `Ctrl-C` cancels the running Duplicacy
+  process, keeps the drill workspace, does not delete restored files, and
+  reports completed paths plus the active path.
+- `restore run` prints coloured status/progress to stderr during execution and
+  leaves the final restore report on stdout. Successful reports keep Duplicacy
+  totals and suppress per-chunk or per-file download noise; failures keep
+  Duplicacy diagnostic lines when they are emitted, otherwise they state that
+  Duplicacy did not provide diagnostics.
 - `restore plan`, `restore list-revisions`, and `restore run`
   remain the expert and scriptable restore primitives.
 - Health and selected runtime notifications are configured under

@@ -346,6 +346,14 @@ func TestParseRequest_RestoreRunRemoteWithSecrets(t *testing.T) {
 	}
 }
 
+func TestParseRequest_RestoreRunMissingLabelUsesLabelError(t *testing.T) {
+	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	_, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs/*", "--yes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "backup label required") {
+		t.Fatalf("ParseRequest() err = %v", err)
+	}
+}
+
 func TestParseRequest_RestoreListRevisions(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"restore", "list-revisions", "--target", "offsite-storj", "--limit", "25", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())

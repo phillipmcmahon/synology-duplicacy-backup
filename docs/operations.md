@@ -228,7 +228,14 @@ At a high level:
   when you want fully explicit step-by-step control
 - in the picker, move with the arrow keys, expand with `Right`, collapse with
   `Left`, toggle files or subtrees with `Space`, then press `g`
+- use `q` at restore-select prompts or inside the picker to cancel before
+  execution; during an active restore, `Ctrl-C` cancels Duplicacy, keeps the
+  drill workspace, does not delete restored files, and reports progress
 - restore a full revision or selected paths into the drill workspace only
+- watch stderr for restore progress while the final restore report is written
+  to stdout
+- expect successful restore reports to show Duplicacy totals, not every
+  downloaded chunk or file
 - inspect the restored data before any deliberate copy-back step
 
 ### Config location after install

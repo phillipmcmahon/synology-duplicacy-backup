@@ -16,6 +16,7 @@ type RestoreDeps struct {
 	RestoreWorkspaceRoot string
 	RunSelectPicker      func(paths []string, opts restorepicker.AppOptions) ([]string, error)
 	RunInspectPicker     func(paths []string, opts restorepicker.AppOptions) error
+	Progress             RestoreProgress
 }
 
 func defaultRestoreDeps() RestoreDeps {
@@ -44,6 +45,7 @@ func defaultRestoreDeps() RestoreDeps {
 			root := restorepicker.BuildTree(filteredPaths)
 			return restorepicker.RunInspect(root, opts)
 		},
+		Progress: noopRestoreProgress{},
 	}
 }
 
@@ -66,6 +68,9 @@ func (deps RestoreDeps) withDefaults() RestoreDeps {
 	}
 	if deps.RunInspectPicker == nil {
 		deps.RunInspectPicker = defaults.RunInspectPicker
+	}
+	if deps.Progress == nil {
+		deps.Progress = defaults.Progress
 	}
 	return deps
 }

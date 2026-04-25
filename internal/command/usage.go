@@ -278,7 +278,10 @@ RESTORE EXECUTION:
     access does not require it.
     It never restores over the live source path and never copies data back. Use
     --path for selective file restores or directory patterns, --dry-run to
-    print the planned command, and --yes for unattended execution.
+    print the planned command, and --yes for unattended execution. Restore
+    progress/status is printed to stderr during execution while the final
+    restore report remains on stdout with compact Duplicacy totals on success
+    and Duplicacy diagnostic lines on failure, when emitted.
 
 RESTORE SELECTION:
     restore select is the primary operator restore path. It first presents
@@ -290,6 +293,9 @@ RESTORE SELECTION:
     Press g to continue with the current selection and generate the restore
     commands, or q to cancel selection or quit inspection. Use --path-prefix
     to start from a useful subtree in large backups.
+    Text prompts also accept q to cancel cleanly before execution. During an
+    active restore, Ctrl-C cancels the running Duplicacy process, keeps the
+    drill workspace, does not delete restored files, and reports progress.
     Inspect-only remains read-only. The picker is convenience; the command
     model is the contract.
 

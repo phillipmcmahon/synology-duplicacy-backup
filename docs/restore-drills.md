@@ -46,6 +46,14 @@ explicit `restore run` commands into the same drill workspace. The picker is
 convenience; the command model is the contract. It still never copies data
 back to the live source.
 
+Use `q` to cancel at restore-select text prompts or inside the tree picker.
+Answering no at the final confirmation exits without restoring. `Ctrl-C`
+remains an emergency interrupt if a process is already running; it is not the
+normal exit path. If `Ctrl-C` is used during an active restore, the wrapper
+cancels the running Duplicacy process, leaves the drill workspace in place,
+does not delete partially restored data, and reports completed paths plus the
+active path so the operator knows what remains to inspect or rerun.
+
 ## Start Here
 
 Pick the label and target you want to prove. For most operator restores, start
@@ -136,6 +144,17 @@ reports that the storage is not initialised, stop and re-check the selected
 target and storage value before continuing. `restore run` refuses to use the
 live source path, refuses workspaces inside the live source tree, and refuses
 non-empty unprepared workspaces.
+During execution, `restore run` prints coloured status/progress to stderr,
+including workspace preparation and the active restore operation. The final
+restore report remains on stdout so it is still easy to save or paste into an
+incident record. On success, the report keeps Duplicacy totals and suppresses
+per-chunk and per-file download lines. On failure, it keeps Duplicacy
+diagnostic lines when they are emitted; if Duplicacy fails without useful
+detail, the report says so explicitly instead of showing unrelated tail output.
+If an active restore is interrupted with `Ctrl-C`, the drill workspace is
+retained. No automatic cleanup is performed because deleting partially restored
+data could remove useful evidence during a recovery. Inspect the workspace, then
+rerun the restore or remove the workspace manually when it is no longer useful.
 
 ## Choose A Restore Point
 
@@ -166,6 +185,12 @@ performed. In the tree picker:
 - use `Tab` to switch between the tree and the primitive detail pane
 - use `g` to continue with the current selection and generate the restore commands
 - use `q` to cancel selection or quit inspection
+
+The text prompts before the picker also accept `q` to cancel cleanly before
+workspace preparation or restore execution. The guided flow prints progress
+while loading restore points and revision contents. Once you confirm a restore
+action, restore progress is printed to stderr while the final restore report
+remains on stdout.
 
 By default, restore actions use a workspace named from the selected restore
 point, for example

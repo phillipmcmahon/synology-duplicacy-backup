@@ -61,9 +61,12 @@ func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionI
 	for i, revision := range shown {
 		fmt.Fprintf(deps.PromptOutput, "  %d. %s\n", i+1, formatRestorePointChoice(revision))
 	}
-	answer, err := promptRestoreLine(reader, "Select restore point by list number or revision id: ", deps)
+	answer, err := promptRestoreLine(reader, "Select restore point by list number or revision id (q to cancel): ", deps)
 	if err != nil {
 		return duplicacy.RevisionInfo{}, err
+	}
+	if restoreAnswerCancels(answer) {
+		return duplicacy.RevisionInfo{}, ErrRestoreCancelled
 	}
 	choice, err := strconv.Atoi(strings.TrimSpace(answer))
 	if err != nil || choice <= 0 {
@@ -96,11 +99,14 @@ func promptRestoreSelectIntent(reader *bufio.Reader, pathPrefix string, deps Res
 		fmt.Fprintf(deps.PromptOutput, "  2. Restore the full subtree under %q into the drill workspace\n", pathPrefix)
 	}
 	fmt.Fprintln(deps.PromptOutput, "  3. Restore selected files or directories into the drill workspace")
-	answer, err := promptRestoreLine(reader, "Choose action [1-3]: ", deps)
+	fmt.Fprintln(deps.PromptOutput, "  q. Cancel and exit without restoring")
+	answer, err := promptRestoreLine(reader, "Choose action [1-3, q to cancel]: ", deps)
 	if err != nil {
 		return "", err
 	}
 	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "q", "quit", "cancel", "exit":
+		return "", ErrRestoreCancelled
 	case "1", "inspect", "i":
 		return restoreSelectIntentInspect, nil
 	case "2", "full", "f":
@@ -117,7 +123,9 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 	if err != nil {
 		return err
 	}
+	stopActivity := deps.Progress.StartActivity("Loading revision file tree")
 	output, err := ctx.dup.ListRevisionFiles(revision)
+	stopActivity()
 	if err != nil {
 		return err
 	}
@@ -140,7 +148,7 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 		},
 	}); err != nil {
 		if errors.Is(err, restorepicker.ErrPickerCancelled) {
-			return NewRequestError("restore select cancelled")
+			return ErrRestoreCancelled
 		}
 		return err
 	}
@@ -152,7 +160,9 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 	if err != nil {
 		return nil, err
 	}
+	stopActivity := deps.Progress.StartActivity("Loading revision file tree")
 	output, err := ctx.dup.ListRevisionFiles(revision)
+	stopActivity()
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +189,7 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 	})
 	if err != nil {
 		if errors.Is(err, restorepicker.ErrPickerCancelled) {
-			return nil, NewRequestError("restore select cancelled")
+			return nil, ErrRestoreCancelled
 		}
 		return nil, err
 	}
@@ -231,6 +241,9 @@ func promptRestoreYesNo(reader restoreLineReader, prompt string, deps RestoreDep
 		return false, err
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
+	if restoreAnswerCancels(answer) {
+		return false, ErrRestoreCancelled
+	}
 	return answer == "y" || answer == "yes", nil
 }
 
@@ -241,8 +254,15 @@ func confirmRestoreSelectExecution(reader restoreLineReader, report *restoreSele
 	for _, path := range restoreDisplayPaths(report.RestorePaths) {
 		fmt.Fprintf(deps.PromptOutput, "  Path     : %s\n", path)
 	}
-	for _, command := range report.RestoreCommands {
-		fmt.Fprintf(deps.PromptOutput, "  Command  : %s\n", command)
+	commandCount := len(report.RestoreCommands)
+	switch {
+	case commandCount == 0:
+	case commandCount == 1:
+		fmt.Fprintf(deps.PromptOutput, "  Command  : %s\n", report.RestoreCommands[0])
+	default:
+		fmt.Fprintf(deps.PromptOutput, "  Commands : %d restore run commands will execute into the same workspace\n", commandCount)
+		fmt.Fprintf(deps.PromptOutput, "  First    : %s\n", report.RestoreCommands[0])
+		fmt.Fprintf(deps.PromptOutput, "  Last     : %s\n", report.RestoreCommands[commandCount-1])
 	}
 	if report.WorkspacePrepared {
 		return promptRestoreYesNo(reader, "Restore into this drill workspace now? [y/N]: ", deps)
@@ -257,6 +277,15 @@ func promptRestoreLine(reader restoreLineReader, prompt string, deps RestoreDeps
 		return "", fmt.Errorf("failed to read restore selection: %w", err)
 	}
 	return strings.TrimSpace(answer), nil
+}
+
+func restoreAnswerCancels(answer string) bool {
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "q", "quit", "cancel", "exit":
+		return true
+	default:
+		return false
+	}
 }
 
 func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int, restorePath string, workspace string) string {

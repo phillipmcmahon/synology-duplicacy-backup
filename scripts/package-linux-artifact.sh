@@ -158,7 +158,7 @@ done
 [ -n "$GOARCH" ] || fail "--goarch is required"
 
 REPO_ROOT="${REPO_ROOT:-$(repo_root_default)}"
-OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/build/test-packages/release}"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/build/test-packages/release/$VERSION}"
 
 require_linux_host
 require_command tar

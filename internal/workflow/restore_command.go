@@ -1,10 +1,16 @@
 package workflow
 
 import (
+	"context"
+	"errors"
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
+
+var ErrRestoreCancelled = errors.New("restore cancelled")
+var ErrRestoreInterrupted = errors.New("restore interrupted")
 
 type restoreSelectIntent string
 
@@ -15,16 +21,26 @@ const (
 )
 
 type restoreRunInputs struct {
-	Revision    int
-	RestorePath string
-	Workspace   string
-	AssumeYes   bool
-	DryRun      bool
+	Revision                int
+	RestorePath             string
+	Workspace               string
+	AssumeYes               bool
+	DryRun                  bool
+	SuppressPrepareStatus   bool
+	SuppressRestoreActivity bool
+	Context                 context.Context
 }
 
 func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
 	restoreReq := NewRestoreRequest(req)
 	return handleRestoreCommand(&restoreReq, meta, rt, defaultRestoreDeps())
+}
+
+func HandleRestoreCommandWithLogger(req *Request, meta Metadata, rt Runtime, log *logger.Logger) (string, error) {
+	restoreReq := NewRestoreRequest(req)
+	deps := defaultRestoreDeps()
+	deps.Progress = NewRestoreProgress(meta, rt, log)
+	return handleRestoreCommand(&restoreReq, meta, rt, deps)
 }
 
 func handleRestoreCommand(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
@@ -64,7 +80,9 @@ func handleRestoreRevisions(req *RestoreRequest, meta Metadata, rt Runtime, deps
 	}
 	defer ctx.cleanup()
 
+	stopActivity := deps.Progress.StartActivity("Loading restore points")
 	revisions, _, err := ctx.dup.ListVisibleRevisions()
+	stopActivity()
 	if err != nil {
 		return "", err
 	}
@@ -110,19 +128,61 @@ func executeRestoreRun(req *RestoreRequest, rt Runtime, deps RestoreDeps, ctx *r
 		}
 	}
 
+	runCtx, cleanup, interrupt := newRestoreInterruptContext(rt, deps.Progress, inputs.Workspace)
+	defer cleanup()
+	interrupt.setCurrent(1, 1, inputs.RestorePath)
+	inputs.Context = runCtx
+	output, err := executeRestoreRunConfirmed(req, rt, deps, ctx, inputs, true)
+	if err == nil {
+		interrupt.setCompleted(1, 1)
+	}
+	return output, err
+}
+
+func executeRestoreRunConfirmed(req *RestoreRequest, rt Runtime, deps RestoreDeps, ctx *restoreRunContext, inputs restoreRunInputs, printRunProgress bool) (string, error) {
+	report := newRestoreRunReport(req, ctx.plan, ctx.storage, inputs.Workspace, inputs.Revision, inputs.RestorePath, inputs.DryRun)
+	startedAt := rt.Now()
+	if printRunProgress {
+		deps.Progress.PrintRunStart(req, ctx.plan, inputs, startedAt)
+	}
+	success := false
+	defer func() {
+		if printRunProgress {
+			deps.Progress.PrintRunCompletion(success, startedAt)
+		}
+	}()
+
+	if !inputs.SuppressPrepareStatus {
+		deps.Progress.PrintStatus("Preparing drill workspace")
+	}
 	if err := prepareRestoreWorkspace(inputs.Workspace, ctx.storage, ctx.secrets); err != nil {
 		return "", err
 	}
 	report.WorkspacePrepared = true
 
 	dup := duplicacy.NewWorkspaceSetup(inputs.Workspace, ctx.storage, false, deps.NewRunner())
-	output, err := dup.RestoreRevision(inputs.Revision, inputs.RestorePath)
-	report.Output = strings.TrimSpace(output)
+	stopActivity := func() {}
+	if !inputs.SuppressRestoreActivity {
+		stopActivity = deps.Progress.StartActivity(restoreProgressActivity(inputs))
+	}
+	runContext := inputs.Context
+	if runContext == nil {
+		runContext = context.Background()
+	}
+	output, err := dup.RestoreRevisionContext(runContext, inputs.Revision, inputs.RestorePath)
+	stopActivity()
 	if err != nil {
 		report.Result = "Failed"
+		if errors.Is(err, context.Canceled) {
+			report.Result = "Interrupted"
+			err = ErrRestoreInterrupted
+		}
+		report.Output = restoreOutputForReport(output, false)
 		return formatRestoreRun(report), err
 	}
 	report.Result = "Restored into workspace"
+	report.Output = restoreOutputForReport(output, true)
+	success = true
 	return formatRestoreRun(report), nil
 }
 
@@ -207,24 +267,99 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 	if !confirmed {
 		return selectOutput, nil
 	}
-	outputs := []string{selectOutput}
+	batchReport := &restoreBatchRunReport{
+		Label:        req.Label,
+		Target:       req.Target(),
+		Location:     ctx.plan.Location,
+		Workspace:    commandWorkspace,
+		Revision:     revision.Revision,
+		RestorePaths: normaliseRestoreSelection(restorePaths),
+		Guide:        "docs/restore-drills.md",
+	}
 	runCtx := &restoreRunContext{
 		plan:      ctx.plan,
 		storage:   ctx.cfg.Storage,
 		secrets:   ctx.secrets,
 		workspace: commandWorkspace,
 	}
-	for _, restorePath := range restorePaths {
-		runOutput, err := executeRestoreRun(req, rt, deps, runCtx, restoreRunInputs{
-			Revision:    revision.Revision,
-			RestorePath: restorePath,
-			Workspace:   commandWorkspace,
-			AssumeYes:   true,
-		})
-		outputs = append(outputs, runOutput)
+	startedAt := rt.Now()
+	execCtx, cleanup, interrupt := newRestoreInterruptContext(rt, deps.Progress, commandWorkspace)
+	defer cleanup()
+	deps.Progress.PrintSelectionStart(req, ctx.plan, revision.Revision, commandWorkspace, len(restorePaths), startedAt)
+	success := false
+	defer func() {
+		deps.Progress.PrintRunCompletion(success, startedAt)
+	}()
+	for i, restorePath := range restorePaths {
+		interrupt.setCurrent(i+1, len(restorePaths), restorePath)
+		stopActivity := func() {}
+		suppressPerPathProgress := len(restorePaths) > 1
+		if suppressPerPathProgress {
+			stopActivity = deps.Progress.StartSelectionActivity(i+1, len(restorePaths), restorePath)
+		}
+		runOutput, err := executeRestoreRunConfirmed(req, rt, deps, runCtx, restoreRunInputs{
+			Revision:                revision.Revision,
+			RestorePath:             restorePath,
+			Workspace:               commandWorkspace,
+			AssumeYes:               true,
+			SuppressPrepareStatus:   suppressPerPathProgress,
+			SuppressRestoreActivity: suppressPerPathProgress,
+			Context:                 execCtx,
+		}, false)
+		stopActivity()
+		pathResult := restoreBatchPathResult{
+			Path:   restorePath,
+			Result: restoreResultFromOutput(runOutput),
+		}
 		if err != nil {
-			return strings.Join(outputs, "\n"), err
+			if errors.Is(err, ErrRestoreInterrupted) || errors.Is(err, context.Canceled) {
+				pathResult.Result = "Interrupted"
+				err = ErrRestoreInterrupted
+			}
+			pathResult.Output = restoreDuplicacyOutputFromRestoreRun(runOutput)
+			batchReport.Results = append(batchReport.Results, pathResult)
+			return formatRestoreBatchRun(batchReport), err
+		}
+		batchReport.Results = append(batchReport.Results, pathResult)
+		interrupt.setCompleted(i+1, len(restorePaths))
+	}
+	success = true
+	return formatRestoreBatchRun(batchReport), nil
+}
+
+func restoreDuplicacyOutputFromRestoreRun(output string) string {
+	const section = "Section: Duplicacy Summary"
+	index := strings.Index(output, section)
+	if index == -1 {
+		return ""
+	}
+	lines := strings.Split(output[index+len(section):], "\n")
+	values := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "Section: ") {
+			break
+		}
+		if strings.HasPrefix(line, "Output") {
+			_, value, _ := strings.Cut(line, ":")
+			values = append(values, strings.TrimSpace(value))
+			continue
+		}
+		values = append(values, line)
+	}
+	return strings.Join(values, "\n")
+}
+
+func restoreResultFromOutput(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Result") && strings.Contains(line, ":") {
+			_, value, _ := strings.Cut(line, ":")
+			return strings.TrimSpace(value)
 		}
 	}
-	return strings.Join(outputs, "\n"), nil
+	return "Completed"
 }

@@ -13,6 +13,7 @@ package duplicacy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -362,17 +363,31 @@ func (s *Setup) ListRevisionFiles(revision int) (string, error) {
 }
 
 func (s *Setup) RestoreRevision(revision int, relativePath string) (string, error) {
+	return s.RestoreRevisionContext(context.Background(), revision, relativePath)
+}
+
+func (s *Setup) RestoreRevisionContext(ctx context.Context, revision int, relativePath string) (string, error) {
 	if s.DryRun {
 		return "", nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	args := []string{"restore", "-r", strconv.Itoa(revision), "-stats"}
 	if strings.TrimSpace(relativePath) != "" {
 		args = append(args, "--", relativePath)
 	}
-	stdout, stderr, err := s.Runner.RunInDir(context.Background(), s.DuplicacyRoot, "duplicacy", args...)
+	stdout, stderr, err := s.Runner.RunInDir(ctx, s.DuplicacyRoot, "duplicacy", args...)
 	combined := stdout + stderr
 	if err != nil {
+		if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+			cause := ctx.Err()
+			if cause == nil {
+				cause = err
+			}
+			return combined, apperrors.NewBackupError("restore-run", fmt.Errorf("restore interrupted: %w", cause))
+		}
 		return combined, apperrors.NewBackupError("restore-run", fmt.Errorf("failed to restore revision %d", revision))
 	}
 	return combined, nil

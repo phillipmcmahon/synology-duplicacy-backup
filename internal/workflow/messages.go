@@ -30,6 +30,9 @@ func OperatorMessage(err error) string {
 	if err == nil {
 		return ""
 	}
+	if errors.Is(err, ErrRestoreInterrupted) {
+		return "Restore interrupted by operator; drill workspace was retained"
+	}
 
 	var msgErr *MessageError
 	if errors.As(err, &msgErr) {

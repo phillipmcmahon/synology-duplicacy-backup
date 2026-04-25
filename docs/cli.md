@@ -185,7 +185,11 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   If `--workspace` is omitted, the workspace is derived from the restore job:
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
   Use a file path for one file or a Duplicacy pattern such as `docs/*` for a
-  subtree.
+  subtree. During execution, restore progress is printed to stderr while the
+  final report remains on stdout. Successful restores show a compact Duplicacy
+  summary instead of every downloaded chunk or file; failed restores keep
+  Duplicacy diagnostic lines when emitted, or an explicit no-diagnostics
+  message when Duplicacy fails without useful detail.
 - Restore-only disaster recovery access does not require `source_path`.
   `source_path` is only live-source and copy-back context.
 - `restore select` is the primary operator restore path. It first presents
@@ -195,7 +199,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   `restore run`. The picker uses an
   interactive tree: use the arrow keys to move, `Right` to expand, `Left` to
   collapse, `Space` to select or clear the current file or subtree, `Tab` to
-  inspect the primitive detail pane, `g` to continue, and `q` to cancel.
+  inspect the primitive detail pane, `g` to continue, and `q` to cancel. The
+  text prompts also accept `q` to cancel before execution.
 - `restore plan`, `restore list-revisions`, and `restore run`
   remain the expert and scriptable restore primitives.
 - `prune --force` overrides prune threshold enforcement.

@@ -27,6 +27,9 @@ func confirmRestoreRun(rt Runtime, report *restoreRunReport) (bool, error) {
 		return false, fmt.Errorf("failed to read restore confirmation: %w", err)
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
+	if restoreAnswerCancels(answer) {
+		return false, ErrRestoreCancelled
+	}
 	return answer == "y" || answer == "yes", nil
 }
 
@@ -129,8 +132,43 @@ func formatRestoreRun(report *restoreRunReport) string {
 		{Label: "Result", Value: report.Result},
 	})
 	if report.Output != "" {
-		writeRestoreSection(&b, "Duplicacy Output", []SummaryLine{{Label: "Output", Value: report.Output}})
+		writeRestoreSection(&b, "Duplicacy Summary", []SummaryLine{{Label: "Output", Value: report.Output}})
 	}
+	writeRestoreSection(&b, "Safety", []SummaryLine{
+		{Label: "Live Source", Value: "not modified"},
+		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},
+		{Label: "Guide", Value: report.Guide},
+	})
+	return b.String()
+}
+
+func formatRestoreBatchRun(report *restoreBatchRunReport) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Restore run for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
+	writeRestoreLines(&b, []SummaryLine{
+		{Label: "Label", Value: report.Label},
+		{Label: "Target", Value: report.Target},
+		{Label: "Location", Value: report.Location},
+		{Label: "Executes Restore", Value: "true"},
+		{Label: "Copies Back", Value: "false"},
+	})
+	writeRestoreSection(&b, "Workspace", []SummaryLine{
+		{Label: "Path", Value: report.Workspace},
+		{Label: "Rule", Value: "restored files stay in the workspace until an operator manually copies them back"},
+	})
+	selectionLines := []SummaryLine{{Label: "Revision", Value: strconv.Itoa(report.Revision)}}
+	for _, restorePath := range restoreDisplayPaths(report.RestorePaths) {
+		selectionLines = append(selectionLines, SummaryLine{Label: "Path", Value: restorePath})
+	}
+	writeRestoreSection(&b, "Selection", selectionLines)
+	resultLines := make([]SummaryLine, 0, len(report.Results))
+	for i, result := range report.Results {
+		resultLines = append(resultLines, SummaryLine{Label: fmt.Sprintf("Path %d", i+1), Value: fmt.Sprintf("%s - %s", restoreProgressPath(result.Path), result.Result)})
+		if result.Output != "" {
+			resultLines = append(resultLines, SummaryLine{Label: fmt.Sprintf("Output %d", i+1), Value: result.Output})
+		}
+	}
+	writeRestoreSection(&b, "Results", resultLines)
 	writeRestoreSection(&b, "Safety", []SummaryLine{
 		{Label: "Live Source", Value: "not modified"},
 		{Label: "Copy Back", Value: "manual only; inspect restored data and use rsync --dry-run first"},

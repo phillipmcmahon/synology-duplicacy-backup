@@ -106,11 +106,38 @@ Use the repo scripts for local test-package builds. They already enforce the
 Linux-only packaging flow. Keep all local test packages under the structured
 `build/test-packages` tree:
 
-- `build/test-packages/release/` for standard `duplicacy-backup` package output
-- `build/test-packages/poc/<name>/` for experimental or proof-of-concept bundles
+- `build/test-packages/release/<run-id>/` for standard `duplicacy-backup`
+  package output and NAS smoke bundles
+- `build/test-packages/poc/<name>/<run-id>/` for experimental or
+  proof-of-concept bundles
 
 Do not create ad-hoc package directories elsewhere under `build/`, and do not
-drop new artefacts flat into the root of `build/test-packages`.
+drop new artefacts flat into `build/test-packages` or
+`build/test-packages/release`.
+
+For one-off NAS smoke packages with instructions, prefer the bundle helper:
+
+```bash
+RUN_ID="restore-progress-smoke-$(date -u '+%Y%m%d%H%M%S')"
+
+sh ./scripts/package-test-bundle.sh \
+  --run-id "$RUN_ID" \
+  --kind release \
+  --version "v7.1.1-${RUN_ID}-dirty" \
+  --build-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  --goos linux \
+  --goarch amd64 \
+  --instructions build/test-packages/instructions/${RUN_ID}.md
+```
+
+The helper writes all artefacts for that run under
+`build/test-packages/release/<run-id>/`. The self-contained bundle extracts
+with this operator-facing layout:
+
+- `README.md` points to the smoke-test instructions.
+- `artifacts/` contains the Linux package tarball.
+- `checksums/` contains the package checksum.
+- `instructions/` contains the NAS smoke-test procedure.
 
 ### One artefact
 
@@ -120,7 +147,7 @@ sh ./scripts/package-linux-docker.sh \
   --build-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
   --goos linux \
   --goarch amd64 \
-  --output-dir /work/build/test-packages/release
+  --output-dir /work/build/test-packages/release/manual-$(date -u '+%Y%m%d%H%M%S')
 ```
 
 ### Supported Synology package set

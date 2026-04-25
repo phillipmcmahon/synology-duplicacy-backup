@@ -199,6 +199,20 @@ func (l *Logger) Log(level Level, format string, args ...interface{}) {
 	}
 }
 
+// Record writes a log message to the log file without echoing it to stderr.
+// It is used for live terminal activity that should remain append-only in the
+// persistent log without adding repeated lines to the operator's screen.
+func (l *Logger) Record(level Level, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	message := l.formatMessage(level, msg)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	plain := StripColour(message)
+	fmt.Fprintln(l.logFile, plain)
+}
+
 // Debug logs at DEBUG level.
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if !l.verbose {

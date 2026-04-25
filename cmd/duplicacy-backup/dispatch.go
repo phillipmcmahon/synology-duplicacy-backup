@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -67,12 +68,55 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if restoreCommandUsesProgress(req) {
+		log, err := initLogger(meta)
+		if err != nil {
+			return writeCommandFailure("", err)
+		}
+		defer log.Close()
+		output, err := workflow.HandleRestoreCommandWithLogger(req, meta, rt, log)
+		if errors.Is(err, workflow.ErrRestoreCancelled) {
+			fmt.Fprintln(os.Stderr, "[INFO] Restore cancelled by operator")
+			return 0
+		}
+		if errors.Is(err, workflow.ErrRestoreInterrupted) {
+			if output != "" {
+				fmt.Print(output)
+			}
+			fmt.Fprintln(os.Stderr, "[WARN] Restore interrupted by operator; drill workspace was retained")
+			return exitCodeGeneralFailure
+		}
+		if err != nil {
+			return writeCommandFailure(output, err)
+		}
+		fmt.Print(output)
+		return 0
+	}
+
 	output, err := handleRestoreCommand(req, meta, rt)
+	if errors.Is(err, workflow.ErrRestoreCancelled) {
+		fmt.Fprintln(os.Stderr, "[INFO] Restore cancelled by operator")
+		return 0
+	}
+	if errors.Is(err, workflow.ErrRestoreInterrupted) {
+		if output != "" {
+			fmt.Print(output)
+		}
+		fmt.Fprintln(os.Stderr, "[WARN] Restore interrupted by operator; drill workspace was retained")
+		return exitCodeGeneralFailure
+	}
 	if err != nil {
-		return writeCommandFailure("", err)
+		return writeCommandFailure(output, err)
 	}
 	fmt.Print(output)
 	return 0
+}
+
+func restoreCommandUsesProgress(req *workflow.Request) bool {
+	if req == nil {
+		return false
+	}
+	return req.RestoreCommand == "run" || req.RestoreCommand == "select"
 }
 
 func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {

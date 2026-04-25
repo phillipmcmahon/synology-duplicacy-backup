@@ -385,7 +385,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 	case "run":
 		opts.dryRun = true
 	}
-	return req, parseSourceFlags(args, req, sharedFlagOptions{
+	return req, parseSourceFlagsWithLabel(args, req, sharedFlagOptions{
 		target:      opts.target,
 		dryRun:      opts.dryRun,
 		jsonSummary: opts.jsonSummary,
@@ -457,6 +457,16 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 		}
 		return false, nil
 	})
+}
+
+func parseSourceFlagsWithLabel(args []string, req *workflow.Request, opts sharedFlagOptions, extra extraFlagParser) error {
+	if err := parseSourceFlags(args, req, opts, extra); err != nil {
+		if strings.Contains(err.Error(), "source directory required") {
+			return workflow.NewUsageRequestError("backup label required")
+		}
+		return err
+	}
+	return nil
 }
 
 func parseRollbackFlags(args []string) (*workflow.Request, error) {

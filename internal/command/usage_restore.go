@@ -56,6 +56,12 @@ Options:
     --help
     --help-full
 
+Interactive restore select:
+    Choose q at a restore prompt or in the tree picker to cancel cleanly before execution.
+    During an active restore, Ctrl-C cancels the running Duplicacy process,
+    keeps the drill workspace, does not delete restored files, and reports
+    progress.
+
 Examples:
     {{script}} restore select --target onsite-usb homes
     {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
@@ -118,6 +124,8 @@ BEHAVIOUR:
       - runs duplicacy restore only from the drill workspace
       - uses --path for selective file restores or directory patterns
       - uses --yes for non-interactive execution
+      - prints coloured status/progress to stderr during workspace preparation and restore execution
+      - writes the final restore report to stdout, with compact Duplicacy totals on success and emitted diagnostics on failure
       - never restores over the live source path and never copies data back
     restore select:
       - requires an interactive terminal
@@ -129,10 +137,12 @@ BEHAVIOUR:
       - uses Tab to switch between the tree and the primitive detail pane
       - uses g to continue with the current selection and generate the restore commands
       - uses q to cancel selection or quit inspection
+      - accepts q at text prompts to cancel cleanly before execution
       - accepts "--path-prefix <path>" to start browsing from a useful subtree
       - shows the exact restore run primitives that the current selection compiles to
       - inspect-only remains read-only and does not run duplicacy restore
       - for restore actions, shows the generated restore commands and asks for confirmation
+      - shows listing progress before the picker and restore progress after confirmation
       - delegates restore actions to restore run, which prepares the workspace when needed
       - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point, for example <label>-<target>-<restore-point-timestamp>-rev<id>
       - never copies data back
@@ -141,6 +151,12 @@ BEHAVIOUR:
       - use restore plan, restore list-revisions, and restore run for explicit, scriptable, or incident-runbook-driven recovery
       - restore run self-prepares a predictable drill workspace when --workspace is omitted
       - pass --workspace only when you need a specific operator-chosen destination
+
+    cancellation:
+      - use q at restore select prompts or inside the picker to leave without restoring
+      - answering no at the final confirmation prints the generated command report and exits without restoring
+      - during an active restore, Ctrl-C cancels Duplicacy, keeps the drill workspace, does not delete restored files, and reports progress
+      - cancelling before confirmation does not prepare a workspace or run duplicacy restore
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}
