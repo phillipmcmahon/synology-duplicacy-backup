@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Coverage snapshots list aggregate statement coverage plus selected
+release-signal packages or packages with notable movement. They are not
+exhaustive package coverage tables; use `TESTING.md` for the current full
+coverage floor and package-level baseline.
+
 ## [Unreleased]
+
+### Changed
+- **Coverage documentation now distinguishes floor and aggregate metrics**:
+  the current quality gate is a package-level minimum of 85.0%, while the
+  aggregate Linux Go 1.26 coverage snapshot is higher at 87.8%. This avoids
+  reading release snapshot percentages and package-floor commit titles as
+  contradictory numbers.
+- **Operator documentation now explains the historical command name**:
+  README, the CLI reference, and the operator cheat sheet now state that
+  `duplicacy-backup` is the broader Synology Duplicacy operations entrypoint
+  for backup, restore, health, diagnostics, update, and rollback workflows.
 
 ## [v7.2.0] - 2026-04-25
 

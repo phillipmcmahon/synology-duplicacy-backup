@@ -11,9 +11,11 @@ func TestNewHealthRequestProjectsOnlyHealthIntent(t *testing.T) {
 		SecretsDir:      "/root/.secrets",
 		JSONSummary:     true,
 		Verbose:         true,
+		NotifyCommand:   "test",
 		RestoreCommand:  "run",
 		UpdateCommand:   "update",
 		DoBackup:        true,
+		DryRun:          true,
 	}
 
 	got := NewHealthRequest(req)
