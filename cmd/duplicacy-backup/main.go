@@ -31,6 +31,8 @@ var maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotifica
 
 const scriptName = "duplicacy-backup"
 
+// logDir is test-only by default. Production uses Metadata.LogDir from the
+// runtime user profile unless a test overrides this package variable.
 var logDir string
 
 func main() {

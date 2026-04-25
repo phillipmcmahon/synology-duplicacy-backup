@@ -302,6 +302,54 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 	}
 }
 
+func TestRootProfileConfigWarningDetectsMigratedOperatorConfig(t *testing.T) {
+	operatorConfig := filepath.Join(t.TempDir(), "operator", ".config", "duplicacy-backup", "homes-backup.toml")
+	if err := os.MkdirAll(filepath.Dir(operatorConfig), 0700); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(operatorConfig, []byte("label = \"homes\"\n"), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	rt := newHealthRuntime(time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC), t.TempDir())
+	rt.Getenv = func(name string) string {
+		switch name {
+		case "HOME":
+			return "/root"
+		default:
+			return ""
+		}
+	}
+
+	got := rootProfileConfigWarning(&HealthRequest{Command: "doctor", Label: "homes"}, rt, []string{operatorConfig})
+	if !strings.Contains(got, "/root/.config/duplicacy-backup") ||
+		!strings.Contains(got, operatorConfig) ||
+		!strings.Contains(got, "--config-dir") {
+		t.Fatalf("rootProfileConfigWarning() = %q", got)
+	}
+}
+
+func TestRootProfileConfigWarningIgnoresNonRootAndExplicitConfig(t *testing.T) {
+	operatorConfig := filepath.Join(t.TempDir(), "operator", ".config", "duplicacy-backup", "homes-backup.toml")
+	rt := newHealthRuntime(time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC), t.TempDir())
+	rt.Getenv = func(name string) string {
+		if name == "HOME" {
+			return "/root"
+		}
+		return ""
+	}
+
+	nonRoot := rt
+	nonRoot.Geteuid = func() int { return 1000 }
+	if got := rootProfileConfigWarning(&HealthRequest{Command: "doctor", Label: "homes"}, nonRoot, []string{operatorConfig}); got != "" {
+		t.Fatalf("non-root warning = %q, want empty", got)
+	}
+
+	req := &HealthRequest{Command: "doctor", Label: "homes", ConfigDir: filepath.Join(t.TempDir(), "config")}
+	if got := rootProfileConfigWarning(req, rt, []string{operatorConfig}); got != "" {
+		t.Fatalf("explicit config warning = %q, want empty", got)
+	}
+}
+
 func TestHealthRunner_StatusAllowsLocalReadOnlyTargetWithoutOwnerGroup(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())

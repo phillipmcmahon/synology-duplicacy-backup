@@ -180,6 +180,13 @@ For each task:
 4. Use `/usr/local/bin/duplicacy-backup`
 5. Keep one task per operation
 
+After migrating runtime files into an operator profile, avoid scheduling
+non-root-capable tasks as `root` out of habit. A root scheduled health or prune
+task resolves `$HOME` as `/root` and will look under
+`/root/.config/duplicacy-backup` unless you pass explicit `--config-dir` and
+`--secrets-dir` values. Prefer running those tasks as the operator user that
+owns the migrated profile.
+
 Example commands:
 
 ```bash

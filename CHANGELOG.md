@@ -40,6 +40,11 @@ coverage floor and package-level baseline.
   `duplicacy-backup` is the broader Synology Duplicacy operations entrypoint
   for backup, restore, health, diagnostics, update, and rollback workflows.
 
+### Removed
+- **`install.sh --config-group` has been removed**:
+  runtime config and secrets are now operator-owned profile data, not
+  installer-managed system files.
+
 ## [v7.2.0] - 2026-04-25
 
 ### Added

@@ -203,7 +203,7 @@ func SectionForCheck(name string) string {
 	switch name {
 	case "Notification":
 		return "Alerts"
-	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run":
+	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run", "Root config profile":
 		return "Doctor"
 	case "Revision count", "Latest revision", "Backup freshness":
 		return "Status"

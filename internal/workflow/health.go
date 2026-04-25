@@ -84,6 +84,8 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	restoreDebugCommands := h.suppressCommandDebug()
 	defer restoreDebugCommands()
 
+	h.addRootProfileConfigWarning(report, req)
+
 	cfg, plan, sec, err := h.prepare(req)
 	if err != nil {
 		h.presenter.PrintHeader(report)
