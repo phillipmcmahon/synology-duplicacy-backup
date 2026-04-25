@@ -4,6 +4,10 @@ Use `sudo` for most installed NAS operations. `config paths`,
 `diagnostics`, `update --check-only`, `rollback --check-only`, and dry-run
 notification tests are common normal-user exceptions.
 
+Despite its historical name, `duplicacy-backup` is now the operator entrypoint
+for backup, prune, health, diagnostics, restore drills, update, and rollback
+workflows.
+
 This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 

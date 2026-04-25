@@ -1,7 +1,10 @@
 # CLI Reference
 
 Use this document when you need the exact command surface and option meaning.
-For routine copyable commands, start with the [operator cheat sheet](cheatsheet.md).
+The command name is historical: `duplicacy-backup` still runs scheduled
+backups, but it also provides first-class restore, health, diagnostics, update,
+and rollback workflows. For routine copyable commands, start with the
+[operator cheat sheet](cheatsheet.md).
 
 ## Usage
 
@@ -19,9 +22,9 @@ duplicacy-backup update [OPTIONS]
 duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
-`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
-`health`, restore commands, and label-scoped `notify test`
-commands need an explicit `--target <name>`.
+Backup is one workflow among several. `backup`, `prune`, `cleanup-storage`,
+`fix-perms`, `config`, `diagnostics`, `health`, restore commands, and
+label-scoped `notify test` commands need an explicit `--target <name>`.
 `notify test update`, `update`, and `rollback` are global application commands
 and do not use a target.
 

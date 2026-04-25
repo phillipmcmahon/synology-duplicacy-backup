@@ -2,9 +2,16 @@
 
 [![Build Synology Binaries](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml/badge.svg)](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml)
 
-A Go replacement for `duplicacy-backup.sh`.
+A Synology-focused operations wrapper around [Duplicacy](https://duplicacy.com/).
+The name is historical: backup is still the core scheduled workload, but the
+application now also owns restore drills, health checks, diagnostics, managed
+updates, and rollback workflows.
 
-It runs [Duplicacy](https://duplicacy.com/) backups on Synology NAS using btrfs snapshots, with support for named per-label targets, threshold-guarded prune, optional permission fixing, and directory-based locking.
+It runs Duplicacy backups on Synology NAS using btrfs snapshots, with support
+for named per-label targets, threshold-guarded prune, optional permission
+fixing, and directory-based locking. The same command surface also gives
+operators safe restore workflows, read-only repository health checks, redacted
+support bundles, and managed install maintenance.
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
@@ -42,12 +49,15 @@ In practice:
 
 - Read-only btrfs snapshots for consistent backups
 - Named targets for onsite and offsite backups
+- Guided full and selective restore drills into safe workspaces
+- Read-only health, doctor, and verify checks for automation
+- Redacted diagnostics bundles for operator support
+- Managed update and rollback commands for installed NAS deployments
 - Threshold-guarded prune with optional forced override
 - Optional ownership and permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
 - TOML-based per-label configuration with named targets
-- Read-only health, doctor, and verify checks for automation
 
 ## Quick Start
 
