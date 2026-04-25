@@ -105,6 +105,7 @@ func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {
 }
 
 func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
+	fixPerms := req.FixPerms()
 	return p.derivePlanFromInput(planDerivationInput{
 		label:               req.Label,
 		target:              req.Target(),
@@ -113,8 +114,8 @@ func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
 		doBackup:            req.DoBackup(),
 		doPrune:             req.DoPrune(),
 		doCleanupStore:      req.DoCleanupStore(),
-		fixPerms:            req.FixPerms(),
-		fixPermsOnly:        req.FixPermsOnly(),
+		fixPerms:            fixPerms,
+		fixPermsOnly:        fixPerms,
 		forcePrune:          req.ForcePrune,
 		dryRun:              req.DryRun,
 		verbose:             req.Verbose,

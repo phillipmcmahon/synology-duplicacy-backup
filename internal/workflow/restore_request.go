@@ -30,7 +30,7 @@ func NewRestoreRequest(req *Request) RestoreRequest {
 	return RestoreRequest{
 		Command:     req.RestoreCommand,
 		Label:       req.Source,
-		TargetName:  req.RequestedTarget,
+		TargetName:  strings.TrimSpace(req.RequestedTarget),
 		ConfigDir:   req.ConfigDir,
 		SecretsDir:  req.SecretsDir,
 		JSONSummary: req.JSONSummary,
@@ -45,7 +45,7 @@ func NewRestoreRequest(req *Request) RestoreRequest {
 }
 
 func (r RestoreRequest) Target() string {
-	return strings.TrimSpace(r.TargetName)
+	return r.TargetName
 }
 
 func (r RestoreRequest) PlanRequest() ConfigPlanRequest {

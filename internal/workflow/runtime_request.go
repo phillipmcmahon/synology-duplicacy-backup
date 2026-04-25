@@ -71,7 +71,3 @@ func (r RuntimeRequest) DoCleanupStore() bool {
 func (r RuntimeRequest) FixPerms() bool {
 	return r.Mode == RuntimeModeFixPerms
 }
-
-func (r RuntimeRequest) FixPermsOnly() bool {
-	return r.Mode == RuntimeModeFixPerms
-}

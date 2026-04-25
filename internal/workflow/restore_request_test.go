@@ -6,7 +6,7 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	req := &Request{
 		RestoreCommand:    "run",
 		Source:            "homes",
-		RequestedTarget:   "onsite-usb",
+		RequestedTarget:   " onsite-usb ",
 		ConfigDir:         "/etc/duplicacy-backup",
 		SecretsDir:        "/root/.secrets",
 		JSONSummary:       true,
