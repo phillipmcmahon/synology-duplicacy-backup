@@ -28,24 +28,24 @@ func HandleRestoreCommand(req *Request, meta Metadata, rt Runtime) (string, erro
 
 func handleRestoreCommand(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	deps = deps.withDefaults()
-	switch req.RestoreCommand {
+	restoreReq := NewRestoreRequest(req)
+	switch restoreReq.Command {
 	case "plan":
-		return handleRestorePlan(req, meta, rt, deps)
+		return handleRestorePlan(&restoreReq, meta, rt, deps)
 	case "list-revisions":
-		return handleRestoreRevisions(req, meta, rt, deps)
+		return handleRestoreRevisions(&restoreReq, meta, rt, deps)
 	case "run":
-		return handleRestoreRun(req, meta, rt, deps)
+		return handleRestoreRun(&restoreReq, meta, rt, deps)
 	case "select":
-		return handleRestoreSelect(req, meta, rt, deps)
+		return handleRestoreSelect(&restoreReq, meta, rt, deps)
 	default:
-		return "", NewRequestError("unsupported restore command %q", req.RestoreCommand)
+		return "", NewRequestError("unsupported restore command %q", restoreReq.Command)
 	}
 }
 
-func handleRestorePlan(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
+func handleRestorePlan(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+	plan := planner.derivePlan(req.ConfigRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return "", err
@@ -53,11 +53,11 @@ func handleRestorePlan(req *Request, meta Metadata, rt Runtime, deps RestoreDeps
 	plan.applyConfig(cfg, rt)
 
 	report := newRestorePlanReport(req, meta, plan, cfg.Storage, deps)
-	report.loadAndApplyState(meta, req.Source, req.Target())
+	report.loadAndApplyState(meta, req.Label, req.Target())
 	return formatRestorePlan(report), nil
 }
 
-func handleRestoreRevisions(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
+func handleRestoreRevisions(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	ctx, err := newRestoreExecutionContext(req, meta, rt, true, deps)
 	if err != nil {
 		return "", err
@@ -75,8 +75,8 @@ func handleRestoreRevisions(req *Request, meta Metadata, rt Runtime, deps Restor
 	return formatRestoreRevisions(report), nil
 }
 
-func handleRestoreRun(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
-	restorePath, err := cleanRestorePath(req.RestorePath)
+func handleRestoreRun(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
+	restorePath, err := cleanRestorePath(req.Path)
 	if err != nil {
 		return "", err
 	}
@@ -85,15 +85,15 @@ func handleRestoreRun(req *Request, meta Metadata, rt Runtime, deps RestoreDeps)
 		return "", err
 	}
 	return executeRestoreRun(req, rt, deps, ctx, restoreRunInputs{
-		Revision:    req.RestoreRevision,
+		Revision:    req.Revision,
 		RestorePath: restorePath,
 		Workspace:   ctx.workspace,
-		AssumeYes:   req.RestoreYes,
+		AssumeYes:   req.Yes,
 		DryRun:      req.DryRun,
 	})
 }
 
-func executeRestoreRun(req *Request, rt Runtime, deps RestoreDeps, ctx *restoreRunContext, inputs restoreRunInputs) (string, error) {
+func executeRestoreRun(req *RestoreRequest, rt Runtime, deps RestoreDeps, ctx *restoreRunContext, inputs restoreRunInputs) (string, error) {
 	report := newRestoreRunReport(req, ctx.plan, ctx.storage, inputs.Workspace, inputs.Revision, inputs.RestorePath, inputs.DryRun)
 	if inputs.DryRun {
 		report.Result = "Dry run"
@@ -126,7 +126,7 @@ func executeRestoreRun(req *Request, rt Runtime, deps RestoreDeps, ctx *restoreR
 	return formatRestoreRun(report), nil
 }
 
-func handleRestoreSelect(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
+func handleRestoreSelect(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	reader, interactive := runtimeStdinReader(rt)
 	if !interactive {
 		return "", NewRequestError("restore select requires an interactive terminal; use restore list-revisions and restore run for scripts or scheduled jobs")
@@ -142,13 +142,13 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime, deps RestoreDe
 		return "", err
 	}
 	if len(revisions) == 0 {
-		return "", NewRequestError("restore select found no visible revisions; run restore list-revisions --target %s %s to inspect the target directly", req.Target(), req.Source)
+		return "", NewRequestError("restore select found no visible revisions; run restore list-revisions --target %s %s to inspect the target directly", req.Target(), req.Label)
 	}
 	revision, err := promptRestoreRevision(reader, revisions, 50, deps)
 	if err != nil {
 		return "", err
 	}
-	intent, err := promptRestoreSelectIntent(reader, req.RestorePathPrefix, deps)
+	intent, err := promptRestoreSelectIntent(reader, req.PathPrefix, deps)
 	if err != nil {
 		return "", err
 	}
@@ -165,16 +165,16 @@ func handleRestoreSelect(req *Request, meta Metadata, rt Runtime, deps RestoreDe
 	}
 }
 
-func runRestoreSelectInspect(ctx *restoreExecutionContext, req *Request, meta Metadata, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
+func runRestoreSelectInspect(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
 	if err := promptRestoreInspect(ctx, req, meta, revision.Revision, deps); err != nil {
 		return "", err
 	}
-	return formatRestoreInspect(newRestoreInspectReport(req, ctx.plan, ctx.cfg.Storage, revision.Revision, req.RestorePathPrefix)), nil
+	return formatRestoreInspect(newRestoreInspectReport(req, ctx.plan, ctx.cfg.Storage, revision.Revision, req.PathPrefix)), nil
 }
 
-func runRestoreSelectFull(ctx *restoreExecutionContext, req *Request, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
+func runRestoreSelectFull(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
 	restorePaths := []string{""}
-	pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
+	pathPrefix, err := cleanRestorePath(req.PathPrefix)
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +184,7 @@ func runRestoreSelectFull(ctx *restoreExecutionContext, req *Request, meta Metad
 	return runRestoreSelectExecution(ctx, req, meta, rt, reader, revision, restorePaths, deps)
 }
 
-func runRestoreSelectSelective(ctx *restoreExecutionContext, req *Request, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
+func runRestoreSelectSelective(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
 	restorePaths, err := promptRestorePath(ctx, req, meta, revision.Revision, deps)
 	if err != nil {
 		return "", err
@@ -192,7 +192,7 @@ func runRestoreSelectSelective(ctx *restoreExecutionContext, req *Request, meta 
 	return runRestoreSelectExecution(ctx, req, meta, rt, reader, revision, restorePaths, deps)
 }
 
-func runRestoreSelectExecution(ctx *restoreExecutionContext, req *Request, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, restorePaths []string, deps RestoreDeps) (string, error) {
+func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, rt Runtime, reader restoreLineReader, revision duplicacy.RevisionInfo, restorePaths []string, deps RestoreDeps) (string, error) {
 	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
 	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
 	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.SnapshotSource); err != nil {

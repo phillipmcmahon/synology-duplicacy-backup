@@ -12,30 +12,30 @@ import (
 
 const defaultRestoreWorkspaceRoot = "/volume1/restore-drills"
 
-func resolvedRestoreWorkspace(req *Request, plan *Plan, deps RestoreDeps) string {
-	workspace := req.RestoreWorkspace
+func resolvedRestoreWorkspace(req *RestoreRequest, plan *Plan, deps RestoreDeps) string {
+	workspace := req.Workspace
 	if strings.TrimSpace(workspace) == "" {
-		workspace = recommendedRestoreWorkspace(req.Source, req.Target(), deps)
+		workspace = recommendedRestoreWorkspace(req.Label, req.Target(), deps)
 	}
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
-func resolvedRestoreRunWorkspace(req *Request, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
-	if strings.TrimSpace(req.RestoreWorkspace) != "" {
+func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
+	if strings.TrimSpace(req.Workspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps), nil
 	}
 	revision, err := findRestoreRevision(req, rt, plan, storage, sec, deps)
 	if err != nil {
 		return "", err
 	}
-	return recommendedRestoreWorkspaceForRevision(req.Source, req.Target(), revision, deps), nil
+	return recommendedRestoreWorkspaceForRevision(req.Label, req.Target(), revision, deps), nil
 }
 
-func resolvedRestoreSelectWorkspace(req *Request, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
-	if strings.TrimSpace(req.RestoreWorkspace) != "" {
+func resolvedRestoreSelectWorkspace(req *RestoreRequest, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
+	if strings.TrimSpace(req.Workspace) != "" {
 		return resolvedRestoreWorkspace(req, plan, deps)
 	}
-	return recommendedRestoreWorkspaceForRevision(req.Source, req.Target(), revision, deps)
+	return recommendedRestoreWorkspaceForRevision(req.Label, req.Target(), revision, deps)
 }
 
 func recommendedRestoreWorkspace(label, target string, deps RestoreDeps) string {
@@ -114,8 +114,8 @@ func ensureRestoreWorkspaceReady(workspace string) error {
 	return nil
 }
 
-func restoreWorkspaceForRead(req *Request, plan *Plan, rt Runtime, allowTemporary bool, deps RestoreDeps) (string, string, func(), error) {
-	if strings.TrimSpace(req.RestoreWorkspace) != "" {
+func restoreWorkspaceForRead(req *RestoreRequest, plan *Plan, rt Runtime, allowTemporary bool, deps RestoreDeps) (string, string, func(), error) {
+	if strings.TrimSpace(req.Workspace) != "" {
 		workspace := resolvedRestoreWorkspace(req, plan, deps)
 		if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
 			return "", "", func() {}, err
@@ -152,7 +152,7 @@ func temporaryRestoreWorkspace(plan *Plan, rt Runtime) (string, func(), error) {
 	return workspace, func() { _ = os.RemoveAll(workspace) }, nil
 }
 
-func findRestoreRevision(req *Request, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (duplicacy.RevisionInfo, error) {
+func findRestoreRevision(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (duplicacy.RevisionInfo, error) {
 	workspace, cleanup, err := temporaryRestoreWorkspace(plan, rt)
 	if err != nil {
 		return duplicacy.RevisionInfo{}, err
@@ -167,11 +167,11 @@ func findRestoreRevision(req *Request, rt Runtime, plan *Plan, storage string, s
 		return duplicacy.RevisionInfo{}, err
 	}
 	for _, revision := range revisions {
-		if revision.Revision == req.RestoreRevision {
+		if revision.Revision == req.Revision {
 			return revision, nil
 		}
 	}
-	return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found in the visible revision list", req.RestoreRevision)
+	return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found in the visible revision list", req.Revision)
 }
 
 func prepareRestoreWorkspace(workspace, storage string, sec *secrets.Secrets) error {

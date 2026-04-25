@@ -163,7 +163,7 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 
 func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "restore-drills")
-	req := &Request{Source: "homes", RequestedTarget: "onsite-usb"}
+	req := &RestoreRequest{Label: "homes", TargetName: "onsite-usb"}
 	plan := &Plan{SnapshotSource: "/tmp/homes"}
 	revision := duplicacy.RevisionInfo{
 		Revision:  2403,
@@ -180,7 +180,7 @@ func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T)
 }
 
 func TestResolvedRestoreSelectWorkspace_DefaultRootIgnoresSourcePath(t *testing.T) {
-	req := &Request{Source: "homes", RequestedTarget: "onsite-usb"}
+	req := &RestoreRequest{Label: "homes", TargetName: "onsite-usb"}
 	plan := &Plan{SnapshotSource: "/volumeUSB2/historical-source"}
 	revision := duplicacy.RevisionInfo{
 		Revision:  2403,

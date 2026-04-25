@@ -12,10 +12,9 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 )
 
-func newRestoreSelectContext(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
+func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+	plan := planner.derivePlan(req.ConfigRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, func() {}, err
@@ -23,10 +22,10 @@ func newRestoreSelectContext(req *Request, meta Metadata, rt Runtime, deps Resto
 	plan.applyConfig(cfg, rt)
 
 	listingReq := *req
-	if strings.TrimSpace(req.RestoreWorkspace) != "" && restoreWorkspacePrepared(resolvedRestoreWorkspace(req, plan, deps)) {
-		listingReq.RestoreWorkspace = resolvedRestoreWorkspace(req, plan, deps)
+	if strings.TrimSpace(req.Workspace) != "" && restoreWorkspacePrepared(resolvedRestoreWorkspace(req, plan, deps)) {
+		listingReq.Workspace = resolvedRestoreWorkspace(req, plan, deps)
 	} else {
-		listingReq.RestoreWorkspace = ""
+		listingReq.Workspace = ""
 	}
 	ctx, err := newRestoreExecutionContext(&listingReq, meta, rt, true, deps)
 	if err != nil {
@@ -113,8 +112,8 @@ func promptRestoreSelectIntent(reader *bufio.Reader, pathPrefix string, deps Res
 	}
 }
 
-func promptRestoreInspect(ctx *restoreExecutionContext, req *Request, meta Metadata, revision int, deps RestoreDeps) error {
-	pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
+func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, revision int, deps RestoreDeps) error {
+	pathPrefix, err := cleanRestorePath(req.PathPrefix)
 	if err != nil {
 		return err
 	}
@@ -130,11 +129,11 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *Request, meta Metad
 		return NewRequestError("restore select found no paths under prefix %q in revision %d", pathPrefix, revision)
 	}
 	if err := deps.RunInspectPicker(paths, restorepicker.AppOptions{
-		Title:      fmt.Sprintf("Restore inspection for %s/%s", req.Source, req.Target()),
+		Title:      fmt.Sprintf("Restore inspection for %s/%s", req.Label, req.Target()),
 		PathPrefix: pathPrefix,
 		Primitive: restorepicker.PrimitiveOptions{
 			ScriptName: meta.ScriptName,
-			Source:     req.Source,
+			Source:     req.Label,
 			Target:     req.Target(),
 			Revision:   strconv.Itoa(revision),
 			Workspace:  ctx.workspace,
@@ -148,8 +147,8 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *Request, meta Metad
 	return nil
 }
 
-func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata, revision int, deps RestoreDeps) ([]string, error) {
-	pathPrefix, err := cleanRestorePath(req.RestorePathPrefix)
+func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta Metadata, revision int, deps RestoreDeps) ([]string, error) {
+	pathPrefix, err := cleanRestorePath(req.PathPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -166,11 +165,11 @@ func promptRestorePath(ctx *restoreExecutionContext, req *Request, meta Metadata
 	}
 	rootPath, rootIsDir := restoreSelectionRoot(paths, pathPrefix)
 	restorePaths, err := deps.RunSelectPicker(paths, restorepicker.AppOptions{
-		Title:      fmt.Sprintf("Restore selection for %s/%s", req.Source, req.Target()),
+		Title:      fmt.Sprintf("Restore selection for %s/%s", req.Label, req.Target()),
 		PathPrefix: pathPrefix,
 		Primitive: restorepicker.PrimitiveOptions{
 			ScriptName: meta.ScriptName,
-			Source:     req.Source,
+			Source:     req.Label,
 			Target:     req.Target(),
 			Revision:   strconv.Itoa(revision),
 			Workspace:  ctx.workspace,
@@ -260,7 +259,7 @@ func promptRestoreLine(reader restoreLineReader, prompt string, deps RestoreDeps
 	return strings.TrimSpace(answer), nil
 }
 
-func buildRestoreRunCommand(scriptName string, req *Request, revision int, restorePath string, workspace string) string {
+func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int, restorePath string, workspace string) string {
 	args := []string{
 		"sudo",
 		shellQuote(scriptName),
@@ -278,11 +277,11 @@ func buildRestoreRunCommand(scriptName string, req *Request, revision int, resto
 		args = append(args, "--path", shellQuote(restorePath))
 	}
 	args = appendRestoreConfigFlags(args, req)
-	args = append(args, shellQuote(req.Source))
+	args = append(args, shellQuote(req.Label))
 	return strings.Join(args, " ")
 }
 
-func buildRestoreRunCommands(scriptName string, req *Request, revision int, restorePaths []string, workspace string) []string {
+func buildRestoreRunCommands(scriptName string, req *RestoreRequest, revision int, restorePaths []string, workspace string) []string {
 	restorePaths = normaliseRestoreSelection(restorePaths)
 	commands := make([]string, 0, len(restorePaths))
 	for _, restorePath := range restorePaths {
@@ -302,7 +301,7 @@ func normaliseRestoreSelection(restorePaths []string) []string {
 	return normalised
 }
 
-func appendRestoreConfigFlags(args []string, req *Request) []string {
+func appendRestoreConfigFlags(args []string, req *RestoreRequest) []string {
 	if strings.TrimSpace(req.ConfigDir) != "" {
 		args = append(args, "--config-dir", shellQuote(req.ConfigDir))
 	}

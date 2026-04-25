@@ -100,11 +100,11 @@ type restoreSelectReport struct {
 	Guide             string
 }
 
-func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage string, deps RestoreDeps) *restorePlanReport {
+func newRestorePlanReport(req *RestoreRequest, meta Metadata, plan *Plan, storage string, deps RestoreDeps) *restorePlanReport {
 	workspace := resolvedRestoreWorkspace(req, plan, deps)
 	secretsRequired := duplicacy.NewStorageSpec(storage).NeedsSecrets()
 	report := &restorePlanReport{
-		Label:             req.Source,
+		Label:             req.Label,
 		Target:            req.Target(),
 		Location:          plan.Location,
 		ConfigFile:        plan.ConfigFile,
@@ -112,7 +112,7 @@ func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage strin
 		Storage:           storage,
 		SecretsFile:       "Not required for this storage backend",
 		SecretsRequired:   secretsRequired,
-		StateFile:         stateFilePath(meta, req.Source, req.Target()),
+		StateFile:         stateFilePath(meta, req.Label, req.Target()),
 		StateStatus:       "Not found",
 		SnapshotID:        duplicacy.DefaultSnapshotID,
 		Workspace:         workspace,
@@ -133,7 +133,7 @@ func newRestorePlanReport(req *Request, meta Metadata, plan *Plan, storage strin
 	return report
 }
 
-func newRestoreRevisionsReport(req *Request, ctx *restoreExecutionContext, revisions []duplicacy.RevisionInfo) *restoreRevisionsReport {
+func newRestoreRevisionsReport(req *RestoreRequest, ctx *restoreExecutionContext, revisions []duplicacy.RevisionInfo) *restoreRevisionsReport {
 	items := make([]restoreRevisionItem, 0, len(revisions))
 	for _, revision := range revisions {
 		items = append(items, restoreRevisionItem{
@@ -141,15 +141,15 @@ func newRestoreRevisionsReport(req *Request, ctx *restoreExecutionContext, revis
 			CreatedAt: formatRevisionCreatedAt(revision),
 		})
 	}
-	if req.RestoreLimit > 0 && len(items) > req.RestoreLimit {
-		items = items[:req.RestoreLimit]
+	if req.Limit > 0 && len(items) > req.Limit {
+		items = items[:req.Limit]
 	}
 	secretsFile := "Not required for this storage backend"
 	if ctx.secrets != nil {
 		secretsFile = ctx.secretPath
 	}
 	return &restoreRevisionsReport{
-		Label:           req.Source,
+		Label:           req.Label,
 		Target:          req.Target(),
 		Location:        ctx.plan.Location,
 		ConfigFile:      ctx.plan.ConfigFile,
@@ -159,19 +159,19 @@ func newRestoreRevisionsReport(req *Request, ctx *restoreExecutionContext, revis
 		SecretsFile:     secretsFile,
 		RevisionCount:   len(revisions),
 		Showing:         len(items),
-		Limit:           req.RestoreLimit,
+		Limit:           req.Limit,
 		Revisions:       items,
 		ExecutesRestore: false,
 	}
 }
 
-func newRestoreRunReport(req *Request, plan *Plan, storage, workspace string, revision int, restorePath string, dryRun bool) *restoreRunReport {
+func newRestoreRunReport(req *RestoreRequest, plan *Plan, storage, workspace string, revision int, restorePath string, dryRun bool) *restoreRunReport {
 	command := fmt.Sprintf("duplicacy restore -r %d -stats", revision)
 	if restorePath != "" {
 		command += " -- " + shellQuote(restorePath)
 	}
 	return &restoreRunReport{
-		Label:             req.Source,
+		Label:             req.Label,
 		Target:            req.Target(),
 		Location:          plan.Location,
 		ConfigFile:        plan.ConfigFile,
@@ -188,13 +188,13 @@ func newRestoreRunReport(req *Request, plan *Plan, storage, workspace string, re
 	}
 }
 
-func newRestoreInspectReport(req *Request, plan *Plan, storage string, revision int, pathPrefix string) *restoreInspectReport {
+func newRestoreInspectReport(req *RestoreRequest, plan *Plan, storage string, revision int, pathPrefix string) *restoreInspectReport {
 	pathPrefix = strings.TrimSpace(pathPrefix)
 	if pathPrefix == "" {
 		pathPrefix = "<entire revision>"
 	}
 	return &restoreInspectReport{
-		Label:      req.Source,
+		Label:      req.Label,
 		Target:     req.Target(),
 		Location:   plan.Location,
 		ConfigFile: plan.ConfigFile,
@@ -206,9 +206,9 @@ func newRestoreInspectReport(req *Request, plan *Plan, storage string, revision 
 	}
 }
 
-func newRestoreSelectReport(req *Request, meta Metadata, plan *Plan, storage, workspace string, workspacePrepared bool, revision int, restorePaths []string) *restoreSelectReport {
+func newRestoreSelectReport(req *RestoreRequest, meta Metadata, plan *Plan, storage, workspace string, workspacePrepared bool, revision int, restorePaths []string) *restoreSelectReport {
 	return &restoreSelectReport{
-		Label:             req.Source,
+		Label:             req.Label,
 		Target:            req.Target(),
 		Location:          plan.Location,
 		ConfigFile:        plan.ConfigFile,

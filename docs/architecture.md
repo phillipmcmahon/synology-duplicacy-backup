@@ -58,6 +58,12 @@ Runtime operations are first-class commands, so the CLI contract is explicit:
 one command names the operation, and command-specific flags refine that
 operation.
 
+The next design step is to narrow that parsed request at workflow boundaries.
+Restore now projects the parser `Request` into `RestoreRequest` before doing
+restore planning or execution, so restore helpers no longer depend on update,
+notify, health, or runtime-only flags. The broader migration plan is tracked in
+[request-model-refactor.md](request-model-refactor.md).
+
 ## Plan
 
 For runtime operations, `internal/workflow/planner.go` turns a `Request` into a

@@ -27,10 +27,9 @@ type restoreRunContext struct {
 	workspace string
 }
 
-func newRestoreRunContext(req *Request, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
+func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+	plan := planner.derivePlan(req.ConfigRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, err
@@ -65,10 +64,9 @@ func newRestoreRunContext(req *Request, meta Metadata, rt Runtime, deps RestoreD
 	}, nil
 }
 
-func newRestoreExecutionContext(req *Request, meta Metadata, rt Runtime, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
+func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	planReq := configValidationRequest(req, req.Target())
-	plan := planner.derivePlan(planReq)
+	plan := planner.derivePlan(req.ConfigRequest())
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
 		return nil, err
