@@ -42,3 +42,6 @@ automatically use tabs for Go files and LF line endings.
 - [ ] `go run honnef.co/go/tools/cmd/staticcheck ./...` passes
 - [ ] `go test -race ./...` passes
 - [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] Related issue and project board fields are current after each commit:
+      issue state, `status:*` labels, GitHub project `Status`, and custom
+      `Workflow` should tell the same story

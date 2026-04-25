@@ -40,6 +40,10 @@ Use the project board and release issues in a lightweight, repeatable way:
 - Use focused child tasks under `#24` for release and operational-tooling
   improvements such as mirroring, verification, or baseline reconciliation.
 - Move each active release item through `Ready` -> `In Progress` -> `Done`.
+- After each release-prep commit, tag publication, release repair, or closure
+  action, reconcile the board before moving on. The GitHub issue state,
+  `status:*` label, project `Status` field, and custom `Workflow` field should
+  agree.
 - Close each release child with a short comment that includes:
   - landed commit
   - validation run
@@ -78,11 +82,13 @@ Suggested release-prep checklist:
 - [ ] changelog entry added or refreshed
 - [ ] testing baseline refreshed
 - [ ] Linux Go 1.26 validation passed
+- [ ] project board and status labels reconciled after prep commit
 - [ ] release-prep notes generated
 - [ ] prep commit pushed to `main`
 - [ ] release tag pushed from the validated commit
 - [ ] GitHub release workflow passed
 - [ ] release finalized with `scripts/finalize-release.sh`
+- [ ] project board and status labels reconciled after release finalization
 - [ ] closure summary pasted into the release issue
 
 ### 2. Prepare Version
