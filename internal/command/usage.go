@@ -27,7 +27,7 @@ Commands:
     Runtime operations     backup, prune, cleanup-storage, fix-perms
     Config and inspection  config, diagnostics, health
     Notifications          notify test, notify test update
-    Restore drills         restore select, restore plan, restore list-revisions, restore run
+    Restore drills         restore select (guided TUI), restore plan, restore list-revisions, restore run
     Managed install        update, rollback
 
 Common options:
@@ -124,8 +124,8 @@ COMMAND OVERVIEW:
       notify test           Send a simulated notification through configured providers
       notify test update    Send a simulated update notification through global update config
 
-    Restore drills          Prepare and execute safe restore workflows without writing to the live source
-      restore select        Choose a restore point, inspect it, or build a tree-based restore selection; confirm to restore into a drill workspace
+    Restore drills          Restore from snapshots without writing to the live source
+      restore select        Guided TUI restore path: choose a restore point, inspect it, select files/subtrees, and confirm drill restore execution
       restore plan          Print a read-only Duplicacy restore-drill plan without executing a restore
       restore list-revisions
                             List visible backup revisions without executing a restore
@@ -264,6 +264,12 @@ COMMAND MODEL:
 JSON SUMMARY:
     --json-summary writes a machine-readable completion summary to stdout.
     Human-readable logs continue to be written to stderr.
+
+EXIT CODES:
+    0                        Success. Health commands use 0 for healthy.
+    1                        General command failure. Health commands use 1 for degraded.
+    2                        Health unhealthy, or health pre-run failure before a health result can be produced.
+                             Restore selection cancellation before execution exits 0.
 
 RESTORE PLANNING AND DISCOVERY:
     restore plan is read-only. It resolves label and target context, shows the

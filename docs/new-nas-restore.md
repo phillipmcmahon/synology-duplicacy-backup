@@ -285,6 +285,18 @@ If secrets are invalid, check that:
 - S3-compatible backends use `s3_id` and `s3_secret`
 - native `storj://` storage uses `storj_key` and `storj_passphrase`
 
+Print a redacted diagnostics bundle before the first restore or backup on the
+new NAS:
+
+```bash
+duplicacy-backup diagnostics --target offsite-storj homes
+```
+
+Use this as a final sanity check that the new NAS is reading the intended
+config file, target, storage value, secrets file, state directory, and runtime
+paths. It is non-mutating and safe to paste into a support conversation because
+secret values are redacted.
+
 ## 6. Prove You Can See Restore Points
 
 List available revisions without restoring data:

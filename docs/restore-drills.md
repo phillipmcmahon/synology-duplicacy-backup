@@ -18,6 +18,19 @@ Do not run a first restore directly over `/volume1/homes`, `/volume1/music`,
 or any other live source path. A restore drill should prove that the backup can
 be read without putting production data at risk.
 
+## Workspace Ownership
+
+Restore commands are designed to run as the operator user when that user can
+read the selected config/secrets and write to the drill workspace. Create the
+parent `--workspace-root` yourself first, preferably as a Synology shared
+folder when DSM visibility matters. The tool preserves that parent folder and
+creates the derived restore-job child underneath it.
+
+Avoid running restore through `sudo` just to work around workspace access.
+Fix the workspace root ownership or permissions instead. Use `sudo` only for
+manual folder creation, DSM shared-folder setup, or the later copy-back step
+when the destination live path requires it.
+
 ## UX Model
 
 There are two restore paths:

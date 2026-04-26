@@ -133,6 +133,13 @@ Use `restore plan` when you want the explicit expert path and safe next-step com
 duplicacy-backup restore plan --target <target> <label>
 ```
 
+If `restore select` fails before the picker appears, check that the command is
+running in an interactive terminal. The tree picker needs a TTY and a usable
+terminal type. When connecting over SSH, use `ssh -t ...`; avoid `TERM=dumb`.
+If an interactive terminal is not available, use the scriptable primitives:
+`restore list-revisions` to choose a revision and `restore run` with explicit
+`--revision`, `--path`, and workspace options.
+
 List revisions before restoring:
 
 ```bash

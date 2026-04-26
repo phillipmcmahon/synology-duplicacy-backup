@@ -137,6 +137,28 @@ focused workflow helpers, and prune preview policy to dedicated workflow code.
 It relies on the plan for execution decisions rather than repeatedly reaching
 back into raw request/config data.
 
+## Restore Subsystem
+
+Restore is a first-class subsystem, not a single command handler. The workflow
+package keeps the restore contract close to the other command orchestration,
+while the tree picker lives in its own package.
+
+| File or package | Responsibility |
+|---|---|
+| `internal/workflow/restore_command.go` | Top-level restore command orchestration and handoff to restore primitives |
+| `internal/workflow/restore_context.go` | Shared resolved restore state such as config, storage, secrets, and plan context |
+| `internal/workflow/restore_deps.go` | Dependency injection seam for clocks, runners, prompts, picker, and workspace defaults |
+| `internal/workflow/restore_workspace.go` | Workspace resolution, derived workspace naming, and safety validation |
+| `internal/workflow/restore_prompt.go` | Revision-first text prompts, confirmation, and cancellation handling |
+| `internal/workflow/restore_parse.go` | Duplicacy revision and path parsing helpers |
+| `internal/workflow/restore_format.go` | Operator-facing restore plan and report formatting |
+| `internal/workflow/restore_reports.go` | Preview and result report models |
+| `internal/restorepicker` | Interactive tree picker built on tview/tcell; compiles selections back to explicit restore primitives |
+
+The guardrail is that `restore select` remains a convenience layer. It must
+resolve to the same explicit `restore run` primitives used by expert and
+scripted workflows.
+
 ## Why This Shape
 
 The main goal of the refactor was simplicity, not framework-building.

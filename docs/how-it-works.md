@@ -347,6 +347,16 @@ inspect or delegate a restore only after explicit confirmation, and
 only inside that workspace. Restore execution prints operator progress to
 stderr while keeping the final report on stdout.
 
+`diagnostics` is the support-bundle path. It resolves one label and target,
+redacts secret values, reports config/storage/state/path context, and exits
+without running Duplicacy backup, prune, restore, or cleanup operations.
+
+`rollback` is the managed-install recovery path. It inspects retained
+versioned binaries under the managed install root, chooses either the newest
+previous retained version or an explicit `--version`, and activates it by
+changing the managed `current` symlink. It does not download releases and does
+not modify runtime config or secrets.
+
 ### Why this matters
 
 The request phase is intentionally cheap and non-invasive.

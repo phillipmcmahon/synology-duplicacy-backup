@@ -124,6 +124,14 @@ are not supported.
 | `DUPLICACY_BACKUP_CONFIG_DIR` | Override config directory unless `--config-dir` is provided |
 | `DUPLICACY_BACKUP_SECRETS_DIR` | Override secrets directory unless `--secrets-dir` is provided |
 
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. Health commands use `0` for healthy. Restore selection cancellation before execution also exits `0`. |
+| `1` | General command failure. Health commands use `1` for degraded. |
+| `2` | Health unhealthy, or a health pre-run failure before a health result can be produced. |
+
 ## Examples
 
 These examples show representative syntax. For a fuller operator command list,
