@@ -367,6 +367,10 @@ storage = "minio://garage@192.168.202.24:3900/garage/homes"
 run backups. It must be a Btrfs volume or subvolume that can be used directly
 as the source of a read-only snapshot.
 
+This is a hard production requirement on Synology DSM. Backups refuse non-Btrfs
+source paths by design because live-tree reads would remove the snapshot
+consistency guarantee.
+
 Good examples:
 
 - `/volume1/source-homes`

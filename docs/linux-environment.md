@@ -1,5 +1,13 @@
 # Linux Test and Packaging Environment
 
+This document describes the project's Linux validation and packaging
+environment. It is not production runtime guidance.
+
+Production use is scoped to Synology DSM with Btrfs-backed `/volume*` storage.
+Operational commands intentionally refuse to run on non-Synology systems, and
+backups require Btrfs snapshot-capable source paths by design. See
+[`requirements.md`](requirements.md) for the runtime requirements.
+
 Use this document whenever you need a consistent Linux environment for:
 
 - release validation

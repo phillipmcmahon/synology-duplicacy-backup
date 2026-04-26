@@ -20,6 +20,10 @@ const (
 )
 
 func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+	if err := requireSynologyDSM(); err != nil {
+		return writeCommandFailure("", err)
+	}
+
 	switch {
 	case req.ConfigCommand != "":
 		return runConfigRequest(req, meta, rt)

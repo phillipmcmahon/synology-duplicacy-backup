@@ -12,6 +12,12 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- **Production runtime now explicitly requires Synology DSM**:
+  operational commands fail fast on non-Synology systems, and documentation now
+  states that DSM with Btrfs-backed `/volume*` storage is the supported
+  production model.
+
 ## [v8.0.0] - 2026-04-26
 
 ### Breaking

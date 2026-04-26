@@ -15,6 +15,18 @@ support bundles, and managed install maintenance.
 
 The project builds as a single static binary for Synology-targeted Linux architectures.
 
+## Production Requirements
+
+This tool is production-scoped to Synology DSM with Btrfs-backed `/volume*`
+storage. Backups require the configured `source_path` to be a Btrfs volume or
+subvolume root because snapshot consistency is a correctness requirement, not
+an optional optimisation.
+
+Operational commands refuse to run on non-Synology systems. The Linux container
+workflow in [`docs/linux-environment.md`](docs/linux-environment.md) is for
+development, validation, and packaging only; it is not a generic-Linux
+production support statement.
+
 ## Target Model
 
 Each named target describes two things:
@@ -200,6 +212,7 @@ Use the documentation by task:
 | Task | Start here |
 |---|---|
 | Install or upgrade the binary | [Operations](docs/operations.md) |
+| Confirm platform and storage requirements | [Requirements](docs/requirements.md) |
 | Run common commands | [Operator cheat sheet](docs/cheatsheet.md) |
 | Diagnose failed runs or confusing status output | [Troubleshooting](docs/troubleshooting.md) |
 | Check exact CLI syntax | [CLI reference](docs/cli.md) |
@@ -271,6 +284,7 @@ Core operating rules:
 - [Operator cheat sheet](docs/cheatsheet.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)
+- [Requirements](docs/requirements.md)
 - [Configuration and secrets](docs/configuration.md)
 - [v8 migration guide](docs/v8-migration.md)
 - [Workflow and scheduling](docs/workflow-scheduling.md)

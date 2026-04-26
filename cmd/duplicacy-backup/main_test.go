@@ -73,6 +73,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldLogDir := logDir
 	oldGeteuid := geteuid
 	oldLookPath := lookPath
+	oldIsSynologyDSM := isSynologyDSM
 	oldNewLock := newLock
 	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
@@ -85,6 +86,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	logDir = t.TempDir()
 	geteuid = func() int { return 0 }
 	lookPath = func(string) (string, error) { return "/usr/bin/true", nil }
+	isSynologyDSM = func() bool { return true }
 	lockParent := t.TempDir()
 	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
@@ -99,6 +101,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 		logDir = oldLogDir
 		geteuid = oldGeteuid
 		lookPath = oldLookPath
+		isSynologyDSM = oldIsSynologyDSM
 		newLock = oldNewLock
 		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
@@ -1028,6 +1031,50 @@ func TestRunWithArgs_VersionReturnsZero(t *testing.T) {
 	if !strings.Contains(stdout, scriptName) {
 		t.Fatalf("stdout = %q", stdout)
 	}
+}
+
+func TestRunWithArgs_HelpDoesNotRequireSynologyDSM(t *testing.T) {
+	withTestGlobals(t, func() {
+		isSynologyDSM = func() bool { return false }
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"--help"}); code != 0 {
+				t.Fatalf("runWithArgs(--help) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("expected empty stderr, got %q", stderr)
+		}
+		if !strings.Contains(stdout, "Usage: duplicacy-backup") {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestRunWithArgs_OperationalCommandRequiresSynologyDSM(t *testing.T) {
+	withTestGlobals(t, func() {
+		isSynologyDSM = func() bool { return false }
+		called := false
+		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+			called = true
+			return "", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "explain", "--target", "onsite-usb", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config explain) = %d", code)
+			}
+		})
+		if called {
+			t.Fatalf("config handler was called before DSM platform validation")
+		}
+		if stdout != "" {
+			t.Fatalf("expected empty stdout, got %q", stdout)
+		}
+		if !strings.Contains(stderr, "requires Synology DSM with btrfs-backed /volume* storage") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+	})
 }
 
 func TestDefaultVersionFallbackIsDev(t *testing.T) {
