@@ -19,11 +19,14 @@ ci_mount_btrfs_volume1 "$IMAGE"
 ci_write_remote_config_with_secrets "$OPERATOR_USER" "$TARGET"
 
 operator_home="$(getent passwd "$OPERATOR_USER" | awk -F: '{print $6; exit}')"
-explain_output="$(sudo -H -u "$OPERATOR_USER" sudo -n duplicacy-backup config explain --target "$TARGET" homes)"
+operator_uid="$(id -u "$OPERATOR_USER")"
+operator_gid="$(id -g "$OPERATOR_USER")"
+
+explain_output="$(env SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup config explain --target "$TARGET" homes)"
 printf '%s\n' "$explain_output"
 printf '%s\n' "$explain_output" | grep -F "$operator_home/.config/duplicacy-backup/homes-backup.toml" >/dev/null
 if printf '%s\n' "$explain_output" | grep -F "/root/.config/duplicacy-backup" >/dev/null; then
     ci_fail "sudo config explain resolved the root profile instead of the operator profile"
 fi
 
-sudo -H -u "$OPERATOR_USER" sudo -n duplicacy-backup backup --target "$TARGET" --dry-run homes
+env SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes
