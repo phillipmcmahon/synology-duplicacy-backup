@@ -165,39 +165,61 @@ func TestRuntimeProfileMigrationScript_HelpMentionsLegacyAndUserProfilePaths(t *
 	}
 }
 
-func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testing.T) {
-	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
+type runtimeMigrationFixture struct {
+	scriptPath    string
+	legacyConfig  string
+	legacySecrets string
+	targetHome    string
+	configDir     string
+	secretsDir    string
+	configSource  string
+	secretsSource string
+}
+
+func newRuntimeMigrationFixture(t *testing.T) runtimeMigrationFixture {
+	t.Helper()
 	tempDir := t.TempDir()
-	legacyConfig := filepath.Join(tempDir, "legacy-config")
-	legacySecrets := filepath.Join(tempDir, "legacy-secrets")
-	targetHome := filepath.Join(tempDir, "operator-home")
-	configDir := filepath.Join(targetHome, ".config", "duplicacy-backup")
-	secretsDir := filepath.Join(configDir, "secrets")
-	if err := os.MkdirAll(legacyConfig, 0755); err != nil {
+	fixture := runtimeMigrationFixture{
+		scriptPath:    filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh"),
+		legacyConfig:  filepath.Join(tempDir, "legacy-config"),
+		legacySecrets: filepath.Join(tempDir, "legacy-secrets"),
+		targetHome:    filepath.Join(tempDir, "operator-home"),
+	}
+	fixture.configDir = filepath.Join(fixture.targetHome, ".config", "duplicacy-backup")
+	fixture.secretsDir = filepath.Join(fixture.configDir, "secrets")
+	fixture.configSource = filepath.Join(fixture.legacyConfig, "homes-backup.toml")
+	fixture.secretsSource = filepath.Join(fixture.legacySecrets, "homes-secrets.toml")
+
+	if err := os.MkdirAll(fixture.legacyConfig, 0755); err != nil {
 		t.Fatalf("MkdirAll(legacy config) failed: %v", err)
 	}
-	if err := os.MkdirAll(legacySecrets, 0755); err != nil {
+	if err := os.MkdirAll(fixture.legacySecrets, 0755); err != nil {
 		t.Fatalf("MkdirAll(legacy secrets) failed: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(legacyConfig, "homes-backup.toml"), []byte("label = \"homes\"\n"), 0644); err != nil {
+	if err := os.WriteFile(fixture.configSource, []byte("label = \"homes\"\n"), 0644); err != nil {
 		t.Fatalf("WriteFile(config) failed: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(legacySecrets, "homes-secrets.toml"), []byte("[targets.onsite.keys]\n"), 0644); err != nil {
+	if err := os.WriteFile(fixture.secretsSource, []byte("[targets.onsite.keys]\n"), 0644); err != nil {
 		t.Fatalf("WriteFile(secrets) failed: %v", err)
 	}
+	return fixture
+}
 
-	cmd := exec.Command("sh", scriptPath,
+func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testing.T) {
+	fixture := newRuntimeMigrationFixture(t)
+
+	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
-		"--target-home", targetHome,
-		"--legacy-config-dir", legacyConfig,
-		"--legacy-secrets-dir", legacySecrets,
+		"--target-home", fixture.targetHome,
+		"--legacy-config-dir", fixture.legacyConfig,
+		"--legacy-secrets-dir", fixture.legacySecrets,
 	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("migration script failed: %v\n%s", err, output)
 	}
 
-	for _, path := range []string{configDir, secretsDir} {
+	for _, path := range []string{fixture.configDir, fixture.secretsDir} {
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Fatalf("Stat(%q) failed: %v", path, err)
@@ -207,8 +229,8 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 		}
 	}
 	for _, path := range []string{
-		filepath.Join(configDir, "homes-backup.toml"),
-		filepath.Join(secretsDir, "homes-secrets.toml"),
+		filepath.Join(fixture.configDir, "homes-backup.toml"),
+		filepath.Join(fixture.secretsDir, "homes-secrets.toml"),
 	} {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -218,40 +240,22 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 			t.Fatalf("%s perms = %04o, want 0600", path, got)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(legacyConfig, "homes-backup.toml")); err != nil {
+	if _, err := os.Stat(fixture.configSource); err != nil {
 		t.Fatalf("source config should remain after copy mode: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(legacySecrets, "homes-secrets.toml")); err != nil {
+	if _, err := os.Stat(fixture.secretsSource); err != nil {
 		t.Fatalf("source secrets should remain after copy mode: %v", err)
 	}
 }
 
 func TestRuntimeProfileMigrationScript_MoveRemovesLegacyFiles(t *testing.T) {
-	scriptPath := filepath.Join(repoRoot(t), "scripts", "migrate-runtime-profile.sh")
-	tempDir := t.TempDir()
-	legacyConfig := filepath.Join(tempDir, "legacy-config")
-	legacySecrets := filepath.Join(tempDir, "legacy-secrets")
-	targetHome := filepath.Join(tempDir, "operator-home")
-	if err := os.MkdirAll(legacyConfig, 0755); err != nil {
-		t.Fatalf("MkdirAll(legacy config) failed: %v", err)
-	}
-	if err := os.MkdirAll(legacySecrets, 0755); err != nil {
-		t.Fatalf("MkdirAll(legacy secrets) failed: %v", err)
-	}
-	configSource := filepath.Join(legacyConfig, "homes-backup.toml")
-	secretsSource := filepath.Join(legacySecrets, "homes-secrets.toml")
-	if err := os.WriteFile(configSource, []byte("label = \"homes\"\n"), 0644); err != nil {
-		t.Fatalf("WriteFile(config) failed: %v", err)
-	}
-	if err := os.WriteFile(secretsSource, []byte("[targets.onsite.keys]\n"), 0644); err != nil {
-		t.Fatalf("WriteFile(secrets) failed: %v", err)
-	}
+	fixture := newRuntimeMigrationFixture(t)
 
-	cmd := exec.Command("sh", scriptPath,
+	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
-		"--target-home", targetHome,
-		"--legacy-config-dir", legacyConfig,
-		"--legacy-secrets-dir", legacySecrets,
+		"--target-home", fixture.targetHome,
+		"--legacy-config-dir", fixture.legacyConfig,
+		"--legacy-secrets-dir", fixture.legacySecrets,
 		"--move",
 	)
 	output, err := cmd.CombinedOutput()
@@ -259,15 +263,15 @@ func TestRuntimeProfileMigrationScript_MoveRemovesLegacyFiles(t *testing.T) {
 		t.Fatalf("migration script failed: %v\n%s", err, output)
 	}
 
-	if _, err := os.Stat(configSource); !os.IsNotExist(err) {
+	if _, err := os.Stat(fixture.configSource); !os.IsNotExist(err) {
 		t.Fatalf("source config exists or unexpected error after --move: %v", err)
 	}
-	if _, err := os.Stat(secretsSource); !os.IsNotExist(err) {
+	if _, err := os.Stat(fixture.secretsSource); !os.IsNotExist(err) {
 		t.Fatalf("source secrets exists or unexpected error after --move: %v", err)
 	}
 	for _, path := range []string{
-		filepath.Join(targetHome, ".config", "duplicacy-backup", "homes-backup.toml"),
-		filepath.Join(targetHome, ".config", "duplicacy-backup", "secrets", "homes-secrets.toml"),
+		filepath.Join(fixture.configDir, "homes-backup.toml"),
+		filepath.Join(fixture.secretsDir, "homes-secrets.toml"),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("destination missing after --move: %s: %v", path, err)
