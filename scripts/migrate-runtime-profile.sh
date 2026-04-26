@@ -278,13 +278,13 @@ info "Target user       : $TARGET_USER"
 info "Target home       : $TARGET_HOME"
 info "Destination config: $CONFIG_DIR"
 info "Destination secrets: $SECRETS_DIR"
+preflight_destination_collisions
+info "Preflight         : OK"
 if [ "$MOVE" -eq 1 ]; then
     info "Mode              : move after successful copy"
 else
     info "Mode              : copy only"
 fi
-
-preflight_destination_collisions
 
 migrate_dir_toml "$LEGACY_CONFIG_DIR" "$CONFIG_DIR" "$TARGET_USER" "Config"
 migrate_dir_toml "$LEGACY_SECRETS_DIR" "$SECRETS_DIR" "$TARGET_USER" "Secrets"
