@@ -11,6 +11,9 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Run Staticcheck as part of release validation; CI uses
   `honnef.co/go/tools/cmd/staticcheck` and the version is pinned in Go module
   metadata so Dependabot can update it.
+- Keep CI smoke jobs for non-root runtime posture, sudo/operator-owned secrets,
+  and migration-helper layout in the release gate. These jobs are Ubuntu-based
+  DSM proxies, not replacements for NAS smoke testing.
 - Use the Go container image declared in
   [`tools/release-validation/Dockerfile`](../tools/release-validation/Dockerfile);
   Dependabot monitors that Dockerfile for image updates.
@@ -86,6 +89,7 @@ Suggested release-prep checklist:
 - [ ] changelog entry added or refreshed
 - [ ] testing baseline refreshed
 - [ ] Linux Go 1.26 validation passed
+- [ ] CI smoke jobs passed on `main`
 - [ ] project board and status labels reconciled after prep commit
 - [ ] release-prep notes generated
 - [ ] prep commit pushed to `main`
@@ -163,6 +167,19 @@ Use `scripts/package-test-bundle.sh` for operator-facing smoke packages that
 need bundled instructions. It creates one self-contained per-run folder and a
 bundle whose extracted layout is `README.md`, `artifacts/`, `checksums/`, and
 `instructions/`.
+
+CI smoke coverage:
+
+- `scripts/ci-smoke-non-root.sh` provisions a DSM marker plus Btrfs loopback
+  and validates non-root config, diagnostics, and restore-plan posture.
+- `scripts/ci-smoke-sudo-boundary.sh` invokes a root-required dry-run through
+  `sudo` from an operator account and verifies operator-owned profile/secrets
+  resolution.
+- `scripts/ci-smoke-migration.sh` exercises the runtime profile migration
+  helper and checks destination layout, ownership, and modes.
+
+These smoke checks gate release builds, but they remain proxy tests. Continue
+to run NAS smoke tests for hardware-specific behavior.
 
 ### 4. Write Release Notes
 

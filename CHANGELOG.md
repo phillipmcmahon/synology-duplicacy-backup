@@ -16,6 +16,9 @@ coverage floor and package-level baseline.
 - Root-required commands now require complete sudo metadata before default
   runtime paths are redirected from `/root` to the sudoing operator profile,
   keeping profile resolution aligned with secrets ownership validation.
+- CI now includes posture-level smoke jobs for non-root operator commands,
+  sudo/operator-owned secrets, and the runtime profile migration helper before
+  release builds can publish.
 
 ## [v8.0.2] - 2026-04-26
 
