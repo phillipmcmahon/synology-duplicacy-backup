@@ -8,8 +8,8 @@ application now also owns restore drills, health checks, diagnostics, managed
 updates, and rollback workflows.
 
 It runs Duplicacy backups on Synology NAS using btrfs snapshots, with support
-for named per-label targets, threshold-guarded prune, optional permission
-fixing, and directory-based locking. The same command surface also gives
+for named per-label targets, threshold-guarded prune, and directory-based
+locking. The same command surface also gives
 operators safe restore workflows, read-only repository health checks, redacted
 support bundles, and managed install maintenance.
 
@@ -67,7 +67,6 @@ In practice:
 - Redacted diagnostics bundles for operator support
 - Managed update and rollback commands for installed NAS deployments
 - Threshold-guarded prune with optional forced override
-- Optional ownership and permission normalisation
 - Dry-run support for previewing actions
 - Structured logging with rotation
 - TOML-based per-label configuration with named targets
@@ -288,6 +287,8 @@ Core operating rules:
 
 ## Documentation
 
+Operator and recovery docs:
+
 - [Operator cheat sheet](docs/cheatsheet.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)
@@ -299,6 +300,9 @@ Core operating rules:
 - [Restore drills](docs/restore-drills.md)
 - [CLI reference](docs/cli.md)
 - [Update trust model](docs/update-trust-model.md)
+
+Maintainer and release docs:
+
 - [Linux validation and packaging environment](docs/linux-environment.md)
 - [Release playbook](docs/release-playbook.md)
 - [Architecture](docs/architecture.md)
@@ -312,7 +316,7 @@ Core operating rules:
 
 - Btrfs filesystem
 - Duplicacy CLI installed and in `PATH`
-- Root access for scheduled execution
+- Operator account with targeted sudo rights for root-required scheduled jobs
 
 ### Build machine
 

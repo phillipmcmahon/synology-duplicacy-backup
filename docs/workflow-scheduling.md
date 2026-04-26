@@ -133,18 +133,6 @@ Recommended pattern:
 This keeps backup execution separate from confidence checks and makes scheduler
 output easier to interpret.
 
-### Fix Permissions
-
-Only schedule this for path-based Duplicacy storage targets.
-
-Recommended pattern:
-
-- weekly
-- or after manual restore or repository maintenance activity
-
-Do not schedule it for URL-like storage targets such as S3, Storj, B2, RustFS,
-or MinIO.
-
 ## What Not To Schedule Routinely
 
 ### Cleanup Storage

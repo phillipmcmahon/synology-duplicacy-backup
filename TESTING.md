@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v8.0.2`
+Current public release baseline: `v9.0.0`
 
-Active release-prep target: `v9.0.0`
+Active release-prep target: none
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -410,7 +410,6 @@ fail on non-Linux hosts. On macOS, the supported entrypoint is
 - config-load failure translation
 - lock-acquisition failure translation
 - backup dry-run success
-- fix-perms-only dry-run success
 - representative install/help/doc consistency checks
 
 These tests use the same seams as production:
@@ -431,7 +430,7 @@ Request tests cover:
 
 - help/version handled responses
 - explicit operation requirement
-- fix-perms-only mode derivation
+- runtime mode derivation
 - invalid flag combinations
 - invalid labels
 
@@ -446,12 +445,11 @@ Planner tests cover:
 - execution-ready plan fields
 - execution-ready command strings
 - btrfs validation during backup planning
-- minimal fix-perms-only planning
 
 Executor tests cover:
 
 - operation-mode rendering for first-class runtime commands
-- end-to-end dry-run execution for fix-perms-only
+- end-to-end dry-run execution for runtime commands
 - lock lifecycle during execution
 - cleanup and prune-policy behaviour through focused workflow helpers
 
@@ -466,7 +464,8 @@ That includes both behaviour and output:
 
 - path-based storage targets do not load storage keys
 - URL-like storage targets load storage keys only when the selected backend requires them
-- `fix-perms` is accepted for path-based storage targets and rejected for URL-like storage targets
+- path-based filesystem repository mutation requires root
+- URL-like storage mutation is governed by storage credentials
 - runtime and health headers include `Location`
 - `config validate` keeps `Resolved` identity-only and checks target settings
   under `Target Settings`
@@ -474,7 +473,7 @@ That includes both behaviour and output:
 Workflow tests also cover:
 
 - operator-message translation
-- summary layout for fixed-perms-only and offsite-target flows
+- summary layout for runtime and offsite-target flows
 - logger activity rendering for interactive TTY runs
 
 ### `internal/btrfs`
