@@ -46,8 +46,8 @@ are not supported.
 | Command | Description |
 |---|---|
 | `backup --target <target> <label>` | Run a backup for the selected label and target |
-| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force` |
-| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup |
+| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for path-based filesystem repositories |
+| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for path-based filesystem repositories |
 | `fix-perms --target <target> <label>` | Normalise path-based storage ownership and permissions |
 
 ## Modifiers
@@ -141,6 +141,8 @@ patterns, use [workflow-scheduling.md](workflow-scheduling.md).
 ```bash
 # Runtime command: one label, one target, one explicit operation
 sudo duplicacy-backup backup --target onsite-usb homes
+sudo duplicacy-backup prune --target onsite-usb homes
+sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 
 # Runtime command with modifiers
 sudo duplicacy-backup backup --target onsite-usb --json-summary --dry-run homes
@@ -186,6 +188,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   command needs `--target <name>`.
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
+- Root is required for `backup`, `fix-perms`, and actual `prune` or
+  `cleanup-storage` mutation against path-based filesystem repositories.
+  Object and remote repositories are governed by their storage credentials.
+  `prune --dry-run` may run non-root when the repository is readable.
 - `restore plan` is read-only. It resolves the selected target and prints
   Duplicacy commands for a separate drill workspace; it does not create
   directories, write preferences, run `duplicacy restore`, or copy data back.

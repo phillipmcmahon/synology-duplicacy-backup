@@ -22,6 +22,7 @@ Recommended approach:
 - schedule `backup` as its own task
 - schedule `prune` as its own task
 - schedule health commands separately from backup jobs
+- run path-based filesystem repository prune and cleanup tasks as root
 - schedule `fix-perms` only for path-based Duplicacy storage targets that need it
 - treat `cleanup-storage` as manual or exceptional maintenance
 
@@ -173,10 +174,11 @@ For each task:
 1. Open `Control Panel` -> `Task Scheduler`
 2. Create `Triggered Task` -> `User-defined script`
 3. Choose the run-as user:
-   - use `root` for `backup` and `fix-perms`
-   - use the operator user for health, prune, cleanup, diagnostics, and restore
-     checks when that user owns the config, secrets, state, log, lock, and
-     storage access paths
+   - use `root` for `backup`, `fix-perms`, and path-based filesystem repository
+     `prune` or `cleanup-storage`
+   - use the operator user for health, diagnostics, restore checks, and
+     object/remote repository prune or cleanup when that user owns the config,
+     secrets, state, log, lock, and storage access paths
 4. Use `/usr/local/bin/duplicacy-backup`
 5. Keep one task per operation
 

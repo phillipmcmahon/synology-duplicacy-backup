@@ -45,6 +45,9 @@ func (p *Planner) Build(req *RuntimeRequest) (*Plan, error) {
 		return nil, err
 	}
 	plan.applyConfig(cfg, p.rt)
+	if err := p.validateRepositoryMutationPrivilege(req, cfg); err != nil {
+		return nil, err
+	}
 	if err := p.validateBackupFilesystem(plan); err != nil {
 		return nil, err
 	}
@@ -98,6 +101,23 @@ func (p *Planner) validateEnvironment(req *RuntimeRequest) error {
 		}
 	}
 	return nil
+}
+
+func (p *Planner) validateRepositoryMutationPrivilege(req *RuntimeRequest, cfg *config.Config) error {
+	if req == nil || cfg == nil || req.DryRun || p.rt.Geteuid() == 0 {
+		return nil
+	}
+	if !req.DoPrune() && !req.DoCleanupStore() {
+		return nil
+	}
+	if !cfg.UsesLocalDiskStorage() {
+		return nil
+	}
+	command := "prune"
+	if req.DoCleanupStore() {
+		command = "cleanup-storage"
+	}
+	return fmt.Errorf("%s must be run as root for path-based local repository storage; local backup repositories are protected OS resources, while remote/object storage access is governed by credentials", command)
 }
 
 func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {

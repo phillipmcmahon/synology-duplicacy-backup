@@ -1,8 +1,9 @@
 # Operator Cheat Sheet
 
 Run commands as the operator user by default. Use `sudo` only for operations
-that need root-level OS access, such as `backup`, `fix-perms`, and managed
-install activation with `update --yes` or `rollback --yes`.
+that need root-level OS access, such as `backup`, path-based local repository
+`prune` or `cleanup-storage`, `fix-perms`, and managed install activation with
+`update --yes` or `rollback --yes`.
 
 Despite its historical name, `duplicacy-backup` is now the operator entrypoint
 for backup, prune, health, diagnostics, restore drills, update, and rollback
@@ -29,7 +30,7 @@ Target model:
 sudo duplicacy-backup backup --target onsite-usb homes
 
 # Safe prune homes on target onsite-usb
-duplicacy-backup prune --target onsite-usb homes
+sudo duplicacy-backup prune --target onsite-usb homes
 
 # Backup homes to target offsite-storj
 sudo duplicacy-backup backup --target offsite-storj homes
@@ -47,7 +48,7 @@ sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
 
 # Run storage cleanup for homes on target onsite-usb
-duplicacy-backup cleanup-storage --target onsite-usb homes
+sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 
 # Fix permissions for homes on target onsite-usb
 sudo duplicacy-backup fix-perms --target onsite-usb homes
@@ -149,6 +150,9 @@ Installer behaviour:
 - Keep `source_path` pointed at the real Btrfs volume or subvolume for the label when the NAS will run backups, then use Duplicacy filters to include or exclude nested directories beneath that root.
 - For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
+- Path-based filesystem repositories are OS-protected resources. Run actual
+  `prune` and `cleanup-storage` for those targets as root; object or remote
+  repositories are governed by credentials.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `config validate` is intended to be useful as the operator user; it validates Btrfs source shape, secrets, and repository access when the selected paths are accessible.
 - `Repository Access : Valid` means the selected repository is ready to use.

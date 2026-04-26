@@ -251,6 +251,41 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 	})
 }
 
+func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+
+	req := &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir}
+	_, err := planner.Build(runtimeRequestForTest(req))
+	if err == nil || !strings.Contains(err.Error(), "prune must be run as root for path-based local repository storage") {
+		t.Fatalf("Build() error = %v", err)
+	}
+}
+
+func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.T) {
+	configDir := t.TempDir()
+	secretsDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
+	writeTargetTestSecrets(t, secretsDir, "homes", "onsite-rustfs")
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+
+	req := &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
+	plan, err := planner.Build(runtimeRequestForTest(req))
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if plan.BackupTarget != "s3://rustfs.local/bucket" {
+		t.Fatalf("BackupTarget = %q", plan.BackupTarget)
+	}
+}
+
 func TestPlannerLoadSecrets(t *testing.T) {
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")

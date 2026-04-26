@@ -56,10 +56,10 @@ Command-specific options:
     --attestations <mode>  Update release attestation mode
 
 Examples:
-    {{script}} backup --target onsite-usb homes
-    {{script}} backup --target onsite-usb --json-summary --dry-run homes
-    {{script}} backup --target offsite-storj homes
-    {{script}} prune --target onsite-usb homes
+    sudo {{script}} backup --target onsite-usb homes
+    sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
+    sudo {{script}} backup --target offsite-storj homes
+    sudo {{script}} prune --target onsite-usb homes
     {{script}} config validate --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
     {{script}} health status --target onsite-usb homes
@@ -106,9 +106,11 @@ COMMAND OVERVIEW:
     Runtime operations      Run, maintain, or repair one configured label target
       backup                Run a backup for the selected label and target
       prune                 Run threshold-guarded prune for the selected label and target
+                              Root is required for path-based filesystem repositories
       cleanup-storage       Request storage maintenance:
                               duplicacy prune -exhaustive -exclusive
                               Use only when no other client is writing to the same storage
+                              Root is required for path-based filesystem repositories
       fix-perms             Normalise path-based storage ownership and permissions
 
     Config and inspection   Read, explain, validate, or diagnose configured targets
@@ -261,6 +263,13 @@ COMMAND MODEL:
     "prune --target ...", "cleanup-storage --target ...", or
     "fix-perms --target ..."; old top-level operation flags are not supported.
 
+PRIVILEGE MODEL:
+    Run commands as the operator user by default. Root is required for backup,
+    fix-perms, and actual prune or cleanup-storage mutation against path-based
+    filesystem repositories. Those repositories are protected OS resources.
+    Object and remote repositories are governed by their Duplicacy credentials.
+    prune --dry-run may run non-root when the repository is readable.
+
 JSON SUMMARY:
     --json-summary writes a machine-readable completion summary to stdout.
     Human-readable logs continue to be written to stderr.
@@ -322,19 +331,19 @@ RESTORE SELECTION:
     procedure without the interactive guide.
 
 EXAMPLES:
-    {{script}} backup --target onsite-usb homes
-    {{script}} backup --target onsite-usb --json-summary --dry-run homes
+    sudo {{script}} backup --target onsite-usb homes
+    sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
     {{script}} health status --target onsite-usb homes
     {{script}} health doctor --json-summary --target onsite-usb homes
     {{script}} health verify --target offsite-storj homes
-    {{script}} prune --target onsite-usb homes
-    {{script}} prune --target onsite-usb --force homes
-    {{script}} cleanup-storage --target onsite-usb homes
-    {{script}} fix-perms --target onsite-usb homes
-    {{script}} backup --target offsite-storj homes
-    {{script}} backup --target onsite-usb --verbose homes
-    {{script}} backup --target onsite-usb --config-dir /opt/etc homes
-    {{script}} backup --secrets-dir /opt/secrets --target offsite-storj homes
+    sudo {{script}} prune --target onsite-usb homes
+    sudo {{script}} prune --target onsite-usb --force homes
+    sudo {{script}} cleanup-storage --target onsite-usb homes
+    sudo {{script}} fix-perms --target onsite-usb homes
+    sudo {{script}} backup --target offsite-storj homes
+    sudo {{script}} backup --target onsite-usb --verbose homes
+    sudo {{script}} backup --target onsite-usb --config-dir /opt/etc homes
+    sudo {{script}} backup --secrets-dir /opt/secrets --target offsite-storj homes
     {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes

@@ -21,7 +21,7 @@ $HOME/.local/state/duplicacy-backup/locks/
 Secrets files must use mode `0600`. For normal non-root commands, the file
 must be owned by the user running `duplicacy-backup`. For root-required commands
 started with `sudo` from the operator account, the same operator-owned secrets
-file is accepted so `backup` and `fix-perms` do not require a separate root copy
+file is accepted so root-required operations do not require a separate root copy
 of the runtime profile. The secrets directory should use mode `0700`.
 
 ## Migrating Legacy Root-Owned Files
@@ -51,6 +51,7 @@ These commands require root because of the work they perform:
 | Command | Why root is required |
 |---|---|
 | `backup` | Creates a btrfs snapshot and needs complete source-tree read access. |
+| `prune` / `cleanup-storage` for path-based filesystem storage | Mutates a protected local backup repository. Local repository chunks and snapshots should remain OS-protected and policy-managed. |
 | `fix-perms` | Runs ownership and permission repair with `chown` and `chmod`. |
 | `update --yes` | Activates a managed install under system-owned paths. |
 | `rollback --yes` | Changes managed install symlinks under system-owned paths. |
@@ -82,15 +83,27 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 | `restore select` / `restore run` / `restore plan` / `restore list-revisions` | Restores write only to a drill workspace, never the live source path. |
 | `health status` / `health verify` | Requires access to Duplicacy storage and runtime paths. `health verify` verifies repository integrity and does not perform Btrfs backup-readiness checks. |
 | `health doctor` | Requires access to Duplicacy storage and runtime paths. Its Btrfs backup-readiness check uses unprivileged `stat` probes to confirm the source is on Btrfs and is a subvolume root. |
-| `prune` / `cleanup-storage` | Mutates storage through Duplicacy credentials, but does not inherently require OS root. |
+| `prune` / `cleanup-storage` for object or remote storage | Mutates storage through Duplicacy credentials. The authority boundary is the credential, not OS root. |
+| `prune --dry-run` | Preview-only; may run non-root when the repository is readable. |
 | `config` / `diagnostics` / `notify` | Reads config/secrets and writes only normal command output or notifications. |
 | `update --check-only` / `rollback --check-only` | Inspects managed install state without changing it. |
 
-For path-based local storage created by a previous root-era install, `prune`
-or `cleanup-storage` may still fail as a normal user because the storage tree
-itself is root-owned. Chown the storage tree to the operator user, or run the
-maintenance command with `sudo` once after confirming that is the intended
-ownership model.
+## Repository Mutation Boundary
+
+There are two repository access models:
+
+- Path-based filesystem repositories are protected operating-system resources.
+  Backups normally write them as root, and actual prune or cleanup-storage
+  mutation must also run as root. This prevents ordinary users from inspecting,
+  deleting, or rewriting chunks and snapshot metadata outside the tool's
+  retention policy.
+- Object and remote repositories are governed by credentials. If the operator
+  owns the storage keys and the backend accepts them, prune and cleanup-storage
+  can run as that operator user.
+
+This distinction is intentional. Do not chown local backup repositories to make
+routine mutation easier unless you have deliberately chosen a different
+site-specific security model.
 
 If a command fails with a path permission error, fix the selected path
 ownership/mode or pass explicit `--config-dir`, `--secrets-dir`, `--workspace`,
