@@ -195,11 +195,11 @@ Additional v6.0.0 validation:
   runtime command model:
   `backup`, `prune`, `cleanup-storage`, and `fix-perms`.
 - Tests assert old top-level runtime operation flags are rejected rather than
-  preserved as compatibility syntax.
+  accepted as legacy syntax.
 - Restore tests cover the current restore surface: `restore select`,
   `restore plan`, `restore list-revisions`, and `restore run`.
 - Restore workspace tests cover local preference generation, unsafe workspace
-  rejection, non-empty workspace rejection, root-gated remote secret loading,
+  rejection, non-empty workspace rejection, remote storage secret loading,
   read-only revision listing, picker inspection, workspace-only restore
   execution, and interactive command generation with guarded delegated
   execution. NAS smoke also covers real Duplicacy file-list rows and

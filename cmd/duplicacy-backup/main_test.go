@@ -1211,8 +1211,8 @@ func TestRunWithArgs_ConfigValidatePermissionDeniedReportsAccessIssue(t *testing
 		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
 			return "", apperrors.NewConfigError(
 				"open",
-				fmt.Errorf("cannot open config file /usr/local/lib/duplicacy-backup/.config/homes-backup.toml: %w", os.ErrPermission),
-				"path", "/usr/local/lib/duplicacy-backup/.config/homes-backup.toml",
+				fmt.Errorf("cannot open config file /home/operator/.config/duplicacy-backup/homes-backup.toml: %w", os.ErrPermission),
+				"path", "/home/operator/.config/duplicacy-backup/homes-backup.toml",
 			)
 		}
 		_, stderr := captureOutput(t, func() {
@@ -1220,10 +1220,10 @@ func TestRunWithArgs_ConfigValidatePermissionDeniedReportsAccessIssue(t *testing
 				t.Fatalf("runWithArgs(config validate permission denied) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "Config file is not accessible: /usr/local/lib/duplicacy-backup/.config/homes-backup.toml") {
+		if !strings.Contains(stderr, "Config file is not accessible: /home/operator/.config/duplicacy-backup/homes-backup.toml") {
 			t.Fatalf("stderr = %q", stderr)
 		}
-		if !strings.Contains(stderr, "run as root or grant read and directory traverse access to the config path") {
+		if !strings.Contains(stderr, "grant read and directory traverse access to the config path, or pass the correct --config-dir for the operator profile") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Config file not found") {

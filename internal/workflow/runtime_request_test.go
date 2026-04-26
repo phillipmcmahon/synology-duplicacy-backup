@@ -6,8 +6,8 @@ func TestNewRuntimeRequestProjectsOnlyRuntimeIntent(t *testing.T) {
 	req := &Request{
 		Source:             "homes",
 		RequestedTarget:    "onsite-usb",
-		ConfigDir:          "/etc/duplicacy-backup",
-		SecretsDir:         "/root/.secrets",
+		ConfigDir:          "/home/operator/.config/duplicacy-backup",
+		SecretsDir:         "/home/operator/.config/duplicacy-backup/secrets",
 		DoPrune:            true,
 		ForcePrune:         true,
 		DryRun:             true,
@@ -27,7 +27,7 @@ func TestNewRuntimeRequestProjectsOnlyRuntimeIntent(t *testing.T) {
 	if got.Mode != RuntimeModePrune || got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("runtime identity projection failed: %#v", got)
 	}
-	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("runtime path projection failed: %#v", got)
 	}
 	if !got.ForcePrune || !got.DryRun || !got.Verbose || !got.JSONSummary || got.DefaultNotice != "notice" {

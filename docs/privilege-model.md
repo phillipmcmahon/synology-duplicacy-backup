@@ -53,8 +53,8 @@ These commands require root because of the work they perform:
 | `update --yes` | Activates a managed install under system-owned paths. |
 | `rollback --yes` | Changes managed install symlinks under system-owned paths. |
 
-For root-required commands, either place a root-owned runtime profile under
-root's home directory or pass explicit paths:
+For root-required commands, keep the canonical runtime profile under the
+operator user and pass explicit paths when invoking through `sudo`:
 
 ```bash
 sudo duplicacy-backup backup \

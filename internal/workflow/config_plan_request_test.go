@@ -6,8 +6,8 @@ func TestNewConfigPlanRequestProjectsOnlyPlannerInputs(t *testing.T) {
 	req := &Request{
 		Source:          "homes",
 		RequestedTarget: "onsite-usb",
-		ConfigDir:       "/etc/duplicacy-backup",
-		SecretsDir:      "/root/.secrets",
+		ConfigDir:       "/home/operator/.config/duplicacy-backup",
+		SecretsDir:      "/home/operator/.config/duplicacy-backup/secrets",
 		DoBackup:        true,
 		DryRun:          true,
 		JSONSummary:     true,
@@ -17,7 +17,7 @@ func TestNewConfigPlanRequestProjectsOnlyPlannerInputs(t *testing.T) {
 	}
 
 	got := NewConfigPlanRequest(req)
-	if got.Label != "homes" || got.Target() != "onsite-usb" || got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.Label != "homes" || got.Target() != "onsite-usb" || got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("NewConfigPlanRequest() = %#v", got)
 	}
 }
@@ -27,8 +27,8 @@ func TestDerivePlanFromConfigPlanRequestDoesNotCarryRuntimeModes(t *testing.T) {
 	plan := planner.derivePlan(ConfigPlanRequest{
 		Label:      "homes",
 		TargetName: "onsite-usb",
-		ConfigDir:  "/etc/duplicacy-backup",
-		SecretsDir: "/root/.secrets",
+		ConfigDir:  "/home/operator/.config/duplicacy-backup",
+		SecretsDir: "/home/operator/.config/duplicacy-backup/secrets",
 	})
 
 	if plan.BackupLabel != "homes" || plan.TargetName() != "onsite-usb" {

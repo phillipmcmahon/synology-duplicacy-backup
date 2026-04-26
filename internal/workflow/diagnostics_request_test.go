@@ -7,8 +7,8 @@ func TestNewDiagnosticsRequestProjectsOnlyDiagnosticsIntent(t *testing.T) {
 		DiagnosticsCommand: "diagnostics",
 		Source:             "homes",
 		RequestedTarget:    "onsite-usb",
-		ConfigDir:          "/etc/duplicacy-backup",
-		SecretsDir:         "/root/.secrets",
+		ConfigDir:          "/home/operator/.config/duplicacy-backup",
+		SecretsDir:         "/home/operator/.config/duplicacy-backup/secrets",
 		JSONSummary:        true,
 		NotifyCommand:      "test",
 		NotifyProvider:     "ntfy",
@@ -24,7 +24,7 @@ func TestNewDiagnosticsRequestProjectsOnlyDiagnosticsIntent(t *testing.T) {
 	if got.Command != "diagnostics" || got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("diagnostics identity projection failed: %#v", got)
 	}
-	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("diagnostics config projection failed: %#v", got)
 	}
 	if !got.JSONSummary {

@@ -63,12 +63,12 @@ func TestSnapshotError_Format(t *testing.T) {
 
 func TestSecretsError_Format(t *testing.T) {
 	cause := errors.New("file not found")
-	e := NewSecretsError("load", cause, "path", "/root/.secrets/duplicacy-homes.toml")
+	e := NewSecretsError("load", cause, "path", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
 	got := e.Error()
 	if !strings.HasPrefix(got, "secrets/load: file not found") {
 		t.Errorf("unexpected format: %s", got)
 	}
-	if !strings.Contains(got, "path=/root/.secrets/duplicacy-homes.toml") {
+	if !strings.Contains(got, "path=/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml") {
 		t.Errorf("missing context: %s", got)
 	}
 }
@@ -84,7 +84,7 @@ func TestPermissionsError_Format(t *testing.T) {
 
 func TestLockError_Format(t *testing.T) {
 	cause := errors.New("already held")
-	e := NewLockError("acquire", cause, "pid", "1234", "path", "/var/lock/backup-homes.lock.d")
+	e := NewLockError("acquire", cause, "pid", "1234", "path", "/home/operator/.local/state/duplicacy-backup/locks/backup-homes.lock.d")
 	got := e.Error()
 	if !strings.HasPrefix(got, "lock/acquire: already held") {
 		t.Errorf("unexpected format: %s", got)

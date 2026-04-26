@@ -77,8 +77,8 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "secrets stat includes creation hint",
-			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/root/.secrets/homes-secrets.toml"),
-			want: "Secrets file not found: /root/.secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
+			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"),
+			want: "Secrets file not found: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 		},
 		{
 			name: "permissions chown includes target hint",
@@ -185,7 +185,7 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "config open permission denied",
 			err:  apperrors.NewConfigError("open", fmt.Errorf("cannot open config file /tmp/homes-backup.toml: %w", os.ErrPermission), "path", "/tmp/homes-backup.toml"),
-			want: "Config file is not accessible: /tmp/homes-backup.toml; run as root or grant read and directory traverse access to the config path",
+			want: "Config file is not accessible: /tmp/homes-backup.toml; grant read and directory traverse access to the config path, or pass the correct --config-dir for the operator profile",
 		},
 		{
 			name: "config missing local target",
@@ -204,13 +204,13 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		},
 		{
 			name: "lock create parent",
-			err:  apperrors.NewLockError("create-parent", errors.New("boom"), "path", "/var/lock"),
-			want: "Cannot create the lock directory parent at /var/lock; check that the lock parent path exists and is writable by the user running this command",
+			err:  apperrors.NewLockError("create-parent", errors.New("boom"), "path", "/home/operator/.local/state/duplicacy-backup/locks"),
+			want: "Cannot create the lock directory parent at /home/operator/.local/state/duplicacy-backup/locks; check that the lock parent path exists and is writable by the user running this command",
 		},
 		{
 			name: "lock stale retry",
-			err:  apperrors.NewLockError("stale-retry", errors.New("boom"), "path", "/var/lock/backup-homes.lock.d"),
-			want: "Could not acquire the lock at /var/lock/backup-homes.lock.d after removing a stale lock; check filesystem permissions and verify that no other backup process is running",
+			err:  apperrors.NewLockError("stale-retry", errors.New("boom"), "path", "/home/operator/.local/state/duplicacy-backup/locks/backup-homes.lock.d"),
+			want: "Could not acquire the lock at /home/operator/.local/state/duplicacy-backup/locks/backup-homes.lock.d after removing a stale lock; check filesystem permissions and verify that no other backup process is running",
 		},
 		{
 			name: "lock default with cause",

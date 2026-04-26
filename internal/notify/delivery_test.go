@@ -31,7 +31,7 @@ func TestSendConfigured_WebhookAddsBearerToken(t *testing.T) {
 		"homes", "offsite-storj", "remote", "", "verify", "unhealthy", map[string]any{"message": "boom"},
 	)
 	cfg := config.HealthNotifyConfig{WebhookURL: server.URL}
-	if err := SendConfigured(cfg, "/root/.secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
+	if err := SendConfigured(cfg, "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
 		t.Fatalf("SendConfigured() error = %v", err)
 	}
 	if gotAuth != "Bearer hook-token" {
@@ -70,7 +70,7 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 			Topic: "duplicacy-alerts",
 		},
 	}
-	if err := SendConfigured(cfg, "/root/.secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
+	if err := SendConfigured(cfg, "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml", "offsite-storj", payload); err != nil {
 		t.Fatalf("SendConfigured() error = %v", err)
 	}
 	if gotTitle != "WARNING: Safe prune blocked for homes/offsite-storj" {
@@ -176,7 +176,7 @@ func TestLoadOptionalNotificationTokenIgnoresOnlyOptionalAccessFailures(t *testi
 	ignored := func(string, string) (string, error) {
 		return "", apperrors.NewSecretsError("stat", errors.New("missing secrets file"))
 	}
-	token, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", ignored, SendOptions{IgnoreOptionalAuthLoadErrors: true})
+	token, err := loadOptionalNotificationToken("/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml", "offsite-storj", ignored, SendOptions{IgnoreOptionalAuthLoadErrors: true})
 	if err != nil || token != "" {
 		t.Fatalf("ignored optional token load = %q, %v", token, err)
 	}
@@ -184,14 +184,14 @@ func TestLoadOptionalNotificationTokenIgnoresOnlyOptionalAccessFailures(t *testi
 	parseFailure := func(string, string) (string, error) {
 		return "", apperrors.NewSecretsError("parse", errors.New("invalid TOML"))
 	}
-	if _, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", parseFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
+	if _, err := loadOptionalNotificationToken("/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml", "offsite-storj", parseFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
 		t.Fatal("parse failure err = nil, want error")
 	}
 
 	plainFailure := func(string, string) (string, error) {
 		return "", errors.New("networked secret backend failed")
 	}
-	if _, err := loadOptionalNotificationToken("/root/.secrets/homes-secrets.toml", "offsite-storj", plainFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
+	if _, err := loadOptionalNotificationToken("/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml", "offsite-storj", plainFailure, SendOptions{IgnoreOptionalAuthLoadErrors: true}); err == nil {
 		t.Fatal("plain failure err = nil, want error")
 	}
 }

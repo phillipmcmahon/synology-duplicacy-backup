@@ -7,8 +7,8 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 		RestoreCommand:       "run",
 		Source:               "homes",
 		RequestedTarget:      " onsite-usb ",
-		ConfigDir:            "/etc/duplicacy-backup",
-		SecretsDir:           "/root/.secrets",
+		ConfigDir:            "/home/operator/.config/duplicacy-backup",
+		SecretsDir:           "/home/operator/.config/duplicacy-backup/secrets",
 		JSONSummary:          true,
 		DryRun:               true,
 		RestoreWorkspace:     "/volume1/restore-drills/homes",
@@ -27,7 +27,7 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	if got.Command != "run" || got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("restore identity projection failed: %#v", got)
 	}
-	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("restore config projection failed: %#v", got)
 	}
 	if got.Workspace != "/volume1/restore-drills/homes" || got.WorkspaceRoot != "/volume1/restore-drills" || got.Revision != 2403 || got.Path != "phillipmcmahon/code" || got.PathPrefix != "phillipmcmahon" {
@@ -49,8 +49,8 @@ func TestRestoreRequestConfigRequestKeepsPlannerInputsOnly(t *testing.T) {
 	restoreReq := RestoreRequest{
 		Label:       "homes",
 		TargetName:  "onsite-usb",
-		ConfigDir:   "/etc/duplicacy-backup",
-		SecretsDir:  "/root/.secrets",
+		ConfigDir:   "/home/operator/.config/duplicacy-backup",
+		SecretsDir:  "/home/operator/.config/duplicacy-backup/secrets",
 		DryRun:      true,
 		Workspace:   "/volume1/restore-drills/homes",
 		Revision:    2403,
@@ -62,7 +62,7 @@ func TestRestoreRequestConfigRequestKeepsPlannerInputsOnly(t *testing.T) {
 	if got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("config request identity = %#v", got)
 	}
-	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("config request paths = %#v", got)
 	}
 }

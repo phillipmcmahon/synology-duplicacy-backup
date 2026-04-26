@@ -64,7 +64,7 @@ func formatRestorePlan(report *restorePlanReport) string {
 		{Label: "Live Listing", Value: "run duplicacy list from the drill workspace"},
 	})
 	writeRestoreSection(&b, "Suggested Commands", []SummaryLine{
-		{Label: "Create Workspace", Value: "sudo mkdir -p " + shellQuote(report.Workspace)},
+		{Label: "Create Workspace", Value: "mkdir -p " + shellQuote(report.Workspace)},
 		{Label: "Enter Workspace", Value: "cd " + shellQuote(report.Workspace)},
 		{Label: "Init Workspace", Value: report.InitCommand},
 		{Label: "List Revisions", Value: report.ListCommand},

@@ -51,8 +51,8 @@ func (errReader) Read(_ []byte) (int, error) {
 }
 
 func TestGetSecretsFilePath(t *testing.T) {
-	path := GetSecretsFilePath("/root/.secrets", "homes")
-	if path != "/root/.secrets/homes-secrets.toml" {
+	path := GetSecretsFilePath("/home/operator/.config/duplicacy-backup/secrets", "homes")
+	if path != "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml" {
 		t.Fatalf("GetSecretsFilePath() = %q", path)
 	}
 	if GetSecretsFilePath("", "homes") != "homes-secrets.toml" {

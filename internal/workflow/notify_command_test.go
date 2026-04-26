@@ -216,7 +216,7 @@ func TestHandleNotifyCommand_DuplicacyTargetCanSendWithoutReadableSecretsWhenTok
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
-		return "", apperrors.NewSecretsError("open", errors.New("secrets file is not readable: /root/.secrets/homes-secrets.toml"), "path", "/root/.secrets/homes-secrets.toml")
+		return "", apperrors.NewSecretsError("open", errors.New("secrets file is not readable: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"), "path", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
 	})
 	defer restore()
 
@@ -303,7 +303,7 @@ func TestHandleNotifyCommand_DuplicacyTargetTokenParseErrorStillFails(t *testing
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
-		return "", apperrors.NewSecretsError("parse", errors.New("unexpected key \"bad\" in secrets file /root/.secrets/homes-secrets.toml"), "source", "/root/.secrets/homes-secrets.toml")
+		return "", apperrors.NewSecretsError("parse", errors.New("unexpected key \"bad\" in secrets file /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"), "source", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
 	})
 	defer restore()
 

@@ -5,7 +5,7 @@ import "testing"
 func TestNewUpdateRequestProjectsOnlyUpdateIntent(t *testing.T) {
 	req := &Request{
 		UpdateCommand:      "update",
-		ConfigDir:          "/etc/duplicacy-backup",
+		ConfigDir:          "/home/operator/.config/duplicacy-backup",
 		UpdateVersion:      "v7.1.1",
 		UpdateKeep:         3,
 		UpdateAttestations: "required",
@@ -20,7 +20,7 @@ func TestNewUpdateRequestProjectsOnlyUpdateIntent(t *testing.T) {
 	}
 
 	got := NewUpdateRequest(req)
-	if got.Command != "update" || got.ConfigDir != "/etc/duplicacy-backup" {
+	if got.Command != "update" || got.ConfigDir != "/home/operator/.config/duplicacy-backup" {
 		t.Fatalf("update identity projection failed: %#v", got)
 	}
 	if got.Version != "v7.1.1" || got.Keep != 3 || got.Attestations != "required" {

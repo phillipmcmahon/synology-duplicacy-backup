@@ -57,9 +57,9 @@ No command-surface changes were introduced by this refactor.
 Restore, update, rollback, notify, diagnostics, config, health, and runtime
 all use command-specific request types internally.
 
-The broad parser `Request` remains in `internal/workflow` as the compatibility
-shape returned by `internal/command.ParseRequest` and consumed by top-level
-dispatch. Residual uses should be limited to:
+The broad parser `Request` remains in `internal/workflow` as the parser
+envelope returned by `internal/command.ParseRequest` and consumed by top-level
+dispatch. It is not a compatibility layer. Residual uses should be limited to:
 
 - handler entry points that project immediately
 - projector constructors such as `NewRestoreRequest` or `NewRuntimeRequest`

@@ -205,7 +205,7 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 			case err.Cause != nil && errors.Is(err.Cause, os.ErrPermission):
 				return withHint(
 					fmt.Sprintf("Config file is not accessible: %s", path),
-					"run as root or grant read and directory traverse access to the config path",
+					"grant read and directory traverse access to the config path, or pass the correct --config-dir for the operator profile",
 				)
 			case err.Cause != nil:
 				return withHint(

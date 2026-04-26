@@ -62,8 +62,8 @@ func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 		WorkRoot:       "/tmp/work",
 		BackupTarget:   "/backups/homes",
 		ConfigFile:     "/config/homes-backup.toml",
-		SecretsDir:     "/root/.secrets",
-		SecretsFile:    "/root/.secrets/homes-secrets.toml",
+		SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
+		SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
 		ModeDisplay:    "offsite-storj",
 		OperationMode:  "Backup",
 	}
@@ -111,8 +111,8 @@ func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testin
 		WorkRoot:       "/tmp/work",
 		BackupTarget:   "s3://rustfs.local/bucket/homes",
 		ConfigFile:     "/config/homes-backup.toml",
-		SecretsDir:     "/root/.secrets",
-		SecretsFile:    "/root/.secrets/homes-secrets.toml",
+		SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
+		SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
 		ModeDisplay:    "onsite-rustfs",
 		OperationMode:  "Backup",
 	}

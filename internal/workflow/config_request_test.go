@@ -7,8 +7,8 @@ func TestNewConfigRequestProjectsOnlyConfigIntent(t *testing.T) {
 		ConfigCommand:   "validate",
 		Source:          "homes",
 		RequestedTarget: "onsite-usb",
-		ConfigDir:       "/etc/duplicacy-backup",
-		SecretsDir:      "/root/.secrets",
+		ConfigDir:       "/home/operator/.config/duplicacy-backup",
+		SecretsDir:      "/home/operator/.config/duplicacy-backup/secrets",
 		NotifyCommand:   "test",
 		RestoreCommand:  "run",
 		UpdateCommand:   "update",
@@ -21,7 +21,7 @@ func TestNewConfigRequestProjectsOnlyConfigIntent(t *testing.T) {
 	if got.Command != "validate" || got.Label != "homes" || got.Target() != "onsite-usb" {
 		t.Fatalf("config identity projection failed: %#v", got)
 	}
-	if got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("config path projection failed: %#v", got)
 	}
 }
@@ -45,12 +45,12 @@ func TestConfigRequestPlanRequestCarriesPlannerInputsOnly(t *testing.T) {
 		Command:    "explain",
 		Label:      "homes",
 		TargetName: "onsite-usb",
-		ConfigDir:  "/etc/duplicacy-backup",
-		SecretsDir: "/root/.secrets",
+		ConfigDir:  "/home/operator/.config/duplicacy-backup",
+		SecretsDir: "/home/operator/.config/duplicacy-backup/secrets",
 	}
 
 	got := req.PlanRequest()
-	if got.Label != "homes" || got.Target() != "onsite-usb" || got.ConfigDir != "/etc/duplicacy-backup" || got.SecretsDir != "/root/.secrets" {
+	if got.Label != "homes" || got.Target() != "onsite-usb" || got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("PlanRequest() = %#v", got)
 	}
 }
