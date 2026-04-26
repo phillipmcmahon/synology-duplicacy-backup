@@ -19,8 +19,7 @@ import (
 )
 
 // CheckFilesystem verifies that a path is on a btrfs filesystem. It does not
-// inspect subvolume metadata and is therefore suitable for non-root read-only
-// checks such as storage integrity verification.
+// verify that the path is a subvolume root.
 //
 // Returns a [*errors.SnapshotError] on failure with context including the
 // checked path.
@@ -43,9 +42,9 @@ func CheckFilesystem(runner execpkg.Runner, path string, dryRun bool) error {
 	return nil
 }
 
-// CheckVolume verifies that a path is on a btrfs filesystem and is a valid
-// subvolume.  It executes `stat -f -c %T <path>` and `btrfs subvolume show
-// <path>` via the provided [exec.Runner].
+// CheckVolume verifies that a path is on a btrfs filesystem and is a subvolume
+// root. It uses the unprivileged btrfs inode-256 convention rather than
+// `btrfs subvolume show`, which requires root on Synology DSM.
 //
 // Returns a [*errors.SnapshotError] on failure with context including the
 // checked path.
@@ -56,23 +55,24 @@ func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
 
 	ctx := context.Background()
 
-	// Check snapshot-readiness. The stat probe above has already confirmed the
-	// filesystem type; failures here mean the subvolume metadata probe failed.
-	if _, stderr, err := runner.Run(ctx, "btrfs", "subvolume", "show", path); err != nil {
-		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is on a btrfs filesystem, but subvolume metadata could not be verified: %s", subvolumeProbeDetail(stderr, err)), "path", path)
+	stdout, _, err := runner.Run(ctx, "stat", "-c", "%i", path)
+	if err != nil {
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path inode could not be inspected: %w", err), "path", path)
+	}
+
+	inode := strings.TrimSpace(stdout)
+	if inode != "256" {
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is on a btrfs filesystem but is not a subvolume root (inode %s, expected 256)", valueOrUnknown(inode)), "path", path, "inode", inode)
 	}
 
 	return nil
 }
 
-func subvolumeProbeDetail(stderr string, err error) string {
-	if detail := strings.TrimSpace(stderr); detail != "" {
-		return detail
+func valueOrUnknown(value string) string {
+	if value == "" {
+		return "unknown"
 	}
-	if err != nil {
-		return err.Error()
-	}
-	return "btrfs subvolume show failed"
+	return value
 }
 
 // CreateSnapshot creates a read-only btrfs snapshot of source at target.

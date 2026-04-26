@@ -47,7 +47,7 @@ func TestCheckFilesystem_NotBtrfs(t *testing.T) {
 func TestCheckVolume_Success(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"}, // stat -f -c %T
-		execpkg.MockResult{},                  // btrfs subvolume show
+		execpkg.MockResult{Stdout: "256\n"},   // stat -c %i
 	)
 
 	err := CheckVolume(mock, "/volume1", false)
@@ -61,8 +61,11 @@ func TestCheckVolume_Success(t *testing.T) {
 	if mock.Invocations[0].Cmd != "stat" {
 		t.Errorf("first command = %q, want stat", mock.Invocations[0].Cmd)
 	}
-	if mock.Invocations[1].Cmd != "btrfs" {
-		t.Errorf("second command = %q, want btrfs", mock.Invocations[1].Cmd)
+	if mock.Invocations[1].Cmd != "stat" {
+		t.Errorf("second command = %q, want stat", mock.Invocations[1].Cmd)
+	}
+	if len(mock.Invocations[1].Args) != 3 || mock.Invocations[1].Args[0] != "-c" || mock.Invocations[1].Args[1] != "%i" {
+		t.Errorf("second command args = %#v, want stat inode command", mock.Invocations[1].Args)
 	}
 }
 
@@ -118,18 +121,33 @@ func TestCheckVolume_NotBtrfs(t *testing.T) {
 func TestCheckVolume_NotSubvolume(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{Stderr: "ERROR: not a subvolume\n", Err: errors.New("not a subvolume")},
+		execpkg.MockResult{Stdout: "257\n"},
 	)
 
 	err := CheckVolume(mock, "/volume1", false)
 	if err == nil {
 		t.Fatal("expected error for non-subvolume")
 	}
-	if !strings.Contains(err.Error(), "subvolume metadata could not be verified") {
-		t.Fatalf("error = %q, want subvolume metadata wording", err.Error())
+	if !strings.Contains(err.Error(), "not a subvolume root") {
+		t.Fatalf("error = %q, want subvolume root wording", err.Error())
 	}
-	if !strings.Contains(err.Error(), "ERROR: not a subvolume") {
-		t.Fatalf("error = %q, want stderr detail", err.Error())
+	if !strings.Contains(err.Error(), "inode 257, expected 256") {
+		t.Fatalf("error = %q, want inode detail", err.Error())
+	}
+}
+
+func TestCheckVolume_InodeStatFails(t *testing.T) {
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Err: errors.New("permission denied")},
+	)
+
+	err := CheckVolume(mock, "/volume1", false)
+	if err == nil {
+		t.Fatal("expected error when inode stat fails")
+	}
+	if !strings.Contains(err.Error(), "path inode could not be inspected") {
+		t.Fatalf("error = %q, want inode inspection wording", err.Error())
 	}
 }
 

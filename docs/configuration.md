@@ -495,7 +495,7 @@ freshness signal.
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
 | target local-account consistency | `config validate`, path-based `fix-perms` |
-| Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; not required for restore-only access or storage integrity verification |
+| Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | path-based `fix-perms` |

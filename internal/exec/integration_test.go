@@ -31,8 +31,8 @@ func TestIntegration_BackupCommandSimulation(t *testing.T) {
 	mock := NewMockRunner(
 		// 1. stat -f -c %T /volume1 → btrfs
 		MockResult{Stdout: "btrfs\n"},
-		// 2. btrfs subvolume show /volume1 → success
-		MockResult{},
+		// 2. stat -c %i /volume1 → subvolume root inode
+		MockResult{Stdout: "256\n"},
 		// 3. btrfs subvolume snapshot -r → success
 		MockResult{Stdout: "Create a readonly snapshot\n"},
 		// 4. duplicacy backup -stats -threads 4 → success
@@ -52,9 +52,12 @@ func TestIntegration_BackupCommandSimulation(t *testing.T) {
 		t.Errorf("stat stdout = %q", stdout)
 	}
 
-	_, _, err = mock.Run(ctx, "btrfs", "subvolume", "show", "/volume1")
+	stdout, _, err = mock.Run(ctx, "stat", "-c", "%i", "/volume1")
 	if err != nil {
-		t.Fatalf("btrfs subvolume show failed: %v", err)
+		t.Fatalf("inode stat failed: %v", err)
+	}
+	if stdout != "256\n" {
+		t.Errorf("inode stdout = %q", stdout)
 	}
 
 	// Simulate CreateSnapshot

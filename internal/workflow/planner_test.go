@@ -77,9 +77,9 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	rt := testRuntime()
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 	)
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), runner)
 	req.ConfigDir = dir
@@ -153,9 +153,9 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "offsite-storj", ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 	)
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
@@ -183,9 +183,9 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 	)
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
@@ -391,9 +391,9 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 	)
 	planner.runner = runner
 	if err := planner.validateBackupFilesystem(plan); err != nil {

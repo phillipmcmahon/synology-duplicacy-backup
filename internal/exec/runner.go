@@ -240,7 +240,7 @@ type MockResult struct {
 //
 //	mock := exec.NewMockRunner(
 //	    exec.MockResult{Stdout: "btrfs\n"},
-//	    exec.MockResult{},
+//	    exec.MockResult{Stdout: "256\n"},
 //	)
 //	err := btrfs.CheckVolume(mock, log, "/volume1", false)
 //	assert(mock.Invocations[0].Cmd == "stat")

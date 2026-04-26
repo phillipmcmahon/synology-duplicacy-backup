@@ -25,7 +25,7 @@ func stubConfigCommandRunner(t *testing.T, results ...execpkg.MockResult) {
 func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 	)
 	sourcePath := t.TempDir()
@@ -185,7 +185,7 @@ storage = "s3://bucket/homes"
 func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 	)
 
@@ -222,7 +222,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 	)
 
@@ -265,7 +265,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTargetWithoutOwnerGroup(t *tes
 func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 	)
 	sourcePath := t.TempDir()
@@ -297,7 +297,7 @@ func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Err: os.ErrPermission},
 	)
 
@@ -334,7 +334,7 @@ doctor_warn_after_hours = 48000000
 func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{Err: os.ErrInvalid},
+		execpkg.MockResult{Stdout: "257\n"},
 	)
 
 	owner, group := currentUserGroup(t)
@@ -370,7 +370,7 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stderr: "Storage has not been initialized yet; initialize the storage first\n", Err: os.ErrInvalid},
 	)
 
@@ -403,7 +403,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 func TestHandleConfigCommand_ValidateFailsWhenDuplicacyStorageIsInvalid(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 	)
 	sourcePath := t.TempDir()
 	configDir := t.TempDir()
@@ -462,7 +462,7 @@ func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *tes
 func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stderr: "Storage has not been initialized yet; initialize the storage first\n", Err: os.ErrInvalid},
 	)
 
@@ -491,7 +491,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stderr: "Storage has not been initialized yet; initialize the storage first\n", Err: os.ErrInvalid},
 	)
 	sourcePath := t.TempDir()
@@ -553,7 +553,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{Stderr: "permission denied\n", Err: os.ErrPermission},
 	)
 	sourcePath := t.TempDir()
@@ -775,14 +775,14 @@ func TestColourizeConfigValidationValue(t *testing.T) {
 func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Stdout: "256\n"},
 		execpkg.MockResult{},
 	)
 	owner, group := currentUserGroup(t)

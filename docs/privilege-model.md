@@ -71,7 +71,7 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 |---|---|
 | `restore select` / `restore run` / `restore plan` / `restore list-revisions` | Restores write only to a drill workspace, never the live source path. |
 | `health status` / `health verify` | Requires access to Duplicacy storage and runtime paths. `health verify` verifies repository integrity and does not perform Btrfs backup-readiness checks. |
-| `health doctor` | Requires access to Duplicacy storage and runtime paths. Its backup-readiness checks may need root when validating Btrfs subvolume metadata. |
+| `health doctor` | Requires access to Duplicacy storage and runtime paths. Its Btrfs backup-readiness check uses unprivileged `stat` probes to confirm the source is on Btrfs and is a subvolume root. |
 | `prune` / `cleanup-storage` | Mutates storage through Duplicacy credentials, but does not inherently require OS root. |
 | `config` / `diagnostics` / `notify` | Reads config/secrets and writes only normal command output or notifications. |
 | `update --check-only` / `rollback --check-only` | Inspects managed install state without changing it. |
