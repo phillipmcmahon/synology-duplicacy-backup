@@ -23,6 +23,9 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 	if err := requireSynologyDSM(); err != nil {
 		return writeCommandFailure("", err)
 	}
+	if err := validateRootExecution(req, rt); err != nil {
+		return writeCommandFailure("", err)
+	}
 
 	switch {
 	case req.ConfigCommand != "":
@@ -42,6 +45,84 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 	default:
 		return runRuntimeRequest(req, meta, rt)
 	}
+}
+
+type directRootProfilePolicy struct {
+	Command         string
+	UsesProfile     bool
+	RequiresSecrets bool
+}
+
+func validateRootExecution(req *workflow.Request, rt workflow.Runtime) error {
+	if workflow.RuntimeEUID(rt) != 0 || workflow.HasSudoOperator(rt) {
+		return nil
+	}
+	policy := directRootProfilePolicyForRequest(req)
+	if !policy.UsesProfile {
+		return nil
+	}
+	if hasExplicitDirectRootProfile(req, rt, policy) {
+		return nil
+	}
+	return directRootProfileError(policy)
+}
+
+func directRootProfilePolicyForRequest(req *workflow.Request) directRootProfilePolicy {
+	if req == nil {
+		return directRootProfilePolicy{}
+	}
+	switch {
+	case req.ConfigCommand != "":
+		return directRootProfilePolicy{Command: "config " + req.ConfigCommand, UsesProfile: true, RequiresSecrets: true}
+	case req.DiagnosticsCommand != "":
+		return directRootProfilePolicy{Command: "diagnostics", UsesProfile: true, RequiresSecrets: true}
+	case req.HealthCommand != "":
+		return directRootProfilePolicy{Command: "health " + req.HealthCommand, UsesProfile: true, RequiresSecrets: true}
+	case req.NotifyCommand != "":
+		command := "notify " + req.NotifyCommand
+		if req.NotifyScope == "update" {
+			command += " update"
+		}
+		return directRootProfilePolicy{Command: command, UsesProfile: true, RequiresSecrets: true}
+	case req.RestoreCommand != "":
+		return directRootProfilePolicy{Command: "restore " + req.RestoreCommand, UsesProfile: true, RequiresSecrets: true}
+	case req.UpdateCommand != "":
+		return directRootProfilePolicy{Command: "update", UsesProfile: true}
+	case req.DoBackup:
+		return directRootProfilePolicy{Command: "backup", UsesProfile: true, RequiresSecrets: true}
+	case req.DoPrune:
+		return directRootProfilePolicy{Command: "prune", UsesProfile: true, RequiresSecrets: true}
+	case req.DoCleanupStore:
+		return directRootProfilePolicy{Command: "cleanup-storage", UsesProfile: true, RequiresSecrets: true}
+	default:
+		return directRootProfilePolicy{}
+	}
+}
+
+func hasExplicitDirectRootProfile(req *workflow.Request, rt workflow.Runtime, policy directRootProfilePolicy) bool {
+	if req == nil || req.ConfigDir == "" {
+		return false
+	}
+	if policy.RequiresSecrets && req.SecretsDir == "" {
+		return false
+	}
+	getenv := rt.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	return getenv("XDG_STATE_HOME") != ""
+}
+
+func directRootProfileError(policy directRootProfilePolicy) error {
+	profileFlags := "--config-dir"
+	if policy.RequiresSecrets {
+		profileFlags += " and --secrets-dir"
+	}
+	return workflow.NewRequestError(
+		"direct root execution is ambiguous for %s; run as the operator user, or for root-required operations run with sudo from that operator account. Expert direct-root use must pass explicit %s and set XDG_STATE_HOME so config, secrets, logs, state, and locks do not fall back to /root",
+		policy.Command,
+		profileFlags,
+	)
 }
 
 func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {

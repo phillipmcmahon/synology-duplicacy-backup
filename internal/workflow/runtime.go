@@ -231,6 +231,18 @@ func sudoOperatorUser(rt Runtime) (string, bool) {
 	return sudoUser, true
 }
 
+func HasSudoOperator(rt Runtime) bool {
+	if runtimeEUID(rt) != 0 {
+		return false
+	}
+	_, ok := sudoOperatorUser(rt)
+	return ok
+}
+
+func RuntimeEUID(rt Runtime) int {
+	return runtimeEUID(rt)
+}
+
 func runtimeEUID(rt Runtime) int {
 	if rt.Geteuid == nil {
 		return os.Geteuid()

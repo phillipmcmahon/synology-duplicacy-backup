@@ -190,6 +190,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   mutation against path-based filesystem repositories.
   Object and remote repositories are governed by their storage credentials.
   `prune --dry-run` may run non-root when the repository is readable.
+- Root-required commands should normally be invoked with `sudo` from the
+  operator account. Profile-using commands started from a direct root shell are
+  rejected unless explicit profile roots are supplied with `--config-dir`,
+  `--secrets-dir` for label/target commands, and `XDG_STATE_HOME`.
 - `restore plan` is read-only. It resolves the selected target and prints
   Duplicacy commands for a separate drill workspace; it does not create
   directories, write preferences, run `duplicacy restore`, or copy data back.

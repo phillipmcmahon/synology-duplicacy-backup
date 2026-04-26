@@ -8,6 +8,8 @@ that need root-level OS access, such as `backup`, path-based local repository
 For scheduled tasks, prefer running the DSM task as the operator user and using
 a narrow `/etc/sudoers.d` rule plus `sudo -n` only for those exact
 root-required commands. See [`privilege-model.md`](privilege-model.md#least-privilege-sudo-for-scheduled-tasks).
+Do not schedule profile-using commands directly as `root`; direct root
+execution is rejected unless explicit profile roots are supplied.
 
 Despite its historical name, `duplicacy-backup` is now the operator entrypoint
 for backup, prune, health, diagnostics, restore drills, update, and rollback

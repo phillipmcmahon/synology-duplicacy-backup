@@ -265,6 +265,10 @@ PRIVILEGE MODEL:
     repositories. Those repositories are protected OS resources.
     Object and remote repositories are governed by their Duplicacy credentials.
     prune --dry-run may run non-root when the repository is readable.
+    Root-required commands should be invoked with sudo from the operator
+    account, not from a direct root shell. Direct root execution is rejected
+    for profile-using commands unless explicit profile roots are supplied, so
+    config, secrets, logs, state, and locks cannot silently fall back to /root.
 
 JSON SUMMARY:
     --json-summary writes a machine-readable completion summary to stdout.

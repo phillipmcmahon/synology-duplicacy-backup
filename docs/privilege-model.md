@@ -66,11 +66,34 @@ When invoked this way with normal sudo metadata, default config, secrets, logs,
 state, and lock paths resolve to the sudoing operator profile, and
 `duplicacy-backup` accepts `0600` secrets owned by that operator account.
 
-If you log in directly as `root`, or run with a stripped environment that lacks
-complete sudo metadata, defaults resolve under `/root`. Either use a root-owned
-runtime profile under `/root`, run `sudo` from the operator account, or pass
-explicit `--config-dir` and `--secrets-dir` values so the intended profile is
-unambiguous.
+## Ambiguous Direct Root Guard
+
+Do not run profile-using commands from a direct root shell. A direct root shell,
+or a stripped environment without complete sudo metadata, has no reliable
+operator identity. Older versions silently resolved defaults under `/root`; the
+current model rejects that ambiguous posture before config or secrets are read.
+
+For routine use:
+
+- run non-root-capable commands as the operator user
+- run root-required commands with `sudo` from that same operator user
+- keep config, secrets, logs, state, and locks under the operator profile
+
+Expert direct-root use is intentionally explicit. If a site policy requires a
+direct root shell, pass the intended profile roots and state root every time:
+
+```bash
+XDG_STATE_HOME=/var/services/homes/operator/.local/state \
+  duplicacy-backup config explain \
+    --config-dir /var/services/homes/operator/.config/duplicacy-backup \
+    --secrets-dir /var/services/homes/operator/.config/duplicacy-backup/secrets \
+    --target onsite-usb homes
+```
+
+For label/target commands, pass both `--config-dir` and `--secrets-dir` so the
+whole runtime profile is explicit even when a particular target does not need a
+secrets file. Setting `XDG_STATE_HOME` prevents logs, state, and locks from
+falling back to `/root`.
 
 ## Least-Privilege Sudo For Scheduled Tasks
 

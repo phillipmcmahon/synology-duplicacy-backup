@@ -242,14 +242,34 @@ usually means the current user cannot write to their own state directory or an
 explicit log path has been configured with restrictive permissions.
 
 Use `sudo` only for commands that need root-level OS operations. Scheduled
-backup and permission-fix jobs normally run as root; health, restore,
-diagnostics, prune, cleanup, and notification checks can run as the operator
-user when their config, secrets, state, log, lock, storage, and workspace paths
-are accessible.
+backup jobs run with `sudo` from the operator account; health, restore,
+diagnostics, object-storage prune, and notification checks can run as the
+operator user when their config, secrets, state, log, lock, storage, and
+workspace paths are accessible.
+
+## Direct Root Execution Is Ambiguous
+
+If a command fails with `direct root execution is ambiguous`, it was started as
+root without complete sudo metadata. Run the command as the operator user, or
+for root-required operations run it with `sudo` from that operator account.
+
+For rare expert direct-root use, pass the intended profile roots explicitly:
+
+```bash
+XDG_STATE_HOME=/var/services/homes/<user>/.local/state \
+  duplicacy-backup <command> \
+    --config-dir /var/services/homes/<user>/.config/duplicacy-backup \
+    --secrets-dir /var/services/homes/<user>/.config/duplicacy-backup/secrets \
+    ...
+```
+
+This keeps logs, state, locks, config, and secrets from silently resolving under
+`/root`.
 
 See also:
 
 - [Operator cheat sheet](cheatsheet.md)
+- [Privilege model](privilege-model.md#ambiguous-direct-root-guard)
 - [Workflow and scheduling](workflow-scheduling.md#synology-task-scheduler-setup)
 
 ## Update Reinstall or Rollback Looks Wrong

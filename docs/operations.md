@@ -257,8 +257,9 @@ operator account, defaults still resolve to the operator-owned runtime profile.
 commands.
 
 If you run from a direct root shell, or with a stripped environment that lacks
-complete sudo metadata, defaults resolve under `/root`. In that case, either
-use a root-owned runtime profile or pass explicit profile paths.
+complete sudo metadata, profile-using commands are rejected unless explicit
+profile roots are supplied. This prevents config, secrets, logs, state, and
+locks from silently falling back to `/root`.
 
 You can still override this with:
 
@@ -266,6 +267,11 @@ You can still override this with:
 - `DUPLICACY_BACKUP_CONFIG_DIR`
 - `--secrets-dir`
 - `DUPLICACY_BACKUP_SECRETS_DIR`
+- `XDG_STATE_HOME`
+
+For direct-root expert use, prefer the command-line `--config-dir` and
+`--secrets-dir` flags plus `XDG_STATE_HOME` so the intended runtime profile is
+visible in the command itself.
 
 ## Synology Task Scheduler
 
@@ -276,13 +282,12 @@ example across multiple labels and targets, see
 1. Open **Control Panel > Task Scheduler**
 2. Create a **Triggered Task > User-defined script**
 3. Set the schedule
-4. Run as `root` for `backup` and path-based filesystem repository prune or
-   cleanup; use the operator user for non-root-capable checks when paths are
-   accessible
-5. Use a command such as:
+4. Run the task as the operator user
+5. Prefix only root-required commands with `sudo -n`
+6. Use a command such as:
 
 ```bash
-/usr/local/bin/duplicacy-backup backup --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
 ```
 
 Recommended scheduled pattern:
@@ -295,7 +300,7 @@ Recommended scheduled pattern:
 Example: scheduled backup for label `homes` on target `offsite-storj`
 
 ```bash
-/usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
 ```
 
 Example: scheduled prune for label `homes` on target `offsite-storj`

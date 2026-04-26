@@ -204,9 +204,10 @@ duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/rea
 
 When a root-required command is invoked with normal `sudo` metadata from the
 operator account, default config, secrets, log, state, and lock paths still
-resolve to the operator profile. A direct root shell, or a stripped environment
-without complete sudo metadata, uses `/root` unless explicit profile paths are
-supplied.
+resolve to the operator profile. Profile-using commands started from a direct
+root shell, or from a stripped environment without complete sudo metadata, are
+rejected unless explicit config, secrets, and state roots are supplied. This
+prevents accidental fallback to `/root`.
 
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
 complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology

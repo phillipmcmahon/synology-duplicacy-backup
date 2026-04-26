@@ -31,9 +31,10 @@ Use these rules before creating tasks:
 - `prune --force` is manual only. Do not schedule it routinely.
 
 After migrating runtime files into an operator profile, avoid scheduling
-non-root-capable tasks as `root` out of habit. A root scheduled health or prune
-task resolves `$HOME` as `/root` and will look under
-`/root/.config/duplicacy-backup` unless explicit profile paths are supplied.
+non-root-capable tasks as `root` out of habit. Profile-using commands started
+from direct root are rejected unless the intended config, secrets, and state
+roots are explicit. Schedule the task as the operator user instead, then use
+`sudo -n` only for the exact root-required command.
 
 For scheduled root-required commands, add a narrow `/etc/sudoers.d` rule that
 allows only the exact `duplicacy-backup` commands used by the scheduler. Do not

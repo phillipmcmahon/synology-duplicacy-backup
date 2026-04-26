@@ -85,6 +85,8 @@ func withTestGlobals(t *testing.T, fn func()) {
 
 	logDir = t.TempDir()
 	geteuid = func() int { return 0 }
+	t.Setenv("SUDO_USER", "operator")
+	t.Setenv("SUDO_UID", "1000")
 	lookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	isSynologyDSM = func() bool { return true }
 	lockParent := t.TempDir()
@@ -1073,6 +1075,102 @@ func TestRunWithArgs_OperationalCommandRequiresSynologyDSM(t *testing.T) {
 		}
 		if !strings.Contains(stderr, "requires Synology DSM with btrfs-backed /volume* storage") {
 			t.Fatalf("stderr = %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_DirectRootConfigRequiresExplicitRuntimeProfile(t *testing.T) {
+	withTestGlobals(t, func() {
+		t.Setenv("SUDO_USER", "")
+		t.Setenv("SUDO_UID", "")
+		called := false
+		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+			called = true
+			return "config ok\n", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"config", "explain", "--target", "onsite-usb", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(config explain direct root) = %d", code)
+			}
+		})
+		if called {
+			t.Fatal("config handler should not be called before direct-root validation")
+		}
+		if stdout != "" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		for _, token := range []string{
+			"direct root execution is ambiguous for config explain",
+			"run as the operator user",
+			"--config-dir and --secrets-dir",
+			"XDG_STATE_HOME",
+			"/root",
+		} {
+			if !strings.Contains(stderr, token) {
+				t.Fatalf("stderr missing %q:\n%s", token, stderr)
+			}
+		}
+	})
+}
+
+func TestRunWithArgs_DirectRootBackupRequiresSudoOperator(t *testing.T) {
+	withTestGlobals(t, func() {
+		t.Setenv("SUDO_USER", "")
+		t.Setenv("SUDO_UID", "")
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(backup direct root) = %d", code)
+			}
+		})
+		if stdout != "" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "direct root execution is ambiguous for backup") ||
+			!strings.Contains(stderr, "run with sudo from that operator account") {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if strings.Contains(stderr, "configuration file not found") {
+			t.Fatalf("direct-root validation should fail before config loading: %q", stderr)
+		}
+	})
+}
+
+func TestRunWithArgs_DirectRootAllowsExplicitRuntimeProfile(t *testing.T) {
+	withTestGlobals(t, func() {
+		t.Setenv("SUDO_USER", "")
+		t.Setenv("SUDO_UID", "")
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		logDir = ""
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+			if req.ConfigDir == "" || req.SecretsDir == "" {
+				t.Fatalf("expected explicit profile request, got %+v", req)
+			}
+			if !strings.HasPrefix(meta.StateDir, os.Getenv("XDG_STATE_HOME")) ||
+				!strings.HasPrefix(meta.LogDir, os.Getenv("XDG_STATE_HOME")) ||
+				!strings.HasPrefix(meta.LockParent, os.Getenv("XDG_STATE_HOME")) {
+				t.Fatalf("metadata did not use explicit XDG_STATE_HOME: %+v", meta)
+			}
+			return "config ok\n", nil
+		}
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := runWithArgs([]string{
+				"config", "explain",
+				"--config-dir", t.TempDir(),
+				"--secrets-dir", t.TempDir(),
+				"--target", "onsite-usb",
+				"homes",
+			}); code != 0 {
+				t.Fatalf("runWithArgs(config explain explicit direct root) = %d", code)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q", stderr)
+		}
+		if stdout != "config ok\n" {
+			t.Fatalf("stdout = %q", stdout)
 		}
 	})
 }
