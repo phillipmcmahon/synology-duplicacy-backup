@@ -6,7 +6,6 @@ const (
 	RuntimeModeBackup         RuntimeMode = "backup"
 	RuntimeModePrune          RuntimeMode = "prune"
 	RuntimeModeCleanupStorage RuntimeMode = "cleanup-storage"
-	RuntimeModeFixPerms       RuntimeMode = "fix-perms"
 )
 
 // RuntimeRequest is the runtime command's narrowed view of CLI intent.
@@ -35,8 +34,6 @@ func NewRuntimeRequest(req *Request) RuntimeRequest {
 		mode = RuntimeModePrune
 	case req.DoCleanupStore:
 		mode = RuntimeModeCleanupStorage
-	case req.FixPerms:
-		mode = RuntimeModeFixPerms
 	}
 	return RuntimeRequest{
 		Mode:          mode,
@@ -66,8 +63,4 @@ func (r RuntimeRequest) DoPrune() bool {
 
 func (r RuntimeRequest) DoCleanupStore() bool {
 	return r.Mode == RuntimeModeCleanupStorage
-}
-
-func (r RuntimeRequest) FixPerms() bool {
-	return r.Mode == RuntimeModeFixPerms
 }

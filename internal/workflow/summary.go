@@ -22,26 +22,12 @@ func OperationMode(req *RuntimeRequest) string {
 		return "Safe prune"
 	case RuntimeModeCleanupStorage:
 		return "Storage cleanup"
-	case RuntimeModeFixPerms:
-		return "Fix permissions"
 	default:
 		return ""
 	}
 }
 
 func SummaryLines(plan *Plan) []SummaryLine {
-	if plan.FixPermsOnly {
-		return []SummaryLine{
-			{Label: "Operation Mode", Value: plan.OperationMode},
-			{Label: "Target", Value: plan.TargetName()},
-			{Label: "Location", Value: plan.Location},
-			{Label: "Storage", Value: plan.BackupTarget},
-			{Label: "Local Owner", Value: plan.LocalOwner},
-			{Label: "Local Group", Value: plan.LocalGroup},
-			{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
-		}
-	}
-
 	lines := []SummaryLine{
 		{Label: "Operation Mode", Value: plan.OperationMode},
 		{Label: "Target", Value: plan.TargetName()},
@@ -63,12 +49,6 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		}
 		if plan.DoCleanupStore {
 			lines = append(lines, []SummaryLine{{Label: "Cleanup Storage", Value: "true"}}...)
-		}
-		if plan.FixPerms {
-			lines = append(lines, []SummaryLine{
-				{Label: "Local Owner", Value: plan.LocalOwner},
-				{Label: "Local Group", Value: plan.LocalGroup},
-			}...)
 		}
 		return lines
 	}
@@ -101,18 +81,10 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
 		{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.ForcePrune)},
 		{Label: "Cleanup Storage", Value: fmt.Sprintf("%t", plan.DoCleanupStore)},
-		{Label: "Fix Perms", Value: fmt.Sprintf("%t", plan.FixPerms)},
 		{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeletePercent)},
 		{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeleteCount)},
 		{Label: "Prune Min Total Revs", Value: fmt.Sprintf("%d", plan.SafePruneMinTotalForPercent)},
 	}...)
-
-	if plan.FixPerms {
-		lines = append(lines, []SummaryLine{
-			{Label: "Local Owner", Value: plan.LocalOwner},
-			{Label: "Local Group", Value: plan.LocalGroup},
-		}...)
-	}
 
 	if plan.Secrets != nil {
 		lines = append(lines, []SummaryLine{

@@ -14,8 +14,6 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 		DoBackup:                true,
 		DoPrune:                 true,
 		DoCleanupStore:          true,
-		FixPerms:                true,
-		FixPermsOnly:            true,
 		ForcePrune:              true,
 		DryRun:                  true,
 		Verbose:                 true,
@@ -36,7 +34,6 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 		SnapshotCreateCommand:   "btrfs subvolume snapshot",
 		BackupCommand:           "duplicacy backup",
 		CleanupStorageCommand:   "duplicacy prune -exclusive",
-		FixPermsChownCommand:    "chown -R user:group /backups/homes",
 		WorkDirRemoveCommand:    "rm -rf /tmp/work",
 		ModeDisplay:             "local",
 		LogRetentionDays:        28,
@@ -44,8 +41,8 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 	}
 
 	sections := plan.Sections()
-	if !sections.Request.DoBackup || !sections.Request.DoPrune || !sections.Request.DoCleanupStore || !sections.Request.FixPerms ||
-		!sections.Request.FixPermsOnly || !sections.Request.ForcePrune || !sections.Request.DryRun ||
+	if !sections.Request.DoBackup || !sections.Request.DoPrune || !sections.Request.DoCleanupStore ||
+		!sections.Request.ForcePrune || !sections.Request.DryRun ||
 		!sections.Request.Verbose || !sections.Request.JSONSummary || !sections.Request.NeedsDuplicacySetup ||
 		!sections.Request.NeedsSnapshot || sections.Request.DefaultNotice != "notice" || sections.Request.OperationMode != "Backup" {
 		t.Fatalf("request section = %#v", sections.Request)
@@ -57,7 +54,7 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 	if sections.Paths.WorkRoot != "/tmp/work" || sections.Paths.DuplicacyRoot != "/tmp/work/duplicacy" || sections.Paths.BackupTarget != "/backups/homes" {
 		t.Fatalf("paths section = %#v", sections.Paths)
 	}
-	if sections.Display.BackupCommand != "duplicacy backup" || sections.Display.CleanupStorageCommand == "" || sections.Display.FixPermsChownCommand == "" {
+	if sections.Display.BackupCommand != "duplicacy backup" || sections.Display.CleanupStorageCommand == "" {
 		t.Fatalf("display section = %#v", sections.Display)
 	}
 

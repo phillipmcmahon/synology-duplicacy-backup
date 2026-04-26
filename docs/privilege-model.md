@@ -52,7 +52,6 @@ These commands require root because of the work they perform:
 |---|---|
 | `backup` | Creates a btrfs snapshot and needs complete source-tree read access. |
 | `prune` / `cleanup-storage` for path-based filesystem storage | Mutates a protected local backup repository. Local repository chunks and snapshots should remain OS-protected and policy-managed. |
-| `fix-perms` | Runs ownership and permission repair with `chown` and `chmod`. |
 | `update --yes` | Activates a managed install under system-owned paths. |
 | `rollback --yes` | Changes managed install symlinks under system-owned paths. |
 

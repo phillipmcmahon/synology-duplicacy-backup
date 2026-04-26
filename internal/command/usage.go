@@ -14,7 +14,6 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} backup [OPTIONS] <source>
        {{script}} prune [OPTIONS] <source>
        {{script}} cleanup-storage [OPTIONS] <source>
-       {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
@@ -24,7 +23,7 @@ func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} rollback [OPTIONS]
 
 Commands:
-    Runtime operations     backup, prune, cleanup-storage, fix-perms
+    Runtime operations     backup, prune, cleanup-storage
     Config and inspection  config, diagnostics, health
     Notifications          notify test, notify test update
     Restore drills         restore select (guided TUI), restore plan, restore list-revisions, restore run
@@ -93,7 +92,6 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} backup [OPTIONS] <source>
        {{script}} prune [OPTIONS] <source>
        {{script}} cleanup-storage [OPTIONS] <source>
-       {{script}} fix-perms [OPTIONS] <source>
        {{script}} config <validate|explain|paths> [OPTIONS] <source>
        {{script}} diagnostics [OPTIONS] <source>
        {{script}} health <status|doctor|verify> [OPTIONS] <source>
@@ -103,7 +101,7 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
        {{script}} rollback [OPTIONS]
 
 COMMAND OVERVIEW:
-    Runtime operations      Run, maintain, or repair one configured label target
+    Runtime operations      Run or maintain one configured label target
       backup                Run a backup for the selected label and target
       prune                 Run threshold-guarded prune for the selected label and target
                               Root is required for path-based filesystem repositories
@@ -111,8 +109,6 @@ COMMAND OVERVIEW:
                               duplicacy prune -exhaustive -exclusive
                               Use only when no other client is writing to the same storage
                               Root is required for path-based filesystem repositories
-      fix-perms             Normalise path-based storage ownership and permissions
-
     Config and inspection   Read, explain, validate, or diagnose configured targets
       config validate       Validate backup-readiness, including source path and configured secrets
       config explain        Show resolved config values for the selected target
@@ -260,13 +256,13 @@ INTERACTIVE SAFETY RAILS:
 
 COMMAND MODEL:
     Runtime operations are first-class commands. Use "backup --target ...",
-    "prune --target ...", "cleanup-storage --target ...", or
-    "fix-perms --target ..."; old top-level operation flags are not supported.
+    "prune --target ...", or "cleanup-storage --target ..."; old top-level
+    operation flags are not supported.
 
 PRIVILEGE MODEL:
     Run commands as the operator user by default. Root is required for backup,
-    fix-perms, and actual prune or cleanup-storage mutation against path-based
-    filesystem repositories. Those repositories are protected OS resources.
+    and actual prune or cleanup-storage mutation against path-based filesystem
+    repositories. Those repositories are protected OS resources.
     Object and remote repositories are governed by their Duplicacy credentials.
     prune --dry-run may run non-root when the repository is readable.
 
@@ -339,7 +335,6 @@ EXAMPLES:
     sudo {{script}} prune --target onsite-usb homes
     sudo {{script}} prune --target onsite-usb --force homes
     sudo {{script}} cleanup-storage --target onsite-usb homes
-    sudo {{script}} fix-perms --target onsite-usb homes
     sudo {{script}} backup --target offsite-storj homes
     sudo {{script}} backup --target onsite-usb --verbose homes
     sudo {{script}} backup --target onsite-usb --config-dir /opt/etc homes

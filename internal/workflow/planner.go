@@ -86,8 +86,6 @@ func (p *Planner) validateEnvironment(req *RuntimeRequest) error {
 		switch {
 		case req.DoBackup():
 			return fmt.Errorf("backup must be run as root because it creates btrfs snapshots and reads the full source tree")
-		case req.FixPerms():
-			return fmt.Errorf("fix-perms must be run as root because it changes ownership and permissions")
 		}
 	}
 	if req.DoBackup() || req.DoPrune() || req.DoCleanupStore() {
@@ -130,7 +128,6 @@ func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {
 }
 
 func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
-	fixPerms := req.FixPerms()
 	return p.derivePlanFromInput(planDerivationInput{
 		label:               req.Label,
 		target:              req.Target(),
@@ -139,8 +136,6 @@ func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
 		doBackup:            req.DoBackup(),
 		doPrune:             req.DoPrune(),
 		doCleanupStore:      req.DoCleanupStore(),
-		fixPerms:            fixPerms,
-		fixPermsOnly:        fixPerms,
 		forcePrune:          req.ForcePrune,
 		dryRun:              req.DryRun,
 		verbose:             req.Verbose,
@@ -160,8 +155,6 @@ type planDerivationInput struct {
 	doBackup            bool
 	doPrune             bool
 	doCleanupStore      bool
-	fixPerms            bool
-	fixPermsOnly        bool
 	forcePrune          bool
 	dryRun              bool
 	verbose             bool
@@ -193,8 +186,6 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 		DoBackup:            input.doBackup,
 		DoPrune:             input.doPrune,
 		DoCleanupStore:      input.doCleanupStore,
-		FixPerms:            input.fixPerms,
-		FixPermsOnly:        input.fixPermsOnly,
 		ForcePrune:          input.forcePrune,
 		DryRun:              input.dryRun,
 		Verbose:             input.verbose,
@@ -272,14 +263,6 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	}
 	if opts.validateSemantics {
 		if err := cfg.ValidateTargetSemantics(); err != nil {
-			return nil, err
-		}
-		if plan.FixPerms && !duplicacy.NewStorageSpec(cfg.Storage).SupportsFixPerms() {
-			return nil, apperrors.NewConfigError("fix-perms", fmt.Errorf("fix-perms is only supported for path-based Duplicacy storage targets"))
-		}
-	}
-	if plan.FixPerms {
-		if err := cfg.ValidateOwnerGroup(); err != nil {
 			return nil, err
 		}
 	}
@@ -364,9 +347,6 @@ func (p *Planner) populateCommands(plan *Plan) {
 		plan.PolicyPruneCommand = "duplicacy prune"
 	}
 	plan.CleanupStorageCommand = "duplicacy prune -exhaustive -exclusive"
-	plan.FixPermsChownCommand = fmt.Sprintf("chown -R %s %s", plan.OwnerGroup, plan.BackupTarget)
-	plan.FixPermsDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.BackupTarget)
-	plan.FixPermsFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.BackupTarget)
 	plan.WorkDirRemoveCommand = fmt.Sprintf("rm -rf %s", plan.WorkRoot)
 }
 

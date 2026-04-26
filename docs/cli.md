@@ -12,7 +12,6 @@ and rollback workflows. For routine copyable commands, start with the
 duplicacy-backup backup [OPTIONS] <source>
 duplicacy-backup prune [OPTIONS] <source>
 duplicacy-backup cleanup-storage [OPTIONS] <source>
-duplicacy-backup fix-perms [OPTIONS] <source>
 duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
 duplicacy-backup diagnostics [OPTIONS] <source>
 duplicacy-backup notify <test> [OPTIONS] <source|update>
@@ -23,8 +22,8 @@ duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 ```
 
 Backup is one workflow among several. `backup`, `prune`, `cleanup-storage`,
-`fix-perms`, `config`, `diagnostics`, `health`, restore commands, and
-label-scoped `notify test` commands need an explicit `--target <name>`.
+`config`, `diagnostics`, `health`, restore commands, and label-scoped
+`notify test` commands need an explicit `--target <name>`.
 `notify test update`, `update`, and `rollback` are global application commands
 and do not use a target.
 
@@ -48,14 +47,13 @@ are not supported.
 | `backup --target <target> <label>` | Run a backup for the selected label and target |
 | `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for path-based filesystem repositories |
 | `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for path-based filesystem repositories |
-| `fix-perms --target <target> <label>` | Normalise path-based storage ownership and permissions |
 
 ## Modifiers
 
 | Flag | Description |
 |---|---|
 | `--force` | Override safe prune thresholds for `prune` |
-| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`, `health`, restore commands, and label-scoped `notify test` commands |
+| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `config`, `diagnostics`, `health`, restore commands, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -183,13 +181,13 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 ## Behaviour Notes
 
 - `--help` is intentionally concise; use `--help-full` for detailed command help.
-- Every `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`,
+- Every `backup`, `prune`, `cleanup-storage`, `config`,
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
   command needs `--target <name>`.
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
-- Root is required for `backup`, `fix-perms`, and actual `prune` or
-  `cleanup-storage` mutation against path-based filesystem repositories.
+- Root is required for `backup`, and actual `prune` or `cleanup-storage`
+  mutation against path-based filesystem repositories.
   Object and remote repositories are governed by their storage credentials.
   `prune --dry-run` may run non-root when the repository is readable.
 - `restore plan` is read-only. It resolves the selected target and prints

@@ -6,39 +6,6 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
-func TestSummaryLines_FixPermsOnlyLayout(t *testing.T) {
-	plan := &Plan{
-		FixPermsOnly:  true,
-		DryRun:        true,
-		Target:        "onsite-usb",
-		Location:      locationLocal,
-		LocalOwner:    "backupuser",
-		LocalGroup:    "users",
-		BackupTarget:  "/backups/homes",
-		OperationMode: "Fix permissions",
-	}
-
-	lines := SummaryLines(plan)
-	if len(lines) != 7 {
-		t.Fatalf("len(lines) = %d, want 7", len(lines))
-	}
-
-	expected := []string{
-		"Operation Mode",
-		"Target",
-		"Location",
-		"Storage",
-		"Local Owner",
-		"Local Group",
-		"Dry Run",
-	}
-	for i, label := range expected {
-		if lines[i].Label != label {
-			t.Fatalf("lines[%d].Label = %q, want %q", i, lines[i].Label, label)
-		}
-	}
-}
-
 func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 	plan := &Plan{
 		Verbose:                     true,
@@ -138,7 +105,6 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	plan := &Plan{
 		DoBackup:       true,
 		DoPrune:        true,
-		FixPerms:       true,
 		ForcePrune:     true,
 		BackupLabel:    "homes",
 		Target:         "onsite-usb",
@@ -148,7 +114,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 		BackupTarget:   "/backups/homes",
 		ConfigFile:     "/config/homes-backup.toml",
 		ModeDisplay:    "onsite-usb",
-		OperationMode:  "Backup + Forced prune + Fix permissions",
+		OperationMode:  "Backup + Forced prune",
 		WorkRoot:       "/tmp/work",
 		Threads:        16,
 		Filter:         "exclude",
@@ -165,10 +131,10 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if labels["Work Dir"] || labels["Threads"] || labels["Filter"] || labels["Prune Options"] {
 		t.Fatalf("expected compact default summary, got %+v", lines)
 	}
-	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Storage"] || !labels["Local Owner"] {
+	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Storage"] || !labels["Force Prune"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
-	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source", "Snapshot", "Storage", "Force Prune", "Local Owner", "Local Group"}
+	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source", "Snapshot", "Storage", "Force Prune"}
 	got := make([]string, 0, len(lines))
 	for _, line := range lines {
 		got = append(got, line.Label)
@@ -197,13 +163,6 @@ func TestOperationMode_ForcedPrune(t *testing.T) {
 func TestOperationMode_CleanupStorage(t *testing.T) {
 	req := &RuntimeRequest{Mode: RuntimeModeCleanupStorage}
 	if got := OperationMode(req); got != "Storage cleanup" {
-		t.Fatalf("OperationMode() = %q", got)
-	}
-}
-
-func TestOperationMode_FixPerms(t *testing.T) {
-	req := &RuntimeRequest{Mode: RuntimeModeFixPerms}
-	if got := OperationMode(req); got != "Fix permissions" {
 		t.Fatalf("OperationMode() = %q", got)
 	}
 }

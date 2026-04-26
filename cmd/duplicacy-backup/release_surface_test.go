@@ -444,7 +444,6 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 	expectations := map[string][]string{
 		filepath.Join(root, "README.md"): {
 			"cleanup-storage",
-			"fix-perms",
 			"--json-summary",
 			"config validate",
 			"notify test",
@@ -460,7 +459,6 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		},
 		filepath.Join(root, "docs", "cli.md"): {
 			"cleanup-storage",
-			"fix-perms",
 			"--json-summary",
 			"config validate",
 			"notify test",
@@ -551,7 +549,6 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"backup [OPTIONS] <source>",
 		"prune [OPTIONS] <source>",
 		"cleanup-storage [OPTIONS] <source>",
-		"fix-perms [OPTIONS] <source>",
 		"config <validate|explain|paths>",
 		"diagnostics [OPTIONS] <source>",
 		"notify <test> [OPTIONS] <source|update>",
@@ -565,7 +562,7 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"--keep <count>           Update retention count (default: 2)",
 		"--attestations <mode>    Update release attestation mode",
 		"COMMAND OVERVIEW:",
-		"Runtime operations      Run, maintain, or repair one configured label target",
+		"Runtime operations      Run or maintain one configured label target",
 		"Config and inspection   Read, explain, validate, or diagnose configured targets",
 		"Notifications           Send explicit synthetic notification checks",
 		"Restore drills          Restore from snapshots without writing to the live source",
@@ -574,7 +571,6 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 		"backup                Run a backup for the selected label and target",
 		"prune                 Run threshold-guarded prune for the selected label and target",
 		"cleanup-storage       Request storage maintenance:",
-		"fix-perms             Normalise path-based storage ownership and permissions",
 		"diagnostics           Print a redacted support bundle for one label and target",
 		"notify test           Send a simulated notification through configured providers",
 		"notify test update    Send a simulated update notification through global update config",

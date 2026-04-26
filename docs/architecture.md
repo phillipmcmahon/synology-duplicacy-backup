@@ -12,7 +12,7 @@ The application follows an explicit command-specific request model.
 
 The parser still produces one dispatch envelope, but each workflow command
 immediately projects that envelope into the narrow input type it actually
-needs. Only runtime backup, prune, cleanup-storage, and fix-perms operations
+needs. Only runtime backup, prune, and cleanup-storage operations
 continue into the `RuntimeRequest -> Plan -> Execute` path.
 
 ## Top-Level Flow
@@ -26,7 +26,7 @@ runWithArgs
        -> config / diagnostics / notify / restore / rollback / update / health / runtime
 ```
 
-Only the runtime backup/prune/cleanup/fix-perms path goes through the full
+Only the runtime backup/prune/cleanup path goes through the full
 `Planner.Build -> Executor.Run` sequence. Config, diagnostics, notify,
 restore, rollback, update, and health commands dispatch to their own narrower
 handlers so they do not inherit runtime requirements such as root access,
@@ -65,7 +65,7 @@ The boundary pattern is:
 - validate and execute against that narrow type
 - use `ConfigPlanRequest` when a command only needs label, target, config dir,
   and secrets dir resolution
-- use `RuntimeRequest` only for backup, prune, cleanup-storage, and fix-perms
+- use `RuntimeRequest` only for backup, prune, and cleanup-storage
 
 This keeps restore, update, rollback, notify, diagnostics, config, health, and
 runtime concerns separated even though they share one command-line parser.
@@ -108,7 +108,7 @@ locks, create work directories, create snapshots, or change permissions.
 
 Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
 planner uses that domain helper to decide whether storage keys should be
-loaded and whether `fix-perms` is allowed.
+loaded.
 
 Notification destinations use the same pattern at a smaller scale:
 `internal/notify` owns provider lookup, destination construction, and delivery
@@ -126,7 +126,7 @@ It is responsible for:
 - lock acquisition and release
 - runtime sequencing
 - Duplicacy working-directory setup
-- backup, prune, storage cleanup, and fix-perms execution
+- backup, prune, and storage cleanup execution
 - final cleanup and result output
 
 This keeps operator-facing runtime behaviour in one place and makes phase order
@@ -239,7 +239,6 @@ Two architecture pressure points are worth keeping visible:
 | `internal/exec` | Shared command runner and mocks |
 | `internal/lock` | Directory-based PID locking |
 | `internal/logger` | Structured logging and log cleanup |
-| `internal/permissions` | Local repository permission fixing |
 | `internal/secrets` | Secrets loading and validation |
 
 ## Command Runner

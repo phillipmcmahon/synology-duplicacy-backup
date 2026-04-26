@@ -591,7 +591,7 @@ func TestParseRequest_RejectsOldTopLevelOperationFlags(t *testing.T) {
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
-	if got := err.Error(); got != "unknown top-level option --target; use a command such as backup, prune, cleanup-storage, or fix-perms" {
+	if got := err.Error(); got != "unknown top-level option --target; use a command such as backup, prune, or cleanup-storage" {
 		t.Fatalf("error = %q", got)
 	}
 }
@@ -602,7 +602,7 @@ func TestParseRequest_BackupCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
-	if !result.Request.DoBackup || result.Request.DoPrune || result.Request.FixPerms || result.Request.DoCleanupStore || result.Request.FixPermsOnly {
+	if !result.Request.DoBackup || result.Request.DoPrune || result.Request.DoCleanupStore {
 		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
@@ -665,25 +665,19 @@ func TestParseRequest_JSONSummary(t *testing.T) {
 	}
 }
 
-func TestParseRequest_FixPermsOnly(t *testing.T) {
+func TestParseRequest_FixPermsCommandIsRemoved(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"fix-perms", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
-	if err != nil {
+	_, err := ParseRequest([]string{"fix-perms", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unknown command fix-perms") {
 		t.Fatalf("ParseRequest() error = %v", err)
-	}
-	if !result.Request.FixPermsOnly || result.Request.DoBackup || result.Request.DoPrune {
-		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 
-func TestParseRequest_InvalidCombo(t *testing.T) {
+func TestParseRequest_FixPermsFlagIsRemoved(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"fix-perms", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultRuntime())
-	if err != nil {
+	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--fix-perms", "homes"}, meta, workflow.DefaultRuntime())
+	if err == nil || !strings.Contains(err.Error(), "unknown option --fix-perms") {
 		t.Fatalf("ParseRequest() error = %v", err)
-	}
-	if result.Request.Target() != "offsite-storj" || !result.Request.FixPerms {
-		t.Fatalf("result.Request = %+v", result.Request)
 	}
 }
 

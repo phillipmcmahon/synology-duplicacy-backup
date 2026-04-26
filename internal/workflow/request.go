@@ -39,7 +39,6 @@ type Request struct {
 	RollbackCheckOnly    bool
 	RollbackYes          bool
 	UpdateCommand        string
-	FixPerms             bool
 	ForcePrune           bool
 	RequestedTarget      string
 	DryRun               bool
@@ -63,7 +62,6 @@ type Request struct {
 	DoBackup             bool
 	DoPrune              bool
 	DoCleanupStore       bool
-	FixPermsOnly         bool
 	DefaultNotice        string
 }
 
@@ -74,6 +72,4 @@ func (r *Request) Target() string {
 	return ""
 }
 
-func (r *Request) DeriveModes() {
-	r.FixPermsOnly = r.FixPerms && !r.DoBackup && !r.DoPrune && !r.DoCleanupStore
-}
+func (r *Request) DeriveModes() {}

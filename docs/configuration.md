@@ -71,7 +71,8 @@ Operational rules:
 - every target passes `storage` directly to Duplicacy
 - do not split storage into `destination` and `repository`; include the full backend path in `storage`
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
-- `allow_local_accounts`, `local_owner`, `local_group`, and `fix-perms` are only for path-based Duplicacy storage targets
+- path-based filesystem repositories are protected OS resources; manage custom
+  ownership or permissions with DSM/Linux tools outside this application
 
 Breaking change note:
 
@@ -138,9 +139,9 @@ s3_secret = "..."
 | `targets.<name>.filter` | No | Target-specific filter override |
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
-| `targets.<name>.allow_local_accounts` | Needed for path-based owner/group operations | Explicitly allows local owner/group management |
-| `targets.<name>.local_owner` | Needed for path-based `fix-perms` | Non-root owner to apply |
-| `targets.<name>.local_group` | Needed for path-based `fix-perms` | Non-root group to apply |
+| `targets.<name>.allow_local_accounts` | Legacy compatibility only | Not used by current runtime commands |
+| `targets.<name>.local_owner` | Legacy compatibility only | Not used by current runtime commands |
+| `targets.<name>.local_group` | Legacy compatibility only | Not used by current runtime commands |
 
 ## Health Policy
 
@@ -499,11 +500,9 @@ freshness signal.
 | `btrfs` binary check | backup |
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
-| target local-account consistency | `config validate`, path-based `fix-perms` |
 | Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
-| `local_owner` / `local_group` validation | path-based `fix-perms` |
 | target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
 
 ## Output Model

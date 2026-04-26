@@ -12,6 +12,11 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Removed
+- **Breaking cleanup:** removed the `fix-perms` command and its permission
+  normalisation runtime path. Local filesystem repository permissions are now
+  explicitly an OS/operator responsibility, not an application command surface.
+
 ### Changed
 - Root-required commands now require complete sudo metadata before default
   runtime paths are redirected from `/root` to the sudoing operator profile,

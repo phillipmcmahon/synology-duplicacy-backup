@@ -42,8 +42,7 @@ Supported locations are:
 This lets the tool pass every storage backend directly to Duplicacy, including
 local disk paths, S3-compatible services such as Storj gateway, and local
 S3-compatible services such as RustFS or MinIO. `location` remains useful for
-operator scheduling, reporting, and deciding whether local permission-management
-operations are appropriate.
+operator scheduling and reporting.
 
 In practice:
 
@@ -56,7 +55,6 @@ In practice:
 - path-based filesystem repositories are protected OS resources; run actual
   prune or cleanup mutation for those targets as root
 - object and remote repository mutation is governed by storage credentials
-- `fix-perms` is only supported for path-based Duplicacy storage targets
 - runtime, health, `config explain`, and `config paths` surface target
   location in operator-facing output
 
@@ -214,7 +212,7 @@ supplied.
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
 complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology
 Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
-and fix-perms; see [Workflow and scheduling](docs/workflow-scheduling.md).
+and diagnostics; see [Workflow and scheduling](docs/workflow-scheduling.md).
 
 ## Operator Map
 
@@ -236,14 +234,12 @@ Use the documentation by task:
 
 Core operating rules:
 
-- `backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`,
+- `backup`, `prune`, `cleanup-storage`, `config`,
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
   commands require an explicit `--target <name>`.
 - Runtime operations are first-class commands. Use `backup`, `prune`,
-  `cleanup-storage`, or `fix-perms`; old top-level operation flags are not
-  supported.
+  or `cleanup-storage`; old top-level operation flags are not supported.
 - Storage keys are loaded for known Duplicacy backends that require them.
-- `fix-perms` applies only to path-based Duplicacy storage targets.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
 - `health status`, `health doctor`, and `health verify` use target-specific

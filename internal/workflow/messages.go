@@ -59,11 +59,6 @@ func OperatorMessage(err error) string {
 		return normaliseOperatorSentence(operatorSnapshotMessage(snapshotErr))
 	}
 
-	var permissionsErr *apperrors.PermissionsError
-	if errors.As(err, &permissionsErr) {
-		return normaliseOperatorSentence(operatorPermissionsMessage(permissionsErr))
-	}
-
 	var configErr *apperrors.ConfigError
 	if errors.As(err, &configErr) {
 		return normaliseOperatorSentence(operatorConfigMessage(configErr))
@@ -171,24 +166,6 @@ func operatorSnapshotMessage(err *apperrors.SnapshotError) string {
 		return err.Error()
 	default:
 		return err.Error()
-	}
-}
-
-func operatorPermissionsMessage(err *apperrors.PermissionsError) string {
-	target := valueOrUnknown(err.Context["target"])
-	switch err.Phase {
-	case "chown":
-		return withHint(
-			fmt.Sprintf("Fix permissions failed while changing ownership under %s", target),
-			"check that the target exists and that the owner/group values are valid on this NAS",
-		)
-	case "chmod":
-		return withHint(
-			fmt.Sprintf("Fix permissions failed while applying directory or file modes under %s", target),
-			"check filesystem permissions and whether the target tree is accessible",
-		)
-	default:
-		return withHint("Fix permissions failed", "review the path, owner, and group settings")
 	}
 }
 

@@ -19,7 +19,7 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 		return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
 	}
 	switch args[0] {
-	case "backup", "prune", "cleanup-storage", "fix-perms":
+	case "backup", "prune", "cleanup-storage":
 		return parseRuntimeCommandRequest(args[0], args[1:], meta, rt)
 	}
 	if len(args) > 0 && args[0] == "config" {
@@ -49,7 +49,7 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	}
 
 	if isOption(args[0]) {
-		return nil, workflow.NewUsageRequestError("unknown top-level option %s; use a command such as backup, prune, cleanup-storage, or fix-perms", args[0])
+		return nil, workflow.NewUsageRequestError("unknown top-level option %s; use a command such as backup, prune, or cleanup-storage", args[0])
 	}
 	return nil, workflow.NewUsageRequestError("unknown command %s", args[0])
 }
@@ -69,8 +69,6 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 		req.DoPrune = true
 	case "cleanup-storage":
 		req.DoCleanupStore = true
-	case "fix-perms":
-		req.FixPerms = true
 	default:
 		return nil, workflow.NewUsageRequestError("unknown command %s", command)
 	}

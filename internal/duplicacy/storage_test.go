@@ -9,14 +9,13 @@ import (
 
 func TestStorageSpecClassifiesDuplicacyBackends(t *testing.T) {
 	tests := []struct {
-		name     string
-		storage  string
-		scheme   string
-		local    bool
-		keys     []string
-		fixPerms bool
+		name    string
+		storage string
+		scheme  string
+		local   bool
+		keys    []string
 	}{
-		{name: "local path", storage: "/volumeUSB1/usbshare/duplicacy/homes", scheme: "local", local: true, fixPerms: true},
+		{name: "local path", storage: "/volumeUSB1/usbshare/duplicacy/homes", scheme: "local", local: true},
 		{name: "s3", storage: "s3://EU@gateway.storjshare.io/bucket/homes", scheme: "s3", keys: []string{"s3_id", "s3_secret"}},
 		{name: "s3-compatible v2", storage: "s3c://garage.local/bucket/homes", scheme: "s3c", keys: []string{"s3_id", "s3_secret"}},
 		{name: "minio", storage: "minio://garage@192.168.202.24:3900/garage/homes", scheme: "minio", keys: []string{"s3_id", "s3_secret"}},
@@ -33,9 +32,6 @@ func TestStorageSpecClassifiesDuplicacyBackends(t *testing.T) {
 			}
 			if spec.IsLocalPath() != tt.local {
 				t.Fatalf("IsLocalPath() = %t, want %t", spec.IsLocalPath(), tt.local)
-			}
-			if spec.SupportsFixPerms() != tt.fixPerms {
-				t.Fatalf("SupportsFixPerms() = %t, want %t", spec.SupportsFixPerms(), tt.fixPerms)
 			}
 			if strings.Join(spec.RequiredSecretKeys(), ",") != strings.Join(tt.keys, ",") {
 				t.Fatalf("RequiredSecretKeys() = %v, want %v", spec.RequiredSecretKeys(), tt.keys)

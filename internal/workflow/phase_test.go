@@ -251,53 +251,6 @@ func TestCleanupHelpers(t *testing.T) {
 	})
 }
 
-func TestRunFixPermsPhase(t *testing.T) {
-	t.Run("dry-run", func(t *testing.T) {
-		plan := &Plan{
-			DryRun:                   true,
-			Verbose:                  true,
-			BackupTarget:             "/backups/homes",
-			LocalOwner:               "nobody",
-			LocalGroup:               "nogroup",
-			FixPermsChownCommand:     "chown -R nobody:nogroup /backups/homes",
-			FixPermsDirPermsCommand:  "find /backups/homes -type d -exec chmod 770 {} +",
-			FixPermsFilePermsCommand: "find /backups/homes -type f -exec chmod 660 {} +",
-		}
-		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
-		if err := executor.runFixPermsPhase(); err != nil {
-			t.Fatalf("runFixPermsPhase() error = %v", err)
-		}
-		executor.log.Close()
-		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Fix permissions", "Storage", "Local Owner", "Local Group", "Dry run", "Fix permissions phase completed (dry-run)"} {
-			if !strings.Contains(output, token) {
-				t.Fatalf("output missing %q:\n%s", token, output)
-			}
-		}
-	})
-
-	t.Run("success", func(t *testing.T) {
-		target := t.TempDir()
-		plan := &Plan{
-			BackupTarget: target,
-			LocalOwner:   "nobody",
-			LocalGroup:   "nogroup",
-		}
-		runner := execpkg.NewMockRunner(execpkg.MockResult{}, execpkg.MockResult{}, execpkg.MockResult{})
-		executor, logDir := newPhaseExecutor(t, plan, runner)
-		if err := executor.runFixPermsPhase(); err != nil {
-			t.Fatalf("runFixPermsPhase() error = %v", err)
-		}
-		executor.log.Close()
-		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Fix permissions", "Storage", "Local Owner", "Local Group", "Duration", "Fix permissions phase completed successfully"} {
-			if !strings.Contains(output, token) {
-				t.Fatalf("output missing %q:\n%s", token, output)
-			}
-		}
-	})
-}
-
 func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("prepare setup dry-run with filters", func(t *testing.T) {
 		workRoot := t.TempDir()
@@ -423,34 +376,28 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 		}
 	})
 
-	t.Run("execute cleanup storage and fix perms", func(t *testing.T) {
+	t.Run("execute cleanup storage", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			DryRun:                   true,
-			Verbose:                  true,
-			NeedsDuplicacySetup:      true,
-			DoCleanupStore:           true,
-			FixPerms:                 true,
-			BackupLabel:              "homes",
-			OperationMode:            "Storage cleanup + Fix permissions",
-			ModeDisplay:              "Local",
-			WorkRoot:                 workRoot,
-			DuplicacyRoot:            filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath:           "/volume1/homes",
-			BackupTarget:             "/backups/homes",
-			WorkDirCreateCommand:     "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-			PreferencesWriteCommand:  "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-			WorkDirDirPermsCommand:   "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-			WorkDirFilePermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			ValidateRepoCommand:      "duplicacy list -files",
-			CleanupStorageCommand:    "duplicacy prune -exhaustive -exclusive",
-			LocalOwner:               "nobody",
-			LocalGroup:               "nogroup",
-			FixPermsChownCommand:     "chown -R nobody:nogroup /backups/homes",
-			FixPermsDirPermsCommand:  "find /backups/homes -type d -exec chmod 770 {} +",
-			FixPermsFilePermsCommand: "find /backups/homes -type f -exec chmod 660 {} +",
-			WorkDirRemoveCommand:     "rm -rf " + workRoot,
-			LogRetentionDays:         30,
+			DryRun:                  true,
+			Verbose:                 true,
+			NeedsDuplicacySetup:     true,
+			DoCleanupStore:          true,
+			BackupLabel:             "homes",
+			OperationMode:           "Storage cleanup",
+			ModeDisplay:             "Local",
+			WorkRoot:                workRoot,
+			DuplicacyRoot:           filepath.Join(workRoot, "duplicacy"),
+			RepositoryPath:          "/volume1/homes",
+			BackupTarget:            "/backups/homes",
+			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+			ValidateRepoCommand:     "duplicacy list -files",
+			CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
+			WorkDirRemoveCommand:    "rm -rf " + workRoot,
+			LogRetentionDays:        30,
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.execute(); err != nil {
@@ -458,7 +405,7 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Storage cleanup", "Storage cleanup phase completed (dry-run)", "Phase: Fix permissions", "Fix permissions phase completed (dry-run)"} {
+		for _, token := range []string{"Phase: Storage cleanup", "Storage cleanup phase completed (dry-run)"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
@@ -485,18 +432,4 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 		}
 	})
 
-	t.Run("execute returns fix perms error", func(t *testing.T) {
-		plan := &Plan{
-			FixPerms:     true,
-			BackupTarget: "/backups/homes",
-			LocalOwner:   "nobody",
-			LocalGroup:   "nogroup",
-		}
-		runner := execpkg.NewMockRunner(execpkg.MockResult{Err: errors.New("chown failed")})
-		executor, _ := newPhaseExecutor(t, plan, runner)
-		err := executor.execute()
-		if err == nil || !strings.Contains(err.Error(), "permissions/chown") {
-			t.Fatalf("execute() error = %v", err)
-		}
-	})
 }

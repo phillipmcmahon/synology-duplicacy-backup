@@ -2,7 +2,7 @@
 
 Run commands as the operator user by default. Use `sudo` only for operations
 that need root-level OS access, such as `backup`, path-based local repository
-`prune` or `cleanup-storage`, `fix-perms`, and managed install activation with
+`prune` or `cleanup-storage`, and managed install activation with
 `update --yes` or `rollback --yes`.
 
 Despite its historical name, `duplicacy-backup` is now the operator entrypoint
@@ -12,7 +12,7 @@ workflows.
 This is the primary home for copyable operator command examples. Use
 [`cli.md`](cli.md) when you need the full command surface and option reference.
 
-`backup`, `prune`, `cleanup-storage`, `fix-perms`, `config`, `diagnostics`,
+`backup`, `prune`, `cleanup-storage`, `config`, `diagnostics`,
 `health`, restore commands, and label-scoped `notify test` commands need an
 explicit `--target <name>`.
 
@@ -21,7 +21,6 @@ Target model:
 - `location = "local"` or `location = "remote"`
 - targets use `storage = "..."`; include the full Duplicacy backend path there
 - storage keys are loaded for known Duplicacy backends that require them
-- `fix-perms` only works for path-based Duplicacy storage targets
 
 ## Common Runs
 
@@ -49,9 +48,6 @@ duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
 
 # Run storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup cleanup-storage --target onsite-usb homes
-
-# Fix permissions for homes on target onsite-usb
-sudo duplicacy-backup fix-perms --target onsite-usb homes
 ```
 
 ## Health Checks
@@ -139,7 +135,7 @@ Installer behaviour:
 ### Scheduling
 
 - Start with `--dry-run` for anything destructive or unfamiliar.
-- Schedule backup, prune, health, and fix-perms as separate tasks.
+- Schedule backup, prune, cleanup, health, and diagnostics as separate tasks.
 - Use Synology repeat scheduling for frequent onsite backups instead of creating several near-identical jobs.
 - Use `cleanup-storage` only as manual or exceptional maintenance, and only when no other client is writing to the same storage.
 - Use `prune --force` only as an explicit operator action, not as a routine scheduled task.

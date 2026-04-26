@@ -13,8 +13,6 @@ type Plan struct {
 	DoBackup       bool
 	DoPrune        bool
 	DoCleanupStore bool
-	FixPerms       bool
-	FixPermsOnly   bool
 	ForcePrune     bool
 	DryRun         bool
 	Verbose        bool
@@ -60,30 +58,25 @@ type Plan struct {
 	SafePruneMaxDeleteCount     int
 	SafePruneMinTotalForPercent int
 
-	SnapshotCreateCommand    string
-	SnapshotDeleteCommand    string
-	WorkDirCreateCommand     string
-	PreferencesWriteCommand  string
-	FiltersWriteCommand      string
-	WorkDirDirPermsCommand   string
-	WorkDirFilePermsCommand  string
-	BackupCommand            string
-	ValidateRepoCommand      string
-	PrunePreviewCommand      string
-	PolicyPruneCommand       string
-	CleanupStorageCommand    string
-	FixPermsChownCommand     string
-	FixPermsDirPermsCommand  string
-	FixPermsFilePermsCommand string
-	WorkDirRemoveCommand     string
+	SnapshotCreateCommand   string
+	SnapshotDeleteCommand   string
+	WorkDirCreateCommand    string
+	PreferencesWriteCommand string
+	FiltersWriteCommand     string
+	WorkDirDirPermsCommand  string
+	WorkDirFilePermsCommand string
+	BackupCommand           string
+	ValidateRepoCommand     string
+	PrunePreviewCommand     string
+	PolicyPruneCommand      string
+	CleanupStorageCommand   string
+	WorkDirRemoveCommand    string
 }
 
 type PlanRequest struct {
 	DoBackup            bool
 	DoPrune             bool
 	DoCleanupStore      bool
-	FixPerms            bool
-	FixPermsOnly        bool
 	ForcePrune          bool
 	DryRun              bool
 	Verbose             bool
@@ -129,23 +122,20 @@ type PlanPaths struct {
 }
 
 type PlanDisplay struct {
-	ModeDisplay              string
-	SnapshotCreateCommand    string
-	SnapshotDeleteCommand    string
-	WorkDirCreateCommand     string
-	PreferencesWriteCommand  string
-	FiltersWriteCommand      string
-	WorkDirDirPermsCommand   string
-	WorkDirFilePermsCommand  string
-	BackupCommand            string
-	ValidateRepoCommand      string
-	PrunePreviewCommand      string
-	PolicyPruneCommand       string
-	CleanupStorageCommand    string
-	FixPermsChownCommand     string
-	FixPermsDirPermsCommand  string
-	FixPermsFilePermsCommand string
-	WorkDirRemoveCommand     string
+	ModeDisplay             string
+	SnapshotCreateCommand   string
+	SnapshotDeleteCommand   string
+	WorkDirCreateCommand    string
+	PreferencesWriteCommand string
+	FiltersWriteCommand     string
+	WorkDirDirPermsCommand  string
+	WorkDirFilePermsCommand string
+	BackupCommand           string
+	ValidateRepoCommand     string
+	PrunePreviewCommand     string
+	PolicyPruneCommand      string
+	CleanupStorageCommand   string
+	WorkDirRemoveCommand    string
 }
 
 type PlanSections struct {
@@ -164,8 +154,6 @@ func (p *Plan) Sections() PlanSections {
 			DoBackup:            p.DoBackup,
 			DoPrune:             p.DoPrune,
 			DoCleanupStore:      p.DoCleanupStore,
-			FixPerms:            p.FixPerms,
-			FixPermsOnly:        p.FixPermsOnly,
 			ForcePrune:          p.ForcePrune,
 			DryRun:              p.DryRun,
 			Verbose:             p.Verbose,
@@ -208,23 +196,20 @@ func (p *Plan) Sections() PlanSections {
 			SecretsFile:    p.SecretsFile,
 		},
 		Display: PlanDisplay{
-			ModeDisplay:              p.ModeDisplay,
-			SnapshotCreateCommand:    p.SnapshotCreateCommand,
-			SnapshotDeleteCommand:    p.SnapshotDeleteCommand,
-			WorkDirCreateCommand:     p.WorkDirCreateCommand,
-			PreferencesWriteCommand:  p.PreferencesWriteCommand,
-			FiltersWriteCommand:      p.FiltersWriteCommand,
-			WorkDirDirPermsCommand:   p.WorkDirDirPermsCommand,
-			WorkDirFilePermsCommand:  p.WorkDirFilePermsCommand,
-			BackupCommand:            p.BackupCommand,
-			ValidateRepoCommand:      p.ValidateRepoCommand,
-			PrunePreviewCommand:      p.PrunePreviewCommand,
-			PolicyPruneCommand:       p.PolicyPruneCommand,
-			CleanupStorageCommand:    p.CleanupStorageCommand,
-			FixPermsChownCommand:     p.FixPermsChownCommand,
-			FixPermsDirPermsCommand:  p.FixPermsDirPermsCommand,
-			FixPermsFilePermsCommand: p.FixPermsFilePermsCommand,
-			WorkDirRemoveCommand:     p.WorkDirRemoveCommand,
+			ModeDisplay:             p.ModeDisplay,
+			SnapshotCreateCommand:   p.SnapshotCreateCommand,
+			SnapshotDeleteCommand:   p.SnapshotDeleteCommand,
+			WorkDirCreateCommand:    p.WorkDirCreateCommand,
+			PreferencesWriteCommand: p.PreferencesWriteCommand,
+			FiltersWriteCommand:     p.FiltersWriteCommand,
+			WorkDirDirPermsCommand:  p.WorkDirDirPermsCommand,
+			WorkDirFilePermsCommand: p.WorkDirFilePermsCommand,
+			BackupCommand:           p.BackupCommand,
+			ValidateRepoCommand:     p.ValidateRepoCommand,
+			PrunePreviewCommand:     p.PrunePreviewCommand,
+			PolicyPruneCommand:      p.PolicyPruneCommand,
+			CleanupStorageCommand:   p.CleanupStorageCommand,
+			WorkDirRemoveCommand:    p.WorkDirRemoveCommand,
 		},
 	}
 }

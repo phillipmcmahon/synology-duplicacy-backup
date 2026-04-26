@@ -114,36 +114,6 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	}
 }
 
-func TestPlannerBuild_FixPermsOnlyPlan(t *testing.T) {
-	dir := t.TempDir()
-	owner, group := currentUserGroup(t)
-	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 0, ""))
-
-	req := &Request{FixPerms: true, FixPermsOnly: true, Source: "homes", RequestedTarget: "onsite-usb"}
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	req.ConfigDir = dir
-
-	plan, err := planner.Build(runtimeRequestForTest(req))
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
-	if plan.OperationMode != "Fix permissions" {
-		t.Fatalf("OperationMode = %q", plan.OperationMode)
-	}
-	if plan.ModeDisplay != "onsite-usb" {
-		t.Fatalf("ModeDisplay = %q", plan.ModeDisplay)
-	}
-	if plan.OwnerGroup != owner+":"+group {
-		t.Fatalf("OwnerGroup = %q", plan.OwnerGroup)
-	}
-	if plan.FixPermsChownCommand == "" {
-		t.Fatal("expected fix-perms command to be precomputed")
-	}
-	if len(plan.Summary) != 7 {
-		t.Fatalf("summary lines = %d, want 7", len(plan.Summary))
-	}
-}
-
 func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
@@ -301,23 +271,6 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	}
 	if sec.MaskedKeys() == "" {
 		t.Fatalf("unexpected masked secrets: %#v", sec)
-	}
-}
-
-func TestPlannerLoadConfig_FixPermsRequiresOwnerGroup(t *testing.T) {
-	configDir := t.TempDir()
-	configFile := writeTargetTestConfig(t, configDir, "homes", "onsite-usb", "label = \"homes\"\nsource_path = \"/volume1/homes\"\n\n[common]\nthreads = 4\n\n[targets.onsite-usb]\nlocation = \"local\"\nallow_local_accounts = true\nstorage = \"/backups/homes\"\n")
-
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadConfig(&Plan{
-		ConfigFile:  configFile,
-		DoBackup:    true,
-		FixPerms:    true,
-		BackupLabel: "homes",
-		Target:      "onsite-usb",
-	})
-	if err == nil || !strings.Contains(err.Error(), "local_owner") {
-		t.Fatalf("loadConfig() error = %v", err)
 	}
 }
 

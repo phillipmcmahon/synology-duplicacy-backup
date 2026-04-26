@@ -32,7 +32,7 @@ Those are related signals, but they are not the same signal.
 
 Check the scheduled task command, the selected `--target`, and the captured
 standard output/error from the failed run. If the task was a maintenance
-command such as prune, cleanup, update, or fix-perms, it can fail even when the
+command such as prune, cleanup, or update, it can fail even when the
 latest backup state is still healthy.
 
 See also:

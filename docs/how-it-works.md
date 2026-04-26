@@ -8,7 +8,7 @@ It answers questions like:
 - Which package owns which decisions?
 - Where does config become runtime behaviour?
 - Where do operator-facing messages come from?
-- If I need to change backup, prune, storage cleanup, or fix-perms behaviour, where do I look?
+- If I need to change backup, prune, or storage cleanup behaviour, where do I look?
 
 If you want the short version, start with [architecture.md](architecture.md).
 This is the longer walkthrough.
@@ -28,7 +28,6 @@ This is the longer walkthrough.
 - [Error Translation](#error-translation)
 - [Backup Flow](#backup-flow)
 - [Prune Flow](#prune-flow)
-- [Fix-Perms Flow](#fix-perms-flow)
 - [Cleanup Lifecycle](#cleanup-lifecycle)
 - [Logging and Output](#logging-and-output)
 - [Testing Strategy](#testing-strategy)
@@ -150,8 +149,8 @@ It owns:
 - logger initialisation for health and runtime execution paths
 - transition from CLI arguments into workflow
 
-It should not own business logic for backup, prune, storage cleanup, or
-fix-perms behaviour.
+It should not own business logic for backup, prune, or storage cleanup
+behaviour.
 
 ### Command package
 
@@ -230,7 +229,7 @@ This package owns shared runtime/config presentation helpers.
 
 It owns:
 
-- runtime presenter behaviour used by backup/prune/fix-perms execution
+- runtime presenter behaviour used by backup/prune/cleanup execution
 - config/report line formatting helpers
 - shared output-shaping logic that should not live in orchestration code
 
@@ -246,8 +245,6 @@ These packages do focused work and should stay relatively narrow:
   Validates btrfs locations and manages snapshots.
 - [`internal/duplicacy`](../internal/duplicacy)
   Prepares and runs Duplicacy commands.
-- [`internal/permissions`](../internal/permissions)
-  Applies ownership and permission normalization for targets that allow local accounts.
 - [`internal/lock`](../internal/lock)
   Directory-based PID locking.
 - [`internal/logger`](../internal/logger)
@@ -279,8 +276,7 @@ It does not answer:
 
 The parser `Request` contains raw CLI intent only:
 
-- selected runtime command such as `backup`, `prune`, `cleanup-storage`, or
-  `fix-perms`
+- selected runtime command such as `backup`, `prune`, or `cleanup-storage`
 - `--force` as a prune-threshold override for `prune`
 - `--target <name>` as the explicit destination selector
 - `--dry-run`
@@ -291,8 +287,8 @@ The parser `Request` contains raw CLI intent only:
 
 Runtime operations are first-class CLI commands rather than combinable
 operation flags. Workflow projects the parser request into a `RuntimeRequest`
-with one `RuntimeMode`, so backup, prune, cleanup-storage, and fix-perms remain
-mutually exclusive inside the runtime planner:
+with one `RuntimeMode`, so backup, prune, and cleanup-storage remain mutually
+exclusive inside the runtime planner:
 
 `cleanup-storage` requests `duplicacy prune -exhaustive -exclusive` as a
 standalone maintenance step. `prune --force` only affects prune threshold
@@ -333,7 +329,7 @@ Unresolved requests go through `dispatchRequest` in
   package
 - `UpdateCommand` routes to the update adapter and the update notification hooks
 - `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
-- everything else is treated as a runtime backup/prune/cleanup/fix-perms
+- everything else is treated as a runtime backup/prune/cleanup
   request, projected to `RuntimeRequest`, and then passed through
   `Planner.Build` followed by `Executor.Run`
 
@@ -549,8 +545,6 @@ It:
 - validates the target model:
   - storage value
   - deployment location
-- validates owner/group if `fix-perms` is active
-
 Self-update notifications intentionally do not flow through `loadConfig`,
 because update is application maintenance rather than a label/target
 operation. The update path reads global app config from
@@ -621,8 +615,6 @@ The plan now carries many execution-ready command descriptions, such as:
 - prune preview
 - policy prune
 - storage cleanup
-- fix-perms commands
-
 These strings are used for:
 
 - dry-run output
@@ -658,7 +650,6 @@ The execution phase lives mainly in:
 - [`internal/workflow/executor.go`](../internal/workflow/executor.go)
 - [`internal/workflow/cleanup.go`](../internal/workflow/cleanup.go)
 - [`internal/workflow/prune.go`](../internal/workflow/prune.go)
-- [`internal/workflow/permissions_exec.go`](../internal/workflow/permissions_exec.go)
 
 The job of the executor is to answer:
 
@@ -675,7 +666,7 @@ The job of the executor is to answer:
 - Duplicacy setup
 - backup execution
 - prune execution
-- fix-perms execution
+- storage cleanup execution
 - final cleanup
 - exit code
 
@@ -810,22 +801,6 @@ That means:
 - workflow decides whether to continue
 
 This is a good boundary because threshold enforcement is application policy, not a raw command concern.
-
-## Fix-Perms Flow
-
-When `fix-perms` is active, the runtime path is a standalone permission pass:
-
-- fix-perms only
-
-The actual permission application is delegated to:
-
-- [`internal/permissions`](../internal/permissions)
-
-The workflow layer decides:
-
-- when to run it
-- which target path to use
-- what summary and dry-run output to show
 
 ## Cleanup Lifecycle
 

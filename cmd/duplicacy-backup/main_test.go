@@ -630,7 +630,7 @@ func TestRunWithArgs_HelpFullReturnsZero(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Use [targets.<name>.keys] tables with Duplicacy key names such as:") ||
 		!strings.Contains(stdout, "COMMAND OVERVIEW:") ||
-		!strings.Contains(stdout, "Runtime operations      Run, maintain, or repair one configured label target") ||
+		!strings.Contains(stdout, "Runtime operations      Run or maintain one configured label target") ||
 		!strings.Contains(stdout, "Config and inspection   Read, explain, validate, or diagnose configured targets") ||
 		!strings.Contains(stdout, "Notifications           Send explicit synthetic notification checks") ||
 		!strings.Contains(stdout, "Managed install         Manage the installed application binary") ||
@@ -993,7 +993,7 @@ func TestRunWithArgs_RuntimeLoggerInitFailureJSONReturnsOne(t *testing.T) {
 		logDir = logFilePath
 
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--json-summary", "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--json-summary", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(runtime logger init failure) = %d", code)
 			}
 		})
@@ -1136,11 +1136,11 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		geteuid = func() int { return 1000 }
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "fix-perms must be run as root") {
+		if !strings.Contains(stderr, "backup must be run as root") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		if strings.Contains(stderr, "Failed to initialise logger") {
@@ -1477,7 +1477,7 @@ func TestRunWithArgs_ConfigLoadFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(config failure) = %d", code)
 			}
 		})
@@ -1492,7 +1492,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		owner, group := currentUserGroup(t)
 		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, ""))
+		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, "-keep 0:365"))
 
 		blocker := filepath.Join(t.TempDir(), "not-a-dir")
 		if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
@@ -1502,7 +1502,7 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 		newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(blocker, label) }
 
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"prune", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(lock failure) = %d", code)
 			}
 		})
@@ -1595,7 +1595,7 @@ func TestRunWithArgs_JSONSummaryFailureReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
 		configDir := t.TempDir()
 		stdout, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--json-summary", "--config-dir", configDir, "homes"}); code != 1 {
+			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--json-summary", "--config-dir", configDir, "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(json failure) = %d", code)
 			}
 		})
@@ -1733,54 +1733,14 @@ func TestRunWithArgs_InvalidTomlConfigReturnsOne(t *testing.T) {
 	})
 }
 
-func TestRunWithArgs_DuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.T) {
+func TestRunWithArgs_FixPermsCommandIsRemoved(t *testing.T) {
 	withTestGlobals(t, func() {
-		configDir := t.TempDir()
-		writeTargetConfig(t, configDir, "homes", "offsite-storj", remoteConfigBody("homes", "s3://bucket", 4, ""))
 		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "offsite-storj", "--config-dir", configDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(duplicacy fix-perms failure) = %d", code)
+			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "homes"}); code != 1 {
+				t.Fatalf("runWithArgs(fix-perms removed) = %d", code)
 			}
 		})
-		if !strings.Contains(stderr, "fix-perms is only supported for path-based Duplicacy storage targets") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		assertFailureScope(t, stderr, "Fix permissions", "homes", "offsite-storj", "duplicacy", "remote")
-		assertFailureFooter(t, stderr)
-	})
-}
-
-func TestRunWithArgs_LocalDuplicacyFixPermsFailureIncludesStorageIdentity(t *testing.T) {
-	withTestGlobals(t, func() {
-		configDir := t.TempDir()
-		writeTargetConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyConfigBody("homes", "s3://rustfs.local/bucket", 4, ""))
-		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-rustfs", "--config-dir", configDir, "homes"}); code != 1 {
-				t.Fatalf("runWithArgs(local duplicacy fix-perms failure) = %d", code)
-			}
-		})
-		if !strings.Contains(stderr, "fix-perms is only supported for path-based Duplicacy storage targets") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		assertFailureScope(t, stderr, "Fix permissions", "homes", "onsite-rustfs", "duplicacy", "local")
-		assertFailureFooter(t, stderr)
-	})
-}
-
-func TestRunWithArgs_FixPermsOnlyDryRunReturnsZero(t *testing.T) {
-	withTestGlobals(t, func() {
-		owner, group := currentUserGroup(t)
-		configDir := t.TempDir()
-		writeConfig(t, configDir, "homes", localConfigBody("homes", "/backups", owner, group, 0, ""))
-		_, stderr := captureOutput(t, func() {
-			if code := runWithArgs([]string{"fix-perms", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 0 {
-				t.Fatalf("runWithArgs(fix-perms dry-run) = %d", code)
-			}
-		})
-		if !strings.Contains(stderr, "Fix permissions phase completed (dry-run)") {
-			t.Fatalf("stderr = %q", stderr)
-		}
-		if !strings.Contains(stderr, "Status") || !strings.Contains(stderr, "Applying ownership and permissions") {
+		if !strings.Contains(stderr, "unknown command fix-perms") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 	})

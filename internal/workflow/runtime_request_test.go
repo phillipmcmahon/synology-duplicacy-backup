@@ -42,7 +42,6 @@ func TestRuntimeRequestModeHelpers(t *testing.T) {
 		backup     bool
 		prune      bool
 		cleanup    bool
-		fixPerms   bool
 		operation  string
 		forcePrune bool
 	}{
@@ -50,14 +49,13 @@ func TestRuntimeRequestModeHelpers(t *testing.T) {
 		{name: "safe prune", mode: RuntimeModePrune, prune: true, operation: "Safe prune"},
 		{name: "forced prune", mode: RuntimeModePrune, prune: true, operation: "Forced prune", forcePrune: true},
 		{name: "cleanup", mode: RuntimeModeCleanupStorage, cleanup: true, operation: "Storage cleanup"},
-		{name: "fix perms", mode: RuntimeModeFixPerms, fixPerms: true, operation: "Fix permissions"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &RuntimeRequest{Mode: tt.mode, ForcePrune: tt.forcePrune}
-			if req.DoBackup() != tt.backup || req.DoPrune() != tt.prune || req.DoCleanupStore() != tt.cleanup || req.FixPerms() != tt.fixPerms {
-				t.Fatalf("mode helpers for %s = backup:%t prune:%t cleanup:%t fix:%t", tt.mode, req.DoBackup(), req.DoPrune(), req.DoCleanupStore(), req.FixPerms())
+			if req.DoBackup() != tt.backup || req.DoPrune() != tt.prune || req.DoCleanupStore() != tt.cleanup {
+				t.Fatalf("mode helpers for %s = backup:%t prune:%t cleanup:%t", tt.mode, req.DoBackup(), req.DoPrune(), req.DoCleanupStore())
 			}
 			if got := OperationMode(req); got != tt.operation {
 				t.Fatalf("OperationMode() = %q, want %q", got, tt.operation)

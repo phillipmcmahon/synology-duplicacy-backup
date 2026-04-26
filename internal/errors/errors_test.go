@@ -73,15 +73,6 @@ func TestSecretsError_Format(t *testing.T) {
 	}
 }
 
-func TestPermissionsError_Format(t *testing.T) {
-	cause := errors.New("chown failed")
-	e := NewPermissionsError("chown", cause, "target", "/backup/homes", "owner", "admin:users")
-	got := e.Error()
-	if !strings.HasPrefix(got, "permissions/chown: chown failed") {
-		t.Errorf("unexpected format: %s", got)
-	}
-}
-
 func TestLockError_Format(t *testing.T) {
 	cause := errors.New("already held")
 	e := NewLockError("acquire", cause, "pid", "1234", "path", "/home/operator/.local/state/duplicacy-backup/locks/backup-homes.lock.d")
@@ -133,14 +124,6 @@ func TestSnapshotError_Unwrap(t *testing.T) {
 func TestSecretsError_Unwrap(t *testing.T) {
 	cause := errors.New("root cause")
 	e := NewSecretsError("validate", cause)
-	if !errors.Is(e, cause) {
-		t.Error("Unwrap should return the original cause")
-	}
-}
-
-func TestPermissionsError_Unwrap(t *testing.T) {
-	cause := errors.New("root cause")
-	e := NewPermissionsError("chmod", cause)
 	if !errors.Is(e, cause) {
 		t.Error("Unwrap should return the original cause")
 	}
@@ -274,14 +257,6 @@ func TestErrorsAs_SecretsError(t *testing.T) {
 	e := NewSecretsError("load", errors.New("fail"))
 	if !errors.As(e, &target) {
 		t.Error("errors.As should match *SecretsError")
-	}
-}
-
-func TestErrorsAs_PermissionsError(t *testing.T) {
-	var target *PermissionsError
-	e := NewPermissionsError("chown", errors.New("fail"))
-	if !errors.As(e, &target) {
-		t.Error("errors.As should match *PermissionsError")
 	}
 }
 

@@ -29,9 +29,9 @@ Do not point restore commands directly at live data. This tool restores into a
 separate drill workspace first. Copy-back to the live source is a later,
 deliberate operator step.
 
-Do not schedule `backup`, `prune`, `cleanup-storage`, or `fix-perms` on the
-replacement NAS until the restore has been inspected and the live source path
-is intentionally rebuilt.
+Do not schedule `backup`, `prune`, or `cleanup-storage` on the replacement NAS
+until the restore has been inspected and the live source path is intentionally
+rebuilt.
 
 ## 1. Install The Tool
 

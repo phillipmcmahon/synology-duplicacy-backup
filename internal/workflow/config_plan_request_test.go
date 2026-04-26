@@ -34,7 +34,7 @@ func TestDerivePlanFromConfigPlanRequestDoesNotCarryRuntimeModes(t *testing.T) {
 	if plan.BackupLabel != "homes" || plan.TargetName() != "onsite-usb" {
 		t.Fatalf("plan identity = %#v", plan)
 	}
-	if plan.DoBackup || plan.DoPrune || plan.DoCleanupStore || plan.FixPerms || plan.DryRun || plan.JSONSummary {
+	if plan.DoBackup || plan.DoPrune || plan.DoCleanupStore || plan.DryRun || plan.JSONSummary {
 		t.Fatalf("config plan leaked runtime flags: %#v", plan)
 	}
 }

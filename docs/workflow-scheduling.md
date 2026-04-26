@@ -23,7 +23,6 @@ Recommended approach:
 - schedule `prune` as its own task
 - schedule health commands separately from backup jobs
 - run path-based filesystem repository prune and cleanup tasks as root
-- schedule `fix-perms` only for path-based Duplicacy storage targets that need it
 - treat `cleanup-storage` as manual or exceptional maintenance
 
 Why this works well:
@@ -80,7 +79,6 @@ Good candidates for separate scheduled entries:
 - health status
 - health doctor
 - health verify
-- fix-perms
 
 Some overlap is acceptable, but prefer moving the later task rather than
 merging unrelated operations into one job.
@@ -174,8 +172,8 @@ For each task:
 1. Open `Control Panel` -> `Task Scheduler`
 2. Create `Triggered Task` -> `User-defined script`
 3. Choose the run-as user:
-   - use `root` for `backup`, `fix-perms`, and path-based filesystem repository
-     `prune` or `cleanup-storage`
+   - use `root` for `backup` and path-based filesystem repository `prune` or
+     `cleanup-storage`
    - use the operator user for health, diagnostics, restore checks, and
      object/remote repository prune or cleanup when that user owns the config,
      secrets, state, log, lock, and storage access paths
@@ -258,7 +256,6 @@ This is a practical scheduling model for:
 | `Homes Backup Offsite` | Daily | `02:30` | `/usr/local/bin/duplicacy-backup backup --target offsite-storj homes` |
 | `Homes Prune Onsite` | Daily | `04:30` | `/usr/local/bin/duplicacy-backup prune --target onsite-usb homes` |
 | `Homes Prune Offsite` | Weekly | `Tuesday, Friday` at `04:45` | `/usr/local/bin/duplicacy-backup prune --target offsite-storj homes` |
-| `Homes Fix Perms Onsite` | Weekly | `Sunday` at `05:00` | `/usr/local/bin/duplicacy-backup fix-perms --target onsite-usb homes` |
 | `Homes Health Status Onsite` | Daily | `08:00` | `/usr/local/bin/duplicacy-backup health status --target onsite-usb homes` |
 | `Homes Health Status Offsite` | Daily | `08:10` | `/usr/local/bin/duplicacy-backup health status --target offsite-storj homes` |
 | `Homes Health Doctor Onsite` | Weekly | `Sunday` at `08:30` | `/usr/local/bin/duplicacy-backup health doctor --target onsite-usb homes` |

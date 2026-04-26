@@ -38,10 +38,10 @@ func TestObservabilityHelpers(t *testing.T) {
 		t.Fatalf("json output should not include storage_type:\n%s", buf.String())
 	}
 
-	req := &RuntimeRequest{Label: "homes", Mode: RuntimeModeFixPerms, TargetName: "onsite-usb"}
-	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Fix permissions", Location: locationLocal}
+	req := &RuntimeRequest{Label: "homes", Mode: RuntimeModePrune, TargetName: "onsite-usb"}
+	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Safe prune", Location: locationLocal}
 	failure := NewFailureRunReport(req, failurePlan, start, end, 1, "boom")
-	if failure.Operation != "Fix permissions" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.Location != locationLocal {
+	if failure.Operation != "Safe prune" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.Location != locationLocal {
 		t.Fatalf("failure = %+v", failure)
 	}
 

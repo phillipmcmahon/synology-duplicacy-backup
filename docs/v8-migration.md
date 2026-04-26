@@ -29,10 +29,10 @@ $HOME/.local/state/duplicacy-backup
 ```
 
 Root is still required for operations that need privileged OS access, such as
-backup snapshots, `fix-perms`, and managed install activation. Restore, health,
-diagnostics, config, notify, prune, and cleanup can run as the operator user
-when that user can access the selected config, secrets, storage, state, logs,
-locks, and restore workspace.
+backup snapshots, path-based filesystem repository mutation, and managed install
+activation. Restore, health, diagnostics, config, notify, and object/remote
+repository maintenance can run as the operator user when that user can access
+the selected config, secrets, storage, state, logs, locks, and restore workspace.
 
 ## Important Packaging Detail
 
@@ -204,7 +204,6 @@ Review Synology Task Scheduler or cron entries after migration.
 Keep `sudo` or root scheduling only for commands that need OS privilege:
 
 - `backup`
-- `fix-perms`
 - managed `update` activation
 - managed `rollback` activation
 

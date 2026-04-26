@@ -44,10 +44,6 @@ func (s StorageSpec) IsLocalPath() bool {
 	return s.Raw != "" && !strings.Contains(s.Raw, "://")
 }
 
-func (s StorageSpec) SupportsFixPerms() bool {
-	return s.IsLocalPath()
-}
-
 func (s StorageSpec) RequiredSecretKeys() []string {
 	switch s.Scheme() {
 	case "s3", "s3c", "minio", "minios":

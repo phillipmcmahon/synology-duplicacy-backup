@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/user"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -27,38 +26,6 @@ func testExecutorLogger(t *testing.T) *logger.Logger {
 	}
 	t.Cleanup(log.Close)
 	return log
-}
-
-func executorTestUserGroup(t *testing.T) (string, string) {
-	t.Helper()
-	u, err := user.Current()
-	if err != nil {
-		t.Fatalf("user.Current() error = %v", err)
-	}
-	g, err := user.LookupGroupId(u.Gid)
-	if err != nil {
-		t.Fatalf("user.LookupGroupId() error = %v", err)
-	}
-	if u.Username != "root" && g.Name != "root" {
-		return u.Username, g.Name
-	}
-
-	for _, name := range []string{"nobody", "daemon"} {
-		if _, err := user.Lookup(name); err == nil {
-			u.Username = name
-			break
-		}
-	}
-	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
-		if _, err := user.LookupGroup(name); err == nil && name != "root" {
-			g.Name = name
-			break
-		}
-	}
-	if u.Username == "root" || g.Name == "root" {
-		t.Skip("no non-root owner/group available on this system")
-	}
-	return u.Username, g.Name
 }
 
 func readSingleLogFile(t *testing.T, dir string) string {
@@ -99,53 +66,6 @@ func newTempInputFile(t *testing.T, content string) *os.File {
 		t.Fatalf("Seek() error = %v", err)
 	}
 	return f
-}
-
-func TestOperationMode_CleanupStorageWithFixPerms(t *testing.T) {
-	req := &RuntimeRequest{Mode: RuntimeModeCleanupStorage}
-	if got := OperationMode(req); got != "Storage cleanup" {
-		t.Fatalf("OperationMode() = %q", got)
-	}
-}
-
-func TestExecutorRun_FixPermsOnlyDryRun(t *testing.T) {
-	username, group := executorTestUserGroup(t)
-
-	lockParent := t.TempDir()
-	rt := testRuntime()
-	rt.NewLock = func(_, label string) *lock.Lock {
-		return lock.New(lockParent, label)
-	}
-	rt.NewSourceLock = func(_, label string) *lock.Lock {
-		return lock.NewSource(lockParent, label)
-	}
-	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
-
-	plan := &Plan{
-		FixPerms:                 true,
-		FixPermsOnly:             true,
-		DryRun:                   true,
-		DefaultNotice:            "Primary operation specified: fix-perms only",
-		LogRetentionDays:         30,
-		LocalOwner:               username,
-		LocalGroup:               group,
-		OwnerGroup:               username + ":" + group,
-		BackupLabel:              "homes",
-		BackupTarget:             "/backups/homes",
-		WorkRoot:                 filepath.Join(t.TempDir(), "work"),
-		OperationMode:            "Fix permissions",
-		FixPermsChownCommand:     "chown -R " + username + ":" + group + " /backups/homes",
-		FixPermsDirPermsCommand:  "find /backups/homes -type d -exec chmod 770 {} +",
-		FixPermsFilePermsCommand: "find /backups/homes -type f -exec chmod 660 {} +",
-	}
-
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testExecutorLogger(t), execpkg.NewMockRunner(), plan)
-	if code := executor.Run(); code != 0 {
-		t.Fatalf("Run() = %d, want 0", code)
-	}
-	if _, err := os.Stat(filepath.Join(lockParent, "backup-homes.lock.d")); !os.IsNotExist(err) {
-		t.Fatalf("expected lock directory cleanup, stat err = %v", err)
-	}
 }
 
 func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T) {
@@ -635,8 +555,6 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 }
 
 func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
-	username, group := executorTestUserGroup(t)
-
 	logDir := t.TempDir()
 	log, err := logger.New(logDir, "duplicacy-backup", false)
 	if err != nil {
@@ -655,14 +573,13 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 		DoBackup:                    true,
 		DoPrune:                     true,
 		DoCleanupStore:              true,
-		FixPerms:                    true,
 		DryRun:                      true,
 		Verbose:                     true,
 		NeedsDuplicacySetup:         true,
 		NeedsSnapshot:               true,
 		LogRetentionDays:            30,
 		BackupLabel:                 "homes",
-		OperationMode:               "Backup + Safe prune + Storage cleanup + Fix permissions",
+		OperationMode:               "Backup + Safe prune + Storage cleanup",
 		ModeDisplay:                 "Local",
 		WorkRoot:                    workRoot,
 		DuplicacyRoot:               filepath.Join(workRoot, "duplicacy"),
@@ -684,12 +601,6 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 		SafePruneMaxDeleteCount:     25,
 		SafePruneMaxDeletePercent:   10,
 		SafePruneMinTotalForPercent: 20,
-		LocalOwner:                  username,
-		LocalGroup:                  group,
-		OwnerGroup:                  username + ":" + group,
-		FixPermsChownCommand:        "chown -R " + username + ":" + group + " /backups/homes",
-		FixPermsDirPermsCommand:     "find /backups/homes -type d -exec chmod 770 {} +",
-		FixPermsFilePermsCommand:    "find /backups/homes -type f -exec chmod 660 {} +",
 	}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
@@ -705,8 +616,6 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 		"Prune phase completed (dry-run)",
 		"Phase: Storage cleanup",
 		"Storage cleanup phase completed (dry-run)",
-		"Phase: Fix permissions",
-		"Fix permissions phase completed (dry-run)",
 	} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)

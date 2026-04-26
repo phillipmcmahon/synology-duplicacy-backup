@@ -68,18 +68,6 @@ type SecretsError struct {
 func (e *SecretsError) Error() string { return formatError("secrets", e.Phase, e.Cause, e.Context) }
 func (e *SecretsError) Unwrap() error { return e.Cause }
 
-// PermissionsError represents an error during permission normalisation.
-type PermissionsError struct {
-	Phase   string
-	Cause   error
-	Context map[string]string
-}
-
-func (e *PermissionsError) Error() string {
-	return formatError("permissions", e.Phase, e.Cause, e.Context)
-}
-func (e *PermissionsError) Unwrap() error { return e.Cause }
-
 // LockError represents an error during lock acquisition or release.
 type LockError struct {
 	Phase   string
@@ -122,12 +110,6 @@ func NewSnapshotError(phase string, cause error, kvs ...string) *SnapshotError {
 // optional context key-value pairs.
 func NewSecretsError(phase string, cause error, kvs ...string) *SecretsError {
 	return &SecretsError{Phase: phase, Cause: cause, Context: kvPairs(kvs)}
-}
-
-// NewPermissionsError creates a PermissionsError with the given phase, cause,
-// and optional context key-value pairs.
-func NewPermissionsError(phase string, cause error, kvs ...string) *PermissionsError {
-	return &PermissionsError{Phase: phase, Cause: cause, Context: kvPairs(kvs)}
 }
 
 // NewLockError creates a LockError with the given phase, cause, and

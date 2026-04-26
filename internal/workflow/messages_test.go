@@ -86,11 +86,6 @@ func TestOperatorMessage(t *testing.T) {
 			want: "Secrets file not found: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 		},
 		{
-			name: "permissions chown includes target hint",
-			err:  apperrors.NewPermissionsError("chown", errors.New("chown failed"), "target", "/backups/homes"),
-			want: "Fix permissions failed while changing ownership under /backups/homes; check that the target exists and that the owner/group values are valid on this NAS",
-		},
-		{
 			name: "lock held",
 			err:  apperrors.NewLockError("held", errors.New("another backup is already running (PID: 123)")),
 			want: "Cannot start run because another backup is already running (PID: 123); wait for the active run to finish or clear a stale lock after verifying no backup is running",
@@ -166,16 +161,6 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 			name: "snapshot default falls back to error",
 			err:  apperrors.NewSnapshotError("other", errors.New("snapshot generic failure")),
 			want: "snapshot/other: snapshot generic failure",
-		},
-		{
-			name: "permissions chmod",
-			err:  apperrors.NewPermissionsError("chmod", errors.New("boom"), "target", "/backups/homes"),
-			want: "Fix permissions failed while applying directory or file modes under /backups/homes; check filesystem permissions and whether the target tree is accessible",
-		},
-		{
-			name: "permissions default",
-			err:  apperrors.NewPermissionsError("other", errors.New("boom")),
-			want: "Fix permissions failed; review the path, owner, and group settings",
 		},
 		{
 			name: "config open with hint",

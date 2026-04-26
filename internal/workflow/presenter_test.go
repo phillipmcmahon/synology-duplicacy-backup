@@ -63,7 +63,7 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
 
 	presenter.PrintPreRunFailurePlan(&Plan{
-		OperationMode: "Fix permissions",
+		OperationMode: "Storage cleanup",
 		BackupLabel:   "homes",
 		Target:        "offsite-storj",
 		Location:      locationRemote,
@@ -71,7 +71,7 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Fix permissions", "Label", "homes", "Target", "offsite-storj", "Location", locationRemote} {
+	for _, token := range []string{"Run could not start", "Operation", "Storage cleanup", "Label", "homes", "Target", "offsite-storj", "Location", locationRemote} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}

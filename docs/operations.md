@@ -276,8 +276,9 @@ example across multiple labels and targets, see
 1. Open **Control Panel > Task Scheduler**
 2. Create a **Triggered Task > User-defined script**
 3. Set the schedule
-4. Run as `root` for `backup` and `fix-perms`; use the operator user for
-   non-root-capable checks when paths are accessible
+4. Run as `root` for `backup` and path-based filesystem repository prune or
+   cleanup; use the operator user for non-root-capable checks when paths are
+   accessible
 5. Use a command such as:
 
 ```bash
@@ -286,7 +287,7 @@ example across multiple labels and targets, see
 
 Recommended scheduled pattern:
 
-- keep backup, prune, health, and fix-perms as separate tasks
+- keep backup, prune, cleanup, health, and diagnostics as separate tasks
 - use repeat scheduling for frequent onsite backups where it helps
 - avoid routine `cleanup-storage`
 - do not schedule `prune --force` as a normal recurring task
@@ -301,12 +302,6 @@ Example: scheduled prune for label `homes` on target `offsite-storj`
 
 ```bash
 /usr/local/bin/duplicacy-backup prune --target offsite-storj homes
-```
-
-Example: scheduled fix-perms for label `homes` on target `onsite-usb`
-
-```bash
-/usr/local/bin/duplicacy-backup fix-perms --target onsite-usb homes
 ```
 
 Example: scheduled health summary for label `homes` on target `onsite-usb`
@@ -390,7 +385,7 @@ monitoring can check freshness and environment health without mutating backup
 state.
 
 As an operator guideline, prefer separate scheduled tasks for backup, prune,
-health, and fix-perms rather than chaining everything together into one
+health, and diagnostics rather than chaining everything together into one
 recurring job.
 
 Treat `cleanup-storage` and `prune --force` as explicit operator actions

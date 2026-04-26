@@ -172,11 +172,6 @@ func (e *Executor) execute() error {
 			return err
 		}
 	}
-	if e.plan.FixPerms {
-		if err := e.runTrackedPhase("Fix permissions", e.runFixPermsPhase); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
