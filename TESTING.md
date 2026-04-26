@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v7.2.0`
+Current public release baseline: `v8.0.0`
 
-Active release-prep target: none
+Active release-prep target: `v8.0.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -57,7 +57,7 @@ Current Linux Go 1.26 development validation snapshot:
 - `go test -cover ./...`
 - package coverage floor: `85.0%`
 - overall coverage: `87.8%`
-- `cmd/duplicacy-backup`: `85.7%`
+- `cmd/duplicacy-backup`: `87.9%`
 - `internal/workflow`: `86.1%`
 - `internal/restorepicker`: `88.8%`
 - `internal/update`: `85.2%`
@@ -68,6 +68,20 @@ Current Linux Go 1.26 development validation snapshot:
 - `internal/health`: `94.3%`
 - `internal/logger`: `89.7%`
 - `internal/presentation`: `91.5%`
+
+Additional v8.0.0 validation:
+
+- Release validation covers the breaking operator-owned runtime profile:
+  default config, secrets, logs, state, and locks now resolve under the
+  invoking user's profile rather than root/system locations.
+- Migration helper coverage now checks copy-mode permission hardening,
+  timestamp preservation, `--move` source removal, root-shell target-user
+  guards, and destination-collision preflight before any copy or move occurs.
+- Restore workspace coverage now checks `0700` derived job workspaces beneath
+  operator-managed roots and clearer missing-root validation.
+- Documentation and help validation now covers the non-root privilege model,
+  restore picker TTY guidance, diagnostics in new-NAS recovery, restore
+  subsystem structure, and consolidated exit-code help.
 
 Additional #206 validation:
 

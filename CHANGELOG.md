@@ -60,6 +60,21 @@ coverage floor and package-level baseline.
   runtime config and secrets are now operator-owned profile data, not
   installer-managed system files.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.8%`
+- `cmd/duplicacy-backup`: `87.9%`
+- `internal/workflow`: `86.1%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.8%`
+
 ## [v7.2.0] - 2026-04-25
 
 ### Added
