@@ -38,17 +38,28 @@ func extractListFilePath(line string) string {
 	if line == "" || isIgnoredListFilesLine(line) {
 		return ""
 	}
-	fields, remainder := splitLeadingFields(line, 4)
-	if len(fields) < 4 || strings.TrimSpace(remainder) == "" {
+	fields, remainder := splitLeadingFields(line, 3)
+	if len(fields) < 3 || strings.TrimSpace(remainder) == "" {
 		return line
 	}
 	if _, err := strconv.ParseInt(fields[0], 10, 64); err != nil {
 		return line
 	}
-	if !looksLikeDate(fields[1]) || !looksLikeTime(fields[2]) || !looksLikeHexDigest(fields[3]) {
+	if !looksLikeDate(fields[1]) || !looksLikeTime(fields[2]) {
 		return line
 	}
-	return strings.TrimSpace(remainder)
+	return strings.TrimSpace(stripOptionalListFileDigest(remainder))
+}
+
+func stripOptionalListFileDigest(remainder string) string {
+	fields, path := splitLeadingFields(remainder, 1)
+	if len(fields) != 1 || strings.TrimSpace(path) == "" {
+		return remainder
+	}
+	if strings.ContainsAny(fields[0], `/\`) || !looksLikeHexDigest(fields[0]) {
+		return remainder
+	}
+	return path
 }
 
 func isIgnoredListFilesLine(line string) bool {
