@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -35,6 +36,11 @@ var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=
 
 const maskedSecretPlaceholder = "****"
 
+var (
+	effectiveUID = os.Geteuid
+	lookupEnv    = os.Getenv
+)
+
 // GetSecretsFilePath returns the expected secrets file path for a label.
 func GetSecretsFilePath(secretsDir, label string) string {
 	return filepath.Join(secretsDir, fmt.Sprintf("%s-secrets.toml", label))
@@ -57,12 +63,46 @@ func ValidateFileAccess(path string) error {
 	}
 
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		expectedUID := uint32(os.Geteuid())
-		if stat.Uid != expectedUID {
-			return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file owner is uid %d, expected uid %d for the current execution user: %s", stat.Uid, expectedUID, path), "path", path)
+		if err := validateFileOwner(stat.Uid, path); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func validateFileOwner(ownerUID uint32, path string) error {
+	expectedUID := uint32(effectiveUID())
+	if ownerUID == expectedUID {
+		return nil
+	}
+	if expectedUID == 0 {
+		if sudoUID, ok := sudoUserUID(); ok && ownerUID == sudoUID {
+			return nil
+		}
+	}
+	return apperrors.NewSecretsError("ownership", fmt.Errorf("secrets file owner is uid %d, expected %s: %s", ownerUID, expectedOwnerDescription(expectedUID), path), "path", path)
+}
+
+func expectedOwnerDescription(effective uint32) string {
+	if effective != 0 {
+		return fmt.Sprintf("uid %d for the current execution user", effective)
+	}
+	if sudoUID, ok := sudoUserUID(); ok {
+		return fmt.Sprintf("uid 0 or sudo user uid %d", sudoUID)
+	}
+	return "uid 0 for the current execution user"
+}
+
+func sudoUserUID() (uint32, bool) {
+	value := strings.TrimSpace(lookupEnv("SUDO_UID"))
+	if value == "" {
+		return 0, false
+	}
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(parsed), true
 }
 
 // ParseSecrets decodes a TOML secrets file from r for a specific target.

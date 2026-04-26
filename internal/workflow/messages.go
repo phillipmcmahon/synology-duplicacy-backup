@@ -267,7 +267,7 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		}
 	case "ownership":
 		if err.Cause != nil {
-			return withHint(err.Cause.Error(), "make the secrets file owned by the user running this command")
+			return withHint(err.Cause.Error(), "use a secrets file owned by the non-root operator account; for root-required commands, run via sudo from that operator or use a root-owned runtime profile")
 		}
 	case "parse":
 		if err.Cause != nil {

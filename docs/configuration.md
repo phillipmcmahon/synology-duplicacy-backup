@@ -427,7 +427,8 @@ health_ntfy_token = "optional-ntfy-bearer-token"
 
 Requirements:
 
-- owned by the user running `duplicacy-backup`
+- owned by the operator account for normal non-root use
+- accepted when running root-required commands through `sudo` from that same operator account
 - secrets directory permissions `0700`
 - permissions `0600`
 - storage keys live under `[targets.<name>.keys]` and are loaded for known Duplicacy backends that require them

@@ -18,8 +18,11 @@ $HOME/.local/state/duplicacy-backup/locks/
 
 `XDG_CONFIG_HOME` and `XDG_STATE_HOME` are honoured when set.
 
-Secrets files must be owned by the user running the command and must use mode
-`0600`. The secrets directory should use mode `0700`.
+Secrets files must use mode `0600`. For normal non-root commands, the file
+must be owned by the user running `duplicacy-backup`. For root-required commands
+started with `sudo` from the operator account, the same operator-owned secrets
+file is accepted so `backup` and `fix-perms` do not require a separate root copy
+of the runtime profile. The secrets directory should use mode `0700`.
 
 ## Migrating Legacy Root-Owned Files
 
@@ -61,6 +64,11 @@ sudo duplicacy-backup backup \
   --secrets-dir /volume1/homes/operator/.config/duplicacy-backup/secrets \
   --target onsite-usb homes
 ```
+
+When invoked this way, `duplicacy-backup` accepts `0600` secrets owned by the
+sudoing operator account. If you log in directly as `root` instead, either use a
+root-owned runtime profile under `/root` or run `sudo` from the operator account
+so the intended owner is unambiguous.
 
 ## Non-Root-Capable Commands
 

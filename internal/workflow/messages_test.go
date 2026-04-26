@@ -200,7 +200,7 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		{
 			name: "secrets ownership",
 			err:  apperrors.NewSecretsError("ownership", errors.New("secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml")),
-			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; make the secrets file owned by the user running this command",
+			want: "secrets file ownership is 1000:1000, expected 0:0 (root:root): /tmp/test.toml; use a secrets file owned by the non-root operator account; for root-required commands, run via sudo from that operator or use a root-owned runtime profile",
 		},
 		{
 			name: "secrets parse",
