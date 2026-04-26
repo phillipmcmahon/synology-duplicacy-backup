@@ -59,12 +59,12 @@ coverage floor and package-level baseline.
   applies to `restore run` and `restore select`.
 
 ### Coverage snapshot
-- overall coverage: `to be refreshed by release-prep`
-- `cmd/duplicacy-backup`: `to be refreshed by release-prep`
-- `internal/workflow`: `to be refreshed by release-prep`
-- `internal/duplicacy`: `to be refreshed by release-prep`
-- `internal/exec`: `to be refreshed by release-prep`
-- `internal/secrets`: `to be refreshed by release-prep`
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.7%`
+- `internal/workflow`: `85.8%`
+- `internal/duplicacy`: `89.5%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v8.0.0] - 2026-04-26
 
