@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v8.0.2] - 2026-04-26
+
 ### Fixed
 - **Sudo root-required commands now use the operator runtime profile by
   default**: when commands such as `backup` are invoked through `sudo` from an
