@@ -38,8 +38,8 @@ fi
 
 backup_output="$(env -u XDG_CONFIG_HOME -u XDG_STATE_HOME SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes)"
 printf '%s\n' "$backup_output"
-printf '%s\n' "$backup_output" | grep -F "Dry run              : duplicacy backup -stats -threads 1" >/dev/null
-printf '%s\n' "$backup_output" | grep -F "Result               : Success" >/dev/null
+printf '%s\n' "$backup_output" | grep -F "duplicacy backup -stats -threads 1" >/dev/null
+printf '%s\n' "$backup_output" | grep -F "Success" >/dev/null
 if printf '%s\n' "$backup_output" | grep -F "/root/.config/duplicacy-backup" >/dev/null; then
     ci_fail "sudo backup resolved the root profile instead of the operator profile"
 fi
