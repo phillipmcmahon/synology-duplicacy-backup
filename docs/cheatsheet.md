@@ -129,8 +129,9 @@ Recommended permissions:
 Installer behaviour:
 - `install.sh` installs and activates the binary
 - `install.sh` never migrates runtime config or secrets automatically
-- `migrate-runtime-profile.sh --dry-run` previews root-era config/secrets migration
-- `migrate-runtime-profile.sh --move --target-user <user>` moves legacy TOML files into that user's profile
+- `duplicacy-backup update` does not install the migration helper
+- extract the v8 release tarball and follow [`v8-migration.md`](v8-migration.md)
+- run `sudo sh "$PKGDIR/migrate-runtime-profile.sh" --target-user <user> --dry-run` before copying or moving anything
 
 ## General Guidelines
 

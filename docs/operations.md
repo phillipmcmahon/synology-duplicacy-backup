@@ -40,21 +40,10 @@ By default, it will:
 - leave runtime config, secrets, logs, state, and locks in the user profile
 - never migrate config or secrets automatically
 
-Release packages include `migrate-runtime-profile.sh` for one-time upgrades
-from the legacy root-owned layout:
-
-```bash
-# Review first
-sudo ./migrate-runtime-profile.sh --dry-run --target-user <operator-user>
-
-# Copy files into the operator profile and remove legacy source files
-sudo ./migrate-runtime-profile.sh --move --target-user <operator-user>
-```
-
-The helper copies `*.toml` from `/usr/local/lib/duplicacy-backup/.config` and
-`/root/.secrets` by default, creates the destination directories with mode
-`0700`, sets migrated files to `0600`, and chowns them to the target user when
-run as root.
+For one-time upgrades from the legacy root-owned layout, follow
+[`v8-migration.md`](v8-migration.md). The migration helper is packaged in the
+release tarball; `duplicacy-backup update` does not install it into the managed
+`current` directory.
 
 ### Installer options
 

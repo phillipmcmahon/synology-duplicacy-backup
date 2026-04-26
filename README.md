@@ -90,6 +90,8 @@ sudo ./install.sh
 See [`docs/operations.md`](docs/operations.md) for the recommended install
 layout and upgrade workflow. See [`docs/privilege-model.md`](docs/privilege-model.md)
 for the non-root default model and the commands that still require root.
+For the breaking v8 runtime-profile migration, use
+[`docs/v8-migration.md`](docs/v8-migration.md).
 
 ### 3. Create config
 
@@ -109,8 +111,9 @@ chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 ```
 
 The installer manages the binary only. For upgrades from the old root-era
-layout, run `migrate-runtime-profile.sh --dry-run` from the release package,
-then rerun it with `--move` only when you are ready to remove the legacy files.
+layout, follow [`docs/v8-migration.md`](docs/v8-migration.md). The migration
+helper is packaged in the release tarball; it is not installed by
+`duplicacy-backup update`.
 
 For labels with Duplicacy storage targets, or for any target that needs
 authenticated notification delivery, create a matching label secrets file under
@@ -269,6 +272,7 @@ Core operating rules:
 - [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)
 - [Configuration and secrets](docs/configuration.md)
+- [v8 migration guide](docs/v8-migration.md)
 - [Workflow and scheduling](docs/workflow-scheduling.md)
 - [Restore onto a new NAS](docs/new-nas-restore.md)
 - [Restore drills](docs/restore-drills.md)

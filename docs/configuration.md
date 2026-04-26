@@ -30,9 +30,9 @@ Recommended permissions:
 - config files: owned by the operator user with mode `0600`
 
 The installer manages the binary only. It does not automatically move runtime
-config or secrets. Release packages include `migrate-runtime-profile.sh` for
-operators moving from the legacy root-era layout into the user-owned profile.
-Run it with `--dry-run` first.
+config or secrets. Operators moving from the legacy root-era layout should
+follow [`v8-migration.md`](v8-migration.md). The migration helper is packaged
+in the release tarball; it is not installed by `duplicacy-backup update`.
 
 ## Config File Format
 

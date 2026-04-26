@@ -23,13 +23,10 @@ Secrets files must be owned by the user running the command and must use mode
 
 ## Migrating Legacy Root-Owned Files
 
-Release packages include `migrate-runtime-profile.sh` for one-time migration
-from the old root-required defaults:
-
-```bash
-sudo ./migrate-runtime-profile.sh --dry-run --target-user <operator-user>
-sudo ./migrate-runtime-profile.sh --move --target-user <operator-user>
-```
+For one-time migration from the old root-required defaults, follow
+[`v8-migration.md`](v8-migration.md). The migration helper is packaged in the
+release tarball; `duplicacy-backup update` does not install it into the managed
+`current` directory.
 
 By default the helper migrates:
 
@@ -38,9 +35,10 @@ By default the helper migrates:
 /root/.secrets/*.toml                         -> $HOME/.config/duplicacy-backup/secrets/
 ```
 
-It creates destination directories with mode `0700`, sets migrated TOML files
-to `0600`, and chowns them to the target user when run as root. It copies by
-default; `--move` removes each legacy source file after a successful copy.
+It creates destination directories with mode `0700`, preserves source
+timestamps where supported, sets migrated TOML files to `0600`, and chowns
+them to the target user when run as root. It copies by default; `--move`
+removes each legacy source file after a successful copy.
 
 ## Root-Required Commands
 
