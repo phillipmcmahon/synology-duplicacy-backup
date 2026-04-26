@@ -12,6 +12,47 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.0] - 2026-04-26
+
+### Added
+- **Direct-root execution is now guarded for profile-using commands**:
+  commands that read runtime config, secrets, state, logs, or locks now reject
+  ambiguous direct root execution unless the intended profile roots are
+  explicit. Routine root-required operations should be invoked with `sudo`
+  from the operator account so the operator-owned runtime profile remains the
+  source of truth.
+- **Direct-root guard policy coverage now spans the command surface**:
+  tests cover the direct-root policy for runtime, config, diagnostics, health,
+  restore, notify, update, and rollback command shapes, reducing the chance
+  that future command additions bypass the privilege model.
+
+### Changed
+- Project board automation now treats Review as active work
+  (`Status=In Progress`, `Workflow=Review`) and reserves `Status=Done` for
+  completed workflow items only.
+- Release and project-board discipline now has a stricter audit loop, including
+  fixtures that check review, done, closed, and stale status-label states.
+- Scheduler documentation now favours operator-run DSM tasks with narrow
+  `sudo -n` prefixes only for root-required commands, rather than root-run
+  tasks with implicit `/root` profile fallback.
+- Operator documentation was pruned and simplified around the v9 privilege
+  model, local repository mutation boundary, and workflow scheduling cadence.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `to be refreshed by release prep`
+- `cmd/duplicacy-backup`: `to be refreshed by release prep`
+- `internal/workflow`: `to be refreshed by release prep`
+- `internal/duplicacy`: `to be refreshed by release prep`
+- `internal/exec`: `to be refreshed by release prep`
+- `internal/secrets`: `to be refreshed by release prep`
+
 ## [v9.0.0] - 2026-04-26
 
 ### Removed
