@@ -72,6 +72,50 @@ runtime profile under `/root`, run `sudo` from the operator account, or pass
 explicit `--config-dir` and `--secrets-dir` values so the intended profile is
 unambiguous.
 
+## Least-Privilege Sudo For Scheduled Tasks
+
+Synology Task Scheduler can run tasks as the operator user and call `sudo` only
+for the exact commands that need root. This keeps the runtime profile under the
+operator account while avoiding broad passwordless sudo.
+
+Create a narrow sudoers file with `visudo`:
+
+```bash
+sudo visudo -f /etc/sudoers.d/duplicacy-backup-operator
+```
+
+Use exact command lines for the scheduled root-required operations:
+
+```sudoers
+Cmnd_Alias DUPLICACY_BACKUP_SCHEDULED_BACKUPS = \
+    /usr/local/bin/duplicacy-backup backup --target onsite-usb homes, \
+    /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+
+Cmnd_Alias DUPLICACY_BACKUP_LOCAL_REPO_MUTATION = \
+    /usr/local/bin/duplicacy-backup prune --target onsite-usb homes, \
+    /usr/local/bin/duplicacy-backup cleanup-storage --target onsite-usb homes
+
+operator ALL=(root) NOPASSWD: DUPLICACY_BACKUP_SCHEDULED_BACKUPS, DUPLICACY_BACKUP_LOCAL_REPO_MUTATION
+```
+
+Then set the sudoers file mode:
+
+```bash
+sudo chmod 0440 /etc/sudoers.d/duplicacy-backup-operator
+```
+
+Replace `operator`, labels, and targets with the real scheduled task values.
+Use `/usr/local/bin/duplicacy-backup` rather than relying on `PATH`, and use
+`sudo -n` in scheduled commands so a missing sudoers entry fails immediately
+instead of waiting for a password prompt.
+
+Avoid this broad rule unless you intentionally want the operator account to run
+any `duplicacy-backup` subcommand as root:
+
+```sudoers
+operator ALL=(root) NOPASSWD: /usr/local/bin/duplicacy-backup
+```
+
 ## Non-Root-Capable Commands
 
 These commands are intended to run as a normal user when their selected config,

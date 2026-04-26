@@ -43,7 +43,6 @@ Recommended names:
 - `<Label> Backup Offsite`
 - `<Label> Prune Onsite`
 - `<Label> Prune Offsite`
-- `<Label> Fix Perms Onsite`
 - `<Label> Health Status Onsite`
 - `<Label> Health Status Offsite`
 - `<Label> Health Doctor Onsite`
@@ -172,8 +171,10 @@ For each task:
 1. Open `Control Panel` -> `Task Scheduler`
 2. Create `Triggered Task` -> `User-defined script`
 3. Choose the run-as user:
-   - use `root` for `backup` and path-based filesystem repository `prune` or
-     `cleanup-storage`
+   - use the operator user by default
+   - for `backup` and path-based filesystem repository `prune` or
+     `cleanup-storage`, still run the task as the operator user and prefix the
+     command with `sudo -n`
    - use the operator user for health, diagnostics, restore checks, and
      object/remote repository prune or cleanup when that user owns the config,
      secrets, state, log, lock, and storage access paths
@@ -187,12 +188,19 @@ task resolves `$HOME` as `/root` and will look under
 `--secrets-dir` values. Prefer running those tasks as the operator user that
 owns the migrated profile.
 
+For scheduled root-required commands, add a narrow `/etc/sudoers.d` rule that
+allows only the exact `duplicacy-backup` commands used by the scheduler. Do not
+grant passwordless sudo for all commands, and avoid granting passwordless sudo
+for the whole binary unless that is an explicit site policy decision. See
+[`privilege-model.md`](privilege-model.md#least-privilege-sudo-for-scheduled-tasks)
+for a generalized sudoers template.
+
 Example commands:
 
 ```bash
-/usr/local/bin/duplicacy-backup backup --target onsite-usb homes
-/usr/local/bin/duplicacy-backup backup --target offsite-storj homes
-/usr/local/bin/duplicacy-backup prune --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+sudo -n /usr/local/bin/duplicacy-backup prune --target onsite-usb homes
 /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
 /usr/local/bin/duplicacy-backup health verify --json-summary --target offsite-storj homes
 ```
@@ -216,8 +224,6 @@ This is a practical scheduling model for:
   Daily at `04:30`
 - `Homes Prune Offsite`
   Tuesday and Friday at `04:45`
-- `Homes Fix Perms Onsite`
-  Sunday at `05:00`
 - `Homes Health Status Onsite`
   Daily at `08:00`
 - `Homes Health Status Offsite`
@@ -252,9 +258,9 @@ This is a practical scheduling model for:
 
 | Task Name | Frequency | Time | Command |
 |---|---|---|---|
-| `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb homes` |
-| `Homes Backup Offsite` | Daily | `02:30` | `/usr/local/bin/duplicacy-backup backup --target offsite-storj homes` |
-| `Homes Prune Onsite` | Daily | `04:30` | `/usr/local/bin/duplicacy-backup prune --target onsite-usb homes` |
+| `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes` |
+| `Homes Backup Offsite` | Daily | `02:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes` |
+| `Homes Prune Onsite` | Daily | `04:30` | `sudo -n /usr/local/bin/duplicacy-backup prune --target onsite-usb homes` |
 | `Homes Prune Offsite` | Weekly | `Tuesday, Friday` at `04:45` | `/usr/local/bin/duplicacy-backup prune --target offsite-storj homes` |
 | `Homes Health Status Onsite` | Daily | `08:00` | `/usr/local/bin/duplicacy-backup health status --target onsite-usb homes` |
 | `Homes Health Status Offsite` | Daily | `08:10` | `/usr/local/bin/duplicacy-backup health status --target offsite-storj homes` |
@@ -262,10 +268,10 @@ This is a practical scheduling model for:
 | `Homes Health Doctor Offsite` | Weekly | `Sunday` at `08:45` | `/usr/local/bin/duplicacy-backup health doctor --target offsite-storj homes` |
 | `Homes Health Verify Onsite` | Monthly | `First Sunday` at `09:00` | `/usr/local/bin/duplicacy-backup health verify --target onsite-usb homes` |
 | `Homes Health Verify Offsite` | Monthly | `First Sunday` at `10:00` | `/usr/local/bin/duplicacy-backup health verify --target offsite-storj homes` |
-| `Iso Backup Onsite` | Weekly | `Saturday` at `01:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb iso` |
-| `Plexaudio Backup Onsite` | Daily | `03:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb plexaudio` |
-| `Plexaudio Backup Offsite` | Daily | `05:30` | `/usr/local/bin/duplicacy-backup backup --target offsite-storj plexaudio` |
-| `Plexvideo Backup Onsite` | Daily | `06:30` | `/usr/local/bin/duplicacy-backup backup --target onsite-usb plexvideo` |
+| `Iso Backup Onsite` | Weekly | `Saturday` at `01:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb iso` |
+| `Plexaudio Backup Onsite` | Daily | `03:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb plexaudio` |
+| `Plexaudio Backup Offsite` | Daily | `05:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj plexaudio` |
+| `Plexvideo Backup Onsite` | Daily | `06:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb plexvideo` |
 
 ## Operational Notes
 

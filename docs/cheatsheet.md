@@ -5,6 +5,10 @@ that need root-level OS access, such as `backup`, path-based local repository
 `prune` or `cleanup-storage`, and managed install activation with
 `update --yes` or `rollback --yes`.
 
+For scheduled tasks, prefer running the DSM task as the operator user and using
+a narrow `/etc/sudoers.d` rule plus `sudo -n` only for those exact
+root-required commands. See [`privilege-model.md`](privilege-model.md#least-privilege-sudo-for-scheduled-tasks).
+
 Despite its historical name, `duplicacy-backup` is now the operator entrypoint
 for backup, prune, health, diagnostics, restore drills, update, and rollback
 workflows.
