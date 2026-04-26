@@ -2,6 +2,7 @@ package btrfs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
@@ -86,12 +87,18 @@ func TestCheckVolume_NotBtrfs(t *testing.T) {
 func TestCheckVolume_NotSubvolume(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{Err: errors.New("not a subvolume")},
+		execpkg.MockResult{Stderr: "ERROR: not a subvolume\n", Err: errors.New("not a subvolume")},
 	)
 
 	err := CheckVolume(mock, "/volume1", false)
 	if err == nil {
 		t.Fatal("expected error for non-subvolume")
+	}
+	if !strings.Contains(err.Error(), "subvolume metadata could not be verified") {
+		t.Fatalf("error = %q, want subvolume metadata wording", err.Error())
+	}
+	if !strings.Contains(err.Error(), "ERROR: not a subvolume") {
+		t.Fatalf("error = %q, want stderr detail", err.Error())
 	}
 }
 

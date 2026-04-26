@@ -790,8 +790,10 @@ func TestHealthRunner_VerifyIgnoresBackupReadinessBtrfsFailures(t *testing.T) {
 	if result, _, ok := healthpkg.CheckResult(report, "Btrfs root"); !ok || result != "info" {
 		t.Fatalf("Btrfs root check = %q, present=%t, report=%+v", result, ok, report)
 	}
-	if result, _, ok := healthpkg.CheckResult(report, "Btrfs source"); !ok || result != "info" {
+	if result, message, ok := healthpkg.CheckResult(report, "Btrfs source"); !ok || result != "info" {
 		t.Fatalf("Btrfs source check = %q, present=%t, report=%+v", result, ok, report)
+	} else if !strings.Contains(message, "subvolume metadata could not be verified") {
+		t.Fatalf("Btrfs source message = %q, want precise metadata wording", message)
 	}
 	if _, _, ok := healthpkg.CheckResult(report, "Last doctor run"); ok {
 		t.Fatalf("verify should not report doctor recency: %+v", report)

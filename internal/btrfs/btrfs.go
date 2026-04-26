@@ -41,12 +41,23 @@ func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
 		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is not on a btrfs filesystem"), "path", path, "fstype", strings.TrimSpace(stdout))
 	}
 
-	// Check it's a subvolume
-	if _, _, err := runner.Run(ctx, "btrfs", "subvolume", "show", path); err != nil {
-		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is not a btrfs volume or subvolume"), "path", path)
+	// Check snapshot-readiness. The stat probe above has already confirmed the
+	// filesystem type; failures here mean the subvolume metadata probe failed.
+	if _, stderr, err := runner.Run(ctx, "btrfs", "subvolume", "show", path); err != nil {
+		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is on a btrfs filesystem, but subvolume metadata could not be verified: %s", subvolumeProbeDetail(stderr, err)), "path", path)
 	}
 
 	return nil
+}
+
+func subvolumeProbeDetail(stderr string, err error) string {
+	if detail := strings.TrimSpace(stderr); detail != "" {
+		return detail
+	}
+	if err != nil {
+		return err.Error()
+	}
+	return "btrfs subvolume show failed"
 }
 
 // CreateSnapshot creates a read-only btrfs snapshot of source at target.
