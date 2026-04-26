@@ -218,15 +218,12 @@ See also:
 
 ## Config Validation Shows Not Checked
 
-`Not checked` means the current user could not safely perform that validation
-step, usually because the check needs root-only paths or permissions. It is not
-the same as a failed check.
+`Not checked` means the validation step is conditional or could not be run with
+the selected inputs. It is not the same as a failed check.
 
-Non-root validation is the default and is enough for restore, health, and other
-operator-user workflows when the selected paths are accessible. If you are
-validating a backup or permission-repair task that will run as root, run the
-same validation with `sudo` before treating that root scheduled job as fully
-validated.
+Non-root validation is the default. In the v8 profile model, Btrfs source
+validation, secrets loading, and repository probing are designed to run as the
+operator user when the selected paths are accessible.
 
 See also:
 

@@ -150,7 +150,7 @@ Installer behaviour:
 - For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
-- Non-root `config validate` is still useful, but checks that require root may show `Not checked`.
+- `config validate` is intended to be useful as the operator user; it validates Btrfs source shape, secrets, and repository access when the selected paths are accessible.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.

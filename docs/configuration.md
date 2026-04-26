@@ -509,7 +509,8 @@ Human-facing screens now make the selected target shape explicit:
 - health headers show `Check`, `Label`, `Target`, and `Location`
 - `config explain` and `config paths` show `Location`
 - `config explain` stays read-only by default and does not load storage secrets
-- `config validate` includes `Privileges`, reported as `Full` or `Limited`
+- `config validate` assumes the operator-user profile is the normal model and
+  reports the selected target checks directly
 
 `config validate` intentionally keeps its `Resolved` section identity-only:
 
@@ -528,8 +529,10 @@ reported as:
 - `Repository Access : Invalid (...)`
 
 When `config validate` is run without the privileges needed for root-only
-checks, lines such as `Btrfs Source`, `Secrets`, or `Repository Access` may be
-reported as `Not checked` instead of failing the whole validation.
+checks, conditional lines may be reported as `Not checked` instead of failing
+the whole validation. In the v8 profile model this should be uncommon; Btrfs
+source validation, secrets loading, and repository probing are designed to run
+as the operator user when the selected paths are accessible.
 
 ## Current File Naming
 

@@ -85,14 +85,9 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	}
 
 	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.SnapshotSource)
-	privilegedValidation := planner.rt.Geteuid() == 0
-	privilegeStatus := "Limited"
-	if privilegedValidation {
-		privilegeStatus = "Full"
-	}
 	btrfsStatus := "Not checked"
 	var btrfsErr error
-	if sourceAccessible && privilegedValidation {
+	if sourceAccessible {
 		btrfsStatus = "Valid"
 		btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
 	}
@@ -109,7 +104,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	secretsNeeded := storageSpec.NeedsSecrets()
 	secretsChecked := !secretsNeeded
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
-	if secretsNeeded && privilegedValidation {
+	if secretsNeeded {
 		secretsChecked = true
 		sec, secretsErr = planner.loadSecrets(plan)
 		if secretsErr == nil {
@@ -128,7 +123,6 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	}
 
 	collector.addStatus("Required Settings", "Valid", requiredErr)
-	collector.addStatic("Privileges", privilegeStatus)
 	collector.addStatus("Threads", "Valid", threadsErr)
 	if pruneErr != nil {
 		collector.addStatus("Prune Policy", "Valid", pruneErr)
@@ -137,7 +131,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	}
 	collector.addStatus("Health Thresholds", "Valid", healthErr)
 	collector.addStatus("Source Path Access", sourceStatus, sourceErr)
-	if sourceAccessible && privilegedValidation {
+	if sourceAccessible {
 		collector.addStatus("Btrfs Source", btrfsStatus, btrfsErr)
 	} else {
 		collector.addUnchecked("Btrfs Source")
