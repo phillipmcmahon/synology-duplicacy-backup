@@ -775,7 +775,7 @@ func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	if len(report.Issues) != 0 {
 		t.Fatalf("backup-readiness checks should not create verify issues: %+v", report.Issues)
 	}
-	if result, message, ok := healthpkg.CheckResult(report, "Btrfs"); !ok || result != "info" || message != "Not checked; not required for storage integrity verification" {
+	if result, message, ok := healthpkg.CheckResult(report, "Btrfs"); !ok || result != "info" || message != "Not checked; backup-readiness validation is not required for storage integrity verification" {
 		t.Fatalf("Btrfs check = (%q, %q), present=%t, report=%+v", result, message, ok, report)
 	}
 	if _, _, ok := healthpkg.CheckResult(report, "Btrfs root"); ok {
@@ -1490,7 +1490,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Btrfs") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Not checked; not required for storage integrity verification") {
+	if !strings.Contains(stderr, "Not checked; backup-readiness validation is not required for storage integrity verification") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if strings.Contains(stderr, "Btrfs source         : /") {

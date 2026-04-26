@@ -533,11 +533,15 @@ reported as:
 - `Repository Access : Not initialized`
 - `Repository Access : Invalid (...)`
 
-When `config validate` is run without the privileges needed for root-only
-checks, conditional lines may be reported as `Not checked` instead of failing
-the whole validation. In the v8 profile model this should be uncommon; Btrfs
-source validation, secrets loading, and repository probing are designed to run
-as the operator user when the selected paths are accessible.
+When `config validate` can inspect a configured `source_path`, Btrfs source
+validation is mandatory and fails if the path is not on Btrfs or is not a
+subvolume root. Backup uses the same requirement before snapshot work starts.
+
+Conditional lines may be reported as `Not checked` when their prerequisite
+input is unavailable, such as a missing or inaccessible `source_path`. In the
+v8 profile model this should be uncommon; Btrfs source validation, secrets
+loading, and repository probing are designed to run as the operator user when
+the selected paths are accessible.
 
 ## Current File Naming
 

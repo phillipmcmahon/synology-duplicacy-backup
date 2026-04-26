@@ -5,8 +5,11 @@ import (
 	"os"
 )
 
+// isSynologyDSM is stubbable for tests; production uses detectSynologyDSM.
 var isSynologyDSM = detectSynologyDSM
 
+// detectSynologyDSM checks both common DSM marker files. Any stat failure is
+// treated as non-DSM so operational commands fail closed on unknown platforms.
 func detectSynologyDSM() bool {
 	for _, path := range []string{"/etc/synoinfo.conf", "/etc.defaults/VERSION"} {
 		if _, err := os.Stat(path); err == nil {

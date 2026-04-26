@@ -85,7 +85,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		report.AddCheck("Source path", "pass", plan.SnapshotSource)
 	}
 	if verifyMode {
-		report.AddDisplayCheck("Btrfs", "info", "Not checked; not required for storage integrity verification")
+		report.AddDisplayCheck("Btrfs", "info", "Not checked; backup-readiness validation is not required for storage integrity verification")
 	} else {
 		readiness := h.runBtrfsReadinessChecks(plan)
 		switch {

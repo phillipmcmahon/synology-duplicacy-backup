@@ -221,6 +221,10 @@ See also:
 `Not checked` means the validation step is conditional or could not be run with
 the selected inputs. It is not the same as a failed check.
 
+For `config validate`, an accessible configured `source_path` always receives
+the Btrfs source check. If that path is not on Btrfs or is not a subvolume root,
+validation fails because backups require snapshot consistency.
+
 Non-root validation is the default. In the v8 profile model, Btrfs source
 validation, secrets loading, and repository probing are designed to run as the
 operator user when the selected paths are accessible.
