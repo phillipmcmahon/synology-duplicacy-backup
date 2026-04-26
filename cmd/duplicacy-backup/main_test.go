@@ -1101,7 +1101,7 @@ func TestRunWithArgs_DirectRootConfigRequiresExplicitRuntimeProfile(t *testing.T
 			t.Fatalf("stdout = %q", stdout)
 		}
 		for _, token := range []string{
-			"direct root execution is ambiguous for config explain",
+			directRootProfileErrorLead + " config explain",
 			"run as the operator user",
 			"--config-dir and --secrets-dir",
 			"XDG_STATE_HOME",
@@ -1112,6 +1112,79 @@ func TestRunWithArgs_DirectRootConfigRequiresExplicitRuntimeProfile(t *testing.T
 			}
 		}
 	})
+}
+
+func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
+	type policyCase struct {
+		name           string
+		req            *workflow.Request
+		command        string
+		usesProfile    bool
+		requiresSecret bool
+	}
+	cases := []policyCase{
+		{name: "nil request", req: nil},
+		{name: "empty request", req: &workflow.Request{}},
+		{name: "backup", req: &workflow.Request{DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
+		{name: "prune", req: &workflow.Request{DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
+		{name: "cleanup-storage", req: &workflow.Request{DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
+		{name: "diagnostics", req: &workflow.Request{DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
+		{name: "update", req: &workflow.Request{UpdateCommand: "update"}, command: "update", usesProfile: true},
+		{name: "rollback", req: &workflow.Request{RollbackCommand: "rollback"}, command: "", usesProfile: false},
+	}
+
+	for _, command := range []string{"validate", "explain", "paths"} {
+		cases = append(cases, policyCase{
+			name:           "config " + command,
+			req:            &workflow.Request{ConfigCommand: command},
+			command:        "config " + command,
+			usesProfile:    true,
+			requiresSecret: true,
+		})
+	}
+	for _, command := range []string{"status", "doctor", "verify"} {
+		cases = append(cases, policyCase{
+			name:           "health " + command,
+			req:            &workflow.Request{HealthCommand: command},
+			command:        "health " + command,
+			usesProfile:    true,
+			requiresSecret: true,
+		})
+	}
+	for _, command := range []string{"plan", "list-revisions", "run", "select"} {
+		cases = append(cases, policyCase{
+			name:           "restore " + command,
+			req:            &workflow.Request{RestoreCommand: command},
+			command:        "restore " + command,
+			usesProfile:    true,
+			requiresSecret: true,
+		})
+	}
+	cases = append(cases,
+		policyCase{
+			name:           "notify test label",
+			req:            &workflow.Request{NotifyCommand: "test"},
+			command:        "notify test",
+			usesProfile:    true,
+			requiresSecret: true,
+		},
+		policyCase{
+			name:           "notify test update",
+			req:            &workflow.Request{NotifyCommand: "test", NotifyScope: "update"},
+			command:        "notify test update",
+			usesProfile:    true,
+			requiresSecret: true,
+		},
+	)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := directRootProfilePolicyForRequest(tc.req)
+			if got.Command != tc.command || got.UsesProfile != tc.usesProfile || got.RequiresSecrets != tc.requiresSecret {
+				t.Fatalf("policy = %+v, want command=%q usesProfile=%v requiresSecrets=%v", got, tc.command, tc.usesProfile, tc.requiresSecret)
+			}
+		})
+	}
 }
 
 func TestRunWithArgs_DirectRootBackupRequiresSudoOperator(t *testing.T) {
@@ -1127,7 +1200,7 @@ func TestRunWithArgs_DirectRootBackupRequiresSudoOperator(t *testing.T) {
 		if stdout != "" {
 			t.Fatalf("stdout = %q", stdout)
 		}
-		if !strings.Contains(stderr, "direct root execution is ambiguous for backup") ||
+		if !strings.Contains(stderr, directRootProfileErrorLead+" backup") ||
 			!strings.Contains(stderr, "run with sudo from that operator account") {
 			t.Fatalf("stderr = %q", stderr)
 		}

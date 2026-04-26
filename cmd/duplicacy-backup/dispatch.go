@@ -53,6 +53,8 @@ type directRootProfilePolicy struct {
 	RequiresSecrets bool
 }
 
+const directRootProfileErrorLead = "direct root execution is ambiguous for"
+
 func validateRootExecution(req *workflow.Request, rt workflow.Runtime) error {
 	if workflow.RuntimeEUID(rt) != 0 || workflow.HasSudoOperator(rt) {
 		return nil
@@ -119,7 +121,8 @@ func directRootProfileError(policy directRootProfilePolicy) error {
 		profileFlags += " and --secrets-dir"
 	}
 	return workflow.NewRequestError(
-		"direct root execution is ambiguous for %s; run as the operator user, or for root-required operations run with sudo from that operator account. Expert direct-root use must pass explicit %s and set XDG_STATE_HOME so config, secrets, logs, state, and locks do not fall back to /root",
+		"%s %s; run as the operator user, or for root-required operations run with sudo from that operator account. Expert direct-root use must pass explicit %s and set XDG_STATE_HOME so config, secrets, logs, state, and locks do not fall back to /root",
+		directRootProfileErrorLead,
 		policy.Command,
 		profileFlags,
 	)
