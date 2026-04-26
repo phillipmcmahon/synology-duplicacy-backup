@@ -24,6 +24,25 @@ coverage floor and package-level baseline.
   backup config defines one, instead of always showing the restore-only
   fallback wording.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS smoke**:
+  `sudo-profile-fix-smoke-20260426093301` confirmed non-root
+  config/restore/health checks, sudo backup dry-run, sudo backup with explicit
+  profile paths, and a real sudo backup creating revision 11.
+
+### Coverage snapshot
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.7%`
+- `internal/workflow`: `85.8%`
+- `internal/duplicacy`: `89.5%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v8.0.1] - 2026-04-26
 
 ### Fixed
