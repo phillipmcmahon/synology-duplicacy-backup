@@ -27,6 +27,7 @@ Options:
                         (default: /volume1/homes/phillipmcmahon/code/duplicacy-backup)
   --stage-dir <path>    Reuse an existing local staging directory for mirroring
   --issue <number>      Release issue number to include in the closure summary
+                        and board audit gate
   --skip-attestations   Skip GitHub release and asset attestation checks
                         (only for historical releases)
   --help                Show this help text
@@ -89,14 +90,17 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$TAG" ] || fail "--tag is required"
+[ -n "$ISSUE" ] || fail "--issue is required"
 
 SCRIPT_DIR="$(script_dir)"
 MIRROR_SCRIPT="${MIRROR_RELEASE_SCRIPT:-$SCRIPT_DIR/mirror-release-assets.sh}"
 VERIFY_SCRIPT="${VERIFY_RELEASE_SCRIPT:-$SCRIPT_DIR/verify-release.sh}"
+BOARD_AUDIT_SCRIPT="${PROJECT_BOARD_AUDIT_SCRIPT:-$SCRIPT_DIR/project-board-audit.sh}"
 REMOTE_DIR="$REMOTE_ROOT/latest/$TAG"
 
 [ -f "$MIRROR_SCRIPT" ] || fail "mirror script not found: $MIRROR_SCRIPT"
 [ -f "$VERIFY_SCRIPT" ] || fail "verify script not found: $VERIFY_SCRIPT"
+[ -f "$BOARD_AUDIT_SCRIPT" ] || fail "project board audit script not found: $BOARD_AUDIT_SCRIPT"
 
 if [ -n "$STAGE_DIR" ]; then
     sh "$MIRROR_SCRIPT" \
@@ -131,6 +135,8 @@ else
     ATTESTATION_RESULT="skipped"
     VERIFY_COMMAND="scripts/verify-release.sh --tag $TAG --skip-attestations"
 fi
+
+sh "$BOARD_AUDIT_SCRIPT"
 
 RELEASE_URL="$(gh release view "$TAG" --repo "$REPO" --json url --jq .url)"
 

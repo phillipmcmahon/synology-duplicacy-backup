@@ -45,3 +45,6 @@ automatically use tabs for Go files and LF line endings.
 - [ ] Related issue and project board fields are current after each commit:
       issue state, `status:*` labels, GitHub project `Status`, and custom
       `Workflow` should tell the same story
+- [ ] For project workflow changes, prefer
+      `scripts/project-transition.sh --issue <number> --stage <stage>` over
+      manual label and board edits

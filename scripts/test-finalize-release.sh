@@ -42,6 +42,12 @@ printf '%s\n' "$@" >"$VERIFY_ARGS_OUT"
 echo "fake verify complete"
 EOF
 
+cat >"$TMP_DIR/audit.sh" <<'EOF'
+#!/bin/sh
+set -eu
+echo "fake board audit complete"
+EOF
+
 cat >"$TMP_DIR/bin/gh" <<'EOF'
 #!/bin/sh
 set -eu
@@ -53,7 +59,7 @@ echo "unexpected gh invocation: $*" >&2
 exit 1
 EOF
 
-chmod +x "$TMP_DIR/mirror.sh" "$TMP_DIR/verify.sh" "$TMP_DIR/bin/gh"
+chmod +x "$TMP_DIR/mirror.sh" "$TMP_DIR/verify.sh" "$TMP_DIR/audit.sh" "$TMP_DIR/bin/gh"
 
 MIRROR_ARGS_OUT="$TMP_DIR/mirror-args.txt"
 VERIFY_ARGS_OUT="$TMP_DIR/verify-args.txt"
@@ -62,6 +68,7 @@ export MIRROR_ARGS_OUT VERIFY_ARGS_OUT
 PATH="$TMP_DIR/bin:$PATH" \
 MIRROR_RELEASE_SCRIPT="$TMP_DIR/mirror.sh" \
 VERIFY_RELEASE_SCRIPT="$TMP_DIR/verify.sh" \
+PROJECT_BOARD_AUDIT_SCRIPT="$TMP_DIR/audit.sh" \
     sh "$ROOT/scripts/finalize-release.sh" \
         --tag v9.9.9 \
         --repo example/repo \
@@ -75,6 +82,7 @@ assert_contains "$MIRROR_ARGS_OUT" "$TMP_DIR/stage"
 assert_contains "$VERIFY_ARGS_OUT" "--tag"
 assert_contains "$VERIFY_ARGS_OUT" "v9.9.9"
 assert_contains "$TMP_DIR/output.txt" "Release closure summary"
+assert_contains "$TMP_DIR/output.txt" "fake board audit complete"
 assert_contains "$TMP_DIR/output.txt" "Remote mirror        : nas:/releases/latest/v9.9.9"
 assert_contains "$TMP_DIR/output.txt" "Release attestations : verified"
 assert_contains "$TMP_DIR/output.txt" "Release issue        : #42"
@@ -83,11 +91,13 @@ assert_contains "$TMP_DIR/output.txt" "Issue comment:"
 PATH="$TMP_DIR/bin:$PATH" \
 MIRROR_RELEASE_SCRIPT="$TMP_DIR/mirror.sh" \
 VERIFY_RELEASE_SCRIPT="$TMP_DIR/verify.sh" \
+PROJECT_BOARD_AUDIT_SCRIPT="$TMP_DIR/audit.sh" \
     sh "$ROOT/scripts/finalize-release.sh" \
         --tag v9.9.9 \
         --repo example/repo \
         --host nas \
         --remote-root /releases \
+        --issue 42 \
         --skip-attestations >"$TMP_DIR/output-skip.txt"
 
 assert_contains "$VERIFY_ARGS_OUT" "--skip-attestations"
@@ -97,5 +107,15 @@ if sh "$ROOT/scripts/finalize-release.sh" >"$TMP_DIR/missing-tag.txt" 2>&1; then
     fail "finalize-release should fail when --tag is missing"
 fi
 assert_contains "$TMP_DIR/missing-tag.txt" "Error: --tag is required"
+
+if PATH="$TMP_DIR/bin:$PATH" \
+    MIRROR_RELEASE_SCRIPT="$TMP_DIR/mirror.sh" \
+    VERIFY_RELEASE_SCRIPT="$TMP_DIR/verify.sh" \
+    PROJECT_BOARD_AUDIT_SCRIPT="$TMP_DIR/audit.sh" \
+    sh "$ROOT/scripts/finalize-release.sh" \
+        --tag v9.9.9 >"$TMP_DIR/missing-issue.txt" 2>&1; then
+    fail "finalize-release should fail when --issue is missing"
+fi
+assert_contains "$TMP_DIR/missing-issue.txt" "Error: --issue is required"
 
 echo "finalize-release script tests passed"

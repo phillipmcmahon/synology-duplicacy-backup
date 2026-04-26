@@ -51,6 +51,9 @@ Use the project board and release issues in a lightweight, repeatable way:
   a check of the release-prep issue. Closed issues should be `Done`/`Done` with
   no stale `status:*` labels, and open issues should not be left in `Done`
   unless they are intentionally open tracking epics.
+- Use `scripts/project-transition.sh` for issue workflow changes where
+  possible, and use `scripts/project-board-audit.sh` as the objective board
+  consistency gate.
 - Close each release child with a short comment that includes:
   - landed commit
   - validation run
@@ -97,6 +100,7 @@ Suggested release-prep checklist:
 - [ ] GitHub release workflow passed
 - [ ] release finalized with `scripts/finalize-release.sh`
 - [ ] full project board consistency sweep completed after release finalization
+- [ ] `scripts/release-doctor.sh` passed
 - [ ] closure summary pasted into the release issue
 
 ### 2. Prepare Version
@@ -302,24 +306,26 @@ sh ./scripts/finalize-release.sh --tag vX.Y.Z --issue <release-issue-number>
 
 This is the standard release closure gate. It runs
 `scripts/mirror-release-assets.sh`, then `scripts/verify-release.sh`, then
-prints a concise release-issue comment that includes the GitHub release URL,
-NAS mirror path, verification result, and attestation result.
+`scripts/project-board-audit.sh`, then prints a concise release-issue comment
+that includes the GitHub release URL, NAS mirror path, verification result, and
+attestation result. `--issue` is required so the release cannot be finalized as
+an untracked side quest.
 
 Board consistency sweep:
 
 ```bash
-gh project item-list 1 --owner phillipmcmahon --format json --limit 300 \
-  | jq -r '.items[]
-      | select(.content.number != null)
-      | select((.content.state == "CLOSED" and ((.status // "") != "Done" or (.workflow // "") != "Done"))
-        or (.content.state == "OPEN" and ((.status // "") == "Done" or (.workflow // "") == "Done")))
-      | [.content.number, .content.title, .content.state, (.status // ""), (.workflow // "")]
-      | @tsv'
+sh ./scripts/project-board-audit.sh
 ```
 
-The command should print no rows. If it does, update the issue state, remove
-stale `status:*` labels, and set the project `Status` and `Workflow` fields
-before closing the release task.
+The command should pass with no findings. If it fails, correct the listed
+items before closing the release task. To apply one issue workflow transition
+without manually juggling labels and project fields, use:
+
+```bash
+sh ./scripts/project-transition.sh --issue <number> --stage in-progress
+sh ./scripts/project-transition.sh --issue <number> --stage review
+sh ./scripts/project-transition.sh --issue <number> --stage done --close
+```
 
 Expected artefacts for each release:
 
@@ -361,6 +367,16 @@ The script verifies the published GitHub release, required release-note
 headings, expected packaged assets, GitHub release attestations, individual
 asset attestations, local-versus-remote tag commit alignment, and the mirrored
 artefact set under `homestorage` `latest/<tag>`.
+
+Before declaring the release fully complete, run the release doctor:
+
+```bash
+sh ./scripts/release-doctor.sh --tag vX.Y.Z --issue <release-issue-number>
+```
+
+The doctor verifies that local `main` matches `origin/main`, the local and
+remote tags agree, `verify-release.sh` passes, the release issue contains the
+final closure evidence, and the project board audit passes.
 
 ## Release Failure Rule
 
