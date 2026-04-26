@@ -127,9 +127,11 @@ By default, the helper copies:
 ```
 
 It creates destination directories with mode `0700`, copies TOML files with
-source timestamps preserved where supported, then sets migrated files to mode
-`0600`. When run as root, it sets migrated directories and files to the target
-user and that user's primary group.
+source timestamps preserved where supported, then sets TOML files in those
+destination directories to mode `0600`. When run as root, it sets migrated
+directories and destination TOML files to the target user and that user's
+primary group. This keeps partial reruns from leaving a mixed-ownership TOML
+set.
 
 ## 4. Copy Into The Operator Profile
 

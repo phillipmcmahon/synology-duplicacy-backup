@@ -81,6 +81,21 @@ func TestCheckVolume_DryRunSkipsChecks(t *testing.T) {
 	}
 }
 
+func TestCheckSubvolumeRoot_Success(t *testing.T) {
+	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "256\n"})
+
+	err := CheckSubvolumeRoot(mock, "/volume1/homes", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if strings.Join(mock.Invocations[0].Args, " ") != "-c %i /volume1/homes" {
+		t.Fatalf("args = %q", strings.Join(mock.Invocations[0].Args, " "))
+	}
+}
+
 func TestCheckVolume_StatFails(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Err: errors.New("stat failed")},

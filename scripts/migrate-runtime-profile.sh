@@ -26,9 +26,10 @@ Migrate legacy root-era runtime files into the non-root user profile:
 
 The script copies by default. Use --move only after reviewing the dry run.
 Before copying or moving, the script reports all destination collisions unless
---force is supplied. Destination directories are created with 0700 and migrated
-TOML files are set to 0600. When run as root, destination files are chowned to
-the target user and that user's primary group.
+--force is supplied. Destination directories are created with 0700 and TOML
+files in those destination directories are normalised to 0600. When run as
+root, destination directories and TOML files are chowned to the target user and
+that user's primary group.
 
 Options:
   --target-user <name>       User that should own the migrated files
@@ -145,6 +146,21 @@ ensure_dir() {
     fi
 }
 
+normalise_dir_toml() {
+    dir="$1"
+    user="$2"
+    group="$3"
+
+    [ -d "$dir" ] || return 0
+    for path in "$dir"/*.toml; do
+        [ -f "$path" ] || continue
+        run chmod 600 "$path"
+        if [ "$(id -u)" -eq 0 ]; then
+            run chown "$user:$group" "$path"
+        fi
+    done
+}
+
 migrate_file() {
     src="$1"
     dst="$2"
@@ -216,6 +232,7 @@ migrate_dir_toml() {
         migrate_file "$src" "$dst" "$user" "$group"
         count=$((count + 1))
     done
+    normalise_dir_toml "$dst_dir" "$user" "$group"
     info "$label files considered: $count"
 }
 

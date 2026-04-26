@@ -87,16 +87,16 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	if verifyMode {
 		report.AddDisplayCheck("Btrfs", "info", "Not checked; not required for storage integrity verification")
 	} else {
-		rootErr, sourceErr := h.runBtrfsReadinessChecks(plan)
+		readiness := h.runBtrfsReadinessChecks(plan)
 		switch {
-		case rootErr == nil && sourceErr == nil:
+		case readiness.RootErr == nil && readiness.SourceErr == nil:
 			report.AddCheck("Btrfs", "pass", "Yes")
 		default:
-			if rootErr != nil {
-				report.AddCheck("Btrfs root", "fail", OperatorMessage(rootErr))
+			if readiness.RootErr != nil {
+				report.AddCheck("Btrfs root", "fail", OperatorMessage(readiness.RootErr))
 			}
-			if sourceErr != nil {
-				report.AddCheck("Btrfs source", "fail", OperatorMessage(sourceErr))
+			if readiness.SourceErr != nil {
+				report.AddCheck("Btrfs source", "fail", OperatorMessage(readiness.SourceErr))
 			}
 		}
 	}
@@ -118,8 +118,16 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	}
 }
 
-func (h *HealthRunner) runBtrfsReadinessChecks(plan *Plan) (error, error) {
-	return btrfs.CheckVolume(h.runner, h.meta.RootVolume, false), btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
+type btrfsReadinessReport struct {
+	RootErr   error
+	SourceErr error
+}
+
+func (h *HealthRunner) runBtrfsReadinessChecks(plan *Plan) btrfsReadinessReport {
+	return btrfsReadinessReport{
+		RootErr:   btrfs.CheckVolume(h.runner, h.meta.RootVolume, false),
+		SourceErr: btrfs.CheckVolume(h.runner, plan.SnapshotSource, false),
+	}
 }
 
 func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {

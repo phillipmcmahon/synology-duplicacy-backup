@@ -496,7 +496,7 @@ freshness signal.
 | threads validation | `config validate`, backup |
 | prune policy syntax validation | `config validate`, prune |
 | target local-account consistency | `config validate`, path-based `fix-perms` |
-| Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
+| Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes, is enforced for Synology-style `/volumeN` source paths, and is not required for restore-only access, storage integrity verification, or non-Synology non-Btrfs source paths |
 | storage accessibility check | `config validate` |
 | repository readiness probe | `config validate` |
 | `local_owner` / `local_group` validation | path-based `fix-perms` |
@@ -534,6 +534,10 @@ checks, conditional lines may be reported as `Not checked` instead of failing
 the whole validation. In the v8 profile model this should be uncommon; Btrfs
 source validation, secrets loading, and repository probing are designed to run
 as the operator user when the selected paths are accessible.
+
+For non-Synology source paths that are not on Btrfs, `config validate` reports
+`Btrfs Source : Not required` instead of failing the whole config. Synology-style
+`/volumeN` paths still receive the full Btrfs/subvolume readiness check.
 
 ## Current File Naming
 

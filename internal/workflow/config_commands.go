@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
@@ -88,8 +90,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	btrfsStatus := "Not checked"
 	var btrfsErr error
 	if sourceAccessible {
-		btrfsStatus = "Valid"
-		btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
+		btrfsStatus, btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
 	}
 
 	destinationStatus, destinationErr := validateConfigDestination(cfg)
@@ -343,11 +344,38 @@ func validateConfigSourcePathAccess(sourcePath string) (bool, string, error) {
 	return true, "Readable", nil
 }
 
-func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) error {
-	if err := btrfs.CheckVolume(runner, plan.SnapshotSource, false); err != nil {
-		return err
+func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) (string, error) {
+	if isSynologyVolumePath(plan.SnapshotSource) {
+		return "Valid", btrfs.CheckVolume(runner, plan.SnapshotSource, false)
 	}
-	return nil
+
+	if err := btrfs.CheckFilesystem(runner, plan.SnapshotSource, false); err != nil {
+		if snapshotErrHasContext(err, "fstype") {
+			return "Not required", nil
+		}
+		return "Valid", err
+	}
+	return "Valid", btrfs.CheckSubvolumeRoot(runner, plan.SnapshotSource, false)
+}
+
+func snapshotErrHasContext(err error, key string) bool {
+	var snapshotErr *apperrors.SnapshotError
+	return errors.As(err, &snapshotErr) && snapshotErr.Context[key] != ""
+}
+
+func isSynologyVolumePath(path string) bool {
+	rest, ok := strings.CutPrefix(filepath.Clean(path), string(filepath.Separator)+"volume")
+	if !ok {
+		return false
+	}
+	digits := 0
+	for _, r := range rest {
+		if r < '0' || r > '9' {
+			break
+		}
+		digits++
+	}
+	return digits > 0 && (digits == len(rest) || rest[digits] == byte(filepath.Separator))
 }
 
 func validateConfigDestination(cfg *config.Config) (string, error) {

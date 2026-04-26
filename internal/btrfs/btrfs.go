@@ -52,6 +52,16 @@ func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
 	if err := CheckFilesystem(runner, path, dryRun); err != nil || dryRun {
 		return err
 	}
+	return CheckSubvolumeRoot(runner, path, dryRun)
+}
+
+// CheckSubvolumeRoot verifies that a path is a btrfs subvolume root. Callers
+// should run CheckFilesystem first when they also need to confirm filesystem
+// type. The inode-256 convention is readable without root on Synology DSM.
+func CheckSubvolumeRoot(runner execpkg.Runner, path string, dryRun bool) error {
+	if dryRun {
+		return nil
+	}
 
 	ctx := context.Background()
 

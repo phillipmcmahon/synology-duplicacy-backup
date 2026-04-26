@@ -250,12 +250,10 @@ func writeRestoreWorkspacePreferences(workspace, storage string, sec *secrets.Se
 
 func restoreWorkspacePrepared(workspace string) bool {
 	info, err := os.Stat(filepath.Join(workspace, ".duplicacy", "preferences"))
-	if os.IsNotExist(err) {
-		return false
-	}
 	if err != nil {
-		// Treat unreadable preferences as not prepared; the subsequent prepare
-		// step will surface the concrete permission or filesystem error.
+		// Missing or unreadable preferences both mean "not prepared" here. The
+		// subsequent prepare step surfaces any concrete permission/filesystem
+		// error at the point where it can describe the attempted action.
 		return false
 	}
 	return !info.IsDir()

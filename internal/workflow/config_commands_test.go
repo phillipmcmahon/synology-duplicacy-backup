@@ -133,6 +133,32 @@ func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootRunsSafeChecks(t
 	assertAllowedValidationOutcomes(t, out)
 }
 
+func TestValidateConfigSourceBtrfs_SkipsNonSynologyNonBtrfsSource(t *testing.T) {
+	status, err := validateConfigSourceBtrfs(
+		&Plan{SnapshotSource: "/mnt/duplicacy-source"},
+		execpkg.NewMockRunner(execpkg.MockResult{Stdout: "ext4\n"}),
+	)
+	if err != nil {
+		t.Fatalf("validateConfigSourceBtrfs() error = %v", err)
+	}
+	if status != "Not required" {
+		t.Fatalf("status = %q, want Not required", status)
+	}
+}
+
+func TestValidateConfigSourceBtrfs_FailsSynologyVolumeWhenNotBtrfs(t *testing.T) {
+	status, err := validateConfigSourceBtrfs(
+		&Plan{SnapshotSource: "/volume1/homes"},
+		execpkg.NewMockRunner(execpkg.MockResult{Stdout: "ext4\n"}),
+	)
+	if err == nil {
+		t.Fatal("expected btrfs error")
+	}
+	if status != "Valid" {
+		t.Fatalf("status = %q, want Valid", status)
+	}
+}
+
 func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootRunsSafeChecks(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},

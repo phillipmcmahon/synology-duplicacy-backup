@@ -222,6 +222,13 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 	if err := os.Chtimes(fixture.secretsSource, wantModTime, wantModTime); err != nil {
 		t.Fatalf("Chtimes(secrets source) failed: %v", err)
 	}
+	if err := os.MkdirAll(fixture.configDir, 0700); err != nil {
+		t.Fatalf("MkdirAll(config destination) failed: %v", err)
+	}
+	preExistingConfig := filepath.Join(fixture.configDir, "existing-backup.toml")
+	if err := os.WriteFile(preExistingConfig, []byte("existing = true\n"), 0644); err != nil {
+		t.Fatalf("WriteFile(existing config) failed: %v", err)
+	}
 
 	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
@@ -249,6 +256,7 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 	for _, path := range []string{
 		filepath.Join(fixture.configDir, "homes-backup.toml"),
 		filepath.Join(fixture.secretsDir, "homes-secrets.toml"),
+		preExistingConfig,
 	} {
 		info, err := os.Stat(path)
 		if err != nil {

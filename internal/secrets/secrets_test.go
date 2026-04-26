@@ -95,6 +95,9 @@ func TestValidateFileOwner_AllowsRootToReadSudoUserOwnedSecrets(t *testing.T) {
 	oldLookupEnv := lookupEnv
 	effectiveUID = func() int { return 0 }
 	lookupEnv = func(key string) string {
+		if key == "SUDO_USER" {
+			return "operator"
+		}
 		if key == "SUDO_UID" {
 			return "1026"
 		}
@@ -107,6 +110,30 @@ func TestValidateFileOwner_AllowsRootToReadSudoUserOwnedSecrets(t *testing.T) {
 
 	if err := validateFileOwner(1026, "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"); err != nil {
 		t.Fatalf("validateFileOwner() error = %v", err)
+	}
+}
+
+func TestValidateFileOwner_RejectsForgedSudoUIDWithoutSudoUser(t *testing.T) {
+	oldEffectiveUID := effectiveUID
+	oldLookupEnv := lookupEnv
+	effectiveUID = func() int { return 0 }
+	lookupEnv = func(key string) string {
+		if key == "SUDO_UID" {
+			return "1026"
+		}
+		return ""
+	}
+	defer func() {
+		effectiveUID = oldEffectiveUID
+		lookupEnv = oldLookupEnv
+	}()
+
+	err := validateFileOwner(1026, "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
+	if err == nil {
+		t.Fatal("expected ownership error")
+	}
+	if !strings.Contains(err.Error(), "expected uid 0") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

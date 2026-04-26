@@ -76,7 +76,7 @@ func validateFileOwner(ownerUID uint32, path string) error {
 		return nil
 	}
 	if expectedUID == 0 {
-		if sudoUID, ok := sudoUserUID(); ok && ownerUID == sudoUID {
+		if sudoUID, ok := sudoOperatorUID(); ok && ownerUID == sudoUID {
 			return nil
 		}
 	}
@@ -87,18 +87,17 @@ func expectedOwnerDescription(effective uint32) string {
 	if effective != 0 {
 		return fmt.Sprintf("uid %d for the current execution user", effective)
 	}
-	if sudoUID, ok := sudoUserUID(); ok {
+	if sudoUID, ok := sudoOperatorUID(); ok {
 		return fmt.Sprintf("uid 0 or sudo user uid %d", sudoUID)
 	}
 	return "uid 0 for the current execution user"
 }
 
-func sudoUserUID() (uint32, bool) {
-	value := strings.TrimSpace(lookupEnv("SUDO_UID"))
-	if value == "" {
+func sudoOperatorUID() (uint32, bool) {
+	if strings.TrimSpace(lookupEnv("SUDO_USER")) == "" {
 		return 0, false
 	}
-	parsed, err := strconv.ParseUint(value, 10, 32)
+	parsed, err := strconv.ParseUint(strings.TrimSpace(lookupEnv("SUDO_UID")), 10, 32)
 	if err != nil {
 		return 0, false
 	}

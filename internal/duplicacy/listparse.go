@@ -11,10 +11,15 @@ import (
 )
 
 // ParseListFilesOutput extracts snapshot-relative paths from Duplicacy
-// "list -files" output. Duplicacy emits human-oriented status and summary
-// lines around file rows, so this parser intentionally uses conservative
-// heuristics based on the Duplicacy CLI output shape exercised by the restore
-// smoke tests.
+// "list -files" output. It accepts the row shapes seen in current Duplicacy
+// CLI smoke tests:
+//   - size date time path
+//   - size date time digest path
+//   - plain path lists
+//
+// Paths with spaces are preserved. Human-oriented status, restore progress,
+// and summary lines are ignored so restore browsing receives only
+// snapshot-relative paths.
 func ParseListFilesOutput(r io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 	var paths []string
