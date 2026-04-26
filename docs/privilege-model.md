@@ -37,8 +37,9 @@ By default the helper migrates:
 
 It creates destination directories with mode `0700`, preserves source
 timestamps where supported, sets migrated TOML files to `0600`, and chowns
-them to the target user when run as root. It copies by default; `--move`
-removes each legacy source file after a successful copy.
+them to the target user and that user's primary group when run as root. It
+copies by default; `--move` removes each legacy source file after a successful
+copy.
 
 ## Root-Required Commands
 

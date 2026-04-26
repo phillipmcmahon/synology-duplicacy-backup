@@ -28,7 +28,7 @@ The script copies by default. Use --move only after reviewing the dry run.
 Before copying or moving, the script reports all destination collisions unless
 --force is supplied. Destination directories are created with 0700 and migrated
 TOML files are set to 0600. When run as root, destination files are chowned to
-the target user.
+the target user and that user's primary group.
 
 Options:
   --target-user <name>       User that should own the migrated files
@@ -116,6 +116,13 @@ resolve_target_home() {
     printf '%s\n' "$home"
 }
 
+resolve_target_group() {
+    user="$1"
+    group="$(id -gn "$user" 2>/dev/null || true)"
+    [ -n "$group" ] || fail "could not infer primary group for user $user"
+    printf '%s\n' "$group"
+}
+
 ensure_target_allowed() {
     user="$1"
     if [ "$(id -u)" -eq 0 ]; then
@@ -130,10 +137,11 @@ ensure_target_allowed() {
 ensure_dir() {
     dir="$1"
     user="$2"
+    group="$3"
     run mkdir -p "$dir"
     run chmod 700 "$dir"
     if [ "$(id -u)" -eq 0 ]; then
-        run chown "$user" "$dir"
+        run chown "$user:$group" "$dir"
     fi
 }
 
@@ -141,6 +149,7 @@ migrate_file() {
     src="$1"
     dst="$2"
     user="$3"
+    group="$4"
 
     [ -f "$src" ] || return 0
     if [ -e "$dst" ] && [ "$FORCE" -ne 1 ]; then
@@ -151,7 +160,7 @@ migrate_file() {
     run cp -p "$src" "$dst"
     run chmod 600 "$dst"
     if [ "$(id -u)" -eq 0 ]; then
-        run chown "$user" "$dst"
+        run chown "$user:$group" "$dst"
     fi
     if [ "$MOVE" -eq 1 ]; then
         run rm -f "$src"
@@ -191,7 +200,8 @@ migrate_dir_toml() {
     src_dir="$1"
     dst_dir="$2"
     user="$3"
-    label="$4"
+    group="$4"
+    label="$5"
     count=0
 
     if [ ! -d "$src_dir" ]; then
@@ -199,11 +209,11 @@ migrate_dir_toml() {
         return 0
     fi
 
-    ensure_dir "$dst_dir" "$user"
+    ensure_dir "$dst_dir" "$user" "$group"
     for src in "$src_dir"/*.toml; do
         [ -f "$src" ] || continue
         dst="$dst_dir/$(basename "$src")"
-        migrate_file "$src" "$dst" "$user"
+        migrate_file "$src" "$dst" "$user" "$group"
         count=$((count + 1))
     done
     info "$label files considered: $count"
@@ -265,6 +275,7 @@ done
 
 TARGET_USER="$(resolve_target_user)"
 TARGET_HOME="$(resolve_target_home "$TARGET_USER")"
+TARGET_GROUP="$(resolve_target_group "$TARGET_USER")"
 ensure_target_allowed "$TARGET_USER"
 
 if [ -z "$CONFIG_DIR" ]; then
@@ -275,6 +286,7 @@ if [ -z "$SECRETS_DIR" ]; then
 fi
 
 info "Target user       : $TARGET_USER"
+info "Target group      : $TARGET_GROUP"
 info "Target home       : $TARGET_HOME"
 info "Destination config: $CONFIG_DIR"
 info "Destination secrets: $SECRETS_DIR"
@@ -286,7 +298,7 @@ else
     info "Mode              : copy only"
 fi
 
-migrate_dir_toml "$LEGACY_CONFIG_DIR" "$CONFIG_DIR" "$TARGET_USER" "Config"
-migrate_dir_toml "$LEGACY_SECRETS_DIR" "$SECRETS_DIR" "$TARGET_USER" "Secrets"
+migrate_dir_toml "$LEGACY_CONFIG_DIR" "$CONFIG_DIR" "$TARGET_USER" "$TARGET_GROUP" "Config"
+migrate_dir_toml "$LEGACY_SECRETS_DIR" "$SECRETS_DIR" "$TARGET_USER" "$TARGET_GROUP" "Secrets"
 
 info "Migration complete"

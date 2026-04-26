@@ -34,6 +34,15 @@ func currentUsername(t *testing.T) string {
 	return strings.TrimSpace(string(output))
 }
 
+func currentGroupname(t *testing.T) string {
+	t.Helper()
+	output, err := exec.Command("id", "-gn").Output()
+	if err != nil {
+		t.Fatalf("id -gn failed: %v", err)
+	}
+	return strings.TrimSpace(string(output))
+}
+
 func TestInstallScript_Syntax(t *testing.T) {
 	scriptPath := filepath.Join(repoRoot(t), "scripts", "install-synology.sh")
 	cmd := exec.Command("sh", "-n", scriptPath)
@@ -156,6 +165,7 @@ func TestRuntimeProfileMigrationScript_HelpMentionsLegacyAndUserProfilePaths(t *
 		"/root/.secrets",
 		"$HOME/.config/duplicacy-backup",
 		"--target-user",
+		"primary group",
 		"--move",
 		"--dry-run",
 	}
@@ -222,6 +232,9 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("migration script failed: %v\n%s", err, output)
+	}
+	if !strings.Contains(string(output), "Target group      : "+currentGroupname(t)) {
+		t.Fatalf("migration output missing target group:\n%s", output)
 	}
 
 	for _, path := range []string{fixture.configDir, fixture.secretsDir} {

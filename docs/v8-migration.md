@@ -109,6 +109,7 @@ sudo sh "$PKGDIR/migrate-runtime-profile.sh" \
 The dry run should show:
 
 - target user
+- target group
 - target home
 - destination config directory
 - destination secrets directory
@@ -127,7 +128,8 @@ By default, the helper copies:
 
 It creates destination directories with mode `0700`, copies TOML files with
 source timestamps preserved where supported, then sets migrated files to mode
-`0600`.
+`0600`. When run as root, it sets migrated directories and files to the target
+user and that user's primary group.
 
 ## 4. Copy Into The Operator Profile
 
@@ -144,6 +146,22 @@ step.
 If the helper reports destination collisions, no files are copied or moved.
 Review the listed destination files, then either move them aside or rerun with
 `--force` only when overwriting is intentional.
+
+If you already migrated with an earlier v8 helper and see mixed groups such as
+`root` or `administrators`, normalize the migrated profile explicitly:
+
+```bash
+TARGET_USER=phillipmcmahon
+TARGET_GROUP="$(id -gn "$TARGET_USER")"
+PROFILE="/var/services/homes/$TARGET_USER/.config/duplicacy-backup"
+
+sudo chown -R "$TARGET_USER:$TARGET_GROUP" "$PROFILE"
+sudo find "$PROFILE" -type d -exec chmod 700 {} +
+sudo find "$PROFILE" -type f -exec chmod 600 {} +
+```
+
+The parent `.config` directory may be managed by Synology ACLs. The important
+runtime profile is the `duplicacy-backup` directory and its contents.
 
 ## 5. Validate As The Operator User
 
