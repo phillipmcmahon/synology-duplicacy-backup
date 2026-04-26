@@ -10,6 +10,12 @@ OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
 TARGET="${TARGET:-onsite-ci}"
 IMAGE="${BTRFS_IMAGE:-/tmp/duplicacy-backup-ci-non-root.btrfs}"
 
+cleanup() {
+    ci_cleanup_btrfs_volume1 "$IMAGE"
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' HUP INT TERM
+
 ci_require_root
 ci_ensure_dsm_marker
 ci_create_operator_user "$OPERATOR_USER"

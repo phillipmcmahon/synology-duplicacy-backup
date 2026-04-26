@@ -10,6 +10,12 @@ OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
 TARGET="${TARGET:-offsite-ci}"
 IMAGE="${BTRFS_IMAGE:-/tmp/duplicacy-backup-ci-sudo.btrfs}"
 
+cleanup() {
+    ci_cleanup_btrfs_volume1 "$IMAGE"
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' HUP INT TERM
+
 ci_require_root
 ci_ensure_dsm_marker
 ci_create_operator_user "$OPERATOR_USER"
@@ -30,4 +36,10 @@ if printf '%s\n' "$explain_output" | grep -F "/root/.config/duplicacy-backup" >/
     ci_fail "sudo config explain resolved the root profile instead of the operator profile"
 fi
 
-env -u XDG_CONFIG_HOME -u XDG_STATE_HOME SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes
+backup_output="$(env -u XDG_CONFIG_HOME -u XDG_STATE_HOME SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes)"
+printf '%s\n' "$backup_output"
+printf '%s\n' "$backup_output" | grep -F "Dry run              : duplicacy backup -stats -threads 1" >/dev/null
+printf '%s\n' "$backup_output" | grep -F "Result               : Success" >/dev/null
+if printf '%s\n' "$backup_output" | grep -F "/root/.config/duplicacy-backup" >/dev/null; then
+    ci_fail "sudo backup resolved the root profile instead of the operator profile"
+fi

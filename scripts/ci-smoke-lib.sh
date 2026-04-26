@@ -22,6 +22,8 @@ ci_install_btrfs_tools() {
     if command -v btrfs >/dev/null 2>&1 && command -v mkfs.btrfs >/dev/null 2>&1; then
         return 0
     fi
+    # GitHub-hosted Ubuntu runners usually need this install. It is intentionally
+    # local to the btrfs smoke jobs so non-btrfs jobs do not pay the apt cost.
     apt-get update -qq
     apt-get install -y -qq btrfs-progs
 }
@@ -40,6 +42,7 @@ ci_create_operator_user() {
 
 ci_allow_passwordless_sudo() {
     user="$1"
+    # CAUTION: ephemeral CI runners only; never use this on persistent systems.
     printf '%s ALL=(root) NOPASSWD:ALL\n' "$user" >/etc/sudoers.d/duplicacy-backup-ci-"$user"
     chmod 0440 /etc/sudoers.d/duplicacy-backup-ci-"$user"
 }
@@ -67,8 +70,30 @@ ci_mount_btrfs_volume1() {
     mkfs.btrfs -q -f "$image"
     mkdir -p "$mountpoint"
     mount -o loop "$image" "$mountpoint"
+    touch "$mountpoint/.duplicacy-backup-ci-loopback"
     btrfs subvolume create "$mountpoint/source" >/dev/null
     mkdir -p "$mountpoint/duplicacy/homes"
+}
+
+ci_cleanup_btrfs_volume1() {
+    image="${1:-}"
+    mountpoint="/volume1"
+
+    # Only unmount /volume1 when this smoke helper created the loopback mount.
+    # This avoids touching a real NAS volume if someone runs the script locally.
+    if [ -e "$mountpoint/.duplicacy-backup-ci-loopback" ]; then
+        umount "$mountpoint" 2>/dev/null || true
+    fi
+
+    if [ -n "$image" ]; then
+        if command -v losetup >/dev/null 2>&1; then
+            losetup -j "$image" 2>/dev/null | awk -F: '{print $1}' | while IFS= read -r loopdev; do
+                [ -n "$loopdev" ] || continue
+                losetup -d "$loopdev" 2>/dev/null || true
+            done
+        fi
+        rm -f "$image"
+    fi
 }
 
 ci_write_local_config() {
@@ -92,8 +117,8 @@ location = "local"
 storage = "$storage"
 EOF
     chown -R "$user:$(id -gn "$user")" "$config_dir"
-    chmod 0700 "$config_dir"
-    chmod 0600 "$config_dir/homes-backup.toml"
+    find "$config_dir" -type d -exec chmod 0700 {} +
+    find "$config_dir" -type f -exec chmod 0600 {} +
 }
 
 ci_write_remote_config_with_secrets() {
@@ -122,6 +147,6 @@ s3_id = "ABCDEFGHIJKLMNOPQRSTUVWXYZ01"
 s3_secret = "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR"
 EOF
     chown -R "$user:$(id -gn "$user")" "$config_dir"
-    chmod 0700 "$config_dir" "$secrets_dir"
-    chmod 0600 "$config_dir/homes-backup.toml" "$secrets_dir/homes-secrets.toml"
+    find "$config_dir" -type d -exec chmod 0700 {} +
+    find "$config_dir" -type f -exec chmod 0600 {} +
 }

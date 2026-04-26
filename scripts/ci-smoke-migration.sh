@@ -12,6 +12,8 @@ LEGACY_SECRETS_DIR="${LEGACY_SECRETS_DIR:-/root/.secrets}"
 ci_require_root
 ci_create_operator_user "$OPERATOR_USER"
 
+# This smoke is intentionally shell-only. If the migration helper later calls
+# the Go binary, add BINARY setup here so the binary path is tested explicitly.
 mkdir -p "$LEGACY_CONFIG_DIR" "$LEGACY_SECRETS_DIR"
 cat >"$LEGACY_CONFIG_DIR/homes-backup.toml" <<'EOF'
 label = "homes"
