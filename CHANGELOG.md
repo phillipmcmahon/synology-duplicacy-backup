@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.0.0] - 2026-04-26
+
 ### Removed
 - **Breaking cleanup:** removed the `fix-perms` command and its permission
   normalisation runtime path. Local filesystem repository permissions are now
