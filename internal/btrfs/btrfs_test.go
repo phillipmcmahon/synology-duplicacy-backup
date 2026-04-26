@@ -13,6 +13,37 @@ import (
 // CheckVolume tests
 // ---------------------------------------------------------------------------
 
+func TestCheckFilesystem_SuccessDoesNotRequireSubvolumeMetadata(t *testing.T) {
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "btrfs\n"},
+	)
+
+	err := CheckFilesystem(mock, "/volume1/homes", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(mock.Invocations))
+	}
+	if mock.Invocations[0].Cmd != "stat" {
+		t.Fatalf("command = %q, want stat", mock.Invocations[0].Cmd)
+	}
+}
+
+func TestCheckFilesystem_NotBtrfs(t *testing.T) {
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "ext4\n"},
+	)
+
+	err := CheckFilesystem(mock, "/volume1/homes", false)
+	if err == nil {
+		t.Fatal("expected error for non-btrfs filesystem")
+	}
+	if !strings.Contains(err.Error(), "path is not on a btrfs filesystem") {
+		t.Fatalf("error = %q, want filesystem wording", err.Error())
+	}
+}
+
 func TestCheckVolume_Success(t *testing.T) {
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"}, // stat -f -c %T

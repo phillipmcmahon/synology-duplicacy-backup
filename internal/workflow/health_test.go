@@ -470,10 +470,6 @@ func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 12:00\n"},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "2026-04-10 12:10:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 	)
@@ -706,10 +702,6 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n2026-04-10 20:00:01.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 7 exist\n"},
 	)
@@ -731,7 +723,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	}
 }
 
-func TestHealthRunner_VerifyIgnoresBackupReadinessBtrfsFailures(t *testing.T) {
+func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
@@ -764,10 +756,6 @@ func TestHealthRunner_VerifyIgnoresBackupReadinessBtrfsFailures(t *testing.T) {
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{Err: errors.New("not a subvolume")},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{Err: errors.New("not a subvolume")},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 	)
@@ -787,13 +775,14 @@ func TestHealthRunner_VerifyIgnoresBackupReadinessBtrfsFailures(t *testing.T) {
 	if len(report.Issues) != 0 {
 		t.Fatalf("backup-readiness checks should not create verify issues: %+v", report.Issues)
 	}
-	if result, _, ok := healthpkg.CheckResult(report, "Btrfs root"); !ok || result != "info" {
-		t.Fatalf("Btrfs root check = %q, present=%t, report=%+v", result, ok, report)
+	if result, message, ok := healthpkg.CheckResult(report, "Btrfs"); !ok || result != "info" || message != "Not checked; not required for storage integrity verification" {
+		t.Fatalf("Btrfs check = (%q, %q), present=%t, report=%+v", result, message, ok, report)
 	}
-	if result, message, ok := healthpkg.CheckResult(report, "Btrfs source"); !ok || result != "info" {
-		t.Fatalf("Btrfs source check = %q, present=%t, report=%+v", result, ok, report)
-	} else if !strings.Contains(message, "subvolume metadata could not be verified") {
-		t.Fatalf("Btrfs source message = %q, want precise metadata wording", message)
+	if _, _, ok := healthpkg.CheckResult(report, "Btrfs root"); ok {
+		t.Fatalf("verify should not run root subvolume metadata readiness check: %+v", report)
+	}
+	if _, _, ok := healthpkg.CheckResult(report, "Btrfs source"); ok {
+		t.Fatalf("verify should not run source subvolume metadata readiness check: %+v", report)
 	}
 	if _, _, ok := healthpkg.CheckResult(report, "Last doctor run"); ok {
 		t.Fatalf("verify should not report doctor recency: %+v", report)
@@ -835,10 +824,6 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: ""},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 		)
 
@@ -881,10 +866,6 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 	t.Cleanup(log.Close)
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: ""},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
 		execpkg.MockResult{},
 	)
 	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
@@ -955,10 +936,6 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 	)
@@ -1029,10 +1006,6 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 10 created at 2026-04-10 17:45\nSnapshot homes revision 9 created at 2026-04-10 17:15\nSnapshot homes revision 8 created at 2026-04-10 16:45\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 10 exist\n2026-04-10 20:00:01.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 9 are missing\n"},
 		)
@@ -1158,10 +1131,6 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 8 are missing\n2026-04-10 20:00:01.000 WARN SNAPSHOT_CHECK Some chunks referenced by snapshot homes at revision 7 are missing\n"},
 		)
@@ -1211,10 +1180,6 @@ func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *test
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
-		execpkg.MockResult{Stdout: "btrfs\n"},
-		execpkg.MockResult{},
 		execpkg.MockResult{},
 		execpkg.MockResult{Stdout: "fatal failure\n", Err: errors.New("check failed")},
 	)
@@ -1336,10 +1301,6 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{Err: errors.New("repository invalid")},
 			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 		)
@@ -1429,10 +1390,6 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\nSnapshot homes revision 7 created at 2026-04-10 16:30\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 			execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
 		)
@@ -1493,10 +1450,6 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\nSnapshot homes revision 2337 created at 2026-04-10 18:30\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)
@@ -1537,7 +1490,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Btrfs") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Yes") {
+	if !strings.Contains(stderr, "Not checked; not required for storage integrity verification") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if strings.Contains(stderr, "Btrfs source         : /") {
@@ -1688,10 +1641,6 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{Stdout: "Snapshot homes revision 2338 created at 2026-04-10 18:59\nSnapshot homes revision 2337 created at 2026-04-10 18:30\n"},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
-			execpkg.MockResult{Stdout: "btrfs\n"},
-			execpkg.MockResult{},
 			execpkg.MockResult{},
 			execpkg.MockResult{Stdout: "2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2338 exist\n2026-04-10 20:22:24.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 2337 exist\n"},
 		)

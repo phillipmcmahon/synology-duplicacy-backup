@@ -84,21 +84,20 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	} else {
 		report.AddCheck("Source path", "pass", plan.SnapshotSource)
 	}
-	rootErr := btrfs.CheckVolume(h.runner, h.meta.RootVolume, false)
-	sourceErr := btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
-	switch {
-	case rootErr == nil && sourceErr == nil:
-		report.AddCheck("Btrfs", "pass", "Yes")
-	default:
-		addBtrfsCheck := report.AddCheck
-		if verifyMode {
-			addBtrfsCheck = report.AddDisplayCheck
-		}
-		if rootErr != nil {
-			addBtrfsCheck("Btrfs root", btrfsDoctorResult(verifyMode), btrfsDoctorMessage(verifyMode, rootErr))
-		}
-		if sourceErr != nil {
-			addBtrfsCheck("Btrfs source", btrfsDoctorResult(verifyMode), btrfsDoctorMessage(verifyMode, sourceErr))
+	if verifyMode {
+		report.AddDisplayCheck("Btrfs", "info", "Not checked; not required for storage integrity verification")
+	} else {
+		rootErr, sourceErr := h.runBtrfsReadinessChecks(plan)
+		switch {
+		case rootErr == nil && sourceErr == nil:
+			report.AddCheck("Btrfs", "pass", "Yes")
+		default:
+			if rootErr != nil {
+				report.AddCheck("Btrfs root", "fail", OperatorMessage(rootErr))
+			}
+			if sourceErr != nil {
+				report.AddCheck("Btrfs source", "fail", OperatorMessage(sourceErr))
+			}
 		}
 	}
 
@@ -119,19 +118,8 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	}
 }
 
-func btrfsDoctorResult(verifyMode bool) string {
-	if verifyMode {
-		return "info"
-	}
-	return "fail"
-}
-
-func btrfsDoctorMessage(verifyMode bool, err error) string {
-	message := OperatorMessage(err)
-	if verifyMode {
-		return "Backup-readiness check failed; storage integrity verification continues: " + message
-	}
-	return message
+func (h *HealthRunner) runBtrfsReadinessChecks(plan *Plan) (error, error) {
+	return btrfs.CheckVolume(h.runner, h.meta.RootVolume, false), btrfs.CheckVolume(h.runner, plan.SnapshotSource, false)
 }
 
 func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {

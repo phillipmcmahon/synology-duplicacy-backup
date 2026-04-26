@@ -18,20 +18,19 @@ import (
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 )
 
-// CheckVolume verifies that a path is on a btrfs filesystem and is a valid
-// subvolume.  It executes `stat -f -c %T <path>` and `btrfs subvolume show
-// <path>` via the provided [exec.Runner].
+// CheckFilesystem verifies that a path is on a btrfs filesystem. It does not
+// inspect subvolume metadata and is therefore suitable for non-root read-only
+// checks such as storage integrity verification.
 //
 // Returns a [*errors.SnapshotError] on failure with context including the
 // checked path.
-func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
+func CheckFilesystem(runner execpkg.Runner, path string, dryRun bool) error {
 	if dryRun {
 		return nil
 	}
 
 	ctx := context.Background()
 
-	// Check filesystem type
 	stdout, _, err := runner.Run(ctx, "stat", "-f", "-c", "%T", path)
 	if err != nil {
 		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path does not exist or cannot be stat'd: %w", err), "path", path)
@@ -40,6 +39,22 @@ func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
 	if !strings.Contains(strings.TrimSpace(stdout), "btrfs") {
 		return apperrors.NewSnapshotError("check-volume", fmt.Errorf("path is not on a btrfs filesystem"), "path", path, "fstype", strings.TrimSpace(stdout))
 	}
+
+	return nil
+}
+
+// CheckVolume verifies that a path is on a btrfs filesystem and is a valid
+// subvolume.  It executes `stat -f -c %T <path>` and `btrfs subvolume show
+// <path>` via the provided [exec.Runner].
+//
+// Returns a [*errors.SnapshotError] on failure with context including the
+// checked path.
+func CheckVolume(runner execpkg.Runner, path string, dryRun bool) error {
+	if err := CheckFilesystem(runner, path, dryRun); err != nil || dryRun {
+		return err
+	}
+
+	ctx := context.Background()
 
 	// Check snapshot-readiness. The stat probe above has already confirmed the
 	// filesystem type; failures here mean the subvolume metadata probe failed.
