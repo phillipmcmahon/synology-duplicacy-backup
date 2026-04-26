@@ -12,7 +12,9 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
-### Changed
+## [v8.0.0] - 2026-04-26
+
+### Breaking
 - **Runtime defaults now follow a non-root operator model**:
   config defaults to `$HOME/.config/duplicacy-backup`, secrets default to
   `$HOME/.config/duplicacy-backup/secrets`, and logs/state/locks default to
@@ -24,12 +26,25 @@ coverage floor and package-level baseline.
   Operators own their config, secrets, state, log, and lock paths explicitly,
   which keeps restore, health, diagnostics, prune, cleanup, and notification
   checks usable as a normal user when the selected paths are accessible.
+
+### Changed
 - **Release packages now include a runtime profile migration helper**:
   `migrate-runtime-profile.sh` copies legacy TOML files from
   `/usr/local/lib/duplicacy-backup/.config` and `/root/.secrets` into the
   operator user's profile with `0700` directories and `0600` files. It supports
-  `--dry-run` for review and `--move` when operators are ready to remove the
-  legacy source files after a successful copy.
+  `--dry-run` for review, preflights destination collisions before moving or
+  copying, preserves source timestamps where supported, and supports `--move`
+  when operators are ready to remove the legacy source files after a successful
+  copy.
+- **Restore drill workspaces now use tighter default permissions**:
+  restore creates derived job workspaces with mode `0700`, preserves the
+  operator-managed parent `--workspace-root`, and gives clearer guidance when
+  the requested workspace root does not exist.
+- **Restore and operator documentation was refreshed for the new privilege
+  model**: the restore guide, CLI reference, architecture notes,
+  troubleshooting, new-NAS restore guide, and help text now reflect
+  operator-owned runtime paths, restore picker TTY requirements, diagnostics
+  usage, and restore subsystem structure.
 - **Coverage documentation now distinguishes floor and aggregate metrics**:
   the current quality gate is a package-level minimum of 85.0%, while the
   aggregate Linux Go 1.26 coverage snapshot is higher at 87.8%. This avoids
