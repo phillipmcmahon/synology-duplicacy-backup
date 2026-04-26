@@ -2,179 +2,38 @@
 
 ## Goal
 
-Use this guide for the recommended operational workflow when running
-`duplicacy-backup` under Synology Task Scheduler.
+Use this guide to create simple, repeatable Synology Task Scheduler jobs for
+`duplicacy-backup`.
 
-It focuses on supported, repeatable operator practice:
+The safest model is:
 
-- separate scheduled tasks rather than unsupported DSM automation
-- stable task naming
-- sensible timing and spacing
-- clear distinction between routine operations and occasional maintenance
+- run scheduled tasks as the operator user by default
+- prefix only root-required commands with `sudo -n`
+- keep one scheduled task focused on one operation
+- use cadence slots such as daily, weekly, and monthly rather than a large
+  custom schedule for every label
 
-## Scheduling Philosophy
+## Scheduling Rules
 
-The CLI uses first-class runtime commands, and scheduled operations are easiest
-to understand and troubleshoot when each task has one clear purpose.
+Use these rules before creating tasks:
 
-Recommended approach:
-
-- schedule `backup` as its own task
-- schedule `prune` as its own task
-- schedule health commands separately from backup jobs
-- run path-based filesystem repository prune and cleanup tasks as root
-- treat `cleanup-storage` as manual or exceptional maintenance
-
-Why this works well:
-
-- failures are easier to attribute
-- runtime windows are easier to tune per target
-- scheduler email and notification signals stay clearer
-- slow offsite work does not force the same cadence as fast onsite work
-
-## Naming Convention
-
-Use a label-first task naming pattern so scheduled jobs sort cleanly and scale
-across multiple labels.
-
-Recommended names:
-
-- `<Label> Backup Onsite`
-- `<Label> Backup Offsite`
-- `<Label> Prune Onsite`
-- `<Label> Prune Offsite`
-- `<Label> Health Status Onsite`
-- `<Label> Health Status Offsite`
-- `<Label> Health Doctor Onsite`
-- `<Label> Health Doctor Offsite`
-- `<Label> Health Verify Onsite`
-- `<Label> Health Verify Offsite`
-
-Examples:
-
-- `Homes Backup Onsite`
-- `Homes Backup Offsite`
-- `Plexaudio Backup Onsite`
-- `Plexvideo Backup Onsite`
-
-## Timing Rules
-
-Use these guidelines before choosing exact times:
-
-- treat the most important label and target as the priority workload
-- keep onsite and offsite cadences independent
-- leave some spacing between tasks that touch the same target
-- use Synology's built-in repeat scheduling where it fits naturally
-- do not combine tasks just to reduce the number of scheduler entries
-
-Good candidates for repeat-every scheduling:
-
-- frequent onsite backups such as every 6 hours
-
-Good candidates for separate scheduled entries:
-
-- offsite backups
-- prune
-- health status
-- health doctor
-- health verify
-
-Some overlap is acceptable, but prefer moving the later task rather than
-merging unrelated operations into one job.
-
-## What To Schedule Routinely
-
-### Backup
-
-This is the main routine workload.
-
-Recommended pattern:
-
-- fast onsite targets more frequently
-- slower offsite or higher-latency storage targets less frequently
-
-`location` is the scheduling signal: a local S3-compatible service on your LAN
-can use an onsite cadence if it is fast and reliable enough, while a remote
-filesystem mount should still be treated like offsite work.
-
-Examples:
-
-- `homes` onsite every 6 hours
-- `homes` offsite daily
-- `plexaudio` onsite daily
-- `plexaudio` offsite daily
-- `plexvideo` onsite daily
-- `iso` onsite weekly
-
-### Prune
-
-Schedule prune separately from backup.
-
-Recommended pattern:
-
-- onsite prune daily if that repository is used heavily
-- offsite prune less often if runtime or storage churn is a concern
-
-Examples:
-
-- `homes` onsite daily
-- `homes` offsite twice weekly
-
-### Health
-
-Schedule health separately from backup jobs.
-
-Recommended pattern:
-
-- `health status` daily
-- `health doctor` weekly
-- `health verify` monthly
-
-This keeps backup execution separate from confidence checks and makes scheduler
-output easier to interpret.
-
-## What Not To Schedule Routinely
-
-### Cleanup Storage
-
-Do not make `cleanup-storage` part of the normal recurring schedule.
-
-Treat it as:
-
-- manual maintenance
-- exceptional cleanup
-- an operation to run only when no other client is actively writing
-
-### Forced Prune
-
-Do not schedule `prune --force` routinely.
-
-Use it only as an explicit operator decision when safe-prune thresholds are
-intentionally being overridden.
-
-## Synology Task Scheduler Setup
-
-For each task:
-
-1. Open `Control Panel` -> `Task Scheduler`
-2. Create `Triggered Task` -> `User-defined script`
-3. Choose the run-as user:
-   - use the operator user by default
-   - for `backup` and path-based filesystem repository `prune` or
-     `cleanup-storage`, still run the task as the operator user and prefix the
-     command with `sudo -n`
-   - use the operator user for health, diagnostics, restore checks, and
-     object/remote repository prune or cleanup when that user owns the config,
-     secrets, state, log, lock, and storage access paths
-4. Use `/usr/local/bin/duplicacy-backup`
-5. Keep one task per operation
+- `backup` always uses `sudo -n` because it needs btrfs snapshot access and
+  full source read access, regardless of whether the target storage is local or
+  remote.
+- `prune` uses `sudo -n` for path-based local filesystem storage because the
+  repository files are OS-protected resources.
+- `prune` runs as the operator user for object or remote storage when the
+  operator owns the config, secrets, state, log, lock, and credential access.
+- `health`, `diagnostics`, restore planning, restore revision listing, and
+  restore selection run as the operator user.
+- `cleanup-storage` is manual or exceptional maintenance, not a routine
+  schedule.
+- `prune --force` is manual only. Do not schedule it routinely.
 
 After migrating runtime files into an operator profile, avoid scheduling
 non-root-capable tasks as `root` out of habit. A root scheduled health or prune
 task resolves `$HOME` as `/root` and will look under
-`/root/.config/duplicacy-backup` unless you pass explicit `--config-dir` and
-`--secrets-dir` values. Prefer running those tasks as the operator user that
-owns the migrated profile.
+`/root/.config/duplicacy-backup` unless explicit profile paths are supplied.
 
 For scheduled root-required commands, add a narrow `/etc/sudoers.d` rule that
 allows only the exact `duplicacy-backup` commands used by the scheduler. Do not
@@ -183,97 +42,221 @@ for the whole binary unless that is an explicit site policy decision. See
 [`privilege-model.md`](privilege-model.md#least-privilege-sudo-for-scheduled-tasks)
 for a generalized sudoers template.
 
-Example commands:
+## Task Naming
 
-```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
-sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
-sudo -n /usr/local/bin/duplicacy-backup prune --target onsite-usb homes
-/usr/local/bin/duplicacy-backup health status --target onsite-usb homes
-/usr/local/bin/duplicacy-backup health verify --json-summary --target offsite-storj homes
+Use a label-first pattern so tasks sort cleanly in DSM:
+
+```text
+<Label> Backup <Target>
+<Label> Prune <Target>
+<Label> Health Status <Target>
+<Label> Health Doctor <Target>
+<Label> Health Verify <Target>
 ```
 
-## Worked Example
+Examples:
 
-This is a practical scheduling model for:
+```text
+Homes Backup Onsite USB
+Homes Backup Offsite Storj
+Homes Prune Onsite USB
+Homes Health Status Offsite Storj
+```
 
-- `homes`
-- `iso`
-- `plexaudio`
-- `plexvideo`
+## Cadence Template
 
-### Homes
+Start with these slots, then put the relevant labels and targets into each one.
 
-- `Homes Backup Onsite`
-  Daily, start `01:00`, repeat every `6 hours`
-- `Homes Backup Offsite`
-  Daily at `02:30`
-- `Homes Prune Onsite`
-  Daily at `04:30`
-- `Homes Prune Offsite`
-  Tuesday and Friday at `04:45`
-- `Homes Health Status Onsite`
-  Daily at `08:00`
-- `Homes Health Status Offsite`
-  Daily at `08:10`
-- `Homes Health Doctor Onsite`
-  Sunday at `08:30`
-- `Homes Health Doctor Offsite`
-  Sunday at `08:45`
-- `Homes Health Verify Onsite`
-  First Sunday at `09:00`
-- `Homes Health Verify Offsite`
-  First Sunday at `10:00`
+### Frequent Backup Slot
 
-### Iso
+Use for important local or fast targets.
 
-- `Iso Backup Onsite`
-  Saturday at `01:30`
+Recommended cadence:
 
-### Plexaudio
+- daily, repeat every 6 hours where appropriate
+- keep enough spacing before prune or verify jobs
 
-- `Plexaudio Backup Onsite`
-  Daily at `03:30`
-- `Plexaudio Backup Offsite`
-  Daily at `05:30`
+Command template:
 
-### Plexvideo
+```bash
+sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+```
 
-- `Plexvideo Backup Onsite`
-  Daily at `06:30`
+Example entries:
 
-## Quick Reference Table
+```text
+homes      -> onsite-usb      -> every 6 hours
+plexaudio  -> onsite-usb      -> daily
+plexvideo  -> onsite-usb      -> daily
+```
 
-In this example, onsite storage is path-based local filesystem storage, so its
-backup, prune, and cleanup-style mutation commands use `sudo -n`. Offsite
-storage is object or remote storage, so prune authority comes from the
-operator-owned storage credentials and does not need `sudo` when those
-credentials and runtime paths are accessible.
+### Daily Backup Slot
 
-| Task Name | Frequency | Time | Command |
-|---|---|---|---|
-| `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes` |
-| `Homes Backup Offsite` | Daily | `02:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes` |
-| `Homes Prune Onsite` | Daily | `04:30` | `sudo -n /usr/local/bin/duplicacy-backup prune --target onsite-usb homes` |
-| `Homes Prune Offsite` | Weekly | `Tuesday, Friday` at `04:45` | `/usr/local/bin/duplicacy-backup prune --target offsite-storj homes` |
-| `Homes Health Status Onsite` | Daily | `08:00` | `/usr/local/bin/duplicacy-backup health status --target onsite-usb homes` |
-| `Homes Health Status Offsite` | Daily | `08:10` | `/usr/local/bin/duplicacy-backup health status --target offsite-storj homes` |
-| `Homes Health Doctor Onsite` | Weekly | `Sunday` at `08:30` | `/usr/local/bin/duplicacy-backup health doctor --target onsite-usb homes` |
-| `Homes Health Doctor Offsite` | Weekly | `Sunday` at `08:45` | `/usr/local/bin/duplicacy-backup health doctor --target offsite-storj homes` |
-| `Homes Health Verify Onsite` | Monthly | `First Sunday` at `09:00` | `/usr/local/bin/duplicacy-backup health verify --target onsite-usb homes` |
-| `Homes Health Verify Offsite` | Monthly | `First Sunday` at `10:00` | `/usr/local/bin/duplicacy-backup health verify --target offsite-storj homes` |
-| `Iso Backup Onsite` | Weekly | `Saturday` at `01:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb iso` |
-| `Plexaudio Backup Onsite` | Daily | `03:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb plexaudio` |
-| `Plexaudio Backup Offsite` | Daily | `05:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj plexaudio` |
-| `Plexvideo Backup Onsite` | Daily | `06:30` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb plexvideo` |
+Use for slower offsite, remote, or object-storage targets.
+
+Recommended cadence:
+
+- daily
+- run after the main onsite backup window
+
+Command template:
+
+```bash
+sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+```
+
+Example entries:
+
+```text
+homes      -> offsite-storj   -> daily
+plexaudio  -> offsite-storj   -> daily
+```
+
+### Weekly Backup Slot
+
+Use for low-change labels or large data sets that do not need daily backup.
+
+Command template:
+
+```bash
+sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+```
+
+Example entries:
+
+```text
+iso        -> onsite-usb      -> weekly
+```
+
+### Prune Slot
+
+Schedule prune separately from backup.
+
+Recommended cadence:
+
+- daily for busy local repositories
+- weekly or twice weekly for slower offsite repositories
+
+Command templates:
+
+```bash
+# Path-based local filesystem repository
+sudo -n /usr/local/bin/duplicacy-backup prune --target <local-path-target> <label>
+
+# Object or remote repository
+/usr/local/bin/duplicacy-backup prune --target <object-or-remote-target> <label>
+```
+
+Example entries:
+
+```text
+homes      -> onsite-usb      -> daily, with sudo -n
+homes      -> offsite-storj   -> weekly, no sudo
+```
+
+### Daily Health Slot
+
+Use this for lightweight visibility that a target is reachable and the latest
+revision signal is sensible.
+
+Command template:
+
+```bash
+/usr/local/bin/duplicacy-backup health status --target <target> <label>
+```
+
+Example entries:
+
+```text
+homes      -> onsite-usb      -> daily
+homes      -> offsite-storj   -> daily
+```
+
+### Weekly Doctor Slot
+
+Use this for a deeper repository and configuration check.
+
+Command template:
+
+```bash
+/usr/local/bin/duplicacy-backup health doctor --target <target> <label>
+```
+
+Example entries:
+
+```text
+homes      -> onsite-usb      -> weekly
+homes      -> offsite-storj   -> weekly
+```
+
+### Monthly Verify Slot
+
+Use this for storage-integrity verification. It can take longer than status or
+doctor checks, so give it its own window.
+
+Command template:
+
+```bash
+/usr/local/bin/duplicacy-backup health verify --target <target> <label>
+```
+
+Example entries:
+
+```text
+homes      -> onsite-usb      -> monthly
+homes      -> offsite-storj   -> monthly
+```
+
+## Synology Task Scheduler Setup
+
+For each task:
+
+1. Open `Control Panel` -> `Task Scheduler`.
+2. Create `Triggered Task` -> `User-defined script`.
+3. Choose the operator user as the run-as user.
+4. Enter one command from the relevant cadence slot.
+5. Use `sudo -n` only where the cadence slot says the command is root-required.
+6. Keep one operation per task.
+
+If a task fails with a sudo password prompt or permission error, do not switch
+the whole task to run as `root` as a shortcut. Fix the targeted sudoers rule or
+the operator profile permissions instead.
+
+## Manual Or Exceptional Maintenance
+
+### Cleanup Storage
+
+Do not make `cleanup-storage` part of the normal recurring schedule.
+
+Use it only for explicit maintenance when no other client is writing to the
+repository:
+
+```bash
+# Path-based local filesystem repository
+sudo -n /usr/local/bin/duplicacy-backup cleanup-storage --target <local-path-target> <label>
+
+# Object or remote repository
+/usr/local/bin/duplicacy-backup cleanup-storage --target <object-or-remote-target> <label>
+```
+
+### Forced Prune
+
+Do not schedule `prune --force` routinely.
+
+Use it only as an explicit operator decision when safe-prune thresholds are
+intentionally being overridden:
+
+```bash
+sudo -n /usr/local/bin/duplicacy-backup prune --force --target <target> <label>
+```
 
 ## Operational Notes
 
-- keep scheduler email enabled for raw task failures
-- use native `ntfy` for richer degraded, unhealthy, and selected runtime alerts
-- if repeated alerts become noisy, adjust task frequency or receiving-system
-  suppression before changing the core workflow model
-- if a later task routinely overlaps, move that task rather than combining jobs
+- Keep DSM scheduler email enabled for raw task failures.
+- Use native `ntfy` for richer degraded, unhealthy, and selected runtime alerts.
+- Move a later task if it routinely overlaps another task touching the same
+  label and target.
+- Prefer changing cadence before combining unrelated commands into one script.
 
 ## Supported Boundary
 
@@ -281,12 +264,12 @@ This guide deliberately does not automate Synology Task Scheduler creation.
 
 Reason:
 
-- DSM does not provide a straightforward supported CLI for creating tasks
-- unsupported internal automation would make the workflow guidance more brittle
+- DSM does not provide a straightforward supported CLI for creating tasks.
+- Unsupported internal automation would make the workflow guidance more brittle.
 
 For now, the supported model is:
 
 - documented task naming
-- documented timing guidance
+- documented cadence slots
 - documented script commands
 - manual creation in the DSM UI
