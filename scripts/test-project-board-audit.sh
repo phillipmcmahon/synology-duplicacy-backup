@@ -44,7 +44,7 @@ cat >"$TMP_DIR/pass.json" <<'EOF'
       "title": "Review clean",
       "state": "OPEN",
       "labels": ["story", "status:review"],
-      "status": "Done",
+      "status": "In Progress",
       "workflow": "Review"
     },
     {
