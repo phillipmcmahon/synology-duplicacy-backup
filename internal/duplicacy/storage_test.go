@@ -46,6 +46,38 @@ func TestStorageSpecClassifiesDuplicacyBackends(t *testing.T) {
 	}
 }
 
+func TestStorageSpecClassifiesLocalPathBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		storage string
+		local   bool
+	}{
+		{name: "absolute path", storage: "/volumeUSB1/usbshare/duplicacy/homes", local: true},
+		{name: "file URL", storage: "file:///mnt/nfs/duplicacy/homes", local: true},
+		{name: "relative path", storage: "relative/path", local: true},
+		{name: "s3", storage: "s3://gateway.example.invalid/bucket/homes"},
+		{name: "s3 compatible", storage: "s3c://garage.local/bucket/homes"},
+		{name: "minio", storage: "minio://garage.local/bucket/homes"},
+		{name: "minio tls", storage: "minios://garage.local/bucket/homes"},
+		{name: "b2", storage: "b2://bucket/homes"},
+		{name: "wasabi", storage: "wasabi://bucket/homes"},
+		{name: "storj", storage: "storj://bucket/homes"},
+		{name: "sftp localhost", storage: "sftp://localhost/duplicacy/homes"},
+		{name: "webdav", storage: "webdav://nas.local/duplicacy/homes"},
+		{name: "gcd", storage: "gcd://drive-folder/homes"},
+		{name: "unknown URL-like scheme", storage: "dummy:///path/to/homes"},
+		{name: "empty"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewStorageSpec(tt.storage).IsLocalPath(); got != tt.local {
+				t.Fatalf("IsLocalPath() = %t, want %t", got, tt.local)
+			}
+		})
+	}
+}
+
 func TestStorageSpecValidateSecrets(t *testing.T) {
 	spec := NewStorageSpec("s3://gateway.example.invalid/bucket/homes")
 	if err := spec.ValidateSecrets(&secrets.Secrets{Keys: map[string]string{"s3_id": "id", "s3_secret": "secret"}}); err != nil {

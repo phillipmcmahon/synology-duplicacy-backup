@@ -800,6 +800,13 @@ func (c *Config) ValidateOwnerGroup() error {
 	return nil
 }
 
+// UsesLocalDiskStorage is the privilege boundary for repository mutation.
+// It is true only when Duplicacy storage is governed by local OS filesystem
+// permissions: bare absolute paths and file:// URLs. Mounted network filesystems
+// still count as local because the process mutates files through the OS. Backend
+// URLs such as s3://, b2://, storj://, sftp://, webdav://, gcd://, and unknown
+// schemes are treated as credential/back-end governed, even when they point at
+// localhost.
 func (c *Config) UsesLocalDiskStorage() bool {
 	return c != nil && duplicacy.NewStorageSpec(c.Storage).IsLocalPath()
 }

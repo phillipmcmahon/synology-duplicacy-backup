@@ -926,6 +926,39 @@ func TestValidateTargetSemantics(t *testing.T) {
 	}
 }
 
+func TestConfigUsesLocalDiskStorageBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		storage string
+		local   bool
+	}{
+		{name: "absolute path", storage: "/volumeUSB1/usbshare/duplicacy/homes", local: true},
+		{name: "file URL", storage: "file:///mnt/nfs/duplicacy/homes", local: true},
+		{name: "s3", storage: "s3://gateway.example.invalid/bucket/homes"},
+		{name: "b2", storage: "b2://bucket/homes"},
+		{name: "wasabi", storage: "wasabi://bucket/homes"},
+		{name: "storj", storage: "storj://bucket/homes"},
+		{name: "sftp localhost", storage: "sftp://localhost/duplicacy/homes"},
+		{name: "webdav", storage: "webdav://nas.local/duplicacy/homes"},
+		{name: "gcd", storage: "gcd://drive-folder/homes"},
+		{name: "unknown URL-like scheme", storage: "dummy:///path/to/homes"},
+		{name: "empty"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{Storage: tt.storage}
+			if got := cfg.UsesLocalDiskStorage(); got != tt.local {
+				t.Fatalf("UsesLocalDiskStorage() = %t, want %t", got, tt.local)
+			}
+		})
+	}
+
+	if (*Config)(nil).UsesLocalDiskStorage() {
+		t.Fatal("UsesLocalDiskStorage() on nil config = true, want false")
+	}
+}
+
 func TestHealthConfigValidate(t *testing.T) {
 	valid := NewDefaults().Health
 	if err := valid.Validate(); err != nil {

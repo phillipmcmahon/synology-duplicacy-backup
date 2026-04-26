@@ -40,8 +40,21 @@ func (s StorageSpec) Scheme() string {
 	return strings.ToLower(parsed.Scheme)
 }
 
+// IsLocalPath reports whether Duplicacy storage is governed by local OS
+// filesystem permissions rather than backend credentials. Bare absolute paths
+// and file:// URLs are local, including mounted USB, NFS, SMB, or FUSE paths.
+// URL-style backends such as s3://, b2://, storj://, sftp://, webdav://, and
+// unknown future schemes are not local for this boundary, even when their host
+// is localhost; access is delegated to the backend/credential model.
 func (s StorageSpec) IsLocalPath() bool {
-	return s.Raw != "" && !strings.Contains(s.Raw, "://")
+	if s.Raw == "" {
+		return false
+	}
+	parsed, err := url.Parse(s.Raw)
+	if err != nil || parsed.Scheme == "" {
+		return !strings.Contains(s.Raw, "://")
+	}
+	return strings.EqualFold(parsed.Scheme, "file")
 }
 
 func (s StorageSpec) RequiredSecretKeys() []string {
