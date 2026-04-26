@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -100,5 +101,65 @@ func TestRuntimeUserProfileDefaultsTolerateZeroRuntime(t *testing.T) {
 	}
 	if got := ResolveDir(Runtime{}, "", "DUPLICACY_BACKUP_CONFIG_DIR", "/fallback"); got != "/fallback" {
 		t.Fatalf("ResolveDir(Runtime{}) = %q, want /fallback", got)
+	}
+}
+
+func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
+	rt := Runtime{
+		Geteuid: func() int { return 0 },
+		Getenv: func(key string) string {
+			switch key {
+			case "HOME":
+				return "/root"
+			case "SUDO_USER":
+				return "phillipmcmahon"
+			default:
+				return ""
+			}
+		},
+		UserLookup: func(name string) (*user.User, error) {
+			if name != "phillipmcmahon" {
+				t.Fatalf("UserLookup(%q), want phillipmcmahon", name)
+			}
+			return &user.User{Username: name, HomeDir: "/var/services/homes/phillipmcmahon"}, nil
+		},
+	}
+
+	dirs := DefaultUserProfileDirs(rt)
+	if dirs.ConfigDir != "/var/services/homes/phillipmcmahon/.config/duplicacy-backup" {
+		t.Fatalf("ConfigDir = %q", dirs.ConfigDir)
+	}
+	if dirs.SecretsDir != "/var/services/homes/phillipmcmahon/.config/duplicacy-backup/secrets" {
+		t.Fatalf("SecretsDir = %q", dirs.SecretsDir)
+	}
+	if dirs.LogDir != "/var/services/homes/phillipmcmahon/.local/state/duplicacy-backup/logs" {
+		t.Fatalf("LogDir = %q", dirs.LogDir)
+	}
+	if dirs.StateDir != "/var/services/homes/phillipmcmahon/.local/state/duplicacy-backup/state" {
+		t.Fatalf("StateDir = %q", dirs.StateDir)
+	}
+}
+
+func TestRuntimeUserProfileDefaultsDirectRootUsesRootHome(t *testing.T) {
+	rt := Runtime{
+		Geteuid: func() int { return 0 },
+		Getenv: func(key string) string {
+			if key == "HOME" {
+				return "/root"
+			}
+			return ""
+		},
+		UserLookup: func(name string) (*user.User, error) {
+			t.Fatalf("UserLookup(%q) should not be called for direct root", name)
+			return nil, nil
+		},
+	}
+
+	dirs := DefaultUserProfileDirs(rt)
+	if dirs.ConfigDir != "/root/.config/duplicacy-backup" {
+		t.Fatalf("ConfigDir = %q", dirs.ConfigDir)
+	}
+	if dirs.SecretsDir != "/root/.config/duplicacy-backup/secrets" {
+		t.Fatalf("SecretsDir = %q", dirs.SecretsDir)
 	}
 }

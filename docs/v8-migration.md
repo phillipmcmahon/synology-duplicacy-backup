@@ -190,7 +190,8 @@ duplicacy-backup restore select --target onsite-usb homes
 ```
 
 For backup validation, keep using `sudo` because backup snapshots require
-privileged filesystem access:
+privileged filesystem access. Run `sudo` from the operator account; defaults
+still resolve to that operator profile:
 
 ```bash
 sudo duplicacy-backup backup --target onsite-usb --dry-run homes

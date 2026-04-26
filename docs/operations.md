@@ -251,9 +251,12 @@ Recommended permissions:
 - secrets directory: user-owned with mode `0700`
 - secrets files: user-owned with mode `0600`
 
-For root-required commands launched with `sudo`, keep using the operator-owned
-profile and pass `--config-dir` plus `--secrets-dir` explicitly. `0600` secrets
+For root-required commands launched with `sudo` from the operator account,
+defaults still resolve to the operator-owned runtime profile. `0600` secrets
 owned by the sudoing operator account are accepted for those commands.
+
+If you run from a direct root shell, defaults resolve under `/root`. In that
+case, either use a root-owned runtime profile or pass explicit profile paths.
 
 You can still override this with:
 

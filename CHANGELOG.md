@@ -12,6 +12,13 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Fixed
+- **Sudo root-required commands now use the operator runtime profile by
+  default**: when commands such as `backup` are invoked through `sudo` from an
+  operator account, default config, secrets, logs, state, and lock paths resolve
+  under the sudoing operator home instead of `/root`. Direct root shells still
+  use `/root` unless explicit paths are supplied.
+
 ## [v8.0.1] - 2026-04-26
 
 ### Fixed

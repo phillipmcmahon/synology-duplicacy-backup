@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,6 +40,7 @@ type Runtime struct {
 	Executable    func() (string, error)
 	EvalSymlinks  func(string) (string, error)
 	SignalNotify  func(chan<- os.Signal, ...os.Signal)
+	UserLookup    func(string) (*user.User, error)
 }
 
 type UserProfileDirs struct {
@@ -68,6 +70,7 @@ func DefaultRuntime() Runtime {
 		SignalNotify: func(ch chan<- os.Signal, sig ...os.Signal) {
 			signal.Notify(ch, sig...)
 		},
+		UserLookup: user.Lookup,
 	}
 }
 
@@ -185,6 +188,9 @@ func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
 }
 
 func userHomeDir(rt Runtime) string {
+	if home := sudoOperatorHomeDir(rt); home != "" {
+		return home
+	}
 	if home := runtimeEnv(rt, "HOME"); home != "" {
 		return home
 	}
@@ -192,6 +198,32 @@ func userHomeDir(rt Runtime) string {
 		return home
 	}
 	return "."
+}
+
+func sudoOperatorHomeDir(rt Runtime) string {
+	if runtimeEUID(rt) != 0 {
+		return ""
+	}
+	sudoUser := strings.TrimSpace(runtimeEnv(rt, "SUDO_USER"))
+	if sudoUser == "" || sudoUser == "root" {
+		return ""
+	}
+	lookup := rt.UserLookup
+	if lookup == nil {
+		lookup = user.Lookup
+	}
+	u, err := lookup(sudoUser)
+	if err != nil || strings.TrimSpace(u.HomeDir) == "" {
+		return ""
+	}
+	return u.HomeDir
+}
+
+func runtimeEUID(rt Runtime) int {
+	if rt.Geteuid == nil {
+		return os.Geteuid()
+	}
+	return rt.Geteuid()
 }
 
 func EffectiveConfigDir(rt Runtime) string {

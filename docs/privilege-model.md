@@ -56,19 +56,20 @@ These commands require root because of the work they perform:
 | `rollback --yes` | Changes managed install symlinks under system-owned paths. |
 
 For root-required commands, keep the canonical runtime profile under the
-operator user and pass explicit paths when invoking through `sudo`:
+operator user and invoke through `sudo` from that operator account:
 
 ```bash
-sudo duplicacy-backup backup \
-  --config-dir /volume1/homes/operator/.config/duplicacy-backup \
-  --secrets-dir /volume1/homes/operator/.config/duplicacy-backup/secrets \
-  --target onsite-usb homes
+sudo duplicacy-backup backup --target onsite-usb homes
 ```
 
-When invoked this way, `duplicacy-backup` accepts `0600` secrets owned by the
-sudoing operator account. If you log in directly as `root` instead, either use a
-root-owned runtime profile under `/root` or run `sudo` from the operator account
-so the intended owner is unambiguous.
+When invoked this way, default config, secrets, logs, state, and lock paths
+resolve to the sudoing operator profile, and `duplicacy-backup` accepts `0600`
+secrets owned by that operator account.
+
+If you log in directly as `root` instead, defaults resolve under `/root`.
+Either use a root-owned runtime profile under `/root`, run `sudo` from the
+operator account, or pass explicit `--config-dir` and `--secrets-dir` values so
+the intended profile is unambiguous.
 
 ## Non-Root-Capable Commands
 
