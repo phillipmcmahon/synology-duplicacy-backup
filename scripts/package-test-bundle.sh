@@ -12,6 +12,11 @@ GOARCH="amd64"
 GOARM=""
 INSTRUCTIONS=""
 REPO_ROOT=""
+DEFAULT_CONFIG_DIR=""
+DEFAULT_SECRETS_DIR=""
+DEFAULT_LABEL="homes"
+DEFAULT_TARGET="onsite-garage"
+DEFAULT_WORKSPACE_ROOT="/volume1/restore-drills"
 
 usage() {
     cat <<'EOF'
@@ -30,6 +35,15 @@ Options:
   --goarch <value>       Target GOARCH (default: amd64)
   --goarm <value>        Target GOARM (for GOARCH=arm)
   --instructions <path>  Markdown instructions to include in the bundle
+  --default-config-dir <path>
+                         CFG default written to setup-env.sh
+  --default-secrets-dir <path>
+                         SEC default written to setup-env.sh
+  --default-label <name> LABEL default written to setup-env.sh (default: homes)
+  --default-target <name>
+                         TARGET default written to setup-env.sh (default: onsite-garage)
+  --default-workspace-root <path>
+                         WORKSPACE_ROOT default written to setup-env.sh
   --repo-root <path>     Repository root (default: script parent directory)
   --help                 Show this help text
 EOF
@@ -72,6 +86,14 @@ archive_without_macos_metadata() {
     fi
     rm -f "$archive"
     COPYFILE_DISABLE=1 tar -czf "$archive" -C "$parent" "$entry"
+}
+
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+shell_quote() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -119,6 +141,31 @@ while [ "$#" -gt 0 ]; do
         --instructions)
             [ "$#" -ge 2 ] || fail "--instructions requires a value"
             INSTRUCTIONS="$2"
+            shift 2
+            ;;
+        --default-config-dir)
+            [ "$#" -ge 2 ] || fail "--default-config-dir requires a value"
+            DEFAULT_CONFIG_DIR="$2"
+            shift 2
+            ;;
+        --default-secrets-dir)
+            [ "$#" -ge 2 ] || fail "--default-secrets-dir requires a value"
+            DEFAULT_SECRETS_DIR="$2"
+            shift 2
+            ;;
+        --default-label)
+            [ "$#" -ge 2 ] || fail "--default-label requires a value"
+            DEFAULT_LABEL="$2"
+            shift 2
+            ;;
+        --default-target)
+            [ "$#" -ge 2 ] || fail "--default-target requires a value"
+            DEFAULT_TARGET="$2"
+            shift 2
+            ;;
+        --default-workspace-root)
+            [ "$#" -ge 2 ] || fail "--default-workspace-root requires a value"
+            DEFAULT_WORKSPACE_ROOT="$2"
             shift 2
             ;;
         --repo-root)
@@ -180,15 +227,141 @@ checksum="$OUTPUT_DIR/$basename.tar.gz.sha256"
 [ -f "$archive" ] || fail "expected package archive missing: $archive"
 [ -f "$checksum" ] || fail "expected package checksum missing: $checksum"
 
-instructions_name="$(basename "$INSTRUCTIONS")"
+case "$GOARCH" in
+    arm)
+        if [ -n "$GOARM" ]; then
+            artifact_platform="${GOOS}-${GOARCH}v${GOARM}"
+        else
+            artifact_platform="${GOOS}-${GOARCH}"
+        fi
+        ;;
+    *)
+        artifact_platform="${GOOS}-${GOARCH}"
+        ;;
+esac
+
+instructions_source_name="$(basename "$INSTRUCTIONS")"
+instructions_name="smoke-test.md"
 cp "$INSTRUCTIONS" "$OUTPUT_DIR/$instructions_name"
 
 bundle_dir="$OUTPUT_DIR/${RUN_ID}_bundle"
 mkdir "$bundle_dir"
-mkdir "$bundle_dir/artifacts" "$bundle_dir/checksums" "$bundle_dir/instructions"
-cp "$archive" "$bundle_dir/artifacts/"
-cp "$checksum" "$bundle_dir/checksums/"
+mkdir "$bundle_dir/artifacts" "$bundle_dir/checksums" "$bundle_dir/instructions" "$bundle_dir/metadata"
+mkdir "$bundle_dir/artifacts/$artifact_platform" "$bundle_dir/checksums/$artifact_platform"
+cp "$archive" "$bundle_dir/artifacts/$artifact_platform/"
+cp "$checksum" "$bundle_dir/checksums/$artifact_platform/"
 cp "$OUTPUT_DIR/$instructions_name" "$bundle_dir/instructions/"
+
+commit="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || printf 'unknown')"
+describe="$(cd "$ROOT" && git describe --tags --always --dirty 2>/dev/null || printf 'unknown')"
+created_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+cat > "$bundle_dir/metadata/build.json" <<EOF
+{
+  "run_id": "$(json_escape "$RUN_ID")",
+  "kind": "$(json_escape "$KIND")",
+  "poc_name": "$(json_escape "$POC_NAME")",
+  "version": "$(json_escape "$VERSION")",
+  "build_time": "$(json_escape "$BUILD_TIME")",
+  "created_at": "$(json_escape "$created_at")",
+  "git_commit": "$(json_escape "$commit")",
+  "git_describe": "$(json_escape "$describe")",
+  "goos": "$(json_escape "$GOOS")",
+  "goarch": "$(json_escape "$GOARCH")",
+  "goarm": "$(json_escape "$GOARM")",
+  "artifact_platform": "$(json_escape "$artifact_platform")",
+  "package_basename": "$(json_escape "$basename")",
+  "instructions": "instructions/$(json_escape "$instructions_name")",
+  "instructions_source": "$(json_escape "$instructions_source_name")"
+}
+EOF
+
+quoted_default_config_dir="$(shell_quote "$DEFAULT_CONFIG_DIR")"
+quoted_default_secrets_dir="$(shell_quote "$DEFAULT_SECRETS_DIR")"
+quoted_default_label="$(shell_quote "$DEFAULT_LABEL")"
+quoted_default_target="$(shell_quote "$DEFAULT_TARGET")"
+quoted_default_workspace_root="$(shell_quote "$DEFAULT_WORKSPACE_ROOT")"
+
+cat > "$bundle_dir/setup-env.sh" <<EOF
+# Source this file from the extracted bundle root:
+#   . ./setup-env.sh
+#
+# Existing CFG, SEC, LABEL, TARGET, and WORKSPACE_ROOT values are preserved.
+
+DEFAULT_CFG=$quoted_default_config_dir
+DEFAULT_SEC=$quoted_default_secrets_dir
+DEFAULT_LABEL=$quoted_default_label
+DEFAULT_TARGET=$quoted_default_target
+DEFAULT_WORKSPACE_ROOT=$quoted_default_workspace_root
+
+setup_script=\${BASH_SOURCE:-\$0}
+case "\$setup_script" in
+    */*) setup_dir=\$(CDPATH= cd -- "\$(dirname -- "\$setup_script")" && pwd) ;;
+    *) setup_dir=\$(pwd) ;;
+esac
+
+BUNDLE_ROOT="\$setup_dir"
+ARTIFACT_ARCHIVE=\$(find "\$BUNDLE_ROOT/artifacts" -type f -name '*.tar.gz' | sort | sed -n '1p')
+[ -n "\$ARTIFACT_ARCHIVE" ] || { echo "setup-env: no package archive found under \$BUNDLE_ROOT/artifacts" >&2; return 1 2>/dev/null || exit 1; }
+
+archive_count=\$(find "\$BUNDLE_ROOT/artifacts" -type f -name '*.tar.gz' | wc -l | tr -d ' ')
+[ "\$archive_count" = "1" ] || { echo "setup-env: expected one package archive, found \$archive_count" >&2; return 1 2>/dev/null || exit 1; }
+
+EXTRACT_DIR="\$BUNDLE_ROOT/extracted"
+mkdir -p "\$EXTRACT_DIR"
+
+if command -v sha256sum >/dev/null 2>&1; then
+    checksum_file=\$(find "\$BUNDLE_ROOT/checksums" -type f -name '*.sha256' | sort | sed -n '1p')
+    if [ -n "\$checksum_file" ]; then
+        (cd "\$(dirname -- "\$ARTIFACT_ARCHIVE")" && sha256sum -c "\$checksum_file" >/dev/null)
+    fi
+fi
+
+package_dir=\$(tar -tzf "\$ARTIFACT_ARCHIVE" | sed -n '1s#/.*##p')
+[ -n "\$package_dir" ] || { echo "setup-env: package archive is empty: \$ARTIFACT_ARCHIVE" >&2; return 1 2>/dev/null || exit 1; }
+
+if [ ! -d "\$EXTRACT_DIR/\$package_dir" ]; then
+    tar -xzf "\$ARTIFACT_ARCHIVE" -C "\$EXTRACT_DIR"
+fi
+
+BIN="\$EXTRACT_DIR/\$package_dir/\$package_dir"
+[ -x "\$BIN" ] || { echo "setup-env: binary not found or not executable: \$BIN" >&2; return 1 2>/dev/null || exit 1; }
+
+if [ -z "\${CFG:-}" ]; then
+    if [ -n "\$DEFAULT_CFG" ]; then
+        CFG="\$DEFAULT_CFG"
+    else
+        CFG="\$HOME/.config/duplicacy-backup"
+    fi
+fi
+
+if [ -z "\${SEC:-}" ]; then
+    if [ -n "\$DEFAULT_SEC" ]; then
+        SEC="\$DEFAULT_SEC"
+    else
+        SEC="\$CFG/secrets"
+    fi
+fi
+
+LABEL="\${LABEL:-\$DEFAULT_LABEL}"
+TARGET="\${TARGET:-\$DEFAULT_TARGET}"
+WORKSPACE_ROOT="\${WORKSPACE_ROOT:-\$DEFAULT_WORKSPACE_ROOT}"
+RESTORE_ROOT="\${RESTORE_ROOT:-\$WORKSPACE_ROOT}"
+
+export BUNDLE_ROOT BIN CFG SEC LABEL TARGET WORKSPACE_ROOT RESTORE_ROOT
+
+cat <<SETUP_EOF
+Smoke bundle environment:
+  BUNDLE_ROOT     : \$BUNDLE_ROOT
+  BIN             : \$BIN
+  CFG             : \$CFG
+  SEC             : \$SEC
+  LABEL           : \$LABEL
+  TARGET          : \$TARGET
+  WORKSPACE_ROOT  : \$WORKSPACE_ROOT
+SETUP_EOF
+EOF
+chmod 755 "$bundle_dir/setup-env.sh"
 
 cat > "$bundle_dir/README.md" <<EOF
 # $RUN_ID
@@ -196,14 +369,17 @@ cat > "$bundle_dir/README.md" <<EOF
 Start with:
 
 \`\`\`bash
+. ./setup-env.sh
 less instructions/$instructions_name
 \`\`\`
 
 Contents:
 
-- \`artifacts/\` contains the Linux package tarball.
-- \`checksums/\` contains the package checksum.
+- \`setup-env.sh\` extracts the package and exports \`BIN\`, \`CFG\`, \`SEC\`, \`LABEL\`, \`TARGET\`, and \`WORKSPACE_ROOT\`.
+- \`artifacts/$artifact_platform/\` contains the Linux package tarball.
+- \`checksums/$artifact_platform/\` contains the package checksum.
 - \`instructions/\` contains the NAS smoke-test procedure.
+- \`metadata/build.json\` records the exact build, commit, platform, and package details.
 EOF
 
 find "$bundle_dir" "$OUTPUT_DIR" -name '.DS_Store' -o -name '._*' | xargs rm -f 2>/dev/null || true

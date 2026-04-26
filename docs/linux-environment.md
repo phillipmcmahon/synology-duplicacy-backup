@@ -123,10 +123,13 @@ Do not create ad-hoc package directories elsewhere under `build/`, and do not
 drop new artefacts flat into `build/test-packages` or
 `build/test-packages/release`.
 
-For one-off NAS smoke packages with instructions, prefer the bundle helper:
+For NAS smoke packages with instructions, prefer the bundle helper and use a
+campaign-style run id rather than a fix-specific one. The issue or metadata can
+describe the exact fix being validated; the folder name should help an operator
+identify the active validation campaign quickly.
 
 ```bash
-RUN_ID="restore-progress-smoke-$(date -u '+%Y%m%d%H%M%S')"
+RUN_ID="v8-nonroot-smoke-$(date -u '+%Y%m%d%H%M%S')"
 
 sh ./scripts/package-test-bundle.sh \
   --run-id "$RUN_ID" \
@@ -135,6 +138,9 @@ sh ./scripts/package-test-bundle.sh \
   --build-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
   --goos linux \
   --goarch amd64 \
+  --default-label homes \
+  --default-target onsite-garage \
+  --default-workspace-root /volume1/restore-drills \
   --instructions build/test-packages/instructions/${RUN_ID}.md
 ```
 
@@ -142,10 +148,27 @@ The helper writes all artefacts for that run under
 `build/test-packages/release/<run-id>/`. The self-contained bundle extracts
 with this operator-facing layout:
 
-- `README.md` points to the smoke-test instructions.
-- `artifacts/` contains the Linux package tarball.
-- `checksums/` contains the package checksum.
-- `instructions/` contains the NAS smoke-test procedure.
+- `README.md` starts with the setup command and points to the smoke-test
+  instructions.
+- `setup-env.sh` extracts the packaged tarball and exports `BIN`, `CFG`, `SEC`,
+  `LABEL`, `TARGET`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`.
+- `artifacts/<platform>/` contains the Linux package tarball.
+- `checksums/<platform>/` contains the package checksum.
+- `instructions/smoke-test.md` contains the NAS smoke-test procedure.
+- `metadata/build.json` records the run id, version, commit, build time,
+  platform, package name, and original instructions file.
+
+Smoke instructions should begin with:
+
+```bash
+. ./setup-env.sh
+```
+
+Operators can override values before sourcing the setup file:
+
+```bash
+TARGET=onsite-usb LABEL=homes . ./setup-env.sh
+```
 
 ### One artefact
 

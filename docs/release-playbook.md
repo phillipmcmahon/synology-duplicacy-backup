@@ -165,8 +165,21 @@ drop new artefacts flat into `build/test-packages` or
 
 Use `scripts/package-test-bundle.sh` for operator-facing smoke packages that
 need bundled instructions. It creates one self-contained per-run folder and a
-bundle whose extracted layout is `README.md`, `artifacts/`, `checksums/`, and
-`instructions/`.
+bundle whose extracted layout is `README.md`, `setup-env.sh`, `artifacts/`,
+`checksums/`, `instructions/`, and `metadata/`.
+
+Smoke bundles should use a campaign-style run id such as
+`v8-nonroot-smoke-<timestamp>` rather than a fix-specific name. The exact
+commit, version, build time, platform, and original instruction filename belong
+in `metadata/build.json`. The operator instructions should start with:
+
+```bash
+. ./setup-env.sh
+```
+
+That setup script extracts the packaged tarball and exports `BIN`, `CFG`,
+`SEC`, `LABEL`, `TARGET`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`, while allowing
+operators to override any of those values before sourcing it.
 
 CI smoke coverage:
 
