@@ -12,12 +12,59 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v8.0.1] - 2026-04-26
+
+### Fixed
+- **Restore picker now handles Duplicacy file-list rows without digests**:
+  digestless rows such as zero-byte lock files are parsed as snapshot-relative
+  paths instead of being displayed as fake tree roots or generating restore
+  commands that restore nothing.
+- **Restore list-files failures now preserve actionable diagnostics**:
+  operator-facing errors include the failed Duplicacy command and diagnostic
+  output so missing chunks, storage access failures, or corrupted snapshots are
+  easier to distinguish during recovery.
+- **Root-required backup dry-runs now accept operator-owned secrets when invoked
+  via sudo**: this preserves the v8 non-root profile model while still allowing
+  backup operations that fundamentally require root for Btrfs snapshots.
+- **Health verify no longer fails because backup-readiness Btrfs checks require
+  different permissions**: storage integrity verification now stays focused on
+  repository integrity, while `health doctor`, `config validate`, and backup
+  continue to enforce Btrfs source readiness.
+
 ### Changed
 - **Production runtime now explicitly requires Synology DSM**:
   operational commands fail fast on non-Synology systems, and documentation now
   states that DSM with Btrfs-backed `/volume*` storage is the supported
   production model. Health and configuration guidance now distinguish
   backup-readiness Btrfs validation from storage-integrity verification.
+- **Btrfs source validation now uses unprivileged DSM-safe checks**:
+  the tool uses `stat` filesystem and inode checks instead of
+  `btrfs subvolume show`, avoiding false permission failures for non-root
+  operator checks while preserving the requirement that backup sources are
+  Btrfs subvolume roots.
+- **v8 migration guidance and helper behavior were tightened**:
+  the migration guide now explains that the helper is packaged in release
+  tarballs, and the helper normalises migrated config and secrets ownership,
+  modes, collision handling, and timestamps.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS smoke**:
+  `v8-final-release-smoke-20260426085415` passed with one corrected
+  instruction: `restore plan` does not accept `--workspace-root`; that option
+  applies to `restore run` and `restore select`.
+
+### Coverage snapshot
+- overall coverage: `to be refreshed by release-prep`
+- `cmd/duplicacy-backup`: `to be refreshed by release-prep`
+- `internal/workflow`: `to be refreshed by release-prep`
+- `internal/duplicacy`: `to be refreshed by release-prep`
+- `internal/exec`: `to be refreshed by release-prep`
+- `internal/secrets`: `to be refreshed by release-prep`
 
 ## [v8.0.0] - 2026-04-26
 
