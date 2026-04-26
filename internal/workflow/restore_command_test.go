@@ -1036,6 +1036,53 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	}
 }
 
+func TestHandleRestoreCommand_SelectReportsListFilesDiagnostics(t *testing.T) {
+	suppressRestorePrompts(t)
+
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
+		execpkg.MockResult{
+			Stdout: "Storage set to /volumeUSB2/usbshare/duplicacy/homes\n",
+			Stderr: "Failed to load snapshot: permission denied\n",
+			Err:    errors.New("list files failed"),
+		},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	_, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "1\n3\n"))
+	if err == nil {
+		t.Fatal("restoreHandleCommand() error = nil, want list-files failure")
+	}
+	message := err.Error()
+	for _, want := range []string{
+		"failed to list files for revision 2403",
+		"Duplicacy command: duplicacy list -files -r 2403",
+		"Duplicacy diagnostics:",
+		"Failed to load snapshot: permission denied",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("error missing %q:\n%s", want, message)
+		}
+	}
+	if strings.Contains(message, "Storage set to") {
+		t.Fatalf("error should prefer diagnostic lines over routine Duplicacy output:\n%s", message)
+	}
+	if len(mock.Invocations) != 2 ||
+		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
+		strings.Join(mock.Invocations[1].Args, " ") != "list -files -r 2403" {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
 func TestHandleRestoreCommand_SelectBuildsMultipleRestoreCommands(t *testing.T) {
 	suppressRestorePrompts(t)
 

@@ -127,7 +127,7 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 	output, err := ctx.dup.ListRevisionFiles(revision)
 	stopActivity()
 	if err != nil {
-		return err
+		return restoreListFilesError(err, output, revision)
 	}
 	paths := extractRestoreFilePaths(output)
 	if len(paths) == 0 {
@@ -164,7 +164,7 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 	output, err := ctx.dup.ListRevisionFiles(revision)
 	stopActivity()
 	if err != nil {
-		return nil, err
+		return nil, restoreListFilesError(err, output, revision)
 	}
 	paths := extractRestoreFilePaths(output)
 	if len(paths) == 0 {
@@ -277,6 +277,40 @@ func promptRestoreLine(reader restoreLineReader, prompt string, deps RestoreDeps
 		return "", fmt.Errorf("failed to read restore selection: %w", err)
 	}
 	return strings.TrimSpace(answer), nil
+}
+
+func restoreListFilesError(err error, output string, revision int) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%w\nDuplicacy command: duplicacy list -files -r %d\n%s", err, revision, restoreListFilesDiagnostics(output))
+}
+
+func restoreListFilesDiagnostics(output string) string {
+	lines := restoreOutputLines(output)
+	if len(lines) == 0 {
+		return "Duplicacy output: <empty>"
+	}
+	diagnostics := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if isNoisyRestoreProgressLine(line) {
+			continue
+		}
+		if restoreDiagnosticPattern.MatchString(line) {
+			diagnostics = append(diagnostics, line)
+		}
+	}
+	if len(diagnostics) > 0 {
+		return "Duplicacy diagnostics:\n" + strings.Join(diagnostics, "\n")
+	}
+	return "Duplicacy output (last lines):\n" + strings.Join(lastRestoreOutputLines(lines, 8), "\n")
+}
+
+func lastRestoreOutputLines(lines []string, limit int) []string {
+	if limit <= 0 || len(lines) <= limit {
+		return lines
+	}
+	return lines[len(lines)-limit:]
 }
 
 func restoreAnswerCancels(answer string) bool {
