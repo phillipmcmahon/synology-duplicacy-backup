@@ -256,6 +256,12 @@ This is a practical scheduling model for:
 
 ## Quick Reference Table
 
+In this example, onsite storage is path-based local filesystem storage, so its
+backup, prune, and cleanup-style mutation commands use `sudo -n`. Offsite
+storage is object or remote storage, so prune authority comes from the
+operator-owned storage credentials and does not need `sudo` when those
+credentials and runtime paths are accessible.
+
 | Task Name | Frequency | Time | Command |
 |---|---|---|---|
 | `Homes Backup Onsite` | Daily | Start `01:00`, repeat every `6 hours` | `sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes` |
