@@ -5,7 +5,7 @@ set -eu
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 . "$SCRIPT_DIR/ci-smoke-lib.sh"
 
-OPERATOR_USER="${OPERATOR_USER:-operator}"
+OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
 LEGACY_CONFIG_DIR="${LEGACY_CONFIG_DIR:-/usr/local/lib/duplicacy-backup/.config}"
 LEGACY_SECRETS_DIR="${LEGACY_SECRETS_DIR:-/root/.secrets}"
 

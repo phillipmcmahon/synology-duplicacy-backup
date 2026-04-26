@@ -28,9 +28,14 @@ ci_install_btrfs_tools() {
 
 ci_create_operator_user() {
     user="$1"
-    if ! id "$user" >/dev/null 2>&1; then
-        useradd -m -s /bin/bash "$user"
+    if id "$user" >/dev/null 2>&1; then
+        return 0
     fi
+    if getent group "$user" >/dev/null 2>&1; then
+        useradd -m -s /bin/bash -g "$user" "$user"
+        return 0
+    fi
+    useradd -m -s /bin/bash "$user"
 }
 
 ci_allow_passwordless_sudo() {

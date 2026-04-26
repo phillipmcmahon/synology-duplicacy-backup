@@ -6,7 +6,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 . "$SCRIPT_DIR/ci-smoke-lib.sh"
 
 BINARY="${BINARY:-/tmp/duplicacy-backup}"
-OPERATOR_USER="${OPERATOR_USER:-operator}"
+OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
 TARGET="${TARGET:-onsite-ci}"
 IMAGE="${BTRFS_IMAGE:-/tmp/duplicacy-backup-ci-non-root.btrfs}"
 
