@@ -22,6 +22,6 @@ operator_home="$(getent passwd "$OPERATOR_USER" | awk -F: '{print $6; exit}')"
 
 sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup --version
 sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup config explain --target "$TARGET" homes
-sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup config validate --target "$TARGET" homes
+sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup config paths --target "$TARGET" homes
 sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup diagnostics --target "$TARGET" homes
 sudo -u "$OPERATOR_USER" env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$operator_home" duplicacy-backup restore plan --target "$TARGET" homes

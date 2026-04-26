@@ -15,6 +15,7 @@ ci_ensure_dsm_marker
 ci_create_operator_user "$OPERATOR_USER"
 ci_allow_passwordless_sudo "$OPERATOR_USER"
 ci_install_binary "$BINARY"
+ci_install_fake_duplicacy
 ci_mount_btrfs_volume1 "$IMAGE"
 ci_write_remote_config_with_secrets "$OPERATOR_USER" "$TARGET"
 

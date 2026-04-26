@@ -50,6 +50,14 @@ ci_install_binary() {
     install -m 0755 "$src" /usr/local/bin/duplicacy-backup
 }
 
+ci_install_fake_duplicacy() {
+    cat >/usr/local/bin/duplicacy <<'EOF'
+#!/bin/sh
+echo "duplicacy ci stub"
+EOF
+    chmod 0755 /usr/local/bin/duplicacy
+}
+
 ci_mount_btrfs_volume1() {
     image="$1"
     mountpoint="/volume1"
