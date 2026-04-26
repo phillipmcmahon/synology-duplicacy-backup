@@ -29,7 +29,7 @@ Move one issue through the project board workflow and keep status labels aligned
 Stages:
   ready          Status=Todo, Workflow=Ready, remove status labels
   in-progress    Status=In Progress, Workflow=In Progress, status:in-progress
-  review         Status=Done, Workflow=Review, status:review
+  review         Status=In Progress, Workflow=Review, status:review
   done           Status=Done, Workflow=Done, remove status labels
 
 Options:
@@ -117,7 +117,7 @@ case "$STAGE" in
         ADD_LABEL="status:in-progress"
         ;;
     review)
-        STATUS_OPTION="$STATUS_DONE_OPTION_ID"
+        STATUS_OPTION="$STATUS_IN_PROGRESS_OPTION_ID"
         WORKFLOW_OPTION="$WORKFLOW_REVIEW_OPTION_ID"
         ADD_LABEL="status:review"
         ;;

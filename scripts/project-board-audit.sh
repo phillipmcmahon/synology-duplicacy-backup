@@ -7,6 +7,7 @@ PROJECT_NUMBER="1"
 PROJECT_ID="PVT_kwHOABzcx84BUfOM"
 STATUS_FIELD_ID="PVTSSF_lAHOABzcx84BUfOMzhBm_tw"
 WORKFLOW_FIELD_ID="PVTSSF_lAHOABzcx84BUfOMzhBm_0o"
+STATUS_IN_PROGRESS_OPTION_ID="47fc9ee4"
 STATUS_DONE_OPTION_ID="98236657"
 WORKFLOW_DONE_OPTION_ID="376027f9"
 LIMIT="500"
@@ -25,7 +26,7 @@ Rules:
   - Closed issues must not keep status:* workflow labels.
   - Open non-epic issues must not be left in Workflow=Done.
   - status:in-progress must match Status=In Progress and Workflow=In Progress.
-  - status:review must match Status=Done and Workflow=Review.
+  - status:review must match Status=In Progress and Workflow=Review.
 
 Options:
   --owner <login>        GitHub owner for the project (default: phillipmcmahon)
@@ -200,8 +201,8 @@ audit_items() {
           else empty end
         ),
         (
-          if $item.state == "OPEN" and has_label("status:review") and (($item.status // "") != "Done" or ($item.workflow // "") != "Review") then
-            ["label-field-mismatch", $item.number, $item.title, "status:review requires Status=Done and Workflow=Review"]
+          if $item.state == "OPEN" and has_label("status:review") and (($item.status // "") != "In Progress" or ($item.workflow // "") != "Review") then
+            ["label-field-mismatch", $item.number, $item.title, "status:review requires Status=In Progress and Workflow=Review"]
           else empty end
         )
       | @tsv
