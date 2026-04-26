@@ -628,6 +628,8 @@ func TestHandleRestoreCommand_RevisionsListsVisibleRevisionsReadOnly(t *testing.
 		"Read Only",
 		"Executes Restore",
 		"false",
+		"Source Path",
+		sourcePath,
 		"Workspace",
 		"temporary",
 		"Revision Count",

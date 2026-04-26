@@ -87,7 +87,7 @@ func formatRestoreRevisions(report *restoreRevisionsReport) string {
 		{Label: "Read Only", Value: "true"},
 		{Label: "Executes Restore", Value: "false"},
 	})
-	writeRestoreResolvedSection(&b, report.ConfigFile, "", report.Storage, report.SecretsFile)
+	writeRestoreResolvedSection(&b, report.ConfigFile, report.SourcePath, report.Storage, report.SecretsFile)
 	writeRestoreSection(&b, "Workspace", []SummaryLine{
 		{Label: "Mode", Value: report.WorkspaceMode},
 		{Label: "Path", Value: report.Workspace},

@@ -39,6 +39,7 @@ type restoreRevisionsReport struct {
 	Target          string                `json:"target"`
 	Location        string                `json:"location"`
 	ConfigFile      string                `json:"config_file"`
+	SourcePath      string                `json:"source_path"`
 	Storage         string                `json:"storage"`
 	Workspace       string                `json:"workspace"`
 	WorkspaceMode   string                `json:"workspace_mode"`
@@ -170,6 +171,7 @@ func newRestoreRevisionsReport(req *RestoreRequest, ctx *restoreExecutionContext
 		Target:          req.Target(),
 		Location:        ctx.plan.Location,
 		ConfigFile:      ctx.plan.ConfigFile,
+		SourcePath:      ctx.plan.SnapshotSource,
 		Storage:         ctx.cfg.Storage,
 		Workspace:       ctx.workspace,
 		WorkspaceMode:   ctx.mode,

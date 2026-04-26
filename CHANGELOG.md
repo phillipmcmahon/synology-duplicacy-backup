@@ -18,6 +18,9 @@ coverage floor and package-level baseline.
   operator account, default config, secrets, logs, state, and lock paths resolve
   under the sudoing operator home instead of `/root`. Direct root shells still
   use `/root` unless explicit paths are supplied.
+- **Restore revision listing now reports the resolved source path** when the
+  backup config defines one, instead of always showing the restore-only
+  fallback wording.
 
 ## [v8.0.1] - 2026-04-26
 
