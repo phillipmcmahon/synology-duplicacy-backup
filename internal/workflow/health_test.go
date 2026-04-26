@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
+	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
 
@@ -727,6 +728,73 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	}
 	if len(report.RevisionResults) != 0 {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestHealthRunner_VerifyIgnoresBackupReadinessBtrfsFailures(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+
+	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	t.Cleanup(log.Close)
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
+
+	state := &RunState{
+		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
+		LastSuccessfulBackupRevision: 8,
+		LastSuccessfulBackupAt:       formatReportTime(now.Add(-2 * time.Hour)),
+		LastVerifyAt:                 formatReportTime(now.Add(-2 * time.Hour)),
+	}
+	if err := saveRunState(meta, "homes", "onsite-usb", state); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+
+	runner := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Err: errors.New("not a subvolume")},
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Err: errors.New("not a subvolume")},
+		execpkg.MockResult{},
+		execpkg.MockResult{Stdout: "2026-04-10 20:00:00.000 INFO SNAPSHOT_CHECK All chunks referenced by snapshot homes at revision 8 exist\n"},
+	)
+
+	report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+		HealthCommand:   "verify",
+		RequestedTarget: "onsite-usb",
+		Source:          "homes",
+		ConfigDir:       configDir,
+	})
+	if code != 0 || report.Status != "healthy" {
+		t.Fatalf("code = %d, report = %+v", code, report)
+	}
+	if report.CheckedRevisionCount != 1 || report.PassedRevisionCount != 1 || report.FailedRevisionCount != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+	if len(report.Issues) != 0 {
+		t.Fatalf("backup-readiness checks should not create verify issues: %+v", report.Issues)
+	}
+	if result, _, ok := healthpkg.CheckResult(report, "Btrfs root"); !ok || result != "info" {
+		t.Fatalf("Btrfs root check = %q, present=%t, report=%+v", result, ok, report)
+	}
+	if result, _, ok := healthpkg.CheckResult(report, "Btrfs source"); !ok || result != "info" {
+		t.Fatalf("Btrfs source check = %q, present=%t, report=%+v", result, ok, report)
+	}
+	if _, _, ok := healthpkg.CheckResult(report, "Last doctor run"); ok {
+		t.Fatalf("verify should not report doctor recency: %+v", report)
 	}
 }
 
@@ -1445,9 +1513,6 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Latest revision") {
-		t.Fatalf("stderr = %q", stderr)
-	}
-	if !strings.Contains(stderr, "Last doctor run") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Last verify run") {

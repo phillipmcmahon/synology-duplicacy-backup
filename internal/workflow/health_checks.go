@@ -74,8 +74,13 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest,
 }
 
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
+	verifyMode := req.Command == "verify"
 	if _, err := os.Stat(plan.SnapshotSource); err != nil {
-		report.AddCheck("Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
+		if verifyMode {
+			report.AddDisplayCheck("Source path", "info", fmt.Sprintf("Backup-readiness check failed: source path is not accessible: %v", err))
+		} else {
+			report.AddCheck("Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
+		}
 	} else {
 		report.AddCheck("Source path", "pass", plan.SnapshotSource)
 	}
@@ -85,11 +90,15 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	case rootErr == nil && sourceErr == nil:
 		report.AddCheck("Btrfs", "pass", "Yes")
 	default:
+		addBtrfsCheck := report.AddCheck
+		if verifyMode {
+			addBtrfsCheck = report.AddDisplayCheck
+		}
 		if rootErr != nil {
-			report.AddCheck("Btrfs root", "fail", OperatorMessage(rootErr))
+			addBtrfsCheck("Btrfs root", btrfsDoctorResult(verifyMode), btrfsDoctorMessage(verifyMode, rootErr))
 		}
 		if sourceErr != nil {
-			report.AddCheck("Btrfs source", "fail", OperatorMessage(sourceErr))
+			addBtrfsCheck("Btrfs source", btrfsDoctorResult(verifyMode), btrfsDoctorMessage(verifyMode, sourceErr))
 		}
 	}
 
@@ -105,7 +114,24 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		report.AddCheck("Repository access", "pass", "Validated")
 	}
 
-	h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
+	if req.Command == "doctor" {
+		h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
+	}
+}
+
+func btrfsDoctorResult(verifyMode bool) string {
+	if verifyMode {
+		return "info"
+	}
+	return "fail"
+}
+
+func btrfsDoctorMessage(verifyMode bool, err error) string {
+	message := OperatorMessage(err)
+	if verifyMode {
+		return "Backup-readiness check failed; storage integrity verification continues: " + message
+	}
+	return message
 }
 
 func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
