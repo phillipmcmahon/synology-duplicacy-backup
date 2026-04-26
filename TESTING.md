@@ -35,9 +35,9 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v8.0.0`
+Current public release baseline: `v8.0.2`
 
-Active release-prep target: `v8.0.0`
+Active release-prep target: `v9.0.0`
 
 The baseline block is refreshed during release prep; `make release-prep`
 should be the reminder to update it before publishing.
@@ -56,18 +56,30 @@ Current Linux Go 1.26 development validation snapshot:
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 - package coverage floor: `85.0%`
-- overall coverage: `87.8%`
-- `cmd/duplicacy-backup`: `87.9%`
-- `internal/workflow`: `86.1%`
+- overall coverage: `87.5%`
+- `cmd/duplicacy-backup`: `86.7%`
+- `internal/workflow`: `85.5%`
 - `internal/restorepicker`: `88.8%`
 - `internal/update`: `85.2%`
 - `internal/duplicacy`: `89.6%`
 - `internal/exec`: `95.2%`
-- `internal/secrets`: `93.8%`
+- `internal/secrets`: `93.1%`
 - `internal/config`: `88.0%`
 - `internal/health`: `94.3%`
 - `internal/logger`: `89.7%`
 - `internal/presentation`: `91.5%`
+
+Additional v9.0.0 validation:
+
+- Release validation covers the breaking removal of the `fix-perms` command:
+  local filesystem repository ownership and permissioning are now an OS and
+  operator policy boundary, not an application command surface.
+- Storage boundary coverage now pins local-disk repository detection for plain
+  paths and `file://` URLs, while URL-backed storage remains credential or
+  backend mediated.
+- CI smoke validation now includes posture-level checks for non-root operator
+  commands, sudo/operator-owned secrets, and the runtime profile migration
+  helper before release builds can publish.
 
 Additional v8.0.0 validation:
 

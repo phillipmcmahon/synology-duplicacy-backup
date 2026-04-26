@@ -26,6 +26,27 @@ coverage floor and package-level baseline.
 - CI now includes posture-level smoke jobs for non-root operator commands,
   sudo/operator-owned secrets, and the runtime profile migration helper before
   release builds can publish.
+- Local filesystem repository mutation is now documented and enforced as a
+  root-owned OS boundary, while object/backend storage access remains governed
+  by the operator-owned credentials profile.
+- Local-disk storage detection now explicitly treats plain paths and `file://`
+  URLs as local storage, while URL-backed storage such as SFTP, S3-compatible,
+  B2, Wasabi, Storj, WebDAV, and Google Cloud Storage remains backend-mediated.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.5%`
+- `cmd/duplicacy-backup`: `86.7%`
+- `internal/workflow`: `85.5%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v8.0.2] - 2026-04-26
 
