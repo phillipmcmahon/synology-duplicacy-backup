@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v9.0.0`
+Current public release baseline: `v9.1.0`
 
 Active release-prep target: none
 
@@ -57,8 +57,8 @@ Current Linux Go 1.26 development validation snapshot:
 - `go test -cover ./...`
 - package coverage floor: `85.0%`
 - overall coverage: `87.5%`
-- `cmd/duplicacy-backup`: `86.7%`
-- `internal/workflow`: `85.5%`
+- `cmd/duplicacy-backup`: `87.4%`
+- `internal/workflow`: `85.3%`
 - `internal/restorepicker`: `88.8%`
 - `internal/update`: `85.2%`
 - `internal/duplicacy`: `89.6%`
@@ -68,6 +68,18 @@ Current Linux Go 1.26 development validation snapshot:
 - `internal/health`: `94.3%`
 - `internal/logger`: `89.7%`
 - `internal/presentation`: `91.5%`
+
+Additional v9.1.0 validation:
+
+- Direct-root execution coverage now checks ambiguous profile-using command
+  rejection before config loading, explicit expert profile allowance, and the
+  policy table for runtime, config, diagnostics, health, restore, notify,
+  update, and rollback command shapes.
+- Project-board automation coverage now pins the corrected Review state:
+  `Status=In Progress`, `Workflow=Review`, with `Status=Done` reserved for
+  completed items.
+- Release validation includes the refreshed script-test fixture that caught the
+  prior Review/Done mismatch in CI.
 
 Additional v9.0.0 validation:
 

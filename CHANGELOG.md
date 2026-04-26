@@ -46,12 +46,12 @@ coverage floor and package-level baseline.
 - **Linux Go 1.26**: `go test -cover ./...`
 
 ### Coverage snapshot
-- overall coverage: `to be refreshed by release prep`
-- `cmd/duplicacy-backup`: `to be refreshed by release prep`
-- `internal/workflow`: `to be refreshed by release prep`
-- `internal/duplicacy`: `to be refreshed by release prep`
-- `internal/exec`: `to be refreshed by release prep`
-- `internal/secrets`: `to be refreshed by release prep`
+- overall coverage: `87.5%`
+- `cmd/duplicacy-backup`: `87.4%`
+- `internal/workflow`: `85.3%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v9.0.0] - 2026-04-26
 
