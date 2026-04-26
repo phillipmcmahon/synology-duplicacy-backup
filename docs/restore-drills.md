@@ -24,7 +24,7 @@ Restore commands are designed to run as the operator user when that user can
 read the selected config/secrets and write to the drill workspace. Create the
 parent `--workspace-root` yourself first, preferably as a Synology shared
 folder when DSM visibility matters. The tool preserves that parent folder and
-creates the derived restore-job child underneath it.
+creates the derived restore-job child underneath it with mode `0700`.
 
 Avoid running restore through `sudo` just to work around workspace access.
 Fix the workspace root ownership or permissions instead. Use `sudo` only for

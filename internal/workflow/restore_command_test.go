@@ -229,7 +229,7 @@ func TestValidateRestoreWorkspaceSelection_RejectsRelativeRoot(t *testing.T) {
 func TestValidateRestoreWorkspaceRoot_RejectsMissingRoot(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "missing-restore-root")
 	err := validateRestoreWorkspaceRoot(&RestoreRequest{WorkspaceRoot: root})
-	if err == nil || !strings.Contains(err.Error(), "--workspace-root must already exist") {
+	if err == nil || !strings.Contains(err.Error(), "--workspace-root does not exist") {
 		t.Fatalf("validateRestoreWorkspaceRoot() err = %v", err)
 	}
 }
@@ -796,8 +796,8 @@ func TestHandleRestoreCommand_RunPreservesExistingWorkspaceRootPermissions(t *te
 	if err != nil {
 		t.Fatalf("Stat(%q) error = %v", wantWorkspace, err)
 	}
-	if got := workspaceInfo.Mode().Perm(); got != 0770 {
-		t.Fatalf("workspace mode = %v, want 0770", got)
+	if got := workspaceInfo.Mode().Perm(); got != 0700 {
+		t.Fatalf("workspace mode = %v, want 0700", got)
 	}
 }
 

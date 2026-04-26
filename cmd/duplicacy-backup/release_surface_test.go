@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
@@ -207,6 +208,10 @@ func newRuntimeMigrationFixture(t *testing.T) runtimeMigrationFixture {
 
 func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testing.T) {
 	fixture := newRuntimeMigrationFixture(t)
+	wantModTime := time.Date(2026, 4, 20, 12, 30, 0, 0, time.UTC)
+	if err := os.Chtimes(fixture.secretsSource, wantModTime, wantModTime); err != nil {
+		t.Fatalf("Chtimes(secrets source) failed: %v", err)
+	}
 
 	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
@@ -240,11 +245,72 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 			t.Fatalf("%s perms = %04o, want 0600", path, got)
 		}
 	}
+	secretInfo, err := os.Stat(filepath.Join(fixture.secretsDir, "homes-secrets.toml"))
+	if err != nil {
+		t.Fatalf("Stat(migrated secrets) failed: %v", err)
+	}
+	if !secretInfo.ModTime().Equal(wantModTime) {
+		t.Fatalf("migrated secrets mtime = %s, want %s", secretInfo.ModTime(), wantModTime)
+	}
 	if _, err := os.Stat(fixture.configSource); err != nil {
 		t.Fatalf("source config should remain after copy mode: %v", err)
 	}
 	if _, err := os.Stat(fixture.secretsSource); err != nil {
 		t.Fatalf("source secrets should remain after copy mode: %v", err)
+	}
+}
+
+func TestRuntimeProfileMigrationScript_PreflightsDestinationCollisionsBeforeMove(t *testing.T) {
+	fixture := newRuntimeMigrationFixture(t)
+	configDestination := filepath.Join(fixture.configDir, "homes-backup.toml")
+	secretsDestination := filepath.Join(fixture.secretsDir, "homes-secrets.toml")
+	if err := os.MkdirAll(fixture.configDir, 0700); err != nil {
+		t.Fatalf("MkdirAll(config destination) failed: %v", err)
+	}
+	if err := os.MkdirAll(fixture.secretsDir, 0700); err != nil {
+		t.Fatalf("MkdirAll(secrets destination) failed: %v", err)
+	}
+	if err := os.WriteFile(configDestination, []byte("existing config\n"), 0600); err != nil {
+		t.Fatalf("WriteFile(config destination) failed: %v", err)
+	}
+	if err := os.WriteFile(secretsDestination, []byte("existing secrets\n"), 0600); err != nil {
+		t.Fatalf("WriteFile(secrets destination) failed: %v", err)
+	}
+
+	cmd := exec.Command("sh", fixture.scriptPath,
+		"--target-user", currentUsername(t),
+		"--target-home", fixture.targetHome,
+		"--legacy-config-dir", fixture.legacyConfig,
+		"--legacy-secrets-dir", fixture.legacySecrets,
+		"--move",
+	)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("migration script unexpectedly succeeded:\n%s", output)
+	}
+	text := string(output)
+	for _, token := range []string{
+		"destination files already exist; no files were copied or moved",
+		configDestination,
+		secretsDestination,
+		"Use --force to overwrite",
+	} {
+		if !strings.Contains(text, token) {
+			t.Fatalf("migration output missing %q:\n%s", token, output)
+		}
+	}
+	if _, err := os.Stat(fixture.configSource); err != nil {
+		t.Fatalf("source config should remain after failed --move preflight: %v", err)
+	}
+	if _, err := os.Stat(fixture.secretsSource); err != nil {
+		t.Fatalf("source secrets should remain after failed --move preflight: %v", err)
+	}
+	configBytes, err := os.ReadFile(configDestination)
+	if err != nil {
+		t.Fatalf("ReadFile(config destination) failed: %v", err)
+	}
+	if string(configBytes) != "existing config\n" {
+		t.Fatalf("config destination was overwritten: %q", configBytes)
 	}
 }
 

@@ -2,6 +2,13 @@ package workflow
 
 import "strings"
 
+const (
+	RestoreCommandPlan          = "plan"
+	RestoreCommandListRevisions = "list-revisions"
+	RestoreCommandRun           = "run"
+	RestoreCommandSelect        = "select"
+)
+
 // RestoreRequest is the restore command's narrowed view of CLI intent.
 //
 // The parser still returns Request while the broader request-model refactor is
@@ -26,6 +33,8 @@ type RestoreRequest struct {
 
 func NewRestoreRequest(req *Request) RestoreRequest {
 	if req == nil {
+		// Keep projectors mechanical and tolerant; command validation rejects
+		// the resulting empty request at the boundary.
 		return RestoreRequest{}
 	}
 	return RestoreRequest{
@@ -51,7 +60,7 @@ func (r RestoreRequest) Target() string {
 }
 
 func (r RestoreRequest) UsesProgress() bool {
-	return r.Command == "run" || r.Command == "select"
+	return r.Command == RestoreCommandRun || r.Command == RestoreCommandSelect
 }
 
 func (r RestoreRequest) PlanRequest() ConfigPlanRequest {

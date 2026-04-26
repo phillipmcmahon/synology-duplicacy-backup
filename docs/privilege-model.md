@@ -76,6 +76,12 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 | `config` / `diagnostics` / `notify` | Reads config/secrets and writes only normal command output or notifications. |
 | `update --check-only` / `rollback --check-only` | Inspects managed install state without changing it. |
 
+For path-based local storage created by a previous root-era install, `prune`
+or `cleanup-storage` may still fail as a normal user because the storage tree
+itself is root-owned. Chown the storage tree to the operator user, or run the
+maintenance command with `sudo` once after confirming that is the intended
+ownership model.
+
 If a command fails with a path permission error, fix the selected path
 ownership/mode or pass explicit `--config-dir`, `--secrets-dir`, `--workspace`,
 or `--workspace-root` values. Do not use `sudo` unless the command is actually

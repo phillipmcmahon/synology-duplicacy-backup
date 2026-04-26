@@ -98,7 +98,7 @@ func validateRestoreWorkspaceRoot(req *RestoreRequest) error {
 	info, err := os.Stat(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return NewRequestError("--workspace-root must already exist; create it via DSM as a shared folder, or with mkdir: %s", root)
+			return NewRequestError("--workspace-root does not exist: %s\nhint: create it via DSM as a shared folder or with mkdir -p", root)
 		}
 		return fmt.Errorf("restore workspace root is not accessible: %w", err)
 	}
@@ -144,7 +144,7 @@ func ensureRestoreWorkspaceReady(workspace string) error {
 	info, err := os.Stat(workspace)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(workspace, 0770)
+			return os.MkdirAll(workspace, 0700)
 		}
 		return fmt.Errorf("restore workspace is not accessible: %w", err)
 	}
@@ -242,10 +242,21 @@ func writeRestoreWorkspacePreferences(workspace, storage string, sec *secrets.Se
 	if err := dup.WritePreferences(sec); err != nil {
 		return err
 	}
-	return dup.SetPermissions()
+	if err := dup.SetPermissions(); err != nil {
+		return err
+	}
+	return os.Chmod(workspace, 0700)
 }
 
 func restoreWorkspacePrepared(workspace string) bool {
 	info, err := os.Stat(filepath.Join(workspace, ".duplicacy", "preferences"))
-	return err == nil && !info.IsDir()
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		// Treat unreadable preferences as not prepared; the subsequent prepare
+		// step will surface the concrete permission or filesystem error.
+		return false
+	}
+	return !info.IsDir()
 }

@@ -21,7 +21,7 @@ Command-specific request models make each workflow contract easier to review:
 - diagnostics code sees diagnostics fields only
 - runtime planning remains separate from non-runtime commands
 
-## Final Shape
+## Design Rule
 
 The parser still returns a broad `Request` dispatch envelope because one CLI
 parser handles every command family. That broad shape should stay at the

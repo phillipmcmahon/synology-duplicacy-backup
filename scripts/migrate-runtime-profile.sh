@@ -25,8 +25,10 @@ Migrate legacy root-era runtime files into the non-root user profile:
         -> $HOME/.config/duplicacy-backup/secrets/
 
 The script copies by default. Use --move only after reviewing the dry run.
-Destination directories are created with 0700 and migrated TOML files are set
-to 0600. When run as root, destination files are chowned to the target user.
+Before copying or moving, the script reports all destination collisions unless
+--force is supplied. Destination directories are created with 0700 and migrated
+TOML files are set to 0600. When run as root, destination files are chowned to
+the target user.
 
 Options:
   --target-user <name>       User that should own the migrated files
@@ -146,7 +148,7 @@ migrate_file() {
     fi
 
     info "Migrating: $src -> $dst"
-    run cp "$src" "$dst"
+    run cp -p "$src" "$dst"
     run chmod 600 "$dst"
     if [ "$(id -u)" -eq 0 ]; then
         run chown "$user" "$dst"
@@ -154,6 +156,35 @@ migrate_file() {
     if [ "$MOVE" -eq 1 ]; then
         run rm -f "$src"
     fi
+}
+
+list_destination_collisions() {
+    src_dir="$1"
+    dst_dir="$2"
+
+    [ -d "$src_dir" ] || return 0
+    for src in "$src_dir"/*.toml; do
+        [ -f "$src" ] || continue
+        dst="$dst_dir/$(basename "$src")"
+        if [ -e "$dst" ]; then
+            printf '%s\n' "$dst"
+        fi
+    done
+}
+
+preflight_destination_collisions() {
+    [ "$FORCE" -ne 1 ] || return 0
+
+    collisions="$(
+        list_destination_collisions "$LEGACY_CONFIG_DIR" "$CONFIG_DIR"
+        list_destination_collisions "$LEGACY_SECRETS_DIR" "$SECRETS_DIR"
+    )"
+    [ -z "$collisions" ] && return 0
+
+    echo "Error: destination files already exist; no files were copied or moved" >&2
+    printf '%s\n' "$collisions" >&2
+    echo "Use --force to overwrite, or move the destination files aside and rerun." >&2
+    exit 1
 }
 
 migrate_dir_toml() {
@@ -252,6 +283,8 @@ if [ "$MOVE" -eq 1 ]; then
 else
     info "Mode              : copy only"
 fi
+
+preflight_destination_collisions
 
 migrate_dir_toml "$LEGACY_CONFIG_DIR" "$CONFIG_DIR" "$TARGET_USER" "Config"
 migrate_dir_toml "$LEGACY_SECRETS_DIR" "$SECRETS_DIR" "$TARGET_USER" "Secrets"
