@@ -44,6 +44,10 @@ Use the project board and release issues in a lightweight, repeatable way:
   action, reconcile the board before moving on. The GitHub issue state,
   `status:*` label, project `Status` field, and custom `Workflow` field should
   agree.
+- During release finalization, perform a full board consistency sweep, not only
+  a check of the release-prep issue. Closed issues should be `Done`/`Done` with
+  no stale `status:*` labels, and open issues should not be left in `Done`
+  unless they are intentionally open tracking epics.
 - Close each release child with a short comment that includes:
   - landed commit
   - validation run
@@ -88,7 +92,7 @@ Suggested release-prep checklist:
 - [ ] release tag pushed from the validated commit
 - [ ] GitHub release workflow passed
 - [ ] release finalized with `scripts/finalize-release.sh`
-- [ ] project board and status labels reconciled after release finalization
+- [ ] full project board consistency sweep completed after release finalization
 - [ ] closure summary pasted into the release issue
 
 ### 2. Prepare Version
@@ -255,6 +259,10 @@ After the release exists and the GitHub Actions asset set is complete:
 - mirror the full artefact set to homestorage
 - run the full release verifier
 - paste the generated closure summary into the release issue before closing it
+- reconcile the release-prep issue, shipped implementation stories, and project
+  board so issue state, labels, project `Status`, and project `Workflow` agree
+- run a full board consistency sweep and correct stale items before declaring
+  the release complete
 
 Supported command:
 
@@ -266,6 +274,22 @@ This is the standard release closure gate. It runs
 `scripts/mirror-release-assets.sh`, then `scripts/verify-release.sh`, then
 prints a concise release-issue comment that includes the GitHub release URL,
 NAS mirror path, verification result, and attestation result.
+
+Board consistency sweep:
+
+```bash
+gh project item-list 1 --owner phillipmcmahon --format json --limit 300 \
+  | jq -r '.items[]
+      | select(.content.number != null)
+      | select((.content.state == "CLOSED" and ((.status // "") != "Done" or (.workflow // "") != "Done"))
+        or (.content.state == "OPEN" and ((.status // "") == "Done" or (.workflow // "") == "Done")))
+      | [.content.number, .content.title, .content.state, (.status // ""), (.workflow // "")]
+      | @tsv'
+```
+
+The command should print no rows. If it does, update the issue state, remove
+stale `status:*` labels, and set the project `Status` and `Workflow` fields
+before closing the release task.
 
 Expected artefacts for each release:
 
