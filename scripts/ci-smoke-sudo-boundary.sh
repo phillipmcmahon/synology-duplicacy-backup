@@ -36,7 +36,7 @@ if printf '%s\n' "$explain_output" | grep -F "/root/.config/duplicacy-backup" >/
     ci_fail "sudo config explain resolved the root profile instead of the operator profile"
 fi
 
-backup_output="$(env -u XDG_CONFIG_HOME -u XDG_STATE_HOME SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes)"
+backup_output="$(env -u XDG_CONFIG_HOME -u XDG_STATE_HOME SUDO_USER="$OPERATOR_USER" SUDO_UID="$operator_uid" SUDO_GID="$operator_gid" HOME=/root duplicacy-backup backup --target "$TARGET" --dry-run homes 2>&1)"
 printf '%s\n' "$backup_output"
 printf '%s\n' "$backup_output" | grep -F "duplicacy backup -stats -threads 1" >/dev/null
 printf '%s\n' "$backup_output" | grep -F "Success" >/dev/null
