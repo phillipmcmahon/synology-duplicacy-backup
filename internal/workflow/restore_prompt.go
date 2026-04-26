@@ -283,7 +283,7 @@ func restoreListFilesError(err error, output string, revision int) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("%w\nDuplicacy command: duplicacy list -files -r %d\n%s", err, revision, restoreListFilesDiagnostics(output))
+	return NewMessageError("%s\nDuplicacy command: duplicacy list -files -r %d\n%s", err.Error(), revision, restoreListFilesDiagnostics(output))
 }
 
 func restoreListFilesDiagnostics(output string) string {

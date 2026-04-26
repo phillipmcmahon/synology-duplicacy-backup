@@ -41,6 +41,11 @@ func TestOperatorMessage(t *testing.T) {
 			want: "Refusing to continue because safe prune thresholds were exceeded",
 		},
 		{
+			name: "message error preserves multiline diagnostics",
+			err:  NewMessageError("backup/restore-list-files: failed to list files for revision 10\nDuplicacy command: duplicacy list -files -r 10\nDuplicacy diagnostics:\nFailed to load snapshot: permission denied"),
+			want: "backup/restore-list-files: failed to list files for revision 10\nDuplicacy command: duplicacy list -files -r 10\nDuplicacy diagnostics:\nFailed to load snapshot: permission denied",
+		},
+		{
 			name: "snapshot check volume cause",
 			err:  apperrors.NewSnapshotError("check-volume", errors.New("path is not on a btrfs filesystem"), "path", "/volume1/homes"),
 			want: "Btrfs validation failed for /volume1/homes: path is not on a btrfs filesystem",

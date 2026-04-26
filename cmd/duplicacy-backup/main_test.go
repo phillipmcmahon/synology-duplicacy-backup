@@ -379,6 +379,25 @@ func TestWriteRestoreLoggerFailureWrapsLoggerError(t *testing.T) {
 	}
 }
 
+func TestWriteCommandFailurePreservesMultilineOperatorDiagnostics(t *testing.T) {
+	_, stderr := captureOutput(t, func() {
+		code := writeCommandFailure("", workflow.NewMessageError("backup/restore-list-files: failed to list files for revision 10\nDuplicacy command: duplicacy list -files -r 10\nDuplicacy diagnostics:\nFailed to load snapshot: permission denied"))
+		if code != exitCodeGeneralFailure {
+			t.Fatalf("code = %d, want %d", code, exitCodeGeneralFailure)
+		}
+	})
+	for _, want := range []string{
+		"[ERRO] backup/restore-list-files: failed to list files for revision 10",
+		"Duplicacy command: duplicacy list -files -r 10",
+		"Duplicacy diagnostics:",
+		"Failed to load snapshot: permission denied",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr missing %q:\n%s", want, stderr)
+		}
+	}
+}
+
 func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
