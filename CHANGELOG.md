@@ -12,6 +12,11 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Root-required commands now require complete sudo metadata before default
+  runtime paths are redirected from `/root` to the sudoing operator profile,
+  keeping profile resolution aligned with secrets ownership validation.
+
 ## [v8.0.2] - 2026-04-26
 
 ### Fixed

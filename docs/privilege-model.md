@@ -62,14 +62,15 @@ operator user and invoke through `sudo` from that operator account:
 sudo duplicacy-backup backup --target onsite-usb homes
 ```
 
-When invoked this way, default config, secrets, logs, state, and lock paths
-resolve to the sudoing operator profile, and `duplicacy-backup` accepts `0600`
-secrets owned by that operator account.
+When invoked this way with normal sudo metadata, default config, secrets, logs,
+state, and lock paths resolve to the sudoing operator profile, and
+`duplicacy-backup` accepts `0600` secrets owned by that operator account.
 
-If you log in directly as `root` instead, defaults resolve under `/root`.
-Either use a root-owned runtime profile under `/root`, run `sudo` from the
-operator account, or pass explicit `--config-dir` and `--secrets-dir` values so
-the intended profile is unambiguous.
+If you log in directly as `root`, or run with a stripped environment that lacks
+complete sudo metadata, defaults resolve under `/root`. Either use a root-owned
+runtime profile under `/root`, run `sudo` from the operator account, or pass
+explicit `--config-dir` and `--secrets-dir` values so the intended profile is
+unambiguous.
 
 ## Non-Root-Capable Commands
 

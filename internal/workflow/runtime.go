@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -204,8 +205,8 @@ func sudoOperatorHomeDir(rt Runtime) string {
 	if runtimeEUID(rt) != 0 {
 		return ""
 	}
-	sudoUser := strings.TrimSpace(runtimeEnv(rt, "SUDO_USER"))
-	if sudoUser == "" || sudoUser == "root" {
+	sudoUser, ok := sudoOperatorUser(rt)
+	if !ok {
 		return ""
 	}
 	lookup := rt.UserLookup
@@ -217,6 +218,17 @@ func sudoOperatorHomeDir(rt Runtime) string {
 		return ""
 	}
 	return u.HomeDir
+}
+
+func sudoOperatorUser(rt Runtime) (string, bool) {
+	sudoUser := strings.TrimSpace(runtimeEnv(rt, "SUDO_USER"))
+	if sudoUser == "" || sudoUser == "root" {
+		return "", false
+	}
+	if _, err := strconv.ParseUint(strings.TrimSpace(runtimeEnv(rt, "SUDO_UID")), 10, 32); err != nil {
+		return "", false
+	}
+	return sudoUser, true
 }
 
 func runtimeEUID(rt Runtime) int {

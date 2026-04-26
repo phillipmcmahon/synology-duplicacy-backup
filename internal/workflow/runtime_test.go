@@ -113,6 +113,8 @@ func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
 				return "/root"
 			case "SUDO_USER":
 				return "phillipmcmahon"
+			case "SUDO_UID":
+				return "1026"
 			default:
 				return ""
 			}
@@ -137,6 +139,57 @@ func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
 	}
 	if dirs.StateDir != "/var/services/homes/phillipmcmahon/.local/state/duplicacy-backup/state" {
 		t.Fatalf("StateDir = %q", dirs.StateDir)
+	}
+}
+
+func TestRuntimeUserProfileDefaultsIncompleteSudoMetadataUsesRootHome(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  map[string]string
+	}{
+		{
+			name: "missing sudo uid",
+			env: map[string]string{
+				"HOME":      "/root",
+				"SUDO_USER": "phillipmcmahon",
+			},
+		},
+		{
+			name: "malformed sudo uid",
+			env: map[string]string{
+				"HOME":      "/root",
+				"SUDO_USER": "phillipmcmahon",
+				"SUDO_UID":  "not-a-uid",
+			},
+		},
+		{
+			name: "missing sudo user",
+			env: map[string]string{
+				"HOME":     "/root",
+				"SUDO_UID": "1026",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rt := Runtime{
+				Geteuid: func() int { return 0 },
+				Getenv: func(key string) string {
+					return tc.env[key]
+				},
+				UserLookup: func(name string) (*user.User, error) {
+					t.Fatalf("UserLookup(%q) should not be called for incomplete sudo metadata", name)
+					return nil, nil
+				},
+			}
+
+			dirs := DefaultUserProfileDirs(rt)
+			if dirs.ConfigDir != "/root/.config/duplicacy-backup" {
+				t.Fatalf("ConfigDir = %q", dirs.ConfigDir)
+			}
+			if dirs.SecretsDir != "/root/.config/duplicacy-backup/secrets" {
+				t.Fatalf("SecretsDir = %q", dirs.SecretsDir)
+			}
+		})
 	}
 }
 

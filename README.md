@@ -200,10 +200,11 @@ duplicacy-backup restore list-revisions --target onsite-usb homes
 duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
-When a root-required command is invoked with `sudo` from the operator account,
-default config, secrets, log, state, and lock paths still resolve to the
-operator profile. A direct root shell uses `/root` unless explicit profile paths
-are supplied.
+When a root-required command is invoked with normal `sudo` metadata from the
+operator account, default config, secrets, log, state, and lock paths still
+resolve to the operator profile. A direct root shell, or a stripped environment
+without complete sudo metadata, uses `/root` unless explicit profile paths are
+supplied.
 
 For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
 complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology
