@@ -109,21 +109,29 @@ case "$STAGE" in
     ready)
         STATUS_OPTION="$STATUS_TODO_OPTION_ID"
         WORKFLOW_OPTION="$WORKFLOW_READY_OPTION_ID"
+        STATUS_NAME="Todo"
+        WORKFLOW_NAME="Ready"
         ADD_LABEL=""
         ;;
     in-progress)
         STATUS_OPTION="$STATUS_IN_PROGRESS_OPTION_ID"
         WORKFLOW_OPTION="$WORKFLOW_IN_PROGRESS_OPTION_ID"
+        STATUS_NAME="In Progress"
+        WORKFLOW_NAME="In Progress"
         ADD_LABEL="status:in-progress"
         ;;
     review)
         STATUS_OPTION="$STATUS_IN_PROGRESS_OPTION_ID"
         WORKFLOW_OPTION="$WORKFLOW_REVIEW_OPTION_ID"
+        STATUS_NAME="In Progress"
+        WORKFLOW_NAME="Review"
         ADD_LABEL="status:review"
         ;;
     done)
         STATUS_OPTION="$STATUS_DONE_OPTION_ID"
         WORKFLOW_OPTION="$WORKFLOW_DONE_OPTION_ID"
+        STATUS_NAME="Done"
+        WORKFLOW_NAME="Done"
         ADD_LABEL=""
         ;;
     *)
@@ -169,6 +177,59 @@ fi
 
 if [ "$CLOSE_ISSUE" -eq 1 ]; then
     gh issue close "$ISSUE" --repo "$OWNER/$REPO" >/dev/null
+fi
+
+VERIFY_QUERY='
+query($owner:String!, $repo:String!, $number:Int!) {
+  repository(owner:$owner, name:$repo) {
+    issue(number:$number) {
+      state
+      projectItems(first:20) {
+        nodes {
+          project { id }
+          fieldValues(first:30) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2SingleSelectField { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+'
+
+VERIFY_RESULT="$(gh api graphql \
+    -f query="$VERIFY_QUERY" \
+    -f owner="$OWNER" \
+    -f repo="$REPO" \
+    -F number="$ISSUE" \
+    | jq -r --arg project "$PROJECT_ID" '
+        .data.repository.issue as $issue
+        | ($issue.projectItems.nodes[] | select(.project.id == $project)) as $item
+        | [
+            $issue.state,
+            (($item.fieldValues.nodes[]? | select(.field.name == "Status") | .name) // ""),
+            (($item.fieldValues.nodes[]? | select(.field.name == "Workflow") | .name) // "")
+          ]
+        | @tsv
+      ')"
+
+[ -n "$VERIFY_RESULT" ] || fail "could not verify project item for issue #$ISSUE"
+ISSUE_STATE="$(printf '%s\n' "$VERIFY_RESULT" | awk -F '\t' '{print $1}')"
+ACTUAL_STATUS="$(printf '%s\n' "$VERIFY_RESULT" | awk -F '\t' '{print $2}')"
+ACTUAL_WORKFLOW="$(printf '%s\n' "$VERIFY_RESULT" | awk -F '\t' '{print $3}')"
+
+[ "$ACTUAL_STATUS" = "$STATUS_NAME" ] || fail "post-transition Status mismatch for #$ISSUE: got '$ACTUAL_STATUS', want '$STATUS_NAME'"
+[ "$ACTUAL_WORKFLOW" = "$WORKFLOW_NAME" ] || fail "post-transition Workflow mismatch for #$ISSUE: got '$ACTUAL_WORKFLOW', want '$WORKFLOW_NAME'"
+if [ "$CLOSE_ISSUE" -eq 1 ] && [ "$ISSUE_STATE" != "CLOSED" ]; then
+    fail "post-transition issue state mismatch for #$ISSUE: got '$ISSUE_STATE', want 'CLOSED'"
+fi
+if [ "$REOPEN_ISSUE" -eq 1 ] && [ "$ISSUE_STATE" != "OPEN" ]; then
+    fail "post-transition issue state mismatch for #$ISSUE: got '$ISSUE_STATE', want 'OPEN'"
 fi
 
 echo "Issue #$ISSUE moved to $STAGE"
