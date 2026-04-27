@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v9.1.0`
+Current public release baseline: `v9.1.1`
 
 Active release-prep target: none
 
@@ -56,8 +56,8 @@ Current Linux Go 1.26 development validation snapshot:
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 - package coverage floor: `85.0%`
-- overall coverage: `87.5%`
-- `cmd/duplicacy-backup`: `87.4%`
+- overall coverage: `87.3%`
+- `cmd/duplicacy-backup`: `85.8%`
 - `internal/workflow`: `85.3%`
 - `internal/restorepicker`: `88.8%`
 - `internal/update`: `85.2%`
@@ -66,8 +66,16 @@ Current Linux Go 1.26 development validation snapshot:
 - `internal/secrets`: `93.1%`
 - `internal/config`: `88.0%`
 - `internal/health`: `94.3%`
-- `internal/logger`: `89.7%`
+- `internal/logger`: `89.3%`
+- `internal/lock`: `88.5%`
 - `internal/presentation`: `91.5%`
+
+Additional v9.1.1 validation:
+
+- Release validation covers sudo-backed root-required commands keeping
+  operator-profile artefacts operator-owned after state, log, and lock writes.
+- Ownership repair coverage now includes fail-closed handling for incomplete or
+  malformed sudo UID/GID metadata.
 
 Additional v9.1.0 validation:
 

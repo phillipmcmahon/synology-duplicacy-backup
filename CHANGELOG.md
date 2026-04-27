@@ -32,8 +32,8 @@ coverage floor and package-level baseline.
 - **Linux Go 1.26**: `go test -cover ./...`
 
 ### Coverage snapshot
-- overall coverage: `87.5%`
-- `cmd/duplicacy-backup`: `87.4%`
+- overall coverage: `87.3%`
+- `cmd/duplicacy-backup`: `85.8%`
 - `internal/workflow`: `85.3%`
 - `internal/duplicacy`: `89.6%`
 - `internal/exec`: `95.2%`
