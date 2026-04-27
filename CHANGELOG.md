@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.3] - 2026-04-27
+
 ### Fixed
 - **Runtime maintenance privilege boundaries are now explicit**:
   non-root `prune --dry-run` for path-based local repository storage now stops
