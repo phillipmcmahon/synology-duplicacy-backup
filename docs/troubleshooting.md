@@ -154,6 +154,10 @@ duplicacy-backup restore select --target <target> <label>
 
 That path is revision-first: choose a restore point, inspect it read-only or
 restore from it, review the generated commands, then confirm the drill restore.
+For path-based local repositories, prefix repository-reading restore commands
+with `sudo` so the protected snapshot and chunk metadata can be read. Object
+and remote repository restores normally run as the operator user and are
+governed by their configured credentials.
 
 Use `restore plan` when you want the explicit expert path and safe next-step commands:
 
@@ -171,18 +175,21 @@ If an interactive terminal is not available, use the scriptable primitives:
 List revisions before restoring:
 
 ```bash
+# Use sudo for path-based local repositories.
 duplicacy-backup restore list-revisions --target <target> <label>
 ```
 
 For large repositories, start browsing under a known subtree:
 
 ```bash
+# Use sudo for path-based local repositories.
 duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
 ```
 
 Restore into the drill workspace only:
 
 ```bash
+# Use sudo for path-based local repositories.
 duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --yes <label>
 ```
 

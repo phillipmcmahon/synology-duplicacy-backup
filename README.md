@@ -193,13 +193,13 @@ sudo duplicacy-backup health status --target onsite-usb homes
 duplicacy-backup diagnostics --target onsite-usb homes
 
 # Start the guided operator restore flow
-duplicacy-backup restore select --target onsite-usb homes
-duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert or scripted restore path
 duplicacy-backup restore plan --target onsite-usb homes
-duplicacy-backup restore list-revisions --target onsite-usb homes
-duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 When a root-required command is invoked with normal `sudo` metadata from the
@@ -263,6 +263,10 @@ Core operating rules:
 - `restore run` prepares or reuses a drill workspace, restores only there, and
   never copies data back to the live source. Use `--path` for one file or a
   Duplicacy pattern such as `docs/*` for a subtree.
+- Use `sudo` for `restore select`, `restore list-revisions`, and `restore run`
+  against path-based local repositories because their snapshot and chunk
+  metadata is root-protected. Object and remote restore remains operator-user
+  and credential-governed.
 - Restore workspaces default to
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
   `source_path` is only live-source and copy-back context. Use

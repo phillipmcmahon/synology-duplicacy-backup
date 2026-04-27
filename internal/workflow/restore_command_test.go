@@ -63,6 +63,12 @@ func restoreSelectRuntime(t *testing.T, input string) Runtime {
 	return rt
 }
 
+func nonRootRestoreRuntime() Runtime {
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	return rt
+}
+
 func suppressRestorePrompts(t *testing.T) {
 	t.Helper()
 	old := restorePromptOutput
@@ -326,6 +332,54 @@ storage = "s3://gateway.example.invalid/bucket/homes"
 	}
 }
 
+func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", "", "", 4, "-keep 0:365"))
+
+	tests := []struct {
+		name string
+		req  *Request
+		rt   Runtime
+	}{
+		{
+			name: "list revisions",
+			req:  &Request{RestoreCommand: "list-revisions", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"},
+			rt:   nonRootRestoreRuntime(),
+		},
+		{
+			name: "run",
+			req:  &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: filepath.Join(t.TempDir(), "workspace"), RestoreRevision: 2403, RestoreYes: true},
+			rt:   nonRootRestoreRuntime(),
+		},
+		{
+			name: "select",
+			req:  &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"},
+			rt: func() Runtime {
+				rt := restoreSelectRuntime(t, "1\n")
+				rt.Geteuid = func() int { return 1000 }
+				return rt
+			}(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := execpkg.NewMockRunner()
+			oldRunner := newRestoreCommandRunner
+			newRestoreCommandRunner = func() execpkg.Runner { return mock }
+			t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
+
+			_, err := restoreHandleCommand(tt.req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
+			if err == nil || !strings.Contains(err.Error(), "requires sudo for path-based local repository storage") {
+				t.Fatalf("restoreHandleCommand() err = %v", err)
+			}
+			if len(mock.Invocations) != 0 {
+				t.Fatalf("invocations = %#v, want no Duplicacy repository calls before sudo-required stop", mock.Invocations)
+			}
+		})
+	}
+}
+
 func TestHandleRestoreCommand_RunDryRunDerivesWorkspaceWithoutSourcePath(t *testing.T) {
 	configDir := t.TempDir()
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
@@ -418,6 +472,74 @@ func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	}
 	if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != workspace || strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats -- docs/readme.md" {
 		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
+func TestHandleRestoreCommand_RunSudoOperatorRepairsWorkspaceOwnership(t *testing.T) {
+	configDir := t.TempDir()
+	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	workspace := filepath.Join(t.TempDir(), "restore-workspace")
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 0 }
+	rt.Getenv = func(name string) string {
+		switch name {
+		case "SUDO_USER":
+			return "operator"
+		case "SUDO_UID":
+			return "1026"
+		case "SUDO_GID":
+			return "100"
+		case "HOME":
+			return "/home/operator"
+		default:
+			return ""
+		}
+	}
+	meta := DefaultMetadataForRuntime("duplicacy-backup", "1.0.0", "now", rt)
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+
+	type chownCall struct {
+		path string
+		uid  int
+		gid  int
+	}
+	var calls []chownCall
+	oldChown := profileChown
+	profileChown = func(path string, uid, gid int) error {
+		calls = append(calls, chownCall{path: path, uid: uid, gid: gid})
+		return nil
+	}
+	t.Cleanup(func() { profileChown = oldChown })
+
+	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
+
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	if _, err := restoreHandleCommand(req, meta, rt); err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	if len(calls) == 0 {
+		t.Fatal("profile ownership repair was not attempted")
+	}
+	wantPaths := map[string]bool{
+		workspace: false,
+		filepath.Join(workspace, ".duplicacy", "preferences"): false,
+	}
+	for _, call := range calls {
+		if call.uid != 1026 || call.gid != 100 {
+			t.Fatalf("chown call = %+v, want uid:gid 1026:100", call)
+		}
+		if _, ok := wantPaths[call.path]; ok {
+			wantPaths[call.path] = true
+		}
+	}
+	for path, seen := range wantPaths {
+		if !seen {
+			t.Fatalf("ownership repair did not include %s; calls = %#v", path, calls)
+		}
 	}
 }
 

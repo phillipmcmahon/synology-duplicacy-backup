@@ -258,3 +258,15 @@ func restoreWorkspacePrepared(workspace string) bool {
 	}
 	return !info.IsDir()
 }
+
+func restoreWorkspaceProfileOwnership(meta Metadata, workspace string) error {
+	if !meta.HasProfileOwner || strings.TrimSpace(workspace) == "" {
+		return nil
+	}
+	return filepath.WalkDir(workspace, func(path string, _ os.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("restore workspace ownership walk failed at %s: %w", path, err)
+		}
+		return chownProfilePath(meta, path)
+	})
+}

@@ -24,8 +24,11 @@ Use these rules before creating tasks:
   repository files are OS-protected resources.
 - `prune` runs as the operator user for object or remote storage when the
   operator owns the config, secrets, state, log, lock, and credential access.
-- `health`, `diagnostics`, restore planning, restore revision listing, and
-  restore selection run as the operator user.
+- `health status` / `doctor` / `verify` and restore revision/list/run/select
+  commands use `sudo -n` for path-based local repositories because repository
+  metadata is root-protected.
+- `health`, `diagnostics`, restore planning, and object or remote repository
+  restore commands run as the operator user.
 - `cleanup-storage` is manual or exceptional maintenance, not a routine
   schedule.
 - `prune --force` is manual only. Do not schedule it routinely.

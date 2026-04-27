@@ -13,6 +13,11 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Fixed
+- **Local repository restore commands now report the privilege boundary clearly**:
+  non-root `restore list-revisions`, `restore select`, and `restore run` for
+  path-based local repository storage stop before Duplicacy repository access
+  and report that sudo is required; sudo restores from an operator account also
+  repair drill workspace ownership back to the operator for inspection.
 - **Local repository health checks now report the privilege boundary clearly**:
   non-root `health status`, `health doctor`, and `health verify` for path-based
   local repository storage report that sudo is required before running Duplicacy

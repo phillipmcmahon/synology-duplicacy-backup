@@ -25,6 +25,7 @@ type restoreRunContext struct {
 	storage   string
 	secrets   *secrets.Secrets
 	workspace string
+	meta      Metadata
 }
 
 func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
@@ -35,6 +36,9 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 		return nil, err
 	}
 	plan.applyConfig(cfg, rt)
+	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
+		return nil, err
+	}
 
 	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
 	var sec *secrets.Secrets
@@ -61,6 +65,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 		storage:   cfg.Storage,
 		secrets:   sec,
 		workspace: workspace,
+		meta:      meta,
 	}, nil
 }
 
@@ -72,6 +77,9 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 		return nil, err
 	}
 	plan.applyConfig(cfg, rt)
+	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
+		return nil, err
+	}
 
 	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
 	var sec *secrets.Secrets
@@ -106,4 +114,14 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 		cleanup:    cleanup,
 		secretPath: plan.SecretsFile,
 	}, nil
+}
+
+func validateRestoreRepositoryPrivilege(req *RestoreRequest, cfg localStoragePolicy, rt Runtime) error {
+	if req == nil || req.Command == RestoreCommandPlan {
+		return nil
+	}
+	if !localRepositoryRequiresSudoForStorage(cfg, rt) {
+		return nil
+	}
+	return NewRequestError("restore %s requires sudo for path-based local repository storage; local backup repositories are protected OS resources; rerun with sudo from the operator account", req.Command)
 }

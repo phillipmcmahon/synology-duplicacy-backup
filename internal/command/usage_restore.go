@@ -63,11 +63,11 @@ Interactive restore select:
     progress.
 
 Examples:
-    {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+    sudo {{script}} restore select --target onsite-usb homes
+    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
-    {{script}} restore list-revisions --target onsite-usb homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    sudo {{script}} restore list-revisions --target onsite-usb homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} restore plan --target offsite-storj homes
 
 Use --help-full for the detailed restore reference.
@@ -172,18 +172,20 @@ SAFETY MODEL:
     Restore drills should restore into a separate workspace first. Inspect the
     restored data there, then copy back deliberately with rsync --dry-run before
     any live write. See docs/restore-drills.md for the full procedure.
+    Use sudo for path-based local repositories; object and remote repositories
+    remain governed by their configured credentials.
 
 EXAMPLES:
-    {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --workspace-root /volume1/restore-drills homes
-    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+    sudo {{script}} restore select --target onsite-usb homes
+    sudo {{script}} restore select --target onsite-usb --workspace-root /volume1/restore-drills homes
+    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
-    {{script}} restore list-revisions --target onsite-usb homes
+    sudo {{script}} restore list-revisions --target onsite-usb homes
     {{script}} restore list-revisions --target offsite-storj --json-summary homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
-    {{script}} restore run --target onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{restore_usage}}", restoreUsage(meta),

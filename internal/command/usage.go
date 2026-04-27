@@ -61,11 +61,11 @@ Examples:
     sudo {{script}} prune --target onsite-usb homes
     sudo {{script}} config validate --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
-    {{script}} health status --target onsite-usb homes
+    sudo {{script}} health status --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
-    {{script}} restore select --target onsite-usb homes
+    sudo {{script}} restore select --target onsite-usb homes
     {{script}} restore plan --target onsite-usb homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -351,12 +351,12 @@ EXAMPLES:
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
-    {{script}} restore select --target onsite-usb homes
-    {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+    sudo {{script}} restore select --target onsite-usb homes
+    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
-    {{script}} restore list-revisions --target onsite-usb homes
-    {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    sudo {{script}} restore list-revisions --target onsite-usb homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} notify test --target onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes

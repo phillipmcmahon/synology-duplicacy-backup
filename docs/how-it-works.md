@@ -343,6 +343,11 @@ inspect or delegate a restore only after explicit confirmation, and
 only inside that workspace. Restore execution prints operator progress to
 stderr while keeping the final report on stdout.
 
+Path-based local restore repositories are root-protected OS resources, so
+`restore list-revisions`, `restore select`, and `restore run` require `sudo`
+for those targets. Object and remote restore remains governed by the operator
+profile and storage credentials.
+
 `diagnostics` is the support-bundle path. It resolves one label and target,
 redacts secret values, reports config/storage/state/path context, and exits
 without running Duplicacy backup, prune, restore, or cleanup operations.

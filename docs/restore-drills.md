@@ -21,15 +21,21 @@ be read without putting production data at risk.
 ## Workspace Ownership
 
 Restore commands are designed to run as the operator user when that user can
-read the selected config/secrets and write to the drill workspace. Create the
-parent `--workspace-root` yourself first, preferably as a Synology shared
-folder when DSM visibility matters. The tool preserves that parent folder and
-creates the derived restore-job child underneath it with mode `0700`.
+read the selected repository, config/secrets, and write to the drill
+workspace. Object and remote repositories normally meet that model through the
+operator-owned profile and storage credentials.
 
-Avoid running restore through `sudo` just to work around workspace access.
-Fix the workspace root ownership or permissions instead. Use `sudo` only for
-manual folder creation, DSM shared-folder setup, or the later copy-back step
-when the destination live path requires it.
+Path-based local repositories, such as USB-attached filesystem storage, are
+root-protected by design. Use `sudo` for `restore select`, `restore
+list-revisions`, and `restore run` against those targets. When the command is
+invoked through `sudo` from the operator account, the tool repairs the drill
+workspace ownership back to the operator so restored data remains inspectable.
+
+Create the parent `--workspace-root` yourself first, preferably as a Synology
+shared folder when DSM visibility matters. The tool preserves that parent
+folder and creates the derived restore-job child underneath it with mode
+`0700`. Avoid using `sudo` only to work around a bad workspace root; fix the
+workspace root ownership or permissions instead.
 
 ## UX Model
 
@@ -76,15 +82,15 @@ with the guided flow:
 duplicacy-backup config explain --target onsite-usb homes
 sudo duplicacy-backup config validate --target onsite-usb homes
 sudo duplicacy-backup health status --target onsite-usb homes
-duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 Use the expert primitives when you want a step-by-step runbook instead:
 
 ```bash
 duplicacy-backup restore plan --target onsite-usb homes
-duplicacy-backup restore list-revisions --target onsite-usb homes
-duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
 ```
 
 `restore plan` shows the same `Storage` value as `config explain`, the
@@ -133,7 +139,7 @@ sudo mkdir -p /volume1/restore-drills
 ```
 
 ```bash
-duplicacy-backup restore run \
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --workspace-root /volume1/restore-drills \
@@ -167,9 +173,11 @@ cd /volume1/restore-drills/homes-onsite-usb
 ```
 
 Restore execution creates the job workspace as the user running the command.
-Keep restore inspection under that same user unless you deliberately change
-ownership for a manual drill. The parent `--workspace-root` remains
-operator-managed.
+When the command is invoked through `sudo` from the operator account, ownership
+of the job workspace is repaired back to the operator after preparation and
+after restore execution. Keep restore inspection under that operator account
+unless you deliberately change ownership for a manual drill. The parent
+`--workspace-root` remains operator-managed.
 
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the
@@ -207,7 +215,7 @@ rerun the restore or remove the workspace manually when it is no longer useful.
 List available backup revisions with the wrapper:
 
 ```bash
-duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -217,7 +225,7 @@ confirming that the repository is current before a drill.
 If you prefer the guided operator flow, use the picker:
 
 ```bash
-duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 The picker prints the exact primitive command or commands that will be used for
@@ -258,7 +266,7 @@ The common restore shapes are:
 For large repositories, start from a useful subtree:
 
 ```bash
-duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 ```
 
 ## NAS Permission Smoke Check
@@ -268,7 +276,7 @@ shared-folder root before and after a small restore drill:
 
 ```bash
 stat -c '%a %U:%G %n' /volume1/restore-drills
-duplicacy-backup restore run \
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --workspace-root /volume1/restore-drills \
@@ -290,7 +298,7 @@ stricter permissions owned by the user that ran the restore.
 Run the restore into the drill workspace:
 
 ```bash
-duplicacy-backup restore run \
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --yes \
@@ -322,7 +330,7 @@ Duplicacy restore accepts command-line patterns, so you can restore one file
 or a directory subtree into the drill workspace:
 
 ```bash
-duplicacy-backup restore run \
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision <revision> \
   --path "relative/file/or/pattern" \
@@ -333,8 +341,8 @@ duplicacy-backup restore run \
 Examples:
 
 ```bash
-duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
-duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,

@@ -194,15 +194,15 @@ sudo duplicacy-backup config validate --target onsite-usb homes
 sudo duplicacy-backup health status --target onsite-usb homes
 
 # Guided operator restore
-duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 
 # Start the picker under a known subtree in a large backup
-duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
 duplicacy-backup restore plan --target onsite-usb homes
-duplicacy-backup restore list-revisions --target onsite-usb homes
-duplicacy-backup restore run \
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/Documents/tax.pdf" \
@@ -210,7 +210,7 @@ duplicacy-backup restore run \
   homes
 
 # Restore a directory subtree into the drill workspace
-duplicacy-backup restore run \
+sudo duplicacy-backup restore run \
   --target onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/code/*" \

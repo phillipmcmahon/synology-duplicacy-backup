@@ -193,8 +193,8 @@ restore commands remain available as the expert and scriptable path.
 Use `restore select` for the guided operator flow:
 
 ```bash
-duplicacy-backup restore select --target onsite-usb homes
-duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 ```
 
 Use `restore plan` to print the resolved context and suggested Duplicacy
@@ -207,8 +207,8 @@ duplicacy-backup restore plan --target onsite-usb homes
 List revisions, then restore into a drill workspace:
 
 ```bash
-duplicacy-backup restore list-revisions --target onsite-usb homes
-duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 At a high level:

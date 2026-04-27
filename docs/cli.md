@@ -158,15 +158,15 @@ duplicacy-backup diagnostics --target onsite-usb homes
 duplicacy-backup notify test --target onsite-usb homes
 
 # Guided operator restore
-duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 
 # Start the picker from a useful subtree in a large backup
-duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
 duplicacy-backup restore plan --target onsite-usb homes
-duplicacy-backup restore list-revisions --target onsite-usb homes
-duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
 
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only

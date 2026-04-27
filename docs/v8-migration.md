@@ -184,7 +184,7 @@ $HOME/.config/duplicacy-backup/secrets
 For restore validation:
 
 ```bash
-duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
 For path-based local repositories such as USB targets, run repository readiness

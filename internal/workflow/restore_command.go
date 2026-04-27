@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -35,6 +36,7 @@ type restoreRunInputs struct {
 	DryRun                  bool
 	SuppressPrepareStatus   bool
 	SuppressRestoreActivity bool
+	DeferOwnershipRepair    bool
 	Context                 context.Context
 }
 
@@ -169,6 +171,11 @@ func executeRestoreRunConfirmed(req *RestoreRequest, rt Runtime, deps RestoreDep
 		return "", err
 	}
 	report.WorkspacePrepared = true
+	if !inputs.DeferOwnershipRepair {
+		if err := restoreWorkspaceProfileOwnership(ctx.meta, inputs.Workspace); err != nil {
+			return formatRestoreRun(report), err
+		}
+	}
 
 	dup := duplicacy.NewWorkspaceSetup(inputs.Workspace, ctx.storage, false, deps.NewRunner())
 	stopActivity := func() {}
@@ -182,13 +189,27 @@ func executeRestoreRunConfirmed(req *RestoreRequest, rt Runtime, deps RestoreDep
 	output, err := dup.RestoreRevisionContext(runContext, inputs.Revision, inputs.RestorePath)
 	stopActivity()
 	if err != nil {
+		ownershipErr := error(nil)
+		if !inputs.DeferOwnershipRepair {
+			ownershipErr = restoreWorkspaceProfileOwnership(ctx.meta, inputs.Workspace)
+		}
 		report.Result = "Failed"
 		if errors.Is(err, context.Canceled) {
 			report.Result = "Interrupted"
 			err = ErrRestoreInterrupted
 		}
 		report.Output = restoreOutputForReport(output, false)
+		if ownershipErr != nil {
+			err = fmt.Errorf("%w; additionally failed to set restore workspace ownership: %v", err, ownershipErr)
+		}
 		return formatRestoreRun(report), err
+	}
+	if !inputs.DeferOwnershipRepair {
+		if err := restoreWorkspaceProfileOwnership(ctx.meta, inputs.Workspace); err != nil {
+			report.Result = "Ownership repair failed"
+			report.Output = restoreOutputForReport(output, true)
+			return formatRestoreRun(report), err
+		}
 	}
 	report.Result = "Restored into workspace"
 	report.Output = restoreOutputForReport(output, true)
@@ -294,6 +315,7 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 		storage:   ctx.cfg.Storage,
 		secrets:   ctx.secrets,
 		workspace: commandWorkspace,
+		meta:      meta,
 	}
 	startedAt := rt.Now()
 	execCtx, cleanup, interrupt := newRestoreInterruptContext(rt, deps.Progress, commandWorkspace)
@@ -317,6 +339,7 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 			AssumeYes:               true,
 			SuppressPrepareStatus:   suppressPerPathProgress,
 			SuppressRestoreActivity: suppressPerPathProgress,
+			DeferOwnershipRepair:    true,
 			Context:                 execCtx,
 		}, false)
 		stopActivity()
@@ -329,12 +352,18 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 				pathResult.Result = "Interrupted"
 				err = ErrRestoreInterrupted
 			}
+			if ownershipErr := restoreWorkspaceProfileOwnership(runCtx.meta, commandWorkspace); ownershipErr != nil {
+				err = fmt.Errorf("%w; additionally failed to set restore workspace ownership: %v", err, ownershipErr)
+			}
 			pathResult.Output = restoreDuplicacyOutputFromRestoreRun(runOutput)
 			batchReport.Results = append(batchReport.Results, pathResult)
 			return formatRestoreBatchRun(batchReport), err
 		}
 		batchReport.Results = append(batchReport.Results, pathResult)
 		interrupt.setCompleted(i+1, len(restorePaths))
+	}
+	if err := restoreWorkspaceProfileOwnership(runCtx.meta, commandWorkspace); err != nil {
+		return formatRestoreBatchRun(batchReport), err
 	}
 	success = true
 	return formatRestoreBatchRun(batchReport), nil
