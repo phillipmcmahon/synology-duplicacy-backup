@@ -440,10 +440,10 @@ func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 		"Target               : offsite-storj",
 	)
 	assertOrderedTokens(t, stderr,
-		"Config file          :",
-		"Revision count       :",
-		"Latest revision      :",
-		"Backup freshness     :",
+		"Config File          :",
+		"Revision Count       :",
+		"Latest Revision      :",
+		"Backup Freshness     :",
 		"Secrets              :",
 	)
 }
@@ -851,10 +851,10 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Revision count") || !strings.Contains(stderr, "0") {
+	if !strings.Contains(stderr, "Revision Count") || !strings.Contains(stderr, "0") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "No revisions were found for this backup") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "No revisions were found for this backup") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 
@@ -1037,10 +1037,10 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 	if report.RevisionResults[1].Revision != 8 || report.RevisionResults[1].Result != "fail" || report.RevisionResults[1].Message != "No integrity result returned" {
 		t.Fatalf("report.RevisionResults[1] = %+v", report.RevisionResults[1])
 	}
-	if !strings.Contains(stderr, "Revisions failed") || !strings.Contains(stderr, "1 (9)") {
+	if !strings.Contains(stderr, "Revisions Failed") || !strings.Contains(stderr, "1 (9)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "1 failed; 1 returned no result") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "1 failed; 1 returned no result") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Revision 9") || !strings.Contains(stderr, "Missing chunks") {
@@ -1146,10 +1146,10 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Revisions failed") || !strings.Contains(stderr, "2 (8, 7)") {
+	if !strings.Contains(stderr, "Revisions Failed") || !strings.Contains(stderr, "2 (8, 7)") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "2 revision(s) failed integrity checks: 8, 7") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "2 revision(s) failed integrity checks: 8, 7") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Revision 8") || !strings.Contains(stderr, "Revision 7") || !strings.Contains(stderr, "Missing chunks") {
@@ -1266,13 +1266,13 @@ func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testi
 		}
 	})
 
-	if !strings.Contains(stderr, "Latest revision") || !strings.Contains(stderr, "Could not inspect storage revisions") {
+	if !strings.Contains(stderr, "Latest Revision") || !strings.Contains(stderr, "Could not inspect storage revisions") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "Revision inspection failed") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "Revision inspection failed") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if strings.Contains(stderr, "Last verify run") {
+	if strings.Contains(stderr, "Last Verify Run") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 }
@@ -1322,10 +1322,10 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 		}
 	})
 
-	if !strings.Contains(stderr, "Repository access") || !strings.Contains(stderr, "Repository is not ready") {
+	if !strings.Contains(stderr, "Repository Access") || !strings.Contains(stderr, "Repository is not ready") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "All revisions validated") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "All revisions validated") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 }
@@ -1377,9 +1377,9 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 		t.Fatalf("runner invocations = %d, want no Duplicacy repository calls before sudo-required stop: %#v", got, runner.Invocations)
 	}
 	for _, token := range []string{
-		"Repository access",
+		"Repository Access",
 		"Requires sudo",
-		"Integrity check",
+		"Integrity Check",
 		"Not run; local repository verification requires sudo",
 	} {
 		if !strings.Contains(stderr, token) {
@@ -1438,7 +1438,7 @@ func TestHealthRunner_StatusLocalRepositoryRequiresSudoBeforeRevisionListing(t *
 		t.Fatalf("runner invocations = %d, want no Duplicacy repository calls before sudo-required stop: %#v", got, runner.Invocations)
 	}
 	for _, token := range []string{
-		"Repository access",
+		"Repository Access",
 		"Requires sudo",
 	} {
 		if !strings.Contains(stderr, token) {
@@ -1525,10 +1525,10 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Revisions checked") || !strings.Contains(stderr, "1") {
+	if !strings.Contains(stderr, "Revisions Checked") || !strings.Contains(stderr, "1") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Integrity check") || !strings.Contains(stderr, "1 revision(s) returned no integrity result: 7") {
+	if !strings.Contains(stderr, "Integrity Check") || !strings.Contains(stderr, "1 revision(s) returned no integrity result: 7") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Revision 7") || !strings.Contains(stderr, "No integrity result returned") {
@@ -1584,13 +1584,13 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "Revision count") {
+	if !strings.Contains(stderr, "Revision Count") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Latest revision") {
+	if !strings.Contains(stderr, "Latest Revision") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Last verify run") {
+	if !strings.Contains(stderr, "Last Verify Run") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Status") ||
@@ -1604,7 +1604,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 		!strings.Contains(stderr, "Section: Verify") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if strings.Contains(stderr, "Btrfs root") {
+	if strings.Contains(stderr, "Btrfs Root") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if !strings.Contains(stderr, "Btrfs") {
@@ -1613,13 +1613,13 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if !strings.Contains(stderr, "Not checked; backup-readiness validation is not required for storage integrity verification") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if strings.Contains(stderr, "Btrfs source         : /") {
+	if strings.Contains(stderr, "Btrfs Source         : /") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if !strings.Contains(stderr, "Revisions checked") ||
-		!strings.Contains(stderr, "Revisions passed") ||
-		!strings.Contains(stderr, "Revisions failed") ||
-		!strings.Contains(stderr, "Integrity check") {
+	if !strings.Contains(stderr, "Revisions Checked") ||
+		!strings.Contains(stderr, "Revisions Passed") ||
+		!strings.Contains(stderr, "Revisions Failed") ||
+		!strings.Contains(stderr, "Integrity Check") {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	if strings.Contains(stderr, "Verification storage listing") {

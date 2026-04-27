@@ -720,6 +720,12 @@ The presenter owns:
 
 This is intentionally small, but it helps keep runtime flow readable.
 
+All command surfaces should use the shared operator-facing vocabulary in
+`internal/presentation` for repeated labels and status values. Internal report
+keys can remain domain-specific for JSON and tests, but display output should
+prefer common labels such as `Config File`, `Source Path`, `Repository Access`,
+and `Integrity Check` whenever commands describe the same operational concept.
+
 ## Error Translation
 
 Operator-facing message translation is handled by:

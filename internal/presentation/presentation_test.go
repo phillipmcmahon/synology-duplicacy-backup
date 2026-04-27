@@ -145,7 +145,7 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 		}
 	}
 
-	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Limited", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
+	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Requires sudo", "Limited", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
 	for _, value := range valueCases {
 		if got := ColourizeValidationValue(value, false); got != value {
 			t.Fatalf("ColourizeValidationValue(%q, false) = %q", value, got)
@@ -154,6 +154,23 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 	for _, value := range []string{"Passed", "Failed", "Skipped"} {
 		if got := ColourizeValidationResult(value, false); got != value {
 			t.Fatalf("ColourizeValidationResult(%q, false) = %q", value, got)
+		}
+	}
+}
+
+func TestDisplayLabelUsesSharedOperatorVocabulary(t *testing.T) {
+	cases := map[string]string{
+		"Config file":       "Config File",
+		"Source path":       "Source Path",
+		"Repository access": "Repository Access",
+		"Revision count":    "Revision Count",
+		"Integrity check":   "Integrity Check",
+		"Unknown check":     "Unknown check",
+	}
+
+	for input, want := range cases {
+		if got := DisplayLabel(input); got != want {
+			t.Fatalf("DisplayLabel(%q) = %q, want %q", input, got, want)
 		}
 	}
 }

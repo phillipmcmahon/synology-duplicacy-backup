@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 type Issue struct {
@@ -217,7 +219,7 @@ func SectionForCheck(name string) string {
 }
 
 func LabelForCheck(name string) string {
-	return name
+	return presentation.DisplayLabel(name)
 }
 
 func HumanAge(d time.Duration) string {

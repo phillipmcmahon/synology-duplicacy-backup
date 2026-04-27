@@ -31,13 +31,13 @@ func ColourizeValidationValue(value string, enableColour bool) string {
 	switch {
 	case strings.HasPrefix(value, "Invalid ("):
 		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
-	case value == "Not checked" || value == "Not initialized":
+	case value == ValueNotChecked || value == "Not initialized" || value == ValueRequiresSudo:
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
 	case value == "Limited":
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
-	case value == "Valid",
+	case value == ValueValid,
 		value == "Readable",
-		value == "Writable",
+		value == ValueWritable,
 		value == "Resolved",
 		value == "Parsed",
 		value == "Full":

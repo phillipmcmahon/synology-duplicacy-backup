@@ -179,8 +179,11 @@ func TestHealthFormattingHelpers(t *testing.T) {
 			t.Fatalf("SectionForCheck(%q) = %q, want %q", tc.name, got, tc.want)
 		}
 	}
-	if LabelForCheck("Any check") != "Any check" {
-		t.Fatal("LabelForCheck should preserve check names")
+	if got := LabelForCheck("Repository access"); got != "Repository Access" {
+		t.Fatalf("LabelForCheck(Repository access) = %q, want Repository Access", got)
+	}
+	if got := LabelForCheck("Any check"); got != "Any check" {
+		t.Fatalf("LabelForCheck should preserve unknown check names, got %q", got)
 	}
 	if got := ExitCode("healthy"); got != 0 {
 		t.Fatalf("ExitCode(healthy) = %d", got)

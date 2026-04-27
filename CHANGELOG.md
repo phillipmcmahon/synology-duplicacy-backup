@@ -12,6 +12,12 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Health output now uses the shared operator-facing label vocabulary used by
+  config, restore, diagnostics, and runtime reports, so common fields such as
+  `Config File`, `Source Path`, `Repository Access`, and `Integrity Check`
+  are visually consistent across command surfaces.
+
 ## [v9.1.3] - 2026-04-27
 
 ### Fixed
