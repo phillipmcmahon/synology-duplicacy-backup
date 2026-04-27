@@ -12,6 +12,33 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.1] - 2026-04-27
+
+### Fixed
+- **Sudo-backed profile artefacts remain operator-owned**: root-required
+  commands invoked through `sudo` now repair state, log, and lock artefact
+  ownership back to the sudoing operator account, preventing root-owned files
+  under the operator profile from blocking later non-root health, diagnostics,
+  restore, or scheduling workflows.
+- **Sudo metadata handling remains fail-closed**: malformed sudo UID/GID
+  metadata intentionally disables ownership repair rather than guessing an
+  operator identity.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.5%`
+- `cmd/duplicacy-backup`: `87.4%`
+- `internal/workflow`: `85.3%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v9.1.0] - 2026-04-26
 
 ### Added
