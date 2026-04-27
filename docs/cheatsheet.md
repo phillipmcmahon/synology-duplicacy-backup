@@ -2,8 +2,8 @@
 
 Run commands as the operator user by default. Use `sudo` only for operations
 that need root-level OS access, such as `backup`, path-based local repository
-`prune` or `cleanup-storage`, and managed install activation with
-`update --yes` or `rollback --yes`.
+`prune`, `cleanup-storage`, or `health verify`, and managed install activation
+with `update --yes` or `rollback --yes`.
 
 For scheduled tasks, prefer running the DSM task as the operator user and using
 a narrow `/etc/sudoers.d` rule plus `sudo -n` only for those exact
@@ -62,14 +62,14 @@ sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 # Fast health summary for homes on target onsite-usb
 duplicacy-backup health status --target onsite-usb homes
 
-# Run a doctor check for homes on target onsite-usb
-duplicacy-backup health doctor --target onsite-usb homes
+# Run a doctor check for homes on path-based local target onsite-usb
+sudo duplicacy-backup health doctor --target onsite-usb homes
 
-# Run verify for homes on target onsite-usb
-duplicacy-backup health verify --target onsite-usb homes
+# Run verify for homes on path-based local target onsite-usb
+sudo duplicacy-backup health verify --target onsite-usb homes
 
-# Write a JSON verify report for homes on target onsite-usb
-duplicacy-backup health verify --json-summary --target onsite-usb homes
+# Write a JSON verify report for homes on path-based local target onsite-usb
+sudo duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
 Exit codes:
@@ -160,7 +160,7 @@ Installer behaviour:
 - For path-based local repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
-- `Repository Access : Requires sudo` means the local repository may be healthy, but the readiness probe needs sudo because local repository metadata is root-protected.
+- `Repository Access : Requires sudo` means the local repository may be healthy, but the readiness, diagnostic, or integrity probe needs sudo because local repository metadata is root-protected.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
 - `config explain` and `config paths` show `Location` for the selected target.
 - `config explain` does not load storage secrets; it stays read-only and still shows the expected secrets-file path when the selected backend needs one.
@@ -169,6 +169,7 @@ Installer behaviour:
 ### Health and Output
 
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
+- Run `health doctor` and `health verify` with `sudo` for path-based local repositories; object and remote repository checks remain operator-user and credential-governed.
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 

@@ -12,6 +12,13 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Fixed
+- **Local repository health checks now report the privilege boundary clearly**:
+  non-root `health doctor` and `health verify` for path-based local repository
+  storage report that sudo is required; `health verify` also skips the doomed
+  integrity check instead of surfacing the misleading `Repository is not ready`
+  fallback.
+
 ## [v9.1.2] - 2026-04-27
 
 ### Fixed

@@ -318,8 +318,12 @@ Example: scheduled health summary for label `homes` on target `onsite-usb`
 Example: scheduled JSON integrity verification for label `homes` on target `onsite-usb`
 
 ```bash
-/usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
+
+Use `sudo -n` for path-based local repositories because backup metadata is
+root-protected. Object and remote repository verification can run as the
+operator user without `sudo`.
 
 The health JSON report is meant for automation rather than terminal reading.
 It exposes structured fields such as:

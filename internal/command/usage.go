@@ -117,7 +117,9 @@ COMMAND OVERVIEW:
       diagnostics           Print a redacted support bundle for one label and target
       health status         Fast read-only health summary for operators and schedulers
       health doctor         Read-only environment and storage diagnostics
+                              Use sudo for path-based local repositories
       health verify         Read-only integrity check across revisions found for the current label
+                              Use sudo for path-based local repositories
 
     Notifications           Send explicit synthetic notification checks
       notify test           Send a simulated notification through configured providers

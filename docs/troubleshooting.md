@@ -65,16 +65,20 @@ local repository storage. Backups write local repository chunk and snapshot
 metadata as root so ordinary users cannot inspect or mutate backup internals
 outside the tool's policy boundary.
 
-Run the same validation through `sudo` from the operator account:
+Run the same validation, health diagnostic, or integrity check through `sudo`
+from the operator account:
 
 ```bash
 sudo duplicacy-backup config validate --target <target> <label>
+sudo duplicacy-backup health doctor --target <target> <label>
+sudo duplicacy-backup health verify --target <target> <label>
 ```
 
 This is different from `Invalid`: the repository may be healthy, but the
-readiness probe needs root access to inspect protected local metadata. Object
-and remote repositories continue to validate as the operator user because their
-authority boundary is the configured storage credentials.
+readiness or integrity probe needs root access to inspect protected local
+metadata. Object and remote repositories continue to validate and verify as the
+operator user because their authority boundary is the configured storage
+credentials.
 
 See also:
 

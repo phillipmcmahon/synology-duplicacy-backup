@@ -112,8 +112,8 @@ are not supported.
 | Command | Description |
 |---|---|
 | `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers |
-| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass |
-| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label |
+| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass. Use sudo for path-based local repositories |
+| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for path-based local repositories |
 
 ## Environment Variables
 

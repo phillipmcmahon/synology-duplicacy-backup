@@ -102,7 +102,13 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	}
 
 	stopValidating := h.presenter.StartStatusActivity("Validating repository access")
-	if err := dup.ValidateRepo(); err != nil {
+	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+		stopValidating()
+		if req.Command == "verify" {
+			report.AddVerifyFailureCode(verifyFailureAccessFailed)
+		}
+		report.AddCheck("Repository access", "fail", "Requires sudo; rerun this health command with sudo from the operator account")
+	} else if err := dup.ValidateRepo(); err != nil {
 		stopValidating()
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
@@ -116,6 +122,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	if req.Command == "doctor" {
 		h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
 	}
+}
+
+func localRepositoryHealthRequiresSudo(cfg *config.Config, rt Runtime) bool {
+	return cfg != nil && cfg.UsesLocalDiskStorage() && runtimeEUID(rt) != 0
 }
 
 type btrfsReadinessReport struct {
@@ -140,6 +150,18 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		report.AddDisplayCheck("Revisions passed", "pass", "0")
 		report.AddDisplayCheck("Revisions failed", "pass", "0")
 		report.AddCheck("Integrity check", "fail", "Revision inspection failed")
+		h.populateHealthRecencyTimestamp(report, "verify")
+		return
+	}
+
+	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+		report.CheckedRevisionCount = 0
+		report.PassedRevisionCount = 0
+		report.FailedRevisionCount = 0
+		report.AddDisplayCheck("Revisions checked", "fail", "0")
+		report.AddDisplayCheck("Revisions passed", "pass", "0")
+		report.AddDisplayCheck("Revisions failed", "pass", "0")
+		report.AddCheck("Integrity check", "fail", "Not run; local repository verification requires sudo")
 		h.populateHealthRecencyTimestamp(report, "verify")
 		return
 	}

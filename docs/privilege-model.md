@@ -151,8 +151,8 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 | Command | Notes |
 |---|---|
 | `restore select` / `restore run` / `restore plan` / `restore list-revisions` | Restores write only to a drill workspace, never the live source path. |
-| `health status` / `health verify` | Requires access to Duplicacy storage and runtime paths. `health verify` verifies repository integrity and does not perform Btrfs backup-readiness checks. |
-| `health doctor` | Requires access to Duplicacy storage and runtime paths. Its Btrfs backup-readiness check uses unprivileged `stat` probes to confirm the source is on Btrfs and is a subvolume root. |
+| `health status` | Requires access to Duplicacy storage and runtime paths. |
+| `health doctor` / `health verify` | Requires access to Duplicacy storage and runtime paths. `health doctor` uses unprivileged `stat` probes for Btrfs backup-readiness checks; `health verify` verifies repository integrity and does not perform Btrfs backup-readiness checks. Use `sudo` for path-based local repository access because metadata is root-protected; object and remote repository access remains operator-user and credential-governed. |
 | `prune` / `cleanup-storage` for object or remote storage | Mutates storage through Duplicacy credentials. The authority boundary is the credential, not OS root. |
 | `prune --dry-run` | Preview-only; may run non-root when the repository is readable. |
 | `config` / `diagnostics` / `notify` | Reads config/secrets and writes only normal command output or notifications. |

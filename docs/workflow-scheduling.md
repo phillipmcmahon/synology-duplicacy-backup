@@ -195,9 +195,17 @@ homes      -> offsite-storj   -> weekly
 Use this for storage-integrity verification. It can take longer than status or
 doctor checks, so give it its own window.
 
-Command template:
+Use `sudo -n` for path-based local repositories because their Duplicacy metadata
+is root-protected. Object and remote repository verification can run as the
+operator user without `sudo`.
+
+Command templates:
 
 ```bash
+# Path-based local repositories
+sudo -n /usr/local/bin/duplicacy-backup health verify --target <target> <label>
+
+# Object or remote repositories
 /usr/local/bin/duplicacy-backup health verify --target <target> <label>
 ```
 

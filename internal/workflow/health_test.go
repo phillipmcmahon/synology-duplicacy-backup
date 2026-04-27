@@ -1330,6 +1330,69 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 	}
 }
 
+func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *testing.T) {
+	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
+	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	rt := newHealthRuntime(now, t.TempDir())
+	rt.Geteuid = func() int { return 1000 }
+
+	owner, group := healthOwnerGroup(t)
+	configDir := t.TempDir()
+	sourceRoot := t.TempDir()
+	meta.RootVolume = sourceRoot
+	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[local]\nlocal_owner = \""+owner+"\"\nlocal_group = \""+group+"\"\n")
+
+	var runner *execpkg.MockRunner
+	stderr := captureHealthOutput(t, func() {
+		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
+		if err != nil {
+			t.Fatalf("logger.New() error = %v", err)
+		}
+		t.Cleanup(log.Close)
+
+		runner = execpkg.NewMockRunner(
+			execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 17:30\n"},
+		)
+
+		report, code := NewHealthRunner(meta, rt, log, runner).Run(&Request{
+			HealthCommand:   "verify",
+			RequestedTarget: "onsite-usb",
+			Source:          "homes",
+			ConfigDir:       configDir,
+		})
+		if code != 2 || report.Status != "unhealthy" {
+			t.Fatalf("code = %d, report = %+v", code, report)
+		}
+		if !reflect.DeepEqual(report.FailureCodes, []string{verifyFailureAccessFailed}) {
+			t.Fatalf("FailureCodes = %#v, want [%q]", report.FailureCodes, verifyFailureAccessFailed)
+		}
+		if report.CheckedRevisionCount != 0 || report.PassedRevisionCount != 0 || report.FailedRevisionCount != 0 {
+			t.Fatalf("report = %+v", report)
+		}
+	})
+
+	if got := len(runner.Invocations); got != 1 {
+		t.Fatalf("runner invocations = %d, want only revision listing before sudo-required stop: %#v", got, runner.Invocations)
+	}
+	for _, token := range []string{
+		"Repository access",
+		"Requires sudo",
+		"Integrity check",
+		"Not run; local repository verification requires sudo",
+	} {
+		if !strings.Contains(stderr, token) {
+			t.Fatalf("stderr missing %q: %q", token, stderr)
+		}
+	}
+	if strings.Contains(stderr, "Repository is not ready") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
 func TestHealthRunner_AddVerifyFailureCodeDeduplicatesActions(t *testing.T) {
 	runner := &HealthRunner{}
 	report := &HealthReport{CheckType: "verify"}
