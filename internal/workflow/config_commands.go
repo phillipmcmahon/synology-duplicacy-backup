@@ -114,7 +114,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 
 	if sourceAccessible && destinationErr == nil {
 		switch {
-		case cfg.UsesLocalDiskStorage() && runtimeEUID(planner.rt) != 0:
+		case localRepositoryRequiresSudo(cfg, planner.rt):
 			repoStatus = "Requires sudo"
 			repoFailureMessage = "Local repository validation requires sudo for path-based storage"
 			repoHint = "rerun config validate with sudo from the operator account"

@@ -78,6 +78,8 @@ func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, 
 	if plan.Secrets != nil {
 		report.AddCheck("Secrets", "pass", plan.SecretsFile)
 	}
+	// Doctor and verify add the repository-access row in runDoctorChecks,
+	// after reporting the source-path and Btrfs readiness context.
 	if req.Command == "status" {
 		report.AddCheck("Repository access", "fail", localRepositoryHealthSudoMessage())
 	}
@@ -135,7 +137,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 }
 
 func localRepositoryHealthRequiresSudo(cfg *config.Config, rt Runtime) bool {
-	return cfg != nil && cfg.UsesLocalDiskStorage() && runtimeEUID(rt) != 0
+	return localRepositoryRequiresSudo(cfg, rt)
 }
 
 func localRepositoryHealthSudoMessage() string {
