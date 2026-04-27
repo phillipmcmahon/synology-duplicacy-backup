@@ -114,7 +114,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	}
 
 	stopValidating := h.presenter.StartStatusActivity("Validating repository access")
-	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+	if localRepositoryRequiresSudo(cfg, h.rt) {
 		stopValidating()
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
@@ -134,10 +134,6 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 	if req.Command == "doctor" {
 		h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
 	}
-}
-
-func localRepositoryHealthRequiresSudo(cfg *config.Config, rt Runtime) bool {
-	return localRepositoryRequiresSudo(cfg, rt)
 }
 
 func localRepositoryHealthSudoMessage() string {
@@ -170,7 +166,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 
-	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+	if localRepositoryRequiresSudo(cfg, h.rt) {
 		report.CheckedRevisionCount = 0
 		report.PassedRevisionCount = 0
 		report.FailedRevisionCount = 0

@@ -136,7 +136,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	defer dup.Cleanup()
 
 	var visibleRevisions []duplicacy.RevisionInfo
-	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+	if localRepositoryRequiresSudo(cfg, h.rt) {
 		h.runLocalRepositorySudoStatusChecks(report, req, plan)
 	} else {
 		visibleRevisions = h.runStatusChecks(report, req, cfg, plan, state, dup)
