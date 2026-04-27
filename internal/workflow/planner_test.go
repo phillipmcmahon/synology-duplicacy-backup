@@ -229,10 +229,53 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 	rt.Geteuid = func() int { return 1000 }
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
-	req := &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir}
-	_, err := planner.Build(runtimeRequestForTest(req))
-	if err == nil || !strings.Contains(err.Error(), "prune must be run as root for path-based local repository storage") {
+	tests := []struct {
+		name string
+		req  *Request
+		want string
+	}{
+		{
+			name: "prune",
+			req:  &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			want: "prune must be run as root for path-based local repository storage",
+		},
+		{
+			name: "prune dry-run",
+			req:  &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			want: "prune --dry-run must be run as root for path-based local repository storage",
+		},
+		{
+			name: "cleanup storage",
+			req:  &Request{Source: "homes", DoCleanupStore: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			want: "cleanup-storage must be run as root for path-based local repository storage",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := planner.Build(runtimeRequestForTest(tt.req))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("Build() error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlannerBuild_NonRootLocalRepositoryCleanupDryRunIsSimulationOnly(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+
+	req := &Request{Source: "homes", DoCleanupStore: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir}
+	plan, err := planner.Build(runtimeRequestForTest(req))
+	if err != nil {
 		t.Fatalf("Build() error = %v", err)
+	}
+	if !plan.DoCleanupStore || !plan.DryRun {
+		t.Fatalf("plan cleanup/dry-run = %t/%t, want true/true", plan.DoCleanupStore, plan.DryRun)
 	}
 }
 
@@ -246,7 +289,7 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 	rt.Geteuid = func() int { return 1000 }
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
-	req := &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)

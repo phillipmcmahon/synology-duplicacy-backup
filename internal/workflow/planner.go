@@ -102,18 +102,24 @@ func (p *Planner) validateEnvironment(req *RuntimeRequest) error {
 }
 
 func (p *Planner) validateRepositoryMutationPrivilege(req *RuntimeRequest, cfg *config.Config) error {
-	if req == nil || cfg == nil || req.DryRun || p.rt.Geteuid() == 0 {
-		return nil
-	}
-	if !req.DoPrune() && !req.DoCleanupStore() {
+	if req == nil || cfg == nil || p.rt.Geteuid() == 0 {
 		return nil
 	}
 	if !cfg.UsesLocalDiskStorage() {
 		return nil
 	}
-	command := "prune"
-	if req.DoCleanupStore() {
+
+	command := ""
+	switch {
+	case req.DoPrune():
+		command = "prune"
+		if req.DryRun {
+			command = "prune --dry-run"
+		}
+	case req.DoCleanupStore() && !req.DryRun:
 		command = "cleanup-storage"
+	default:
+		return nil
 	}
 	return fmt.Errorf("%s must be run as root for path-based local repository storage; local backup repositories are protected OS resources, while remote/object storage access is governed by credentials", command)
 }

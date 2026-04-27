@@ -52,8 +52,10 @@ In practice:
   Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use
   `s3_id` and `s3_secret`, while native `storj://` uses `storj_key` and
   `storj_passphrase`
-- path-based filesystem repositories are protected OS resources; run actual
-  prune or cleanup mutation for those targets as root
+- path-based filesystem repositories are protected OS resources; run prune,
+  prune dry-run, or actual cleanup mutation for those targets as root
+- `cleanup-storage --dry-run` is simulation-only and does not scan repository
+  chunks
 - object and remote repository mutation is governed by storage credentials
 - runtime, health, `config explain`, and `config paths` surface target
   location in operator-facing output

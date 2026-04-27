@@ -298,6 +298,11 @@ enforcement, so these are valid and distinct intents:
 - storage cleanup
 - forced prune
 
+`prune --dry-run` is repository-derived: it runs the safe-prune preview and
+reads snapshot/revision metadata. For path-based local repositories that means
+the same sudo boundary as real prune. `cleanup-storage --dry-run` is different:
+it is simulation-only and prints the commands without scanning chunks.
+
 Those are still request-level concepts because they describe intent, not machine state.
 
 ### What happens in `ParseRequest`

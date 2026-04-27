@@ -207,8 +207,9 @@ Use this for storage-integrity verification. It can take longer than status or
 doctor checks, so give it its own window.
 
 Use `sudo -n` for path-based local repositories because their Duplicacy metadata
-is root-protected. Object and remote repository verification can run as the
-operator user without `sudo`.
+is root-protected. `prune --dry-run` is also repository-derived and needs the
+same boundary for path-based local repositories. Object and remote repository
+verification can run as the operator user without `sudo`.
 
 Command templates:
 
@@ -258,6 +259,10 @@ sudo -n /usr/local/bin/duplicacy-backup cleanup-storage --target <local-path-tar
 # Object or remote repository
 /usr/local/bin/duplicacy-backup cleanup-storage --target <object-or-remote-target> <label>
 ```
+
+`cleanup-storage --dry-run` is simulation-only: it prints the validation and
+cleanup commands but does not scan chunks or inspect protected repository
+metadata.
 
 ### Forced Prune
 

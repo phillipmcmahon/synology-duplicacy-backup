@@ -13,6 +13,11 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Fixed
+- **Runtime maintenance privilege boundaries are now explicit**:
+  non-root `prune --dry-run` for path-based local repository storage now stops
+  with the same sudo-required boundary as real prune because the safe-prune
+  preview reads protected repository metadata; `cleanup-storage --dry-run`
+  remains simulation-only and now says it does not scan chunks.
 - **Config validation no longer requires source directory read access**:
   `config validate` now checks source path presence, directory shape, and Btrfs
   subvolume readiness without requiring the operator account to read protected

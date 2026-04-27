@@ -104,11 +104,13 @@ COMMAND OVERVIEW:
     Runtime operations      Run or maintain one configured label target
       backup                Run a backup for the selected label and target
       prune                 Run threshold-guarded prune for the selected label and target
-                              Root is required for path-based filesystem repositories
+                              Root is required for path-based filesystem repositories,
+                              including --dry-run previews
       cleanup-storage       Request storage maintenance:
                               duplicacy prune -exhaustive -exclusive
                               Use only when no other client is writing to the same storage
-                              Root is required for path-based filesystem repositories
+                              Root is required for path-based filesystem repositories,
+                              except --dry-run simulation
     Config and inspection   Read, explain, validate, or diagnose configured targets
       config validate       Validate backup-readiness, including source path and configured secrets
                               Use sudo when validating path-based local repository readiness
@@ -266,10 +268,12 @@ COMMAND MODEL:
 
 PRIVILEGE MODEL:
     Run commands as the operator user by default. Root is required for backup,
-    and actual prune or cleanup-storage mutation against path-based filesystem
-    repositories. Those repositories are protected OS resources.
+    prune, prune --dry-run, and actual cleanup-storage mutation against
+    path-based filesystem repositories. Those repositories are protected OS
+    resources, and prune previews inspect repository metadata.
     Object and remote repositories are governed by their Duplicacy credentials.
-    prune --dry-run may run non-root when the repository is readable.
+    cleanup-storage --dry-run is simulation-only and does not scan repository
+    chunks.
     Root-required commands should be invoked with sudo from the operator
     account, not from a direct root shell. Direct root execution is rejected
     for profile-using commands unless explicit profile roots are supplied, so

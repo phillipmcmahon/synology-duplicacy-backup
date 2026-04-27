@@ -51,7 +51,8 @@ These commands require root because of the work they perform:
 | Command | Why root is required |
 |---|---|
 | `backup` | Creates a btrfs snapshot and needs complete source-tree read access. |
-| `prune` / `cleanup-storage` for path-based filesystem storage | Mutates a protected local backup repository. Local repository chunks and snapshots should remain OS-protected and policy-managed. |
+| `prune` / `prune --dry-run` for path-based filesystem storage | Reads protected local repository snapshot metadata to produce the safe-prune preview, and may then mutate the repository. |
+| `cleanup-storage` for path-based filesystem storage | Mutates a protected local backup repository. Local repository chunks and snapshots should remain OS-protected and policy-managed. |
 | `update --yes` | Activates a managed install under system-owned paths. |
 | `rollback --yes` | Changes managed install symlinks under system-owned paths. |
 
@@ -154,7 +155,7 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 | `restore select` / `restore run` / `restore list-revisions` | Restores write only to a drill workspace, never the live source path. Use `sudo` for path-based local repositories because snapshot/chunk metadata is root-protected; object and remote restore remains operator-user and credential-governed. |
 | `health status` / `health doctor` / `health verify` | Requires access to Duplicacy storage and runtime paths. `health doctor` uses unprivileged `stat` probes for Btrfs backup-readiness checks; `health verify` verifies repository integrity and does not perform Btrfs backup-readiness checks. Use `sudo` for path-based local repository access because metadata is root-protected; object and remote repository access remains operator-user and credential-governed. |
 | `prune` / `cleanup-storage` for object or remote storage | Mutates storage through Duplicacy credentials. The authority boundary is the credential, not OS root. |
-| `prune --dry-run` | Preview-only; may run non-root when the repository is readable. |
+| `cleanup-storage --dry-run` | Simulation-only; prints the repository validation and cleanup commands but does not scan chunks or inspect protected repository metadata. |
 | `config` / `diagnostics` / `notify` | Reads config/secrets and writes only normal command output or notifications. |
 | `update --check-only` / `rollback --check-only` | Inspects managed install state without changing it. |
 
@@ -163,8 +164,9 @@ secrets, storage, workspace, state, log, and lock paths are accessible:
 There are two repository access models:
 
 - Path-based filesystem repositories are protected operating-system resources.
-  Backups normally write them as root, and actual prune or cleanup-storage
-  mutation must also run as root. This prevents ordinary users from inspecting,
+  Backups normally write them as root. Prune, including `prune --dry-run`,
+  reads snapshot metadata and must run as root. Actual cleanup-storage mutation
+  must also run as root. This prevents ordinary users from inspecting,
   deleting, or rewriting chunks and snapshot metadata outside the tool's
   retention policy.
 - Object and remote repositories are governed by credentials. If the operator

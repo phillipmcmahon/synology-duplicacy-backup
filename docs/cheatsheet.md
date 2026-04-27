@@ -154,8 +154,10 @@ Installer behaviour:
 - For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - Path-based filesystem repositories are OS-protected resources. Run actual
-  `prune` and `cleanup-storage` for those targets as root; object or remote
-  repositories are governed by credentials.
+  `prune`, `prune --dry-run`, and `cleanup-storage` mutation for those targets
+  as root; object or remote repositories are governed by credentials.
+- `cleanup-storage --dry-run` is simulation-only and does not scan repository
+  chunks.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `config validate` is intended to be useful as the operator user; it validates source path presence/Btrfs shape without requiring direct read access to protected source contents.
 - For path-based local repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.

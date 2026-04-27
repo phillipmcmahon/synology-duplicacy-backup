@@ -398,7 +398,9 @@ health, and diagnostics rather than chaining everything together into one
 recurring job.
 
 Treat `cleanup-storage` and `prune --force` as explicit operator actions
-rather than routine scheduled work.
+rather than routine scheduled work. `prune --dry-run` still reads repository
+metadata, so use `sudo -n` for path-based local repositories. By contrast,
+`cleanup-storage --dry-run` is simulation-only and does not scan chunks.
 
 ## Release Verification
 

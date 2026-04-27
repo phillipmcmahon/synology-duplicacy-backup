@@ -45,8 +45,8 @@ are not supported.
 | Command | Description |
 |---|---|
 | `backup --target <target> <label>` | Run a backup for the selected label and target |
-| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for path-based filesystem repositories |
-| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for path-based filesystem repositories |
+| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for path-based filesystem repositories, including `--dry-run` previews |
+| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for path-based filesystem repositories except `--dry-run` simulation |
 
 ## Modifiers
 
@@ -186,10 +186,12 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   command needs `--target <name>`.
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
-- Root is required for `backup`, and actual `prune` or `cleanup-storage`
-  mutation against path-based filesystem repositories.
+- Root is required for `backup`, `prune`, `prune --dry-run`, and actual
+  `cleanup-storage` mutation against path-based filesystem repositories.
   Object and remote repositories are governed by their storage credentials.
-  `prune --dry-run` may run non-root when the repository is readable.
+- `prune --dry-run` is repository-derived and reads revision metadata.
+- `cleanup-storage --dry-run` is simulation-only and does not scan repository
+  chunks.
 - Root-required commands should normally be invoked with `sudo` from the
   operator account. Profile-using commands started from a direct root shell are
   rejected unless explicit profile roots are supplied with `--config-dir`,

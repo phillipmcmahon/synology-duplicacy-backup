@@ -116,7 +116,7 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Storage cleanup", "duplicacy prune -exhaustive -exclusive", "Storage cleanup phase completed (dry-run)"} {
+		for _, token := range []string{"Phase: Storage cleanup", "simulation-only", "repository chunks are not scanned", "duplicacy prune -exhaustive -exclusive", "Storage cleanup phase completed (dry-run)"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
