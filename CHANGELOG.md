@@ -12,6 +12,34 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.2] - 2026-04-27
+
+### Fixed
+- **Local repository validation now reports the privilege boundary clearly**:
+  non-root `config validate` for path-based local repository storage reports
+  `Repository Access : Requires sudo` instead of the misleading
+  `Repository is not ready` fallback when protected root-owned repository
+  metadata cannot be inspected by the operator account.
+- **Config validation guidance now matches the v9 security model**:
+  help text and operator docs explain that local repository readiness probes
+  should be run through `sudo`, while object and remote repository validation
+  remains operator-user and credential-governed.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.3%`
+- `cmd/duplicacy-backup`: `85.8%`
+- `internal/workflow`: `85.3%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v9.1.1] - 2026-04-27
 
 ### Fixed
