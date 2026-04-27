@@ -506,7 +506,7 @@ the operator user so later non-root commands can read the same state.
 | prune policy syntax validation | `config validate`, prune |
 | Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
-| repository readiness and integrity probes | `config validate`, `health doctor`, `health verify`; path-based local repositories are protected OS resources and require `sudo` for these probes |
+| repository readiness and integrity probes | `config validate`, `health status`, `health doctor`, `health verify`; path-based local repositories are protected OS resources and require `sudo` for these probes |
 | target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
 
 ## Output Model
@@ -537,14 +537,15 @@ reported as:
 - `Repository Access : Requires sudo`
 - `Repository Access : Invalid (...)`
 
-`Requires sudo` is expected when validating, diagnosing, or integrity-checking a
-path-based local repository from the operator account. Backups write local
-repository chunk and snapshot metadata as root for data-at-rest protection, so
-repository readiness and integrity probes must be run through `sudo` for those
-targets:
+`Requires sudo` is expected when validating, checking status, diagnosing, or
+integrity-checking a path-based local repository from the operator account.
+Backups write local repository chunk and snapshot metadata as root for
+data-at-rest protection, so repository readiness and integrity probes must be
+run through `sudo` for those targets:
 
 ```bash
 sudo duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
 sudo duplicacy-backup health doctor --target onsite-usb homes
 sudo duplicacy-backup health verify --target onsite-usb homes
 ```

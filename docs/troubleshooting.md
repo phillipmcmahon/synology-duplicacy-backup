@@ -70,6 +70,7 @@ from the operator account:
 
 ```bash
 sudo duplicacy-backup config validate --target <target> <label>
+sudo duplicacy-backup health status --target <target> <label>
 sudo duplicacy-backup health doctor --target <target> <label>
 sudo duplicacy-backup health verify --target <target> <label>
 ```

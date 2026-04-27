@@ -312,7 +312,7 @@ Example: scheduled prune for label `homes` on target `offsite-storj`
 Example: scheduled health summary for label `homes` on target `onsite-usb`
 
 ```bash
-/usr/local/bin/duplicacy-backup health status --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
 ```
 
 Example: scheduled JSON integrity verification for label `homes` on target `onsite-usb`
@@ -322,7 +322,7 @@ sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --target on
 ```
 
 Use `sudo -n` for path-based local repositories because backup metadata is
-root-protected. Object and remote repository verification can run as the
+root-protected. Object and remote repository health checks can run as the
 operator user without `sudo`.
 
 The health JSON report is meant for automation rather than terminal reading.

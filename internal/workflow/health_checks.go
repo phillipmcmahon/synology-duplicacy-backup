@@ -73,6 +73,16 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest,
 	return revisions
 }
 
+func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, req *HealthRequest, plan *Plan) {
+	report.AddCheck("Config file", "pass", plan.ConfigFile)
+	if plan.Secrets != nil {
+		report.AddCheck("Secrets", "pass", plan.SecretsFile)
+	}
+	if req.Command == "status" {
+		report.AddCheck("Repository access", "fail", localRepositoryHealthSudoMessage())
+	}
+}
+
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
 	verifyMode := req.Command == "verify"
 	if _, err := os.Stat(plan.SnapshotSource); err != nil {
@@ -107,7 +117,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
 		}
-		report.AddCheck("Repository access", "fail", "Requires sudo; rerun this health command with sudo from the operator account")
+		report.AddCheck("Repository access", "fail", localRepositoryHealthSudoMessage())
 	} else if err := dup.ValidateRepo(); err != nil {
 		stopValidating()
 		if req.Command == "verify" {
@@ -126,6 +136,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 
 func localRepositoryHealthRequiresSudo(cfg *config.Config, rt Runtime) bool {
 	return cfg != nil && cfg.UsesLocalDiskStorage() && runtimeEUID(rt) != 0
+}
+
+func localRepositoryHealthSudoMessage() string {
+	return "Requires sudo; rerun this health command with sudo from the operator account"
 }
 
 type btrfsReadinessReport struct {

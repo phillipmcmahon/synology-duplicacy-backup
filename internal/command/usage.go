@@ -116,6 +116,7 @@ COMMAND OVERVIEW:
       config paths          Show resolved config, source, log, and secrets paths
       diagnostics           Print a redacted support bundle for one label and target
       health status         Fast read-only health summary for operators and schedulers
+                              Use sudo for path-based local repositories
       health doctor         Read-only environment and storage diagnostics
                               Use sudo for path-based local repositories
       health verify         Read-only integrity check across revisions found for the current label
@@ -336,8 +337,8 @@ RESTORE SELECTION:
 EXAMPLES:
     sudo {{script}} backup --target onsite-usb homes
     sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
-    {{script}} health status --target onsite-usb homes
-    {{script}} health doctor --json-summary --target onsite-usb homes
+    sudo {{script}} health status --target onsite-usb homes
+    sudo {{script}} health doctor --json-summary --target onsite-usb homes
     {{script}} health verify --target offsite-storj homes
     sudo {{script}} prune --target onsite-usb homes
     sudo {{script}} prune --target onsite-usb --force homes

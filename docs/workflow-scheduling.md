@@ -160,9 +160,13 @@ homes      -> offsite-storj   -> weekly, no sudo
 Use this for lightweight visibility that a target is reachable and the latest
 revision signal is sensible.
 
-Command template:
+Command templates:
 
 ```bash
+# Path-based local repositories
+sudo -n /usr/local/bin/duplicacy-backup health status --target <target> <label>
+
+# Object or remote repositories
 /usr/local/bin/duplicacy-backup health status --target <target> <label>
 ```
 
@@ -177,9 +181,13 @@ homes      -> offsite-storj   -> daily
 
 Use this for a deeper repository and configuration check.
 
-Command template:
+Command templates:
 
 ```bash
+# Path-based local repositories
+sudo -n /usr/local/bin/duplicacy-backup health doctor --target <target> <label>
+
+# Object or remote repositories
 /usr/local/bin/duplicacy-backup health doctor --target <target> <label>
 ```
 

@@ -732,10 +732,10 @@ initialising storage or mutating repository state. `Requires sudo` is used for
 path-based local repositories because their chunk and snapshot metadata is
 intentionally protected by root-owned OS permissions.
 
-`health doctor` and `health verify` use the same local repository privilege
-boundary for repository probes: path-based local repositories should be checked
-with `sudo`, while object and remote repositories remain governed by their
-configured credentials.
+`health status`, `health doctor`, and `health verify` use the same local
+repository privilege boundary for repository probes: path-based local
+repositories should be checked with `sudo`, while object and remote
+repositories remain governed by their configured credentials.
 
 ### Main error families
 

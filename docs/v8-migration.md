@@ -167,13 +167,11 @@ runtime profile is the `duplicacy-backup` directory and its contents.
 
 ## 5. Validate As The Operator User
 
-Run these without `sudo`:
+Run profile and diagnostics checks without `sudo`:
 
 ```bash
 duplicacy-backup config paths --target onsite-usb homes
-duplicacy-backup config validate --target onsite-usb homes
 duplicacy-backup diagnostics --target onsite-usb homes
-duplicacy-backup health status --target onsite-usb homes
 ```
 
 Check that the reported config and secrets paths are under:
@@ -189,7 +187,17 @@ For restore validation:
 duplicacy-backup restore select --target onsite-usb homes
 ```
 
-For backup validation, keep using `sudo` because backup snapshots require
+For path-based local repositories such as USB targets, run repository readiness
+and health probes with `sudo` because backup metadata is root-protected. For
+object or remote repositories, those commands remain operator-user and
+credential-governed.
+
+```bash
+sudo duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
+```
+
+For backup validation, also keep using `sudo` because backup snapshots require
 privileged filesystem access. Run normal `sudo` from the operator account;
 defaults still resolve to that operator profile:
 
@@ -204,6 +212,7 @@ Review Synology Task Scheduler or cron entries after migration.
 Keep `sudo` or root scheduling only for commands that need OS privilege:
 
 - `backup`
+- path-based local repository `config validate`, `health status`, `health doctor`, and `health verify`
 - managed `update` activation
 - managed `rollback` activation
 
@@ -211,9 +220,9 @@ Prefer the operator user for non-root-capable commands:
 
 - `restore select`
 - `restore run`
-- `health status`
-- `health doctor`
-- `health verify`
+- object or remote repository `health status`
+- object or remote repository `health doctor`
+- object or remote repository `health verify`
 - `diagnostics`
 - `config`
 - `notify test`

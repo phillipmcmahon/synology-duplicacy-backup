@@ -111,7 +111,7 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers |
+| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers. Use sudo for path-based local repositories |
 | `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass. Use sudo for path-based local repositories |
 | `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for path-based local repositories |
 
@@ -149,7 +149,7 @@ sudo duplicacy-backup backup --target onsite-usb --json-summary --dry-run homes
 sudo duplicacy-backup config validate --target onsite-usb homes
 
 # Health command
-duplicacy-backup health status --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Redacted support bundle
 duplicacy-backup diagnostics --target onsite-usb homes

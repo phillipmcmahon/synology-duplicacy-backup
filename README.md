@@ -187,7 +187,7 @@ sudo duplicacy-backup prune --target onsite-usb homes
 sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 
 # Check backup freshness and repository status
-duplicacy-backup health status --target onsite-usb homes
+sudo duplicacy-backup health status --target onsite-usb homes
 
 # Gather a redacted support bundle for one label and target
 duplicacy-backup diagnostics --target onsite-usb homes
@@ -245,9 +245,10 @@ Core operating rules:
 - `health status`, `health doctor`, and `health verify` use target-specific
   state under `$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json`
   by default.
-- Use `sudo` for `health doctor` and `health verify` against path-based local
-  repositories because their Duplicacy metadata is root-protected. Object and
-  remote repository checks remain operator-user and credential-governed.
+- Use `sudo` for `health status`, `health doctor`, and `health verify` against
+  path-based local repositories because their Duplicacy metadata is
+  root-protected. Object and remote repository checks remain operator-user and
+  credential-governed.
 - `diagnostics` prints a redacted label-target support bundle with resolved
   paths, storage scheme, state freshness, and permission summaries.
 - `restore select` is the primary operator restore path. It presents restore

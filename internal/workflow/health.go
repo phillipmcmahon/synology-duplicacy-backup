@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
@@ -134,7 +135,12 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	}
 	defer dup.Cleanup()
 
-	visibleRevisions := h.runStatusChecks(report, req, cfg, plan, state, dup)
+	var visibleRevisions []duplicacy.RevisionInfo
+	if localRepositoryHealthRequiresSudo(cfg, h.rt) {
+		h.runLocalRepositorySudoStatusChecks(report, req, plan)
+	} else {
+		visibleRevisions = h.runStatusChecks(report, req, cfg, plan, state, dup)
+	}
 	if req.Command == "doctor" || req.Command == "verify" {
 		h.runDoctorChecks(report, req, cfg, plan, dup)
 	}
