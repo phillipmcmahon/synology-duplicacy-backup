@@ -58,6 +58,29 @@ See also:
 - [Configuration and secrets](configuration.md#output-model)
 - [Operator cheat sheet](cheatsheet.md#config-and-validation)
 
+## Repository Access Requires Sudo
+
+`Repository Access : Requires sudo` means the selected target uses path-based
+local repository storage. Backups write local repository chunk and snapshot
+metadata as root so ordinary users cannot inspect or mutate backup internals
+outside the tool's policy boundary.
+
+Run the same validation through `sudo` from the operator account:
+
+```bash
+sudo duplicacy-backup config validate --target <target> <label>
+```
+
+This is different from `Invalid`: the repository may be healthy, but the
+readiness probe needs root access to inspect protected local metadata. Object
+and remote repositories continue to validate as the operator user because their
+authority boundary is the configured storage credentials.
+
+See also:
+
+- [Privilege model](privilege-model.md#repository-mutation-boundary)
+- [Configuration and secrets](configuration.md#output-model)
+
 ## Health Verify Is Degraded or Unhealthy
 
 `health verify` uses health-specific exit codes: `0` for healthy, `1` for
@@ -225,9 +248,11 @@ For `config validate`, an accessible configured `source_path` always receives
 the Btrfs source check. If that path is not on Btrfs or is not a subvolume root,
 validation fails because backups require snapshot consistency.
 
-Non-root validation is the default. In the v8 profile model, Btrfs source
-validation, secrets loading, and repository probing are designed to run as the
-operator user when the selected paths are accessible.
+Non-root validation is the default. In the v9 profile model, Btrfs source
+validation and secrets loading are designed to run as the operator user when the
+selected paths are accessible. Path-based local repository readiness is the
+exception: that probe requires `sudo` because local repository metadata is
+root-protected by design.
 
 See also:
 

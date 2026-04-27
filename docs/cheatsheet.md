@@ -85,7 +85,7 @@ logger or privilege problem exits `2`.
 
 ```bash
 # Validate config for homes on target onsite-usb
-duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
 
 # Explain config for homes on target onsite-usb
 duplicacy-backup config explain --target onsite-usb homes
@@ -157,8 +157,10 @@ Installer behaviour:
   repositories are governed by credentials.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `config validate` is intended to be useful as the operator user; it validates Btrfs source shape, secrets, and repository access when the selected paths are accessible.
+- For path-based local repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
+- `Repository Access : Requires sudo` means the local repository may be healthy, but the readiness probe needs sudo because local repository metadata is root-protected.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
 - `config explain` and `config paths` show `Location` for the selected target.
 - `config explain` does not load storage secrets; it stays read-only and still shows the expected secrets-file path when the selected backend needs one.
@@ -186,7 +188,7 @@ Installer behaviour:
 ```bash
 # Confirm the selected repository before a restore drill
 duplicacy-backup config explain --target onsite-usb homes
-duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
 duplicacy-backup health status --target onsite-usb homes
 
 # Guided operator restore

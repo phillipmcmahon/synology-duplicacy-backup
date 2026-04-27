@@ -184,6 +184,42 @@ func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootRunsSafe
 	assertAllowedValidationOutcomes(t, out)
 }
 
+func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(t *testing.T) {
+	stubConfigCommandRunner(t,
+		execpkg.MockResult{Stdout: "btrfs\n"},
+		execpkg.MockResult{Stdout: "256\n"},
+	)
+	sourcePath := t.TempDir()
+	destinationRoot := t.TempDir()
+	owner, group := currentUserGroup(t)
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, owner, group, 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	if err == nil {
+		t.Fatal("HandleConfigCommand() expected error")
+	}
+	if !strings.Contains(OperatorMessage(err), "rerun config validate with sudo from the operator account") {
+		t.Fatalf("OperatorMessage(err) = %q", OperatorMessage(err))
+	}
+	report := ConfigCommandOutput(err)
+	for _, token := range []string{"Config validation failed for homes/onsite-usb", "Repository Access", "Requires sudo", "Result", "Failed"} {
+		if !strings.Contains(report, token) {
+			t.Fatalf("report missing %q:\n%s", token, report)
+		}
+	}
+	values := extractValidationValues(t, report)
+	if values["Repository Access"] != "Requires sudo" {
+		t.Fatalf("Repository Access = %q:\n%s", values["Repository Access"], report)
+	}
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertAllowedValidationOutcomes(t, report)
+}
+
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
@@ -1027,7 +1063,7 @@ var invalidValidationOutcomePattern = regexp.MustCompile(`^Invalid \(.+\)$`)
 
 func allowedValidationOutcome(value string) bool {
 	switch value {
-	case "Valid", "Readable", "Writable", "Resolved", "Parsed", "Not checked", "Not configured", "Not enabled", "Not required":
+	case "Valid", "Readable", "Writable", "Resolved", "Parsed", "Not checked", "Not configured", "Not enabled", "Not required", "Requires sudo":
 		return true
 	case "Not initialized":
 		return true

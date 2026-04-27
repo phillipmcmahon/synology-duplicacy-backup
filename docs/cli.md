@@ -67,7 +67,7 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path, storage, repository, and any required storage secrets |
+| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path, storage, repository, and any required storage secrets. Use `sudo` for path-based local repository readiness checks. |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -146,7 +146,7 @@ sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 sudo duplicacy-backup backup --target onsite-usb --json-summary --dry-run homes
 
 # Config command
-duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
 
 # Health command
 duplicacy-backup health status --target onsite-usb homes

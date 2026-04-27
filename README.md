@@ -175,8 +175,8 @@ storage = "s3://rustfs.local/my-backup-bucket/homes"
 Start with validation and a dry run before scheduling anything:
 
 ```bash
-# Validate the selected target from the homes config
-duplicacy-backup config validate --target onsite-usb homes
+# Validate the selected local repository target from the homes config
+sudo duplicacy-backup config validate --target onsite-usb homes
 
 # Preview a backup without changing storage
 sudo duplicacy-backup backup --target onsite-usb --dry-run homes

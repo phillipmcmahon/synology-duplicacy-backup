@@ -177,5 +177,7 @@ site-specific security model.
 
 If a command fails with a path permission error, fix the selected path
 ownership/mode or pass explicit `--config-dir`, `--secrets-dir`, `--workspace`,
-or `--workspace-root` values. Do not use `sudo` unless the command is actually
-performing a root-required operation.
+or `--workspace-root` values. Use `sudo` only when the command is performing a
+root-required operation or when `config validate` needs to probe a path-based
+local repository whose chunk and snapshot metadata is intentionally
+root-protected.

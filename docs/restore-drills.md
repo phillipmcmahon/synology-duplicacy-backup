@@ -74,7 +74,7 @@ with the guided flow:
 
 ```bash
 duplicacy-backup config explain --target onsite-usb homes
-duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup config validate --target onsite-usb homes
 duplicacy-backup health status --target onsite-usb homes
 duplicacy-backup restore select --target onsite-usb homes
 ```

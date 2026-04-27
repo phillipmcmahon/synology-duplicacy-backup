@@ -506,7 +506,7 @@ the operator user so later non-root commands can read the same state.
 | prune policy syntax validation | `config validate`, prune |
 | Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
-| repository readiness probe | `config validate` |
+| repository readiness probe | `config validate`; path-based local repositories are protected OS resources and require `sudo` for this probe |
 | target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
 
 ## Output Model
@@ -534,7 +534,20 @@ reported as:
 
 - `Repository Access : Valid`
 - `Repository Access : Not initialized`
+- `Repository Access : Requires sudo`
 - `Repository Access : Invalid (...)`
+
+`Requires sudo` is expected when validating a path-based local repository from
+the operator account. Backups write local repository chunk and snapshot metadata
+as root for data-at-rest protection, so the repository readiness probe must be
+run through `sudo` for those targets:
+
+```bash
+sudo duplicacy-backup config validate --target onsite-usb homes
+```
+
+Object and remote repositories continue to validate as the operator user
+because their authority boundary is the configured storage credentials.
 
 When `config validate` can inspect a configured `source_path`, Btrfs source
 validation is mandatory and fails if the path is not on Btrfs or is not a

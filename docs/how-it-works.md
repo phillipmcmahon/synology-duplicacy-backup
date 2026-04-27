@@ -727,8 +727,10 @@ That keeps message tone and punctuation consistent.
 
 `config validate` also follows this rule. It performs a read-only readiness
 probe for the selected repository and reports operator-facing outcomes such as
-`Valid`, `Not initialized`, and `Invalid (...)` without initialising storage
-or mutating repository state.
+`Valid`, `Not initialized`, `Requires sudo`, and `Invalid (...)` without
+initialising storage or mutating repository state. `Requires sudo` is used for
+path-based local repositories because their chunk and snapshot metadata is
+intentionally protected by root-owned OS permissions.
 
 ### Main error families
 

@@ -59,7 +59,7 @@ Examples:
     sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
     sudo {{script}} backup --target offsite-storj homes
     sudo {{script}} prune --target onsite-usb homes
-    {{script}} config validate --target onsite-usb homes
+    sudo {{script}} config validate --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
     {{script}} health status --target onsite-usb homes
     {{script}} notify test --target onsite-usb homes
@@ -111,6 +111,7 @@ COMMAND OVERVIEW:
                               Root is required for path-based filesystem repositories
     Config and inspection   Read, explain, validate, or diagnose configured targets
       config validate       Validate backup-readiness, including source path and configured secrets
+                              Use sudo when validating path-based local repository readiness
       config explain        Show resolved config values for the selected target
       config paths          Show resolved config, source, log, and secrets paths
       diagnostics           Print a redacted support bundle for one label and target
@@ -343,7 +344,7 @@ EXAMPLES:
     sudo {{script}} backup --target onsite-usb --verbose homes
     sudo {{script}} backup --target onsite-usb --config-dir /opt/etc homes
     sudo {{script}} backup --secrets-dir /opt/secrets --target offsite-storj homes
-    {{script}} config validate --target onsite-usb homes
+    sudo {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
     {{script}} diagnostics --target onsite-usb homes
@@ -386,7 +387,7 @@ Options:
     --help-full
 
 Examples:
-    {{script}} config validate --target onsite-usb homes
+    sudo {{script}} config validate --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
     {{script}} config paths --target onsite-usb homes
 
@@ -732,7 +733,7 @@ DEFAULT LOCATIONS:
     Secrets dir            : {{default_secrets_dir}}
 
 EXAMPLES:
-    {{script}} config validate --target onsite-usb homes
+    sudo {{script}} config validate --target onsite-usb homes
     {{script}} config validate --target offsite-storj homes
     {{script}} config explain --target onsite-usb homes
     {{script}} config explain --target offsite-storj homes
