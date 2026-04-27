@@ -209,8 +209,9 @@ CONFIG STRUCTURE:
 
     CONFIG VALIDATE PERMISSIONS:
       config validate reports:
-        Privileges : Full     when root-only checks can run
-        Privileges : Limited  when root-only checks may be shown as Not checked
+        Source Path Access : Present when source_path exists and is a directory
+        Btrfs Source       : Valid when source_path is a Btrfs subvolume root
+        Repository Access  : Requires sudo for path-based local repositories
 
 HEALTH STATE:
     Target-specific run and health state are stored under:
@@ -730,6 +731,9 @@ OPTIONS:
 BEHAVIOUR:
     validate, explain, and paths operate on one selected target from a label config at a time.
     Every config command requires an explicit --target selection.
+    validate checks source path shape with stat/Btrfs probes; it does not require
+    the operator user to read protected source contents. Backup execution still
+    runs under sudo when root is needed for full source access and snapshots.
 
 DEFAULT LOCATIONS:
     Config dir             : {{config_dir}}

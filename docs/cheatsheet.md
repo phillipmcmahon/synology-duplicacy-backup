@@ -157,7 +157,7 @@ Installer behaviour:
   `prune` and `cleanup-storage` for those targets as root; object or remote
   repositories are governed by credentials.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
-- `config validate` is intended to be useful as the operator user; it validates Btrfs source shape, secrets, and repository access when the selected paths are accessible.
+- `config validate` is intended to be useful as the operator user; it validates source path presence/Btrfs shape without requiring direct read access to protected source contents.
 - For path-based local repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.

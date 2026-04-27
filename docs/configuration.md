@@ -372,6 +372,11 @@ This is a hard production requirement on Synology DSM. Backups refuse non-Btrfs
 source paths by design because live-tree reads would remove the snapshot
 consistency guarantee.
 
+`config validate` checks that `source_path` is present, absolute, a directory,
+and a Btrfs subvolume root. It does not require the operator account to read
+protected source contents; `backup` still runs through `sudo` when root is
+needed for complete source access and snapshot creation.
+
 Good examples:
 
 - `/volume1/source-homes`
@@ -553,15 +558,16 @@ sudo duplicacy-backup health verify --target onsite-usb homes
 Object and remote repositories continue to validate and verify as the operator
 user because their authority boundary is the configured storage credentials.
 
-When `config validate` can inspect a configured `source_path`, Btrfs source
+When `config validate` can stat a configured `source_path`, Btrfs source
 validation is mandatory and fails if the path is not on Btrfs or is not a
-subvolume root. Backup uses the same requirement before snapshot work starts.
+subvolume root. Backup uses the same requirement before snapshot work starts,
+then relies on sudo/root execution for complete source-tree read access.
 
 Conditional lines may be reported as `Not checked` when their prerequisite
-input is unavailable, such as a missing or inaccessible `source_path`. In the
-v8 profile model this should be uncommon; Btrfs source validation, secrets
-loading, and repository probing are designed to run as the operator user when
-the selected paths are accessible.
+input is unavailable, such as a missing or non-stat-accessible `source_path`.
+In the v9 profile model this should be uncommon; Btrfs source validation,
+secrets loading, and object/remote repository probing are designed to run as
+the operator user when the selected paths are accessible.
 
 ## Current File Naming
 

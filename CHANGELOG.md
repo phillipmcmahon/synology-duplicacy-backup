@@ -13,6 +13,11 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Fixed
+- **Config validation no longer requires source directory read access**:
+  `config validate` now checks source path presence, directory shape, and Btrfs
+  subvolume readiness without requiring the operator account to read protected
+  source contents; backup execution still uses sudo/root access for snapshot
+  creation and full source-tree reads.
 - **Local repository restore commands now report the privilege boundary clearly**:
   non-root `restore list-revisions`, `restore select`, and `restore run` for
   path-based local repository storage stop before Duplicacy repository access

@@ -256,14 +256,14 @@ See also:
 `Not checked` means the validation step is conditional or could not be run with
 the selected inputs. It is not the same as a failed check.
 
-For `config validate`, an accessible configured `source_path` always receives
-the Btrfs source check. If that path is not on Btrfs or is not a subvolume root,
-validation fails because backups require snapshot consistency.
+For `config validate`, a configured `source_path` that can be stat-ed always
+receives the Btrfs source check. If that path is not on Btrfs or is not a
+subvolume root, validation fails because backups require snapshot consistency.
 
 Non-root validation is the default. In the v9 profile model, Btrfs source
-validation and secrets loading are designed to run as the operator user when the
-selected paths are accessible. Path-based local repository readiness is the
-exception: that probe requires `sudo` because local repository metadata is
+validation checks path shape and does not require the operator account to read
+protected source contents. Path-based local repository readiness is the
+exception: that probe requires `sudo` because repository metadata is
 root-protected by design.
 
 See also:

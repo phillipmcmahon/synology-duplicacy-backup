@@ -339,12 +339,7 @@ func validateConfigSourcePathAccess(sourcePath string) (bool, string, error) {
 	if !info.IsDir() {
 		return false, "", configPathError(fmt.Sprintf("source_path must be a directory or subvolume: %s", sourcePath))
 	}
-	f, err := os.Open(sourcePath)
-	if err != nil {
-		return false, "", configPathError(fmt.Sprintf("source_path is not readable: %s", sourcePath))
-	}
-	_ = f.Close()
-	return true, "Readable", nil
+	return true, "Present", nil
 }
 
 func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) error {

@@ -67,7 +67,7 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path, storage, repository, and any required storage secrets. Use `sudo` for path-based local repository readiness checks. |
+| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path shape, storage, repository, and any required storage secrets. Use `sudo` for path-based local repository readiness checks. |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 

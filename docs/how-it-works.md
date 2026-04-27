@@ -737,6 +737,11 @@ initialising storage or mutating repository state. `Requires sudo` is used for
 path-based local repositories because their chunk and snapshot metadata is
 intentionally protected by root-owned OS permissions.
 
+For source paths, `config validate` proves path presence and Btrfs subvolume
+shape with stat-style checks. It does not require the operator account to read
+protected source contents; actual backup execution remains the root/sudo path
+that creates the snapshot and reads the snapshot tree.
+
 `health status`, `health doctor`, and `health verify` use the same local
 repository privilege boundary for repository probes: path-based local
 repositories should be checked with `sudo`, while object and remote
