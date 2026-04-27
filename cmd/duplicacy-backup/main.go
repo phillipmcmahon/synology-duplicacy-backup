@@ -53,6 +53,7 @@ func runWithArgs(args []string) int {
 	if logDir != "" {
 		meta.LogDir = logDir
 	}
+	rt = runtimeWithProfileOwner(rt, meta)
 
 	result, code := buildRequest(args, meta, rt)
 	if code != 0 {
@@ -67,7 +68,23 @@ func runWithArgs(args []string) int {
 
 func initLogger(meta workflow.Metadata) (*logger.Logger, error) {
 	enableColour := logger.IsTerminal(os.Stderr)
+	if meta.HasProfileOwner {
+		return logger.NewWithOwner(meta.LogDir, meta.ScriptName, enableColour, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
+	}
 	return logger.New(meta.LogDir, meta.ScriptName, enableColour)
+}
+
+func runtimeWithProfileOwner(rt workflow.Runtime, meta workflow.Metadata) workflow.Runtime {
+	if !meta.HasProfileOwner {
+		return rt
+	}
+	rt.NewLock = func(lockParent, label string) *lock.Lock {
+		return lock.NewWithOwner(lockParent, label, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
+	}
+	rt.NewSourceLock = func(lockParent, label string) *lock.Lock {
+		return lock.NewSourceWithOwner(lockParent, label, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
+	}
+	return rt
 }
 
 func printFailureCompletion(meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time) {

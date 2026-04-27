@@ -27,6 +27,7 @@ func restoreLockHooks(t *testing.T) {
 	origReadFile := lockReadFile
 	origWriteFile := lockWriteFile
 	origStat := lockStat
+	origChown := lockChown
 	origProcessExists := processExists
 	t.Cleanup(func() {
 		lockMkdirAll = origMkdirAll
@@ -35,6 +36,7 @@ func restoreLockHooks(t *testing.T) {
 		lockReadFile = origReadFile
 		lockWriteFile = origWriteFile
 		lockStat = origStat
+		lockChown = origChown
 		processExists = origProcessExists
 	})
 }
@@ -184,6 +186,47 @@ func TestAcquire_CreatesParentDirectory(t *testing.T) {
 
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatalf("parent directory not created: %v", err)
+	}
+}
+
+func TestAcquire_WithOwnerRestoresLockOwnership(t *testing.T) {
+	restoreLockHooks(t)
+	dir := t.TempDir()
+
+	var calls []string
+	lockChown = func(path string, uid, gid int) error {
+		calls = append(calls, filepath.Base(path))
+		if uid != 1026 || gid != 100 {
+			t.Fatalf("lockChown(%q, %d, %d), want 1026:100", path, uid, gid)
+		}
+		return nil
+	}
+
+	lk := NewWithOwner(dir, "test-acquire-owner", 1026, 100)
+	if err := lk.Acquire(); err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+	defer lk.Release()
+
+	if len(calls) != 3 {
+		t.Fatalf("lockChown calls = %v, want parent, lock dir, pid file", calls)
+	}
+	if calls[0] != filepath.Base(dir) || calls[1] != filepath.Base(lk.Path) || calls[2] != "pid" {
+		t.Fatalf("lockChown calls = %v", calls)
+	}
+}
+
+func TestAcquire_WithOwnerChownFailureReturnsLockError(t *testing.T) {
+	restoreLockHooks(t)
+	lockChown = func(string, int, int) error {
+		return os.ErrPermission
+	}
+
+	lk := NewWithOwner(t.TempDir(), "test-owner-failure", 1026, 100)
+	err := lk.Acquire()
+	requireLockPhase(t, err, "ownership")
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("Acquire() err = %v, want wrapped permission error", err)
 	}
 }
 

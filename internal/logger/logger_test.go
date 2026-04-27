@@ -135,6 +135,49 @@ func TestNew_Success(t *testing.T) {
 	}
 }
 
+func TestNewWithOwnerRestoresLogOwnership(t *testing.T) {
+	dir := t.TempDir()
+
+	var calls []string
+	previous := loggerChown
+	loggerChown = func(path string, uid, gid int) error {
+		calls = append(calls, filepath.Base(path))
+		if uid != 1026 || gid != 100 {
+			t.Fatalf("loggerChown(%q, %d, %d), want 1026:100", path, uid, gid)
+		}
+		return nil
+	}
+	t.Cleanup(func() { loggerChown = previous })
+
+	log, err := NewWithOwner(dir, "testscript", false, 1026, 100)
+	if err != nil {
+		t.Fatalf("NewWithOwner() error = %v", err)
+	}
+	defer log.Close()
+
+	timestamp := time.Now().Format("20060102")
+	if len(calls) != 2 {
+		t.Fatalf("loggerChown calls = %v, want log dir and log file", calls)
+	}
+	if calls[0] != filepath.Base(dir) || calls[1] != "testscript-"+timestamp+".log" {
+		t.Fatalf("loggerChown calls = %v", calls)
+	}
+}
+
+func TestNewWithOwnerChownFailureClosesAsError(t *testing.T) {
+	dir := t.TempDir()
+
+	previous := loggerChown
+	loggerChown = func(string, int, int) error {
+		return os.ErrPermission
+	}
+	t.Cleanup(func() { loggerChown = previous })
+
+	if _, err := NewWithOwner(dir, "testscript", false, 1026, 100); err == nil {
+		t.Fatal("expected NewWithOwner() to fail when ownership repair fails")
+	}
+}
+
 func TestStartActivity_WritesOnlyToInteractiveStderr(t *testing.T) {
 	dir := t.TempDir()
 	log, err := New(dir, "testscript", false)

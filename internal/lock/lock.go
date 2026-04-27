@@ -19,14 +19,18 @@ var (
 	lockReadFile  = os.ReadFile
 	lockWriteFile = os.WriteFile
 	lockStat      = os.Stat
+	lockChown     = os.Chown
 	processExists = linuxProcProcessExists
 )
 
 // Lock represents a directory-based process lock.
 type Lock struct {
-	Path    string
-	PIDFile string
-	pid     int
+	Path     string
+	PIDFile  string
+	pid      int
+	ownerUID int
+	ownerGID int
+	hasOwner bool
 }
 
 type Status struct {
@@ -42,6 +46,16 @@ func New(lockParent, label string) *Lock {
 	return newLock(lockParent, fmt.Sprintf("backup-%s.lock.d", label))
 }
 
+// NewWithOwner creates a lock that restores parent, lock directory, and pid
+// ownership to the supplied profile owner after root creates them via sudo.
+func NewWithOwner(lockParent, label string, uid, gid int) *Lock {
+	l := newLock(lockParent, fmt.Sprintf("backup-%s.lock.d", label))
+	l.ownerUID = uid
+	l.ownerGID = gid
+	l.hasOwner = true
+	return l
+}
+
 // NewTarget creates a target-scoped repository lock for the given label/target pair.
 func NewTarget(lockParent, label, target string) *Lock {
 	return newLock(lockParent, fmt.Sprintf("backup-%s-%s.lock.d", label, target))
@@ -50,6 +64,15 @@ func NewTarget(lockParent, label, target string) *Lock {
 // NewSource creates a short-lived source lock for snapshot operations on a label.
 func NewSource(lockParent, label string) *Lock {
 	return newLock(lockParent, fmt.Sprintf("source-%s.lock.d", label))
+}
+
+// NewSourceWithOwner creates a source lock owned by the sudoing operator.
+func NewSourceWithOwner(lockParent, label string, uid, gid int) *Lock {
+	l := newLock(lockParent, fmt.Sprintf("source-%s.lock.d", label))
+	l.ownerUID = uid
+	l.ownerGID = gid
+	l.hasOwner = true
+	return l
 }
 
 func newLock(lockParent, lockName string) *Lock {
@@ -68,9 +91,15 @@ func (l *Lock) Acquire() error {
 	if err := lockMkdirAll(filepath.Dir(l.Path), 0755); err != nil {
 		return apperrors.NewLockError("create-parent", fmt.Errorf("failed to create lock parent directory: %w", err), "path", filepath.Dir(l.Path))
 	}
+	if err := l.chownPath(filepath.Dir(l.Path)); err != nil {
+		return err
+	}
 
 	// Try to create the lock directory atomically
 	if err := lockMkdir(l.Path, 0755); err == nil {
+		if err := l.chownPath(l.Path); err != nil {
+			return err
+		}
 		return l.writePID()
 	} else if !os.IsExist(err) {
 		return apperrors.NewLockError("create", fmt.Errorf("failed to create lock directory: %w", err), "path", l.Path)
@@ -98,6 +127,9 @@ func (l *Lock) Acquire() error {
 		}
 		return apperrors.NewLockError("stale-retry", fmt.Errorf("failed to acquire lock after removing stale lock: %w", err), "path", l.Path)
 	}
+	if err := l.chownPath(l.Path); err != nil {
+		return err
+	}
 
 	return l.writePID()
 }
@@ -119,7 +151,20 @@ func (l *Lock) Release() bool {
 }
 
 func (l *Lock) writePID() error {
-	return lockWriteFile(l.PIDFile, []byte(strconv.Itoa(l.pid)), 0644)
+	if err := lockWriteFile(l.PIDFile, []byte(strconv.Itoa(l.pid)), 0644); err != nil {
+		return err
+	}
+	return l.chownPath(l.PIDFile)
+}
+
+func (l *Lock) chownPath(path string) error {
+	if !l.hasOwner {
+		return nil
+	}
+	if err := lockChown(path, l.ownerUID, l.ownerGID); err != nil {
+		return apperrors.NewLockError("ownership", fmt.Errorf("failed to set lock ownership to %d:%d: %w", l.ownerUID, l.ownerGID, err), "path", path)
+	}
+	return nil
 }
 
 func (l *Lock) readPID() (int, error) {

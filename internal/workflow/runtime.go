@@ -258,6 +258,8 @@ func sudoOperatorIDs(rt Runtime) (int, int, bool) {
 	}
 	uid64, err := strconv.ParseUint(strings.TrimSpace(runtimeEnv(rt, "SUDO_UID")), 10, 32)
 	if err != nil {
+		// Incomplete or malformed sudo metadata is intentionally fail-closed:
+		// profile files remain root-owned rather than guessing an operator.
 		return 0, 0, false
 	}
 	gidValue := strings.TrimSpace(runtimeEnv(rt, "SUDO_GID"))
@@ -274,6 +276,7 @@ func sudoOperatorIDs(rt Runtime) (int, int, bool) {
 	}
 	gid64, err := strconv.ParseUint(gidValue, 10, 32)
 	if err != nil {
+		// Same fail-closed posture as SUDO_UID; ownership repair needs both ids.
 		return 0, 0, false
 	}
 	return int(uid64), int(gid64), true

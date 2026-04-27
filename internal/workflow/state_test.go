@@ -55,24 +55,24 @@ func TestSaveRunStateRestoresSudoOperatorOwnership(t *testing.T) {
 	meta.ProfileOwnerGID = 100
 
 	var calls []string
-	previous := stateChown
-	stateChown = func(path string, uid, gid int) error {
+	previous := profileChown
+	profileChown = func(path string, uid, gid int) error {
 		calls = append(calls, filepath.Base(path))
 		if uid != 1026 || gid != 100 {
-			t.Fatalf("stateChown(%q, %d, %d), want uid 1026 gid 100", path, uid, gid)
+			t.Fatalf("profileChown(%q, %d, %d), want uid 1026 gid 100", path, uid, gid)
 		}
 		return nil
 	}
-	t.Cleanup(func() { stateChown = previous })
+	t.Cleanup(func() { profileChown = previous })
 
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{LastRunResult: "success"}); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 	if len(calls) != 2 {
-		t.Fatalf("stateChown calls = %v, want state dir and state file", calls)
+		t.Fatalf("profileChown calls = %v, want state dir and state file", calls)
 	}
 	if calls[0] != filepath.Base(meta.StateDir) || calls[1] != "homes.onsite-usb.json" {
-		t.Fatalf("stateChown calls = %v", calls)
+		t.Fatalf("profileChown calls = %v", calls)
 	}
 }
 

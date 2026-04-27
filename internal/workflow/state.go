@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var stateChown = os.Chown
+var profileChown = os.Chown
 
 type RunState struct {
 	Label                        string `json:"label,omitempty"`
@@ -60,7 +60,7 @@ func saveRunState(meta Metadata, label, target string, state *RunState) error {
 	if err := os.Chmod(meta.StateDir, 0700); err != nil {
 		return fmt.Errorf("failed to set state directory permissions on %s: %w", meta.StateDir, err)
 	}
-	if err := chownStatePath(meta, meta.StateDir); err != nil {
+	if err := chownProfilePath(meta, meta.StateDir); err != nil {
 		return err
 	}
 	state.Label = label
@@ -77,18 +77,18 @@ func saveRunState(meta Metadata, label, target string, state *RunState) error {
 	if err := os.Chmod(path, 0600); err != nil {
 		return fmt.Errorf("failed to set state file permissions on %s: %w", path, err)
 	}
-	if err := chownStatePath(meta, path); err != nil {
+	if err := chownProfilePath(meta, path); err != nil {
 		return err
 	}
 	return nil
 }
 
-func chownStatePath(meta Metadata, path string) error {
+func chownProfilePath(meta Metadata, path string) error {
 	if !meta.HasProfileOwner {
 		return nil
 	}
-	if err := stateChown(path, meta.ProfileOwnerUID, meta.ProfileOwnerGID); err != nil {
-		return fmt.Errorf("failed to set state ownership on %s to %d:%d: %w", path, meta.ProfileOwnerUID, meta.ProfileOwnerGID, err)
+	if err := profileChown(path, meta.ProfileOwnerUID, meta.ProfileOwnerGID); err != nil {
+		return fmt.Errorf("failed to set profile ownership on %s to %d:%d: %w", path, meta.ProfileOwnerUID, meta.ProfileOwnerGID, err)
 	}
 	return nil
 }

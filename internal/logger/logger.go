@@ -74,6 +74,7 @@ const (
 )
 
 var ansiRegex = regexp.MustCompile(`\x1B\[[0-9;]*[mK]`)
+var loggerChown = os.Chown
 
 // StripColour removes all ANSI escape sequences from a string.
 func StripColour(s string) string {
@@ -94,8 +95,22 @@ func IsTerminal(f *os.File) bool {
 // enableColour controls whether ANSI colour codes are emitted to stderr.
 // Callers should typically pass IsTerminal(os.Stderr) to auto-detect.
 func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
+	return newLogger(logDir, scriptName, enableColour, 0, 0, false)
+}
+
+// NewWithOwner creates a logger and restores ownership of the log directory
+// and active log file to the supplied profile owner. This is used when a
+// root-required command runs via sudo but writes into the operator profile.
+func NewWithOwner(logDir, scriptName string, enableColour bool, uid, gid int) (*Logger, error) {
+	return newLogger(logDir, scriptName, enableColour, uid, gid, true)
+}
+
+func newLogger(logDir, scriptName string, enableColour bool, uid, gid int, hasOwner bool) (*Logger, error) {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory %s: %w", logDir, err)
+	}
+	if err := chownLoggerPath(logDir, uid, gid, hasOwner); err != nil {
+		return nil, err
 	}
 
 	timestamp := time.Now().Format("20060102")
@@ -104,6 +119,10 @@ func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file %s: %w", logPath, err)
+	}
+	if err := chownLoggerPath(logPath, uid, gid, hasOwner); err != nil {
+		_ = f.Close()
+		return nil, err
 	}
 
 	return &Logger{
@@ -115,6 +134,16 @@ func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 		scriptName:   scriptName,
 		logDir:       logDir,
 	}, nil
+}
+
+func chownLoggerPath(path string, uid, gid int, hasOwner bool) error {
+	if !hasOwner {
+		return nil
+	}
+	if err := loggerChown(path, uid, gid); err != nil {
+		return fmt.Errorf("failed to set log ownership on %s to %d:%d: %w", path, uid, gid, err)
+	}
+	return nil
 }
 
 // Close closes the log file.
