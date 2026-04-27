@@ -47,6 +47,35 @@ func TestRunStateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSaveRunStateRestoresSudoOperatorOwnership(t *testing.T) {
+	meta := DefaultMetadata("duplicacy-backup", "9.1.0", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+	meta.HasProfileOwner = true
+	meta.ProfileOwnerUID = 1026
+	meta.ProfileOwnerGID = 100
+
+	var calls []string
+	previous := stateChown
+	stateChown = func(path string, uid, gid int) error {
+		calls = append(calls, filepath.Base(path))
+		if uid != 1026 || gid != 100 {
+			t.Fatalf("stateChown(%q, %d, %d), want uid 1026 gid 100", path, uid, gid)
+		}
+		return nil
+	}
+	t.Cleanup(func() { stateChown = previous })
+
+	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{LastRunResult: "success"}); err != nil {
+		t.Fatalf("saveRunState() error = %v", err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("stateChown calls = %v, want state dir and state file", calls)
+	}
+	if calls[0] != filepath.Base(meta.StateDir) || calls[1] != "homes.onsite-usb.json" {
+		t.Fatalf("stateChown calls = %v", calls)
+	}
+}
+
 func TestLoadRunState_DoesNotFallbackToLegacyLabelState(t *testing.T) {
 	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()

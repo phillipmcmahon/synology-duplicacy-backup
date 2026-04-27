@@ -65,6 +65,9 @@ sudo duplicacy-backup backup --target onsite-usb homes
 When invoked this way with normal sudo metadata, default config, secrets, logs,
 state, and lock paths resolve to the sudoing operator profile, and
 `duplicacy-backup` accepts `0600` secrets owned by that operator account.
+State directories and state files written by the sudo-backed process are
+chowned back to that operator account so later non-root health, diagnostics,
+and restore commands can keep using the same profile.
 
 ## Ambiguous Direct Root Guard
 

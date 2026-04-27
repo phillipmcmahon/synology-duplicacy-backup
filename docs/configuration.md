@@ -492,6 +492,10 @@ with live Duplicacy storage inspection. When `duplicacy list` exposes revision
 creation times, those storage timestamps are used as the authoritative
 freshness signal.
 
+Root-required commands started with `sudo` from the operator account still write
+state under the operator profile. The files are kept at mode `0600` and owned by
+the operator user so later non-root commands can read the same state.
+
 ## Conditional Validation
 
 | Validation | Runs when |

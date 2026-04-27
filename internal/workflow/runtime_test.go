@@ -115,6 +115,8 @@ func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
 				return "phillipmcmahon"
 			case "SUDO_UID":
 				return "1026"
+			case "SUDO_GID":
+				return "100"
 			default:
 				return ""
 			}
@@ -139,6 +141,40 @@ func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
 	}
 	if dirs.StateDir != "/var/services/homes/phillipmcmahon/.local/state/duplicacy-backup/state" {
 		t.Fatalf("StateDir = %q", dirs.StateDir)
+	}
+
+	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	if !meta.HasProfileOwner || meta.ProfileOwnerUID != 1026 || meta.ProfileOwnerGID != 100 {
+		t.Fatalf("profile owner = %t %d:%d, want true 1026:100", meta.HasProfileOwner, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
+	}
+}
+
+func TestDefaultMetadataForRuntimeUsesLookupGIDWhenSudoGIDMissing(t *testing.T) {
+	rt := Runtime{
+		Geteuid: func() int { return 0 },
+		Getenv: func(key string) string {
+			switch key {
+			case "HOME":
+				return "/root"
+			case "SUDO_USER":
+				return "phillipmcmahon"
+			case "SUDO_UID":
+				return "1026"
+			default:
+				return ""
+			}
+		},
+		UserLookup: func(name string) (*user.User, error) {
+			if name != "phillipmcmahon" {
+				t.Fatalf("UserLookup(%q), want phillipmcmahon", name)
+			}
+			return &user.User{Username: name, HomeDir: "/var/services/homes/phillipmcmahon", Gid: "100"}, nil
+		},
+	}
+
+	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	if !meta.HasProfileOwner || meta.ProfileOwnerUID != 1026 || meta.ProfileOwnerGID != 100 {
+		t.Fatalf("profile owner = %t %d:%d, want true 1026:100", meta.HasProfileOwner, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}
 }
 
@@ -214,5 +250,10 @@ func TestRuntimeUserProfileDefaultsDirectRootUsesRootHome(t *testing.T) {
 	}
 	if dirs.SecretsDir != "/root/.config/duplicacy-backup/secrets" {
 		t.Fatalf("SecretsDir = %q", dirs.SecretsDir)
+	}
+
+	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	if meta.HasProfileOwner {
+		t.Fatalf("direct root profile owner = %d:%d, want unset", meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}
 }

@@ -77,13 +77,16 @@ func DefaultRuntime() Runtime {
 
 // Metadata groups stable application metadata and default filesystem roots.
 type Metadata struct {
-	ScriptName string
-	Version    string
-	BuildTime  string
-	RootVolume string
-	LockParent string
-	LogDir     string
-	StateDir   string
+	ScriptName      string
+	Version         string
+	BuildTime       string
+	RootVolume      string
+	LockParent      string
+	LogDir          string
+	StateDir        string
+	ProfileOwnerUID int
+	ProfileOwnerGID int
+	HasProfileOwner bool
 }
 
 // DefaultMetadata returns metadata rooted around an explicit log directory.
@@ -109,7 +112,7 @@ func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
 
 func DefaultMetadataForRuntime(scriptName, version, buildTime string, rt Runtime) Metadata {
 	dirs := DefaultUserProfileDirs(rt)
-	return Metadata{
+	meta := Metadata{
 		ScriptName: scriptName,
 		Version:    version,
 		BuildTime:  buildTime,
@@ -118,6 +121,12 @@ func DefaultMetadataForRuntime(scriptName, version, buildTime string, rt Runtime
 		LogDir:     dirs.LogDir,
 		StateDir:   dirs.StateDir,
 	}
+	if uid, gid, ok := sudoOperatorIDs(rt); ok {
+		meta.ProfileOwnerUID = uid
+		meta.ProfileOwnerGID = gid
+		meta.HasProfileOwner = true
+	}
+	return meta
 }
 
 func ValidateLabel(label string) error {
@@ -237,6 +246,37 @@ func HasSudoOperator(rt Runtime) bool {
 	}
 	_, ok := sudoOperatorUser(rt)
 	return ok
+}
+
+func sudoOperatorIDs(rt Runtime) (int, int, bool) {
+	if runtimeEUID(rt) != 0 {
+		return 0, 0, false
+	}
+	sudoUser, ok := sudoOperatorUser(rt)
+	if !ok {
+		return 0, 0, false
+	}
+	uid64, err := strconv.ParseUint(strings.TrimSpace(runtimeEnv(rt, "SUDO_UID")), 10, 32)
+	if err != nil {
+		return 0, 0, false
+	}
+	gidValue := strings.TrimSpace(runtimeEnv(rt, "SUDO_GID"))
+	if gidValue == "" {
+		lookup := rt.UserLookup
+		if lookup == nil {
+			lookup = user.Lookup
+		}
+		u, err := lookup(sudoUser)
+		if err != nil {
+			return 0, 0, false
+		}
+		gidValue = strings.TrimSpace(u.Gid)
+	}
+	gid64, err := strconv.ParseUint(gidValue, 10, 32)
+	if err != nil {
+		return 0, 0, false
+	}
+	return int(uid64), int(gid64), true
 }
 
 func RuntimeEUID(rt Runtime) int {
