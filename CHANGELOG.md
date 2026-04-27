@@ -36,6 +36,21 @@ coverage floor and package-level baseline.
   repository probes; `health verify` also skips the doomed integrity check
   instead of surfacing the misleading `Repository is not ready` fallback.
 
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `85.8%`
+- `internal/workflow`: `85.5%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v9.1.2] - 2026-04-27
 
 ### Fixed
