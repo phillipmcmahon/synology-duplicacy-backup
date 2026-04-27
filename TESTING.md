@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v9.1.1`
+Current public release baseline: `v9.1.2`
 
 Active release-prep target: none
 
@@ -76,6 +76,14 @@ Additional v9.1.1 validation:
   operator-profile artefacts operator-owned after state, log, and lock writes.
 - Ownership repair coverage now includes fail-closed handling for incomplete or
   malformed sudo UID/GID metadata.
+
+Additional v9.1.2 validation:
+
+- Config validation coverage now checks that non-root validation of path-based
+  local repositories reports `Repository Access : Requires sudo` instead of a
+  misleading repository readiness failure.
+- Operator-facing help and documentation now distinguish sudo-required local
+  repository probes from operator-user object and remote repository validation.
 
 Additional v9.1.0 validation:
 
