@@ -32,7 +32,20 @@ coverage floor and package-level baseline.
 
 ### Validation
 - **Local pre-push**: `make validate`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
 - **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.6%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v9.1.5] - 2026-04-28
 
