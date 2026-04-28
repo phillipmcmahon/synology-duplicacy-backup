@@ -178,6 +178,9 @@ func executeRestoreRunConfirmed(req *RestoreRequest, rt Runtime, deps RestoreDep
 	}
 
 	dup := duplicacy.NewWorkspaceSetup(inputs.Workspace, ctx.storage, false, deps.NewRunner())
+	// Restore drills always write to an operator-owned inspection workspace;
+	// replaying archived UID/GID metadata would either fail or leave ownership
+	// inconsistent with the manual copy-back model.
 	dup.IgnoreOwner = true
 	stopActivity := func() {}
 	if !inputs.SuppressRestoreActivity {

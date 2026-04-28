@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+import (
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+)
 
 type localStoragePolicy interface {
 	UsesRootProtectedLocalRepository() bool
@@ -27,9 +30,5 @@ func localRepositoryRequiresSudoForStorage(cfg localStoragePolicy, rt Runtime) b
 }
 
 func restoreStorageRequiresSudo(plan *Plan, storage string) bool {
-	return plan != nil && plan.Config.Location == locationLocal && configUsesPathStorage(storage)
-}
-
-func configUsesPathStorage(storage string) bool {
-	return (&config.Config{Storage: storage}).UsesPathStorage()
+	return plan != nil && plan.Config.Location == locationLocal && duplicacy.NewStorageSpec(storage).IsLocalPath()
 }
