@@ -169,6 +169,10 @@ below the root; it cannot contain `/` or `\`. Supported variables are:
 - `{revision}`
 - `{run_timestamp}`
 
+Variable values are sanitised before they become folder names. Spaces,
+punctuation outside `.`, `_`, and `-`, and non-ASCII characters are replaced
+with `_` so restore workspaces stay portable and path-safe.
+
 For example, this lets you recover the same snapshot id from multiple targets
 without clobbering prior drills:
 

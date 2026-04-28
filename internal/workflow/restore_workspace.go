@@ -73,6 +73,8 @@ func recommendedRestoreWorkspaceRoot(label, target string, root string, workspac
 		RunTimestamp:      restoreWorkspaceTimestamp(now),
 	})
 	if err != nil {
+		// Plan output should remain advisory even if a configured template is invalid;
+		// execution paths validate templates and return the actionable error.
 		name = fmt.Sprintf("%s-%s-%s", safeRestoreWorkspaceSegment(label), safeRestoreWorkspaceSegment(target), restoreWorkspaceTimestamp(now))
 	}
 	return filepath.Join(root, name)

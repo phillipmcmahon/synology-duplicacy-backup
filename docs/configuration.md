@@ -399,6 +399,11 @@ folder name; it cannot contain path separators. Supported variables are
 `{run_timestamp}`. Runtime flags override config defaults:
 `--workspace-root`, `--workspace-template`, or exact `--workspace`.
 
+Template values are sanitised for path safety and portability. Characters
+outside ASCII letters, digits, `.`, `_`, and `-` are replaced with `_`, so labels
+or targets containing spaces, punctuation, or non-ASCII characters produce safe
+workspace folder names rather than literal copies of the original text.
+
 ## Source Path Rule
 
 `source_path` is the snapshot root for the label when the NAS is expected to
