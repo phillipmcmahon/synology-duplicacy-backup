@@ -46,7 +46,7 @@ operator scheduling and reporting.
 
 In practice:
 
-- targets use `storage = "..."`; do not split storage into `destination` and `repository`
+- targets use `storage = "..."` containing the complete Duplicacy backend path
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are
   loaded for known Duplicacy backends that require them; S3-compatible
   Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use

@@ -150,7 +150,7 @@ func writeUpdateNotifyAppConfig(t *testing.T, dir, ntfyURL, notifyOn string) str
 	return path
 }
 
-func localConfigBody(label, destination string, threads int, prune string) string {
+func localConfigBody(label, storageRoot string, threads int, prune string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
 	fmt.Fprintf(&b, "source_path = %q\n", "/volume1/"+label)
@@ -165,11 +165,11 @@ func localConfigBody(label, destination string, threads int, prune string) strin
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "onsite-usb")
 	fmt.Fprintf(&b, "location = %q\n", "local")
-	fmt.Fprintf(&b, "storage = %q\n", filepath.Join(destination, label))
+	fmt.Fprintf(&b, "storage = %q\n", filepath.Join(storageRoot, label))
 	return b.String()
 }
 
-func remoteConfigBody(label, destination string, threads int, prune string) string {
+func remoteConfigBody(label, storage string, threads int, prune string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
 	fmt.Fprintf(&b, "source_path = %q\n", "/volume1/"+label)
@@ -183,7 +183,7 @@ func remoteConfigBody(label, destination string, threads int, prune string) stri
 		fmt.Fprintf(&b, "prune = %q\n", prune)
 	}
 	fmt.Fprintf(&b, "\n[targets.%s]\n", "offsite-storj")
-	fmt.Fprintf(&b, "location = %q\nstorage = %q\n", "remote", destination)
+	fmt.Fprintf(&b, "location = %q\nstorage = %q\n", "remote", storage)
 	return b.String()
 }
 

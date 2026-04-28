@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -92,100 +91,20 @@ func writeHealthConfig(t *testing.T, dir, label string, body string) {
 	if err := os.MkdirAll(sourcePath, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	configBody := body
-	if !strings.Contains(configBody, "[targets.") {
-		configBody = convertLegacyHealthConfigBody(label, sourcePath, body)
+	storage := filepath.Join(dir, label+"-storage")
+	var config strings.Builder
+	fmt.Fprintf(&config, "label = %q\n", label)
+	fmt.Fprintf(&config, "source_path = %q\n", sourcePath)
+	if !strings.Contains(body, "[targets.") {
+		fmt.Fprintf(&config, "\n[targets.onsite-usb]\nlocation = %q\nstorage = %q\n", locationLocal, storage)
 	}
-	if err := os.WriteFile(path, []byte(configBody), 0644); err != nil {
+	if strings.TrimSpace(body) != "" {
+		config.WriteString("\n")
+		config.WriteString(body)
+	}
+	if err := os.WriteFile(path, []byte(config.String()), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-}
-
-func convertLegacyHealthConfigBody(label, sourcePath, body string) string {
-	sections := map[string][]string{}
-	current := ""
-	for _, rawLine := range strings.Split(body, "\n") {
-		line := strings.TrimSpace(rawLine)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			current = strings.Trim(line, "[]")
-			continue
-		}
-		sections[current] = append(sections[current], line)
-	}
-
-	classify := func(lines []string, storage, capture, retention *[]string) {
-		for _, line := range lines {
-			key := line
-			if i := strings.Index(key, "="); i >= 0 {
-				key = strings.TrimSpace(key[:i])
-			}
-			switch key {
-			case "destination", "repository":
-				*storage = append(*storage, line)
-			case "threads", "filter":
-				*capture = append(*capture, line)
-			case "prune", "keep", "log_retention_days", "safe_prune_max_delete_percent", "safe_prune_max_delete_count", "safe_prune_min_total_for_percent":
-				*retention = append(*retention, line)
-			}
-		}
-	}
-
-	var storageLines, captureLines, retentionLines []string
-	classify(sections["common"], &storageLines, &captureLines, &retentionLines)
-	classify(sections["local"], &storageLines, &captureLines, &retentionLines)
-
-	destination := "/backups"
-	repository := label
-	for _, line := range storageLines {
-		key, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		key = strings.TrimSpace(key)
-		value = strings.Trim(strings.TrimSpace(value), `"`)
-		switch key {
-		case "destination":
-			destination = value
-		case "repository":
-			repository = value
-		case "storage":
-			destination = strings.TrimSuffix(value, "/"+label)
-			repository = label
-		}
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "label = %s\n", strconv.Quote(label))
-	fmt.Fprintf(&b, "source_path = %s\n", strconv.Quote(sourcePath))
-	if len(captureLines) > 0 || len(retentionLines) > 0 {
-		b.WriteString("\n[common]\n")
-		for _, line := range captureLines {
-			b.WriteString(line + "\n")
-		}
-		for _, line := range retentionLines {
-			b.WriteString(line + "\n")
-		}
-	}
-
-	b.WriteString("\n[targets.onsite-usb]\n")
-	b.WriteString("location = \"local\"\n")
-	fmt.Fprintf(&b, "storage = %s\n", strconv.Quote(filepath.Join(destination, repository)))
-	if lines := sections["health"]; len(lines) > 0 {
-		b.WriteString("\n[health]\n")
-		for _, line := range lines {
-			b.WriteString(line + "\n")
-		}
-	}
-	if lines := sections["health.notify"]; len(lines) > 0 {
-		b.WriteString("\n[health.notify]\n")
-		for _, line := range lines {
-			b.WriteString(line + "\n")
-		}
-	}
-	return b.String()
 }
 
 func assertOrderedTokens(t *testing.T, text string, tokens ...string) {
@@ -214,7 +133,7 @@ func TestHealthRunner_StatusHealthy(t *testing.T) {
 	}
 	t.Cleanup(log.Close)
 	configDir := t.TempDir()
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 12\nfreshness_fail_hours = 24\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 12\nfreshness_fail_hours = 24\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -409,7 +328,7 @@ func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 1\nfreshness_fail_hours = 2\nverify_warn_after_hours = 24\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 1\nfreshness_fail_hours = 2\nverify_warn_after_hours = 24\n")
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot homes revision 8 created at 2026-04-10 12:00\n"},
@@ -456,7 +375,7 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 1\nfreshness_fail_hours = 2\n[health.notify]\nwebhook_url = \""+server.URL+"\"\nnotify_on = [\"degraded\", \"unhealthy\"]\nsend_for = [\"doctor\", \"verify\"]\ninteractive = false\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 1\nfreshness_fail_hours = 2\n[health.notify]\nwebhook_url = \""+server.URL+"\"\nnotify_on = [\"degraded\", \"unhealthy\"]\nsend_for = [\"doctor\", \"verify\"]\ninteractive = false\n")
 
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Err: errors.New("failed to list revisions for latest revision inspection")},
@@ -507,7 +426,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 	t.Cleanup(log.Close)
 	setHealthTestLoggerField(t, log, "interactive", true)
 	configDir := t.TempDir()
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health.notify]\nwebhook_url = \""+server.URL+"\"\nnotify_on = [\"degraded\", \"unhealthy\"]\nsend_for = [\"doctor\", \"verify\"]\ninteractive = false\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health.notify]\nwebhook_url = \""+server.URL+"\"\nnotify_on = [\"degraded\", \"unhealthy\"]\nsend_for = [\"doctor\", \"verify\"]\ninteractive = false\n")
 
 	report, code := NewHealthRunner(meta, rt, log, execpkg.NewMockRunner()).Run(&Request{
 		HealthCommand:   "doctor",
@@ -624,7 +543,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -677,7 +596,7 @@ func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n[health]\nfreshness_warn_hours = 24\nfreshness_fail_hours = 48\nverify_warn_after_hours = 24\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -735,7 +654,7 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -852,7 +771,7 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -912,7 +831,7 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -1036,7 +955,7 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -1095,7 +1014,7 @@ func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *test
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
 	if err != nil {
@@ -1148,7 +1067,7 @@ func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testi
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	stderr := captureHealthOutput(t, func() {
 		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -1211,7 +1130,7 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	stderr := captureHealthOutput(t, func() {
 		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -1263,7 +1182,7 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	var runner *execpkg.MockRunner
 	stderr := captureHealthOutput(t, func() {
@@ -1325,7 +1244,7 @@ func TestHealthRunner_StatusLocalRepositoryRequiresSudoBeforeRevisionListing(t *
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	var runner *execpkg.MockRunner
 	stderr := captureHealthOutput(t, func() {
@@ -1403,7 +1322,7 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-2 * time.Hour)),
@@ -1462,7 +1381,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-90 * time.Minute)),
@@ -1652,7 +1571,7 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(sourceRoot, "homes"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	writeHealthConfig(t, configDir, "homes", "[common]\ndestination = \"/backups\"\nprune = \"-keep 0:365\"\nthreads = 4\n")
+	writeHealthConfig(t, configDir, "homes", "[common]\nprune = \"-keep 0:365\"\nthreads = 4\n")
 
 	state := &RunState{
 		LastSuccessfulRunAt:          formatReportTime(now.Add(-90 * time.Minute)),

@@ -189,19 +189,19 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 		execpkg.MockResult{Stdout: "256\n"},
 	)
 	sourcePath := t.TempDir()
-	destinationParent := t.TempDir()
-	destinationRoot := filepath.Join(destinationParent, "repo")
-	if err := os.Mkdir(destinationRoot, 0o700); err != nil {
-		t.Fatalf("mkdir destination root: %v", err)
+	storageParent := t.TempDir()
+	storageRoot := filepath.Join(storageParent, "repo")
+	if err := os.Mkdir(storageRoot, 0o700); err != nil {
+		t.Fatalf("mkdir storage root: %v", err)
 	}
-	if err := os.Chmod(destinationParent, 0); err != nil {
-		t.Fatalf("chmod destination parent: %v", err)
+	if err := os.Chmod(storageParent, 0); err != nil {
+		t.Fatalf("chmod storage parent: %v", err)
 	}
 	defer func() {
-		_ = os.Chmod(destinationParent, 0o700)
+		_ = os.Chmod(storageParent, 0o700)
 	}()
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
@@ -253,13 +253,13 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	)
 
 	sourcePath := t.TempDir()
-	destinationRoot := t.TempDir()
-	destination := filepath.Join(destinationRoot, "homes")
-	if err := os.MkdirAll(filepath.Join(destination, "snapshots"), 0755); err != nil {
+	storageRoot := t.TempDir()
+	storagePath := filepath.Join(storageRoot, "homes")
+	if err := os.MkdirAll(filepath.Join(storagePath, "snapshots"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -289,13 +289,13 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTarget(t *testing.T) {
 	)
 
 	sourcePath := t.TempDir()
-	destinationRoot := t.TempDir()
-	destination := filepath.Join(destinationRoot, "homes")
-	if err := os.MkdirAll(filepath.Join(destination, "snapshots"), 0755); err != nil {
+	storageRoot := t.TempDir()
+	storagePath := filepath.Join(storageRoot, "homes")
+	if err := os.MkdirAll(filepath.Join(storagePath, "snapshots"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(destinationRoot, "homes"), 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(storageRoot, "homes"), 4, ""))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -361,9 +361,9 @@ func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T
 	)
 
 	sourcePath := t.TempDir()
-	destination := t.TempDir()
+	storagePath := t.TempDir()
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(destination, "homes"), 4, "-keep 0:365", `
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(storagePath, "homes"), 4, "-keep 0:365", `
 [health]
 doctor_warn_after_hours = 48000000
 `))
@@ -437,13 +437,13 @@ func TestHandleConfigCommand_ValidateDoesNotRequireNonRootSourceReadAccess(t *te
 	}
 	t.Cleanup(func() { _ = os.Chmod(sourcePath, 0700) })
 
-	destinationRoot := t.TempDir()
-	destination := filepath.Join(destinationRoot, "homes")
-	if err := os.MkdirAll(filepath.Join(destination, "snapshots"), 0755); err != nil {
+	storageRoot := t.TempDir()
+	storagePath := filepath.Join(storageRoot, "homes")
+	if err := os.MkdirAll(filepath.Join(storagePath, "snapshots"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -460,7 +460,7 @@ func TestHandleConfigCommand_ValidateDoesNotRequireNonRootSourceReadAccess(t *te
 	}
 }
 
-func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *testing.T) {
+func TestHandleConfigCommand_ValidateFailsWhenLocalStorageDoesNotExist(t *testing.T) {
 	stubConfigCommandRunner(t,
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
@@ -469,7 +469,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 
 	sourcePath := t.TempDir()
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, filepath.Join(t.TempDir(), "missing-destination"), 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, filepath.Join(t.TempDir(), "missing-storage"), 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -559,9 +559,9 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 	)
 
 	sourcePath := t.TempDir()
-	destinationRoot := t.TempDir()
+	storageRoot := t.TempDir()
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -613,13 +613,13 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 	)
 
 	sourcePath := t.TempDir()
-	destinationRoot := t.TempDir()
-	repositoryPath := filepath.Join(destinationRoot, "homes")
+	storageRoot := t.TempDir()
+	repositoryPath := filepath.Join(storageRoot, "homes")
 	if err := os.WriteFile(repositoryPath, []byte("not-a-directory"), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -872,20 +872,20 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 		execpkg.MockResult{},
 	)
 	sourcePath := t.TempDir()
-	localDestination := t.TempDir()
+	localStorageRoot := t.TempDir()
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	localHomesRepo := filepath.Join(localDestination, "homes")
+	localHomesRepo := filepath.Join(localStorageRoot, "homes")
 	if err := os.MkdirAll(filepath.Join(localHomesRepo, "snapshots"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	localReadmediaRepo := filepath.Join(localDestination, "readmedia")
+	localReadmediaRepo := filepath.Join(localStorageRoot, "readmedia")
 	if err := os.MkdirAll(filepath.Join(localReadmediaRepo, "snapshots"), 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, localDestination, 4, "-keep 0:365"))
-	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", locationLocal, sourcePath, filepath.Join(localDestination, "readmedia"), 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, localStorageRoot, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "readmedia", "onsite-usb", buildTargetConfig("readmedia", "onsite-usb", locationLocal, sourcePath, filepath.Join(localStorageRoot, "readmedia"), 4, ""))
 	writeTargetTestConfig(t, configDir, "archives", "offsite-storj", remoteTargetConfig("archives", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "archives", "offsite-storj")
 

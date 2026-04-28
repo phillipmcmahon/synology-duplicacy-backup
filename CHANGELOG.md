@@ -19,6 +19,9 @@ coverage floor and package-level baseline.
 - Restore selection now calls the canonical Duplicacy list-file parser directly
   and handles parser errors explicitly, removing the old compact helper that
   discarded parser errors.
+- Health and config tests now use current `storage` terminology and fixtures
+  directly instead of translating legacy-shaped `destination`/`repository`
+  snippets.
 
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,

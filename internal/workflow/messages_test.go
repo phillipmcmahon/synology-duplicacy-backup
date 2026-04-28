@@ -57,8 +57,8 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "config required fields",
-			err:  apperrors.NewConfigError("required", errors.New("missing required config values: destination, threads")),
-			want: "missing required config values: destination, threads",
+			err:  apperrors.NewConfigError("required", errors.New("missing required config values: storage, threads")),
+			want: "missing required config values: storage, threads",
 		},
 		{
 			name: "config missing remote target includes target hint",

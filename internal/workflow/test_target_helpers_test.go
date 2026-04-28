@@ -32,16 +32,16 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 	return path
 }
 
-func localTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-usb", locationLocal, sourcePath, filepath.Join(destination, label), threads, prune, extraSections...)
+func localTargetConfig(label, sourcePath, storageRoot string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "onsite-usb", locationLocal, sourcePath, filepath.Join(storageRoot, label), threads, prune, extraSections...)
 }
 
-func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "offsite-storj", locationRemote, sourcePath, destination, threads, prune, extraSections...)
+func remoteTargetConfig(label, sourcePath, storage string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "offsite-storj", locationRemote, sourcePath, storage, threads, prune, extraSections...)
 }
 
-func localDuplicacyTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-rustfs", locationLocal, sourcePath, destination, threads, prune, extraSections...)
+func localDuplicacyTargetConfig(label, sourcePath, storage string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "onsite-rustfs", locationLocal, sourcePath, storage, threads, prune, extraSections...)
 }
 
 func buildTargetConfig(label, target, location, sourcePath, storage string, threads int, prune string, extraSections ...string) string {
