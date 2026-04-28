@@ -38,12 +38,7 @@ By default, it will:
 - create or update `current`
 - create or update `/usr/local/bin/duplicacy-backup`
 - leave runtime config, secrets, logs, state, and locks in the user profile
-- never migrate config or secrets automatically
-
-For one-time upgrades from the legacy root-owned layout, follow
-[`v8-migration.md`](v8-migration.md). The migration helper is packaged in the
-release tarball; `duplicacy-backup update` does not install it into the managed
-`current` directory.
+- treat runtime config and secrets as operator-owned files
 
 ### Installer options
 

@@ -30,11 +30,9 @@ application defaults to:
   $HOME/.config/duplicacy-backup/secrets/
   $HOME/.local/state/duplicacy-backup/
 
-The installer does not migrate runtime config or secrets automatically. Release
-packages include migrate-runtime-profile.sh for moving legacy root-era TOML
-files into the operator profile. For root-required commands such as backup,
-pass --config-dir and --secrets-dir if the files live in a non-root operator
-profile.
+Runtime config and secrets are operator-owned files. For root-required commands
+such as backup, invoke the stable command with sudo from the operator account
+so the application resolves the operator profile.
 
 Options:
   --binary <path>         Install this binary instead of auto-detecting one
@@ -232,7 +230,6 @@ fi
 echo "Runtime config default: \$HOME/.config/duplicacy-backup"
 echo "Runtime secrets default: \$HOME/.config/duplicacy-backup/secrets"
 echo "Runtime state/log/lock default: \$HOME/.local/state/duplicacy-backup"
-echo "Runtime config and secrets are not migrated automatically"
-echo "Migration helper: ./migrate-runtime-profile.sh --dry-run --target-user <operator-user>"
+echo "Runtime config and secrets are operator-owned files"
 echo "Scheduled tasks should call: $STABLE_LINK"
 echo "Rollback hint: ln -sfn <older-binary-name> $CURRENT_LINK"

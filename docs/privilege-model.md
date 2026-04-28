@@ -24,26 +24,6 @@ started with `sudo` from the operator account, the same operator-owned secrets
 file is accepted so root-required operations do not require a separate root copy
 of the runtime profile. The secrets directory should use mode `0700`.
 
-## Migrating Legacy Root-Owned Files
-
-For one-time migration from the old root-required defaults, follow
-[`v8-migration.md`](v8-migration.md). The migration helper is packaged in the
-release tarball; `duplicacy-backup update` does not install it into the managed
-`current` directory.
-
-By default the helper migrates:
-
-```text
-/usr/local/lib/duplicacy-backup/.config/*.toml -> $HOME/.config/duplicacy-backup/
-/root/.secrets/*.toml                         -> $HOME/.config/duplicacy-backup/secrets/
-```
-
-It creates destination directories with mode `0700`, preserves source
-timestamps where supported, sets migrated TOML files to `0600`, and chowns
-them to the target user and that user's primary group when run as root. It
-copies by default; `--move` removes each legacy source file after a successful
-copy.
-
 ## Root-Required Commands
 
 These commands require root because of the work they perform:

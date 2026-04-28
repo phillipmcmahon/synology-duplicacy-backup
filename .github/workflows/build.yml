@@ -112,19 +112,6 @@ jobs:
         shell: bash
         run: sudo env BINARY=/tmp/duplicacy-backup sh scripts/ci-smoke-sudo-boundary.sh
 
-  smoke-migration:
-    name: Smoke (migration helper)
-    needs: [lint, test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run smoke
-        shell: bash
-        run: sudo sh scripts/ci-smoke-migration.sh
-
   smoke-ui-surface:
     name: Smoke (UI surface package)
     needs: [lint, test]
@@ -146,7 +133,7 @@ jobs:
 
   build:
     name: Build
-    needs: [lint, test, smoke-non-root, smoke-sudo-boundary, smoke-migration, smoke-ui-surface]
+    needs: [lint, test, smoke-non-root, smoke-sudo-boundary, smoke-ui-surface]
     runs-on: ubuntu-latest
     permissions:
       contents: read

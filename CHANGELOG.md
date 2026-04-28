@@ -10,6 +10,15 @@ release-signal packages or packages with notable movement. They are not
 exhaustive package coverage tables; use `TESTING.md` for the current full
 coverage floor and package-level baseline.
 
+## [Unreleased]
+
+### Removed
+- Removed retired config-schema parsing for the old `[local]`, `[remote]`,
+  `[target]`, `[storage]`, `[capture]`, and `[retention]` layouts. Config files
+  now use only the current `[targets.<name>]` model.
+- Removed the v8 runtime-profile migration helper, migration smoke job,
+  release-package migration asset, and operator migration guide.
+
 ## [v9.3.0] - 2026-04-28
 
 ### Fixed

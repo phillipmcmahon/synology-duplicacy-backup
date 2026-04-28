@@ -222,8 +222,6 @@ CI smoke coverage:
 - `scripts/ci-smoke-sudo-boundary.sh` invokes a root-required dry-run through
   `sudo` from an operator account and verifies operator-owned profile/secrets
   resolution.
-- `scripts/ci-smoke-migration.sh` exercises the runtime profile migration
-  helper and checks destination layout, ownership, and modes.
 - `scripts/ci-smoke-ui-surface.sh` validates the UI smoke automation itself by
   building the Linux `amd64` UI smoke bundle, checking its archive structure,
   verifying its checksum, and syntax-checking the packaged runner.
