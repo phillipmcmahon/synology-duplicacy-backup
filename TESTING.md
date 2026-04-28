@@ -99,24 +99,20 @@ Additional v9.1.0 validation:
 
 Additional v9.0.0 validation:
 
-- Release validation covers the breaking removal of the `fix-perms` command:
-  local filesystem repository ownership and permissioning are now an OS and
-  operator policy boundary, not an application command surface.
+- Release validation covers the removal of the former filesystem-permission
+  utility command: local filesystem repository ownership and permissioning are
+  now an OS and operator policy boundary, not an application command surface.
 - Storage boundary coverage now pins local-disk repository detection for plain
   paths and `file://` URLs, while URL-backed storage remains credential or
   backend mediated.
 - CI smoke validation now includes posture-level checks for non-root operator
-  commands, sudo/operator-owned secrets, and the runtime profile migration
-  helper before release builds can publish.
+  commands and sudo/operator-owned secrets before release builds can publish.
 
 Additional v8.0.0 validation:
 
 - Release validation covers the breaking operator-owned runtime profile:
   default config, secrets, logs, state, and locks now resolve under the
   invoking user's profile rather than root/system locations.
-- Migration helper coverage now checks copy-mode permission hardening,
-  timestamp preservation, `--move` source removal, root-shell target-user
-  guards, and destination-collision preflight before any copy or move occurs.
 - Restore workspace coverage now checks `0700` derived job workspaces beneath
   operator-managed roots and clearer missing-root validation.
 - Documentation and help validation now covers the non-root privilege model,
@@ -245,11 +241,9 @@ Additional v6.1.0 validation:
 
 Additional v6.0.0 validation:
 
-- CLI parser, release-surface, and command-entrypoint tests cover the breaking
-  runtime command model:
-  `backup`, `prune`, `cleanup-storage`, and `fix-perms`.
-- Tests assert old top-level runtime operation flags are rejected rather than
-  accepted as legacy syntax.
+- CLI parser, release-surface, and command-entrypoint tests cover the runtime
+  command model for backup and repository maintenance commands.
+- Tests assert unsupported removed runtime-operation flags are rejected.
 - Restore tests cover the current restore surface: `restore select`,
   `restore plan`, `restore list-revisions`, and `restore run`.
 - Restore workspace tests cover local preference generation, unsafe workspace

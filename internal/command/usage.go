@@ -267,8 +267,7 @@ INTERACTIVE SAFETY RAILS:
 
 COMMAND MODEL:
     Runtime operations are first-class commands. Use "backup --target ...",
-    "prune --target ...", or "cleanup-storage --target ..."; old top-level
-    operation flags are not supported.
+    "prune --target ...", or "cleanup-storage --target ...".
 
 OUTPUT MODEL:
     Report-style commands such as config, diagnostics, restore plan, and
