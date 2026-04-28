@@ -103,15 +103,37 @@ scripts/package-ui-surface-smoke.sh \
   --default-restore-path 'phillipmcmahon/code/*'
 ```
 
-The restore command always uses `--workspace-root "$WORKSPACE_ROOT"` and
-restores into the derived drill workspace. With `RUN_RESTORE=1`, the real
-restore and restore dry-run captures are expected to succeed. The runner also
-asserts that both restore reports include `-ignore-owner`, which protects
-non-root drill restores from Duplicacy UID/GID replay failures while keeping
-copy-back manual. If `RESTORE_REVISION` is omitted, the capture includes a
-`restore_revision_auto_select` step showing the selected revision. If the
-workspace already exists, Duplicacy may report files as skipped rather than
-downloaded; that still validates the command path and output shape.
+The restore command uses an explicit smoke workspace rather than the normal
+operator-derived restore workspace. The workspace name is:
+
+```text
+<label>-<target>-<snapshot-ts>-rev<revision>-smoke-<shortsha>-<run-ts>
+```
+
+For example:
+
+```text
+homes-offsite-garage-20260427-010000-rev1-smoke-4ec4f55-20260428-112500
+```
+
+The `smoke` marker makes the workspace obviously test-owned, the short commit
+identifies the build under test, and the run timestamp prevents an existing
+workspace from hiding restore behaviour by letting Duplicacy skip work. Set
+`RESTORE_WORKSPACE` only when you deliberately want to override this generated
+path. Smoke workspaces can be listed or removed with:
+
+```sh
+find "$WORKSPACE_ROOT" -maxdepth 1 -type d -name '*-smoke-*'
+```
+
+With `RUN_RESTORE=1`, the real restore and restore dry-run captures are
+expected to succeed. The runner also asserts that both restore reports include
+`-ignore-owner`, which protects non-root drill restores from Duplicacy UID/GID
+replay failures while keeping copy-back manual. If `RESTORE_REVISION` is
+omitted, the capture includes a `restore_revision_auto_select` step showing the
+selected revision. If `RESTORE_REVISION` is provided, the runner captures a
+`restore_revision_lookup` listing so the smoke workspace can still include the
+snapshot timestamp when the revision appears in the listing.
 
 ## Optional Interactive Checks
 

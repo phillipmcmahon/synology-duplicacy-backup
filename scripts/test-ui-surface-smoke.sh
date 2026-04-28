@@ -30,8 +30,11 @@ assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "DUPLICACY_BACKUP_FOR
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "ui-surface-captures-"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "RESTORE_REVISION is auto-selected when omitted"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_revision_auto_select"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_revision_lookup"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "extract_first_revision"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "build_smoke_restore_workspace"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_run_optional\" pass"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_contains \"-ignore-owner\""
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_contains \"-smoke-\""
 
 echo "ui-surface-smoke script tests passed"

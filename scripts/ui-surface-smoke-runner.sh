@@ -164,6 +164,70 @@ extract_first_revision() {
     ' "$file"
 }
 
+extract_revision_timestamp() {
+    file="$1"
+    revision="$2"
+    awk -v rev="$revision" '
+        /^[[:space:]]*Revision[[:space:]]*:/ {
+            line = $0
+            sub(/^[[:space:]]*Revision[[:space:]]*:[[:space:]]*/, "", line)
+            split(line, parts, /[[:space:](]/)
+            if (parts[1] == rev) {
+                split($0, left, "(")
+                if (left[2] != "") {
+                    split(left[2], right, ")")
+                    print right[1]
+                    exit
+                }
+            }
+        }
+    ' "$file"
+}
+
+format_snapshot_timestamp() {
+    value="$1"
+    if [ -z "$value" ]; then
+        printf '%s\n' "unknown-snapshot"
+        return 0
+    fi
+    printf '%s' "$value" | sed 's/-//g; s/://g; s/ /-/g'
+}
+
+read_build_commit() {
+    file="$BUNDLE_ROOT/metadata/build.json"
+    [ -f "$file" ] || return 1
+    sed -n 's/.*"git_commit"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | sed -n '1p'
+}
+
+short_build_commit() {
+    commit="$(read_build_commit 2>/dev/null || true)"
+    case "$commit" in
+        ""|unknown)
+            commit="$("$BIN" --version 2>/dev/null | sed -n 's/.*-g\([0-9a-f][0-9a-f]*\).*/\1/p' | sed -n '1p')"
+            ;;
+    esac
+    if [ -z "$commit" ]; then
+        printf '%s\n' "unknown"
+        return 0
+    fi
+    printf '%s\n' "$commit" | cut -c1-7
+}
+
+build_smoke_restore_workspace() {
+    snapshot_timestamp="$1"
+    short_commit="$2"
+    run_timestamp="$3"
+    snapshot_part="$(format_snapshot_timestamp "$snapshot_timestamp")"
+    printf '%s/%s-%s-%s-rev%s-smoke-%s-%s\n' \
+        "$WORKSPACE_ROOT" \
+        "$(safe_name "$LABEL")" \
+        "$(safe_name "$RESTORE_TARGET")" \
+        "$(safe_name "$snapshot_part")" \
+        "$(safe_name "$RESTORE_REVISION")" \
+        "$(safe_name "$short_commit")" \
+        "$(safe_name "$run_timestamp")"
+}
+
 BUNDLE_ROOT="$(script_dir)"
 # shellcheck disable=SC1091
 . "$BUNDLE_ROOT/setup-env.sh" >/dev/null
@@ -179,6 +243,8 @@ CAPTURE_COLOUR="${CAPTURE_COLOUR:-0}"
 RESTORE_TARGET="${RESTORE_TARGET:-$TARGET_REMOTE}"
 RESTORE_REVISION="${RESTORE_REVISION:-}"
 RESTORE_PATH="${RESTORE_PATH:-}"
+RESTORE_WORKSPACE="${RESTORE_WORKSPACE:-}"
+RESTORE_REVISION_LOOKUP_LIMIT="${RESTORE_REVISION_LOOKUP_LIMIT:-200}"
 
 if MANAGED_BIN_RESOLVED="$(resolve_managed_bin)"; then
     managed_status="$MANAGED_BIN_RESOLVED"
@@ -275,8 +341,10 @@ run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" 
 
 if [ "$RUN_RESTORE" = "1" ]; then
     if [ -n "$RESTORE_PATH" ]; then
+        revision_listing_file=""
         if [ -z "$RESTORE_REVISION" ]; then
             run_capture "restore_revision_auto_select" pass "$BIN" restore list-revisions --target "$RESTORE_TARGET" --limit 1 "$LABEL"
+            revision_listing_file="$output_file"
             RESTORE_REVISION="$(extract_first_revision "$output_file")"
             if [ -z "$RESTORE_REVISION" ]; then
                 echo "Unable to auto-select restore revision from: $output_file" >&2
@@ -284,12 +352,22 @@ if [ "$RUN_RESTORE" = "1" ]; then
             else
                 printf '%-50s %s\n' "restore_revision_auto_select_value" "$RESTORE_REVISION"
             fi
+        else
+            run_capture "restore_revision_lookup" any "$BIN" restore list-revisions --target "$RESTORE_TARGET" --limit "$RESTORE_REVISION_LOOKUP_LIMIT" "$LABEL"
+            revision_listing_file="$output_file"
         fi
         if [ -n "$RESTORE_REVISION" ]; then
-            run_capture "restore_run_optional" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --yes "$LABEL"
+            if [ -z "$RESTORE_WORKSPACE" ]; then
+                snapshot_timestamp="$(extract_revision_timestamp "$revision_listing_file" "$RESTORE_REVISION")"
+                RESTORE_WORKSPACE="$(build_smoke_restore_workspace "$snapshot_timestamp" "$(short_build_commit)" "$STAMP")"
+            fi
+            printf '%-50s %s\n' "restore_workspace_smoke" "$RESTORE_WORKSPACE"
+            run_capture "restore_run_optional" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --yes "$LABEL"
             assert_last_capture_contains "-ignore-owner"
-            run_capture "restore_run_optional_dry_run" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --dry-run --yes "$LABEL"
+            assert_last_capture_contains "-smoke-"
+            run_capture "restore_run_optional_dry_run" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --dry-run --yes "$LABEL"
             assert_last_capture_contains "-ignore-owner"
+            assert_last_capture_contains "-smoke-"
         else
             skip_capture "restore_run_optional" "Restore revision auto-selection failed"
             skip_capture "restore_run_optional_dry_run" "Restore revision auto-selection failed"
