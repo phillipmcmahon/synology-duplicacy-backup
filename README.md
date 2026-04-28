@@ -201,10 +201,12 @@ root shell, or from a stripped environment without complete sudo metadata, are
 rejected unless explicit config, secrets, and state roots are supplied. This
 prevents accidental fallback to `/root`.
 
-For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md). For
-complete syntax, use the [CLI reference](docs/cli.md). For recurring Synology
-Task Scheduler jobs, prefer separate scheduled tasks for backup, prune, health,
-and diagnostics; see [Workflow and scheduling](docs/workflow-scheduling.md).
+For the full documentation map, start with the [docs index](docs/README.md).
+For day-to-day commands, use the [operator cheat sheet](docs/cheatsheet.md).
+For complete syntax, use the [CLI reference](docs/cli.md). For recurring
+Synology Task Scheduler jobs, prefer separate scheduled tasks for backup,
+prune, health, and diagnostics; see
+[Workflow and scheduling](docs/workflow-scheduling.md).
 
 ## Operator Map
 
@@ -291,8 +293,11 @@ Core operating rules:
 
 ## Documentation
 
+Start with the [documentation index](docs/README.md), or jump directly by task:
+
 Operator and recovery docs:
 
+- [Documentation index](docs/README.md)
 - [Operator cheat sheet](docs/cheatsheet.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Operations](docs/operations.md)

@@ -320,34 +320,10 @@ Use `sudo -n` for local filesystem repositories because backup metadata is
 root-protected. Object repositories and remote mounted filesystem repositories
 can run health checks as the operator user without `sudo`.
 
-The health JSON report is meant for automation rather than terminal reading.
-It exposes structured fields such as:
-
-- `status`
-- `revision_count`
-- `latest_revision`
-- `latest_revision_at`
-- `checked_revision_count`
-- `passed_revision_count`
-- `failed_revision_count`
-- `failed_revisions`
-- `last_doctor_run_at`
-- `last_verify_run_at`
-
-Healthy verify runs keep the JSON compact and omit per-revision detail. When
-integrity issues are found, `revision_results` is included so you can inspect
-the failing revisions.
-
-Unhealthy verify runs also emit machine-focused classification fields:
-
-- `failure_code`
-- `failure_codes`
-- `recommended_action_codes`
-
-Health notifications include those same remediation fields in the payload
-`details` whenever the health report contains them. Webhook consumers can use
-those fields directly, and `ntfy` still keeps the visible message focused on
-the operator-readable summary.
+Health JSON output is meant for automation rather than terminal reading. Use
+`health verify --json-summary` when a scheduler or monitor needs structured
+status, revision, and remediation fields; use the terminal output for operator
+review. The complete command surface is documented in [CLI reference](cli.md).
 
 `--target <name>` selects one named target from the label config. Runtime,
 `config`, `diagnostics`, `health`, restore commands, and label-scoped
@@ -359,29 +335,11 @@ passed directly through to Duplicacy. Use `location = "local"` or
 `[targets.<name>.keys]` only when the selected Duplicacy backend needs runtime
 keys.
 
-The secrets schema also supports optional
-`health_webhook_bearer_token` and `health_ntfy_token` values for authenticated
-notifications. Those notification auth tokens are target-scoped in the secrets
-file, so repeat them under each notifying target that needs authenticated
-delivery.
-For low-cost operator alerting, a good baseline is Synology scheduled-task
-email for raw job failures plus native `ntfy` delivery for richer degraded,
-unhealthy, and selected runtime-failure events. Generic webhook delivery stays
-available for future providers and external automation.
-
-Notification noise control in v1 is intentionally simple:
-
-- default health notifications are only for `degraded` and `unhealthy`
-- runtime notifications are opt-in through `send_for`
-- update failure notifications are opt-in through the global `[update.notify]`
-  config
-- interactive runs do not notify unless explicitly enabled
-- success events do not notify unless an update outcome such as `succeeded` is
-  explicitly listed in `[update.notify].notify_on`
-- repeated matching failures notify on each matching scheduled run
-
-If you need deduplication, reminder cadence, or escalation, handle that in the
-receiving system rather than in `duplicacy-backup` itself for now.
+Notification policy, target-scoped notification secrets, and noise-control
+rules are owned by [Configuration and secrets](configuration.md#notifications).
+A good low-cost baseline is Synology scheduled-task email for raw job failures
+plus native `ntfy` delivery for richer degraded, unhealthy, and selected
+runtime-failure events.
 
 Health commands are read-only and do not prompt for confirmation. They are
 designed to be run separately from backup jobs so schedulers and external

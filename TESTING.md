@@ -108,7 +108,7 @@ Additional v9.0.0 validation:
 - CI smoke validation now includes posture-level checks for non-root operator
   commands and sudo/operator-owned secrets before release builds can publish.
 
-Additional v8.0.0 validation:
+Additional runtime-profile validation:
 
 - Release validation covers the breaking operator-owned runtime profile:
   default config, secrets, logs, state, and locks now resolve under the

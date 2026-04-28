@@ -25,6 +25,11 @@ coverage floor and package-level baseline.
 - Operator and release documentation now avoids retired migration-helper and
   old-schema wording in active guidance, and the cheat sheet aligns local prune
   previews with the root-protected repository policy.
+- Added a docs index that gives operators a task-oriented path through install,
+  configuration, scheduling, restore, update, troubleshooting, and maintainer
+  guidance.
+- Trimmed duplicated notification and health JSON detail from the operations
+  guide so configuration policy remains the source of truth.
 
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,

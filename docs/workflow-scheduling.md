@@ -35,7 +35,7 @@ Use these rules before creating tasks:
   schedule.
 - `prune --force` is manual only. Do not schedule it routinely.
 
-After migrating runtime files into an operator profile, avoid scheduling
+Keep runtime files in the operator profile and avoid scheduling
 non-root-capable tasks as `root` out of habit. Profile-using commands started
 from direct root are rejected unless the intended config, secrets, and state
 roots are explicit. Schedule the task as the operator user instead, then use
