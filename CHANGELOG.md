@@ -10,12 +10,15 @@ release-signal packages or packages with notable movement. They are not
 exhaustive package coverage tables; use `TESTING.md` for the current full
 coverage floor and package-level baseline.
 
-## [Unreleased]
+## [v9.3.0] - 2026-04-28
 
 ### Fixed
 - Diagnostics now reports root-protected local filesystem repository paths with
   the shared `Requires sudo: local filesystem repository is root-protected`
   wording instead of raw permission-denied path errors.
+- Restore workspace template fallback behaviour is now documented in code and
+  operator docs: if a template cannot be rendered during plan-time preview, the
+  plan safely falls back to the default restore workspace naming convention.
 
 ### Removed
 - Removed the retired `allow_local_accounts`, `local_owner`, and `local_group`
@@ -25,6 +28,27 @@ coverage floor and package-level baseline.
 - Removed migration-helper CLI flags for overriding legacy source directories;
   the helper now presents one operator-facing migration path from the standard
   root-era locations into the target user's runtime profile.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: `109` captures, `0` unexpected outcomes, and
+  dual-target restore smoke with `onsite-garage` plus root-protected
+  `onsite-usb` restoring `phillipmcmahon/code/*`.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.6%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v9.2.0] - 2026-04-28
 
