@@ -193,6 +193,7 @@ trap 'rm -rf "$PKG_DIR" "$EXTRACT_DIR" "$BINARY_PATH"' EXIT
     cd "$REPO_ROOT"
     CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" GOARM="$GOARM" \
         "$GO_CMD" build \
+        -buildvcs=false \
         -ldflags "-X main.version=$VERSION -X main.buildTime=$BUILD_TIME" \
         -o "$BINARY_PATH" \
         ./cmd/duplicacy-backup
