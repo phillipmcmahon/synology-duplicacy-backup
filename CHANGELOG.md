@@ -12,11 +12,46 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.4] - 2026-04-28
+
+### Added
+- **Release UI surface smoke testing is now repeatable**: release candidates
+  now have a structured NAS UI surface smoke bundle that captures every command
+  surface, colour output, JSON-summary behaviour, expected privilege failures,
+  managed update/rollback checks, and an optional small restore run for review.
+- **GitHub CI now gates the UI smoke automation package**: the build workflow
+  now verifies the UI smoke bundle can be built, contains the expected runner
+  and setup files, has a valid checksum, and contains no macOS metadata before
+  release builds proceed.
+- **Local pre-push validation now mirrors GitHub linting**: `make validate`
+  runs formatting checks, `go vet`, Staticcheck, race-enabled tests, and shell
+  script tests so staticcheck failures are caught before pushing to origin.
+
 ### Changed
 - Health output now uses the shared operator-facing label vocabulary used by
   config, restore, diagnostics, and runtime reports, so common fields such as
   `Config File`, `Source Path`, `Repository Access`, and `Integrity Check`
   are visually consistent across command surfaces.
+- Restore progress, safe-prune help, and release documentation now use the
+  same title-cased operator label vocabulary captured by the UI smoke suite.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**:
+  `CAPTURE_COLOUR=1 RUN_RESTORE=1 RESTORE_PATH='phillipmcmahon/code/*' ./run-ui-surface-smoke.sh`
+
+### Coverage snapshot
+- overall coverage: `87.2%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.6%`
+- `internal/duplicacy`: `89.6%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v9.1.3] - 2026-04-27
 
