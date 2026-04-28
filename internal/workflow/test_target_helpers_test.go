@@ -32,23 +32,23 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 	return path
 }
 
-func localTargetConfig(label, sourcePath, destination, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-usb", locationLocal, sourcePath, filepath.Join(destination, label), owner, group, threads, prune, extraSections...)
+func localTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, "onsite-usb", locationLocal, sourcePath, filepath.Join(destination, label), threads, prune, extraSections...)
 }
 
 func remoteTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "offsite-storj", locationRemote, sourcePath, destination, "", "", threads, prune, extraSections...)
+	return buildLabelConfig(label, "offsite-storj", locationRemote, sourcePath, destination, threads, prune, extraSections...)
 }
 
 func localDuplicacyTargetConfig(label, sourcePath, destination string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, "onsite-rustfs", locationLocal, sourcePath, destination, "", "", threads, prune, extraSections...)
+	return buildLabelConfig(label, "onsite-rustfs", locationLocal, sourcePath, destination, threads, prune, extraSections...)
 }
 
-func buildTargetConfig(label, target, location, sourcePath, storage, owner, group string, threads int, prune string, extraSections ...string) string {
-	return buildLabelConfig(label, target, location, sourcePath, storage, owner, group, threads, prune, extraSections...)
+func buildTargetConfig(label, target, location, sourcePath, storage string, threads int, prune string, extraSections ...string) string {
+	return buildLabelConfig(label, target, location, sourcePath, storage, threads, prune, extraSections...)
 }
 
-func buildLabelConfig(label, target, location, sourcePath, storage, owner, group string, threads int, prune string, extraSections ...string) string {
+func buildLabelConfig(label, target, location, sourcePath, storage string, threads int, prune string, extraSections ...string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "label = %q\n", label)
 	fmt.Fprintf(&b, "source_path = %q\n", sourcePath)
@@ -66,15 +66,6 @@ func buildLabelConfig(label, target, location, sourcePath, storage, owner, group
 	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
 	fmt.Fprintf(&b, "location = %q\n", location)
 	fmt.Fprintf(&b, "storage = %q\n", storage)
-	if owner != "" || group != "" {
-		b.WriteString("allow_local_accounts = true\n")
-	}
-	if owner != "" {
-		fmt.Fprintf(&b, "local_owner = %q\n", owner)
-	}
-	if group != "" {
-		fmt.Fprintf(&b, "local_group = %q\n", group)
-	}
 
 	for _, extra := range extraSections {
 		extra = strings.TrimSpace(extra)

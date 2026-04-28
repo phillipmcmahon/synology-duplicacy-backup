@@ -133,7 +133,7 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 	configDir := t.TempDir()
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
 		LastSuccessfulBackupRevision: 2403,
 		LastSuccessfulBackupAt:       "2026-04-20T02:30:00Z",
@@ -381,7 +381,7 @@ storage = "s3://gateway.example.invalid/bucket/homes"
 
 func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *testing.T) {
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", 4, "-keep 0:365"))
 
 	tests := []struct {
 		name string
@@ -474,7 +474,7 @@ func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
 	oldRunner := newRestoreCommandRunner
@@ -544,7 +544,7 @@ func TestHandleRestoreCommand_RunSudoOperatorRepairsWorkspaceOwnership(t *testin
 		}
 	}
 	meta := DefaultMetadataForRuntime("duplicacy-backup", "1.0.0", "now", rt)
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	type chownCall struct {
 		path string
@@ -634,7 +634,7 @@ func TestHandleRestoreCommand_RunEmitsProgress(t *testing.T) {
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
 	oldRunner := newRestoreCommandRunner
@@ -668,7 +668,7 @@ func TestHandleRestoreCommand_RunReportsInterruptedRestore(t *testing.T) {
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{
 		Stdout: "Restoring /workspace to revision 2403\nDownloaded chunk 1 size 123\n",
@@ -737,7 +737,7 @@ func TestHandleRestoreCommand_RunRejectsUnsafeWorkspaces(t *testing.T) {
 	configDir := t.TempDir()
 	root := t.TempDir()
 	sourcePath := filepath.Join(root, "source")
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(t.TempDir(), "backups", "homes"), "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(t.TempDir(), "backups", "homes"), 4, "-keep 0:365"))
 
 	tests := []struct {
 		name      string
@@ -766,7 +766,7 @@ func TestHandleRestoreCommand_RunRejectsNonEmptyUnpreparedWorkspace(t *testing.T
 	if err := os.WriteFile(filepath.Join(workspace, "existing.txt"), []byte("x"), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", filepath.Join(t.TempDir(), "backups", "homes"), "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", filepath.Join(t.TempDir(), "backups", "homes"), 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestoreYes: true}
 	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
@@ -780,7 +780,7 @@ func TestHandleRestoreCommand_RevisionsListsVisibleRevisionsReadOnly(t *testing.
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
 	oldRunner := newRestoreCommandRunner
@@ -841,7 +841,7 @@ func TestHandleRestoreCommand_RevisionsWithWorkspaceRequiresPreparedWorkspace(t 
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "list-revisions", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
 	_, err := restoreHandleCommand(req, meta, testRuntime())
@@ -862,7 +862,7 @@ func TestHandleRestoreCommand_RunRestoresOnlyIntoPreparedWorkspace(t *testing.T)
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
 	oldRunner := newRestoreCommandRunner
@@ -899,7 +899,7 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
@@ -943,7 +943,7 @@ func TestHandleRestoreCommand_RunUsesConfiguredWorkspaceTemplate(t *testing.T) {
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-rev2403-20260424-070000")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"{label}-{target}-rev{revision}-{snapshot_timestamp}\"\n", root)
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365", restoreSection))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
@@ -974,7 +974,7 @@ func TestHandleRestoreCommand_RunCLIWorkspaceTemplateOverridesConfig(t *testing.
 	wantWorkspace := filepath.Join(root, "manual-onsite-usb-2403-20260424-070000")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"config-{label}-{target}-{revision}\"\n", root)
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365", restoreSection))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
@@ -1004,7 +1004,7 @@ func TestHandleRestoreCommand_RunPreservesExistingWorkspaceRootPermissions(t *te
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
@@ -1051,7 +1051,7 @@ func TestHandleRestoreCommand_SelectShowsRestorePointPrompt(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
 	oldRunner := newRestoreCommandRunner
@@ -1085,7 +1085,7 @@ func TestHandleRestoreCommand_SelectInspectsRevisionWithoutWorkspace(t *testing.
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1142,7 +1142,7 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260420-023000-rev2403")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
 	oldRunner := newRestoreCommandRunner
@@ -1186,7 +1186,7 @@ func TestHandleRestoreCommand_SelectOptionTwoWithPathPrefixUsesScopedSubtree(t *
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"})
 	oldRunner := newRestoreCommandRunner
@@ -1226,7 +1226,7 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"},
@@ -1276,7 +1276,7 @@ func TestHandleRestoreCommand_SelectReportsListFilesDiagnostics(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1330,7 +1330,7 @@ func TestHandleRestoreCommand_SelectBuildsMultipleRestoreCommands(t *testing.T) 
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1374,7 +1374,7 @@ func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1432,7 +1432,7 @@ func TestHandleRestoreCommand_SelectAutoPreparesWorkspaceBeforeExecution(t *test
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1478,7 +1478,7 @@ func TestHandleRestoreCommand_SelectStopsAfterPreviewWhenExecutionNotConfirmed(t
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"})
 	oldRunner := newRestoreCommandRunner
@@ -1515,7 +1515,7 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1577,7 +1577,7 @@ func TestHandleRestoreCommand_SelectExecuteMultiplePathsUsesBatchProgress(t *tes
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1626,7 +1626,7 @@ func TestHandleRestoreCommand_SelectGeneratesDirectoryPattern(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1663,7 +1663,7 @@ func TestHandleRestoreCommand_SelectPassesPathPrefixToPicker(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1701,7 +1701,7 @@ func TestHandleRestoreCommand_SelectCancellationFromPicker(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"},
@@ -1728,7 +1728,7 @@ func TestHandleRestoreCommand_SelectCancellationAtRevisionPrompt(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"})
 	oldRunner := newRestoreCommandRunner

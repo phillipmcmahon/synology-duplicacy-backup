@@ -32,16 +32,10 @@ topic = "duplicacy-backup-alerts"
 [targets.onsite-usb]
 location = "local"
 storage = "/volume2/backups/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-storj]
 location = "remote"

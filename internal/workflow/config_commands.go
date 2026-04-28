@@ -198,8 +198,6 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	plan.Config.Threads = cfg.Threads
 	plan.Config.Filter = cfg.Filter
 	plan.Config.PruneOptions = cfg.Prune
-	plan.Config.LocalOwner = cfg.LocalOwner
-	plan.Config.LocalGroup = cfg.LocalGroup
 
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Label},
@@ -229,13 +227,6 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		lines = append(lines,
 			SummaryLine{Label: "Secrets File", Value: plan.Paths.SecretsFile},
-		)
-	}
-	if cfg.AllowLocalAccounts || cfg.LocalOwner != "" || cfg.LocalGroup != "" {
-		lines = append(lines,
-			SummaryLine{Label: "Allow Local Accounts", Value: fmt.Sprintf("%t", cfg.AllowLocalAccounts)},
-			SummaryLine{Label: "Local Owner", Value: cfg.LocalOwner},
-			SummaryLine{Label: "Local Group", Value: cfg.LocalGroup},
 		)
 	}
 

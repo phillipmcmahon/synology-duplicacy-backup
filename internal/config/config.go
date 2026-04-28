@@ -7,7 +7,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"regexp"
 	"strings"
 
@@ -28,7 +27,6 @@ const (
 	MaxHealthThresholdHours            = 24 * 366
 )
 
-var ownerPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var upperCaseConfigKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
 var pruneKeepValuePattern = regexp.MustCompile(`^\d+:\d+$`)
 
@@ -42,9 +40,6 @@ type Config struct {
 	RestoreWorkspaceRoot        string
 	RestoreWorkspaceTemplate    string
 	Filter                      string
-	LocalOwner                  string
-	LocalGroup                  string
-	AllowLocalAccounts          bool
 	LogRetentionDays            int
 	Prune                       string
 	Threads                     int
@@ -111,8 +106,6 @@ type tableRestore struct {
 type tableLocal struct {
 	Destination                 *string `toml:"destination"`
 	Filter                      *string `toml:"filter"`
-	LocalOwner                  *string `toml:"local_owner"`
-	LocalGroup                  *string `toml:"local_group"`
 	LogRetentionDays            *int    `toml:"log_retention_days"`
 	Prune                       *string `toml:"prune"`
 	Threads                     *int    `toml:"threads"`
@@ -122,12 +115,9 @@ type tableLocal struct {
 }
 
 type tableTargetMeta struct {
-	Name               *string `toml:"name"`
-	Type               *string `toml:"type"`
-	Location           *string `toml:"location"`
-	AllowLocalAccounts *bool   `toml:"allow_local_accounts"`
-	LocalOwner         *string `toml:"local_owner"`
-	LocalGroup         *string `toml:"local_group"`
+	Name     *string `toml:"name"`
+	Type     *string `toml:"type"`
+	Location *string `toml:"location"`
 }
 
 type tableTarget struct {
@@ -143,9 +133,6 @@ type tableTarget struct {
 	SafePruneMaxDeletePercent   *int         `toml:"safe_prune_max_delete_percent"`
 	SafePruneMaxDeleteCount     *int         `toml:"safe_prune_max_delete_count"`
 	SafePruneMinTotalForPercent *int         `toml:"safe_prune_min_total_for_percent"`
-	AllowLocalAccounts          *bool        `toml:"allow_local_accounts"`
-	LocalOwner                  *string      `toml:"local_owner"`
-	LocalGroup                  *string      `toml:"local_group"`
 	Health                      *tableHealth `toml:"health"`
 }
 
@@ -208,8 +195,6 @@ type tableHealthNotifyNtfy struct {
 }
 
 // NewDefaults returns a Config with all default values.
-// Note: LocalOwner and LocalGroup are mandatory only for path-based Duplicacy
-// targets that opt into local account ownership / permission management.
 func NewDefaults() *Config {
 	return &Config{
 		LogRetentionDays:            DefaultLogRetentionDays,
@@ -388,15 +373,6 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	if target.SafePruneMinTotalForPercent != nil {
 		values["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *target.SafePruneMinTotalForPercent)
 	}
-	if target.AllowLocalAccounts != nil {
-		values["ALLOW_LOCAL_ACCOUNTS"] = fmt.Sprintf("%t", *target.AllowLocalAccounts)
-	}
-	if target.LocalOwner != nil {
-		values["LOCAL_OWNER"] = *target.LocalOwner
-	}
-	if target.LocalGroup != nil {
-		values["LOCAL_GROUP"] = *target.LocalGroup
-	}
 	return values, nil
 }
 
@@ -446,15 +422,6 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	}
 	if f.TargetMeta.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
-	}
-	if f.TargetMeta.AllowLocalAccounts != nil {
-		values["ALLOW_LOCAL_ACCOUNTS"] = fmt.Sprintf("%t", *f.TargetMeta.AllowLocalAccounts)
-	}
-	if f.TargetMeta.LocalOwner != nil {
-		values["LOCAL_OWNER"] = *f.TargetMeta.LocalOwner
-	}
-	if f.TargetMeta.LocalGroup != nil {
-		values["LOCAL_GROUP"] = *f.TargetMeta.LocalGroup
 	}
 	if f.Storage.Destination != nil {
 		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses storage.destination; use storage.storage instead", path), "path", path)
@@ -633,10 +600,6 @@ func unexpectedTOMLKey(path string, key toml.Key) error {
 
 	section := parts[0]
 	field := parts[len(parts)-1]
-	if (field == "local_owner" || field == "local_group") && section != "local" && section != "target" && section != "targets" {
-		return apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is only allowed in [local], [target], or [targets.<name>] table, not [%s]", field, section), "path", path)
-	}
-
 	return apperrors.NewConfigError("parse", fmt.Errorf("config key '%s' is not permitted in [%s]", field, section), "path", path)
 }
 
@@ -667,17 +630,8 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["FILTER"]; ok {
 		c.Filter = v
 	}
-	if v, ok := values["LOCAL_OWNER"]; ok {
-		c.LocalOwner = v
-	}
-	if v, ok := values["LOCAL_GROUP"]; ok {
-		c.LocalGroup = v
-	}
 	if v, ok := values["PRUNE"]; ok {
 		c.Prune = v
-	}
-	if v, ok := values["ALLOW_LOCAL_ACCOUNTS"]; ok {
-		c.AllowLocalAccounts = strings.EqualFold(v, "true")
 	}
 	if v, ok := values["LOG_RETENTION_DAYS"]; ok {
 		n, err := strictAtoi(v)
@@ -790,44 +744,6 @@ func (c *Config) ValidateThresholds() error {
 	return nil
 }
 
-// ValidateOwnerGroup validates that local owner and group are specified and
-// contain valid Unix username characters. These fields are mandatory for local
-// permission-management operations only and must be set on path-based Duplicacy
-// targets that opt into local account ownership.
-func (c *Config) ValidateOwnerGroup() error {
-	if !c.UsesPathStorage() {
-		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it does not use path-based Duplicacy storage", c.Target))
-	}
-	if (c.Target != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
-		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not allow local account ownership or permission management", c.Target))
-	}
-	if c.LocalOwner == "" {
-		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner is mandatory: set it under [targets.%s] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")", c.Target))
-	}
-	if c.LocalGroup == "" {
-		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group is mandatory: set it under [targets.%s] to the group that should own backup files (e.g. local_group = \"users\")", c.Target))
-	}
-	if !ownerPattern.MatchString(c.LocalOwner) {
-		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner has invalid value %q", c.LocalOwner), "value", c.LocalOwner)
-	}
-	if !ownerPattern.MatchString(c.LocalGroup) {
-		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group has invalid value %q", c.LocalGroup), "value", c.LocalGroup)
-	}
-	if strings.EqualFold(c.LocalOwner, "root") {
-		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner must not be 'root' for security reasons: backup files should be owned by a non-root user"))
-	}
-	if strings.EqualFold(c.LocalGroup, "root") {
-		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group must not be 'root' for security reasons: backup files should be owned by a non-root group"))
-	}
-	if _, err := user.Lookup(c.LocalOwner); err != nil {
-		return apperrors.NewConfigError("local-owner", fmt.Errorf("local_owner %q does not exist on this system: %w", c.LocalOwner, err), "value", c.LocalOwner)
-	}
-	if _, err := user.LookupGroup(c.LocalGroup); err != nil {
-		return apperrors.NewConfigError("local-group", fmt.Errorf("local_group %q does not exist on this system: %w", c.LocalGroup, err), "value", c.LocalGroup)
-	}
-	return nil
-}
-
 // UsesPathStorage reports whether Duplicacy accesses the repository through an
 // OS filesystem path: bare paths and file:// URLs. This describes the access
 // method only, not the target's resilience location. For example, an SMB share
@@ -898,26 +814,7 @@ func (c *Config) ValidateTargetSemantics() error {
 	case c.Location == "":
 		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
 	}
-	if !c.AllowLocalAccounts {
-		if c.AllowLocalAccounts || c.LocalOwner != "" || c.LocalGroup != "" {
-			return apperrors.NewConfigError("local-accounts", fmt.Errorf("local_owner and local_group require allow_local_accounts = true for target %q", c.Target))
-		}
-		return nil
-	}
-
-	if !c.UsesPathStorage() {
-		return apperrors.NewConfigError("local-accounts", fmt.Errorf("allow_local_accounts, local_owner, and local_group are only supported for path-based Duplicacy storage targets"))
-	}
-
-	if (c.LocalOwner == "") != (c.LocalGroup == "") {
-		return apperrors.NewConfigError("local-accounts", fmt.Errorf("local_owner and local_group must be set together for target %q", c.Target))
-	}
-
-	if c.LocalOwner == "" && c.LocalGroup == "" {
-		return nil
-	}
-
-	return c.ValidateOwnerGroup()
+	return nil
 }
 
 // BuildPruneArgs splits the prune string into individual arguments.

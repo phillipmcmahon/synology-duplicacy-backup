@@ -12,6 +12,12 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Removed
+- Removed the retired `allow_local_accounts`, `local_owner`, and `local_group`
+  target config keys from the active config model, docs, examples, and tests.
+  Local filesystem repository access is now governed only by the root-protected
+  repository policy and the OS permissions of the configured storage path.
+
 ## [v9.2.0] - 2026-04-28
 
 ### Changed

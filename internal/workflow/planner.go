@@ -316,12 +316,9 @@ func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
 	p.Config.Threads = cfg.Threads
 	p.Config.Filter = cfg.Filter
 	p.Config.FilterLines = splitNonEmptyLines(cfg.Filter)
-	p.Config.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
 	p.Config.PruneOptions = cfg.Prune
 	p.Config.PruneArgs = append([]string(nil), cfg.PruneArgs...)
 	p.Config.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
-	p.Config.LocalOwner = cfg.LocalOwner
-	p.Config.LocalGroup = cfg.LocalGroup
 	p.Config.LogRetentionDays = cfg.LogRetentionDays
 	p.Config.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
 	p.Config.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount

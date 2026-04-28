@@ -127,8 +127,6 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 			Location:    locationLocal,
 			Threads:     16,
 			Filter:      "exclude",
-			LocalOwner:  "phillip",
-			LocalGroup:  "users",
 		},
 		Paths: PlanPaths{
 			SnapshotSource: "/volume1/homes",

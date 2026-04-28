@@ -189,9 +189,6 @@ verify_warn_after_hours = 168
 [targets.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 ```
 
 Set safe permissions on the config:

@@ -61,11 +61,6 @@ func TestOperatorMessage(t *testing.T) {
 			want: "missing required config values: destination, threads",
 		},
 		{
-			name: "config owner validation",
-			err:  apperrors.NewConfigError("local-owner", errors.New("local_owner is mandatory: set it under [targets.local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")")),
-			want: "local_owner is mandatory: set it under [targets.local] to the non-root user that should own backup files (e.g. local_owner = \"myuser\")",
-		},
-		{
 			name: "config missing remote target includes target hint",
 			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [targets.remote] table"), "section", "remote"),
 			want: "config file /tmp/homes-backup.toml is missing required [targets.remote] table; add [targets.remote] to <label>-backup.toml or choose a different --target",

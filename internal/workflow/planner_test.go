@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,38 +31,6 @@ func testRuntime() Runtime {
 	return rt
 }
 
-func currentUserGroup(t *testing.T) (string, string) {
-	t.Helper()
-	u, err := user.Current()
-	if err != nil {
-		t.Fatalf("user.Current() error = %v", err)
-	}
-	g, err := user.LookupGroupId(u.Gid)
-	if err != nil {
-		t.Fatalf("user.LookupGroupId() error = %v", err)
-	}
-	if u.Username != "root" && g.Name != "root" {
-		return u.Username, g.Name
-	}
-
-	for _, name := range []string{"nobody", "daemon"} {
-		if _, err := user.Lookup(name); err == nil {
-			u.Username = name
-			break
-		}
-	}
-	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
-		if _, err := user.LookupGroup(name); err == nil && name != "root" {
-			g.Name = name
-			break
-		}
-	}
-	if u.Username == "root" || g.Name == "root" {
-		t.Skip("no non-root owner/group available on this system")
-	}
-	return u.Username, g.Name
-}
-
 func runtimeRequestForTest(req *Request) *RuntimeRequest {
 	runtimeReq := NewRuntimeRequest(req)
 	return &runtimeReq
@@ -71,7 +38,7 @@ func runtimeRequestForTest(req *Request) *RuntimeRequest {
 
 func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
-	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, ""))
+	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, ""))
 
 	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-usb"}
 	rt := testRuntime()
@@ -223,7 +190,7 @@ func TestPlannerValidateEnvironmentErrors(t *testing.T) {
 
 func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
@@ -263,7 +230,7 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 
 func TestPlannerBuild_NonRootLocalRepositoryCleanupDryRunIsSimulationOnly(t *testing.T) {
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
@@ -302,7 +269,7 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 func TestPlannerBuild_NonRootRemoteMountedRepositoryMutationUsesMountAccess(t *testing.T) {
 	configDir := t.TempDir()
 	storage := filepath.Join(t.TempDir(), "smb-mounted", "homes")
-	writeTargetTestConfig(t, configDir, "homes", "offsite-usb", buildTargetConfig("homes", "offsite-usb", locationRemote, "/volume1/homes", storage, "", "", 4, "-keep 0:365"))
+	writeTargetTestConfig(t, configDir, "homes", "offsite-usb", buildTargetConfig("homes", "offsite-usb", locationRemote, "/volume1/homes", storage, 4, "-keep 0:365"))
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
@@ -350,7 +317,7 @@ func TestPlannerLoadConfig_MissingFile(t *testing.T) {
 func TestPlannerLoadConfig_MissingCanonicalFileReportsCanonicalPath(t *testing.T) {
 	configDir := t.TempDir()
 	unrelatedFile := filepath.Join(configDir, "plexaudio-backup.toml")
-	if err := os.WriteFile(unrelatedFile, []byte(localTargetConfig("plexaudio", "/volume1/plexaudio", "/backups", "", "", 4, "-keep 0:365")), 0644); err != nil {
+	if err := os.WriteFile(unrelatedFile, []byte(localTargetConfig("plexaudio", "/volume1/plexaudio", "/backups", 4, "-keep 0:365")), 0644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -451,9 +418,8 @@ func TestPlannerValidateBackupFilesystem(t *testing.T) {
 }
 
 func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
-	owner, group := currentUserGroup(t)
 	dir := t.TempDir()
-	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
+	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	plan := planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", DoBackup: true, ConfigDir: dir, RequestedTarget: "onsite-usb"}))
@@ -462,7 +428,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadConfig() error = %v", err)
 	}
-	if cfg.Storage != "/backups/homes" || cfg.LocalOwner != owner || cfg.LocalGroup != group || len(cfg.PruneArgs) == 0 {
+	if cfg.Storage != "/backups/homes" || len(cfg.PruneArgs) == 0 {
 		t.Fatalf("cfg = %+v", cfg)
 	}
 

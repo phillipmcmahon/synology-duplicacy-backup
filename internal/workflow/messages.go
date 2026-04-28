@@ -219,8 +219,6 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 		"health-doctor-warn-after-hours",
 		"health-verify-warn-after-hours",
 		"health-freshness-range",
-		"local-owner",
-		"local-group",
 		"parse":
 		if err.Cause != nil {
 			return err.Cause.Error()

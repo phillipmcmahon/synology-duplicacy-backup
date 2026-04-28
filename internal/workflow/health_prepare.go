@@ -30,8 +30,6 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 	plan.Paths.RepositoryPath = cfg.SourcePath
 	plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.Request.OperationMode = "Health " + presentation.Title(req.Command)
-	plan.Config.LocalOwner = cfg.LocalOwner
-	plan.Config.LocalGroup = cfg.LocalGroup
 	plan.Config.LogRetentionDays = cfg.LogRetentionDays
 	plan.Config.Filter = cfg.Filter
 	plan.Config.FilterLines = splitNonEmptyLines(cfg.Filter)

@@ -152,16 +152,10 @@ The matching backup TOML models targets explicitly with `location` and
 [targets.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-storj]
 location = "remote"

@@ -44,12 +44,9 @@ type PlanConfig struct {
 	Threads                     int
 	Filter                      string
 	FilterLines                 []string
-	OwnerGroup                  string
 	PruneOptions                string
 	PruneArgs                   []string
 	PruneArgsDisplay            string
-	LocalOwner                  string
-	LocalGroup                  string
 	LogRetentionDays            int
 	SafePruneMaxDeletePercent   int
 	SafePruneMaxDeleteCount     int

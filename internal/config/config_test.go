@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,38 +18,6 @@ func writeTempConfig(t *testing.T, content string) string {
 		t.Fatalf("failed to write temp config: %v", err)
 	}
 	return p
-}
-
-func currentUserGroup(t *testing.T) (string, string) {
-	t.Helper()
-	u, err := user.Current()
-	if err != nil {
-		t.Fatalf("user.Current() error = %v", err)
-	}
-	g, err := user.LookupGroupId(u.Gid)
-	if err != nil {
-		t.Fatalf("user.LookupGroupId() error = %v", err)
-	}
-	if u.Username != "root" && g.Name != "root" {
-		return u.Username, g.Name
-	}
-
-	for _, name := range []string{"nobody", "daemon"} {
-		if _, err := user.Lookup(name); err == nil {
-			u.Username = name
-			break
-		}
-	}
-	for _, name := range []string{"nogroup", "nobody", "daemon", "staff", "users"} {
-		if _, err := user.LookupGroup(name); err == nil && name != "root" {
-			g.Name = name
-			break
-		}
-	}
-	if u.Username == "root" || g.Name == "root" {
-		t.Skip("no non-root owner/group available on this system")
-	}
-	return u.Username, g.Name
 }
 
 func loadValues(t *testing.T, body, target string) map[string]string {
@@ -79,9 +46,6 @@ filter = "-e \\.DS_Store"
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
-allow_local_accounts = true
-local_owner = "admin"
-local_group = "users"
 `)
 
 	raw, err := ParseFile(p)
@@ -94,11 +58,9 @@ local_group = "users"
 	}
 
 	expect := map[string]string{
-		"STORAGE":     "/volume1/backups/homes",
-		"FILTER":      `-e \.DS_Store`,
-		"THREADS":     "4",
-		"LOCAL_OWNER": "admin",
-		"LOCAL_GROUP": "users",
+		"STORAGE": "/volume1/backups/homes",
+		"FILTER":  `-e \.DS_Store`,
+		"THREADS": "4",
 	}
 	for k, want := range expect {
 		if got := values[k]; got != want {
@@ -164,9 +126,6 @@ source_path = "/volume1/homes"
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
-allow_local_accounts = true
-local_owner = "admin"
-local_group = "users"
 
 [health]
 freshness_warn_hours = 12
@@ -231,7 +190,6 @@ threads = 4
 [targets.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
-allow_local_accounts = true
 `, "onsite-usb")
 
 	if values["TARGET"] != "onsite-usb" {
@@ -243,7 +201,6 @@ allow_local_accounts = true
 }
 
 func TestParseFile_ResolveValues_ProductNeutralTargetLayout(t *testing.T) {
-	owner, group := currentUserGroup(t)
 	p := writeTempConfig(t, `
 label = "homes"
 source_path = "/volume1/homes"
@@ -251,9 +208,6 @@ source_path = "/volume1/homes"
 [target]
 name = "onsite-usb"
 location = "local"
-allow_local_accounts = true
-local_owner = "`+owner+`"
-local_group = "`+group+`"
 
 [storage]
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
@@ -302,9 +256,6 @@ interactive = true
 		"SAFE_PRUNE_MAX_DELETE_PERCENT":    "12",
 		"SAFE_PRUNE_MAX_DELETE_COUNT":      "34",
 		"SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT": "56",
-		"ALLOW_LOCAL_ACCOUNTS":             "true",
-		"LOCAL_OWNER":                      owner,
-		"LOCAL_GROUP":                      group,
 	}
 	for key, want := range expect {
 		if got := values[key]; got != want {
@@ -445,7 +396,6 @@ source_path = "/volume1/homes"
 [targets.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
-	allow_local_accounts = true
 `)
 	raw, err := ParseFile(p)
 	if err != nil {
@@ -566,48 +516,6 @@ threads = 4
 	}
 }
 
-func TestParseFile_LocalOnlyKeysRejectedOutsideLocal(t *testing.T) {
-	cases := []struct {
-		name string
-		body string
-	}{
-		{
-			name: "common",
-			body: `
-[common]
-destination = "/volume1/backups"
-local_owner = "admin"
-
-[local]
-threads = 4
-`,
-		},
-		{
-			name: "remote",
-			body: `
-[common]
-destination = "s3://bucket"
-
-[remote]
-threads = 4
-local_group = "users"
-`,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseFile(writeTempConfig(t, tc.body))
-			if err == nil {
-				t.Fatal("expected parse error")
-			}
-			if !strings.Contains(err.Error(), "only allowed in [local]") {
-				t.Fatalf("error = %v", err)
-			}
-		})
-	}
-}
-
 func TestParseFile_MalformedTOMLRejected(t *testing.T) {
 	_, err := ParseFile(writeTempConfig(t, `
 [common
@@ -718,8 +626,6 @@ func TestApply_StringValues(t *testing.T) {
 	cfg := NewDefaults()
 	vals := map[string]string{
 		"FILTER":                     "-e *.tmp",
-		"LOCAL_OWNER":                "admin",
-		"LOCAL_GROUP":                "staff",
 		"PRUNE":                      "-keep 0:365 -keep 30:180",
 		"RESTORE_WORKSPACE_ROOT":     "/volume1/recovery",
 		"RESTORE_WORKSPACE_TEMPLATE": "{label}-{target}-{revision}",
@@ -727,7 +633,7 @@ func TestApply_StringValues(t *testing.T) {
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Filter != "-e *.tmp" || cfg.LocalOwner != "admin" || cfg.LocalGroup != "staff" || cfg.Prune != "-keep 0:365 -keep 30:180" {
+	if cfg.Filter != "-e *.tmp" || cfg.Prune != "-keep 0:365 -keep 30:180" {
 		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 	if cfg.RestoreWorkspaceRoot != "/volume1/recovery" || cfg.RestoreWorkspaceTemplate != "{label}-{target}-{revision}" {
@@ -740,7 +646,7 @@ func TestApply_EmptyMapKeepsDefaults(t *testing.T) {
 	if err := cfg.Apply(map[string]string{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.LocalOwner != "" || cfg.LocalGroup != "" || cfg.LogRetentionDays != DefaultLogRetentionDays {
+	if cfg.LogRetentionDays != DefaultLogRetentionDays {
 		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
 }
@@ -826,41 +732,6 @@ func TestValidateThresholds(t *testing.T) {
 	}
 }
 
-func TestValidateOwnerGroup(t *testing.T) {
-	owner, group := currentUserGroup(t)
-	if err := (&Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}).ValidateOwnerGroup(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	cases := []struct {
-		name string
-		cfg  Config
-		want string
-	}{
-		{"url backend disallowed", Config{Target: "offsite-storj", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}, "does not support local account ownership"},
-		{"missing owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalGroup: group}, "local_owner is mandatory"},
-		{"missing group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, "local_group is mandatory"},
-		{"invalid owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "admin/bad", LocalGroup: group}, "invalid"},
-		{"invalid group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "bad group"}, "invalid"},
-		{"root owner", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "root", LocalGroup: group}, "must not be 'root'"},
-		{"root group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "root"}, "must not be 'root'"},
-		{"missing user", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: "no_such_user_xyz_999", LocalGroup: group}, "does not exist"},
-		{"missing group", Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: "no_such_group_xyz_999"}, "does not exist"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.ValidateOwnerGroup()
-			if err == nil {
-				t.Fatal("expected error")
-			}
-			if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tc.want)) {
-				t.Fatalf("error = %v", err)
-			}
-		})
-	}
-}
-
 func TestValidateThreads(t *testing.T) {
 	for _, n := range []int{1, 2, 4, 8, 16} {
 		if err := (&Config{Threads: n}).ValidateThreads(); err != nil {
@@ -919,8 +790,6 @@ func TestValidatePrunePolicy(t *testing.T) {
 }
 
 func TestValidateTargetSemantics(t *testing.T) {
-	owner, group := currentUserGroup(t)
-
 	cases := []struct {
 		name string
 		cfg  Config
@@ -931,11 +800,6 @@ func TestValidateTargetSemantics(t *testing.T) {
 		{name: "local object storage okay", cfg: Config{Target: "onsite-rustfs", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
 		{name: "remote object storage okay", cfg: Config{Target: "offsite-storj", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
 		{name: "location required", cfg: Config{Target: "onsite-usb", Storage: "/volume2/backups/homes"}, want: "target.location must be set"},
-		{name: "owner group require allow local", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", LocalOwner: owner, LocalGroup: group}, want: "require allow_local_accounts = true"},
-		{name: "owner and group together", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner}, want: "must be set together"},
-		{name: "url backend disallows local accounts", cfg: Config{Target: "offsite-storj", Location: "remote", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
-		{name: "local url backend disallows local accounts", cfg: Config{Target: "onsite-rustfs", Location: "local", Storage: "s3://bucket/homes", AllowLocalAccounts: true}, want: "only supported for path-based Duplicacy storage targets"},
-		{name: "owner group validated when present", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes", AllowLocalAccounts: true, LocalOwner: owner, LocalGroup: group}},
 	}
 
 	for _, tc := range cases {

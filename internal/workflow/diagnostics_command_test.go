@@ -12,7 +12,7 @@ func TestHandleDiagnosticsCommand_LocalTargetIncludesStateAndPermissions(t *test
 	configDir := t.TempDir()
 	sourcePath := t.TempDir()
 	storagePath := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storagePath, "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storagePath, 4, ""))
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
@@ -100,7 +100,7 @@ func TestHandleDiagnosticsCommand_JSONSummary(t *testing.T) {
 
 func TestHandleDiagnosticsCommand_JSONSummaryIncludesZeroRevisionWhenStateExists(t *testing.T) {
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", t.TempDir(), t.TempDir(), "", "", 4, ""))
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", t.TempDir(), t.TempDir(), 4, ""))
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{

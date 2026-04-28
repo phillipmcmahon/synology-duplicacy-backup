@@ -151,9 +151,6 @@ s3_secret = "..."
 | `targets.<name>.filter` | No | Target-specific filter override |
 | `targets.<name>.threads` | No | Target-specific thread override |
 | `targets.<name>.prune` | No | Target-specific prune override |
-| `targets.<name>.allow_local_accounts` | Legacy compatibility only | Not used by current runtime commands |
-| `targets.<name>.local_owner` | Legacy compatibility only | Not used by current runtime commands |
-| `targets.<name>.local_group` | Legacy compatibility only | Not used by current runtime commands |
 
 ## Health Policy
 
@@ -347,16 +344,10 @@ topic = "duplicacy-backup-alerts"
 [targets.onsite-usb]
 location = "local"
 storage = "/volume2/backups/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
-allow_local_accounts = true
-local_owner = "myuser"
-local_group = "users"
 
 [targets.offsite-storj]
 location = "remote"

@@ -569,7 +569,6 @@ After this step, the plan is populated with things the executor can use directly
 - `Threads`
 - `Filter`
 - `FilterLines`
-- `OwnerGroup`
 - `PruneArgs`
 - `LogRetentionDays`
 - safe-prune thresholds
