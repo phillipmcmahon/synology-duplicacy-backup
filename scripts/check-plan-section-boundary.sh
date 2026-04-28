@@ -4,7 +4,12 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 
-FIELDS='Threads|Target|Location|BackupLabel|Filter|FilterLines|OwnerGroup|PruneOptions|PruneArgs|PruneArgsDisplay|LocalOwner|LocalGroup|LogRetentionDays|SafePruneMaxDeletePercent|SafePruneMaxDeleteCount|SafePruneMinTotalForPercent|RunTimestamp|SnapshotSource|SnapshotTarget|RepositoryPath|WorkRoot|DuplicacyRoot|BackupTarget|ConfigDir|ConfigFile|SecretsDir|SecretsFile|ModeDisplay|SnapshotCreateCommand|SnapshotDeleteCommand|WorkDirCreateCommand|PreferencesWriteCommand|FiltersWriteCommand|WorkDirDirPermsCommand|WorkDirFilePermsCommand|BackupCommand|ValidateRepoCommand|PrunePreviewCommand|PolicyPruneCommand|CleanupStorageCommand|WorkDirRemoveCommand|DoBackup|DoPrune|DoCleanupStore|ForcePrune|DryRun|Verbose|JSONSummary|NeedsDuplicacySetup|NeedsSnapshot|DefaultNotice|OperationMode|SourcePath|StorageURL|SnapshotID'
+# Source of truth: internal/workflow/plan.go.
+# Keep this list aligned with the PlanRequest, PlanConfig, PlanPaths, and
+# PlanDisplay section fields. The guard intentionally rejects the old flat
+# Plan field shape so callers use plan.Request.*, plan.Config.*, plan.Paths.*,
+# or plan.Display.* instead.
+FIELDS='Threads|Target|Location|BackupLabel|Filter|FilterLines|OwnerGroup|PruneOptions|PruneArgs|PruneArgsDisplay|LocalOwner|LocalGroup|LogRetentionDays|SafePruneMaxDeletePercent|SafePruneMaxDeleteCount|SafePruneMinTotalForPercent|RunTimestamp|SnapshotSource|SnapshotTarget|RepositoryPath|WorkRoot|DuplicacyRoot|BackupTarget|ConfigDir|ConfigFile|SecretsDir|SecretsFile|ModeDisplay|SnapshotCreateCommand|SnapshotDeleteCommand|WorkDirCreateCommand|PreferencesWriteCommand|FiltersWriteCommand|WorkDirDirPermsCommand|WorkDirFilePermsCommand|BackupCommand|ValidateRepoCommand|PrunePreviewCommand|PolicyPruneCommand|CleanupStorageCommand|WorkDirRemoveCommand|DoBackup|DoPrune|DoCleanupStore|ForcePrune|DryRun|Verbose|JSONSummary|NeedsDuplicacySetup|NeedsSnapshot|DefaultNotice|OperationMode'
 DIRECT_PATTERN="(^|[^[:alnum:]_])(plan|p)\\.(${FIELDS})([^[:alnum:]_]|$)"
 DOC_PATTERN="Plan\\.(${FIELDS})([^[:alnum:]_]|$)"
 

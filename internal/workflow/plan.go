@@ -18,6 +18,10 @@ type Plan struct {
 	Summary []SummaryLine
 }
 
+// These section field names are mirrored by
+// scripts/check-plan-section-boundary.sh. Adding, renaming, or removing a Plan
+// section field requires updating that guard's FIELDS list so the old flat Plan
+// shape cannot quietly return.
 type PlanRequest struct {
 	DoBackup            bool
 	DoPrune             bool

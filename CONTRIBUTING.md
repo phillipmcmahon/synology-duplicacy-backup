@@ -20,6 +20,18 @@ go run honnef.co/go/tools/cmd/staticcheck ./...
 go test -race ./...
 ```
 
+## Architecture Guards
+
+`make validate` and GitHub lint run `scripts/check-plan-section-boundary.sh`.
+That guard preserves the section-owned `workflow.Plan` shape. If you add,
+rename, or remove fields in `internal/workflow/plan.go`, update the guard's
+`FIELDS` list in the same change.
+
+When writing docs or comments about the old pre-section shape, avoid spelling
+literal retired selectors such as `Plan.<field-name-from-the-guard>`. Prefer
+phrases like "the previous flat Plan shape" so historical prose does not look
+like a live code regression to the lint.
+
 ## Pre-commit Hook (recommended)
 
 A ready-made hook is provided in `scripts/pre-commit`.  

@@ -22,6 +22,9 @@ coverage floor and package-level baseline.
 ### Changed
 - Release and Linux validation documentation now explicitly list the Plan
   section-boundary guard as part of the standard validation gate.
+- Contributor guidance now documents the Plan section-boundary guard and the
+  documentation convention for historical references to the previous flat Plan
+  shape.
 - Workflow boundary review guidance now has quantified revisit tripwires for
   substantial new behaviour, cross-family reach-in, and shared-core size.
 - UI surface smoke review guidance now links directly to the presentation
