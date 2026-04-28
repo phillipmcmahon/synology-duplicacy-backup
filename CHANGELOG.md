@@ -46,6 +46,27 @@ coverage floor and package-level baseline.
   `root:root`/`0700` before local repository access checks, matching the
   locked-down NAS posture for local filesystem backup storage.
 
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: dual-target restore smoke with
+  `onsite-garage` and root-protected `onsite-usb` restored
+  `phillipmcmahon/code/*` into smoke-marked workspaces.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.6%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v9.1.6] - 2026-04-28
 
 ### Fixed
