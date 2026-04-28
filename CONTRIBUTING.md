@@ -51,6 +51,9 @@ automatically use tabs for Go files and LF line endings.
 
 ## Pull Request Checklist
 
+- [ ] Keep mechanical renames and behaviour changes in separate commits when
+      practical, so review and git history can distinguish vocabulary churn
+      from runtime or operator-facing changes
 - [ ] `gofmt -l .` returns no output
 - [ ] `go vet ./...` passes
 - [ ] `go run honnef.co/go/tools/cmd/staticcheck ./...` passes

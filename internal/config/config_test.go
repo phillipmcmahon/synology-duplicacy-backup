@@ -478,6 +478,8 @@ func TestValidateRequired(t *testing.T) {
 	}
 	if err := (&Config{SourcePath: "/volume1/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing storage")
+	} else if !strings.Contains(err.Error(), "targets.<name>.storage") {
+		t.Fatalf("missing storage error = %v", err)
 	}
 	if err := (&Config{Storage: "/vol/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing source_path")
