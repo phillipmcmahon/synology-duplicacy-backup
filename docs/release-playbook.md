@@ -7,6 +7,9 @@ release notes from memory, or generate release artefacts on the macOS host.
 
 - Release from a clean `main` tree only.
 - Validate from the actual release tree, not from an older commit.
+- Before pushing to `origin`, run the local validation gate with
+  `make validate`. This mirrors GitHub's lint/test gate and always includes
+  Staticcheck.
 - Run release validation in Linux Go 1.26 only.
 - Run Staticcheck as part of release validation; CI uses
   `honnef.co/go/tools/cmd/staticcheck` and the version is pinned in Go module
@@ -92,6 +95,7 @@ Suggested release-prep checklist:
 - [ ] version metadata updated
 - [ ] changelog entry added or refreshed
 - [ ] testing baseline refreshed
+- [ ] local pre-push validation passed with `make validate`
 - [ ] Linux Go 1.26 validation passed
 - [ ] CI smoke jobs passed on `main`
 - [ ] NAS UI surface smoke capture reviewed for operator-output consistency
@@ -113,6 +117,26 @@ Suggested release-prep checklist:
 - Make sure the changelog text reflects the release that will actually publish.
 
 ### 3. Validate the Release Tree in Linux
+
+Before any push to `origin`, run the local validation gate from the release
+candidate tree:
+
+```bash
+make validate
+```
+
+This command mirrors GitHub's lint and test jobs by checking formatting,
+running `go vet ./...`, running
+`go run honnef.co/go/tools/cmd/staticcheck ./...`, running race-enabled tests,
+and running all `scripts/test-*.sh` checks. If the change touches UI smoke
+automation, release packaging, or GitHub workflow gating, run the fuller local
+gate too:
+
+```bash
+make validate-full
+```
+
+That additionally builds and verifies the UI surface smoke bundle locally.
 
 Use the standard Linux environment described in
 [`linux-environment.md`](linux-environment.md).

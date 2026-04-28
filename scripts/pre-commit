@@ -17,4 +17,7 @@ fi
 echo "go vet ./..."
 go vet ./...
 
+echo "go run honnef.co/go/tools/cmd/staticcheck ./..."
+go run honnef.co/go/tools/cmd/staticcheck ./...
+
 exit 0

@@ -5,7 +5,7 @@ LDFLAGS     := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
 BUILD_DIR   := build
 RELEASE_VERSION ?=
 
-.PHONY: all clean build test fmt vet lint synology package-synology package-synology-amd64 package-synology-arm64 package-synology-armv7 release-prep
+.PHONY: all clean build test fmt vet staticcheck lint validate validate-full synology package-synology package-synology-amd64 package-synology-arm64 package-synology-armv7 release-prep
 
 # Default: build for current platform
 all: build
@@ -81,7 +81,16 @@ fmt:
 vet:
 	go vet ./...
 
-lint: fmt vet
+staticcheck:
+	go run honnef.co/go/tools/cmd/staticcheck ./...
+
+lint: fmt vet staticcheck
+
+validate:
+	sh ./scripts/validate-before-push.sh
+
+validate-full:
+	sh ./scripts/validate-before-push.sh --with-ui-smoke
 
 clean:
 	rm -rf $(BUILD_DIR)

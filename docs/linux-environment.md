@@ -76,6 +76,25 @@ colima start
 
 Run these from the repo root.
 
+### Local pre-push validation
+
+Before pushing to `origin`, run:
+
+```bash
+make validate
+```
+
+That local gate mirrors GitHub's lint and test jobs: formatting check,
+`go vet ./...`, `go run honnef.co/go/tools/cmd/staticcheck ./...`,
+race-enabled tests, and all shell script tests. For changes that touch UI
+smoke automation, release packaging, or GitHub workflow gates, run:
+
+```bash
+make validate-full
+```
+
+That adds the UI surface smoke bundle integrity check used by CI.
+
 ### Representative release validation
 
 ```bash
@@ -86,6 +105,9 @@ docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
 
 docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
   'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go vet ./...'
+
+docker run --rm -v "$PWD":/work -w /work "$GO_CONTAINER_IMAGE" /bin/sh -lc \
+  'export GOCACHE=/tmp/gocache && /usr/local/go/bin/go run honnef.co/go/tools/cmd/staticcheck ./...'
 ```
 
 ### Coverage run

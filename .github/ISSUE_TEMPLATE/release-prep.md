@@ -16,6 +16,7 @@ What shipped changes are intended for this release?
 - [ ] version metadata updated
 - [ ] changelog entry added or refreshed
 - [ ] testing baseline refreshed
+- [ ] local pre-push validation passed with `make validate`
 - [ ] Linux Go 1.26 validation passed
 - [ ] release-prep notes generated
 - [ ] prep commit pushed to `main`
