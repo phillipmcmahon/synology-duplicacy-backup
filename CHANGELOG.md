@@ -18,6 +18,12 @@ coverage floor and package-level baseline.
   so automated restore tests are easy to identify, avoid operator restore
   namespaces, and do not reuse prior restore data accidentally.
 
+### Fixed
+- Non-root `config validate` for root-protected local filesystem repositories
+  now reports the sudo policy boundary before probing storage, avoiding raw
+  permission-denied storage errors for the expected locked-down repository
+  layout.
+
 ## [v9.1.6] - 2026-04-28
 
 ### Fixed

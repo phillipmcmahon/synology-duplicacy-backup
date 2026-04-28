@@ -190,7 +190,17 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 		execpkg.MockResult{Stdout: "256\n"},
 	)
 	sourcePath := t.TempDir()
-	destinationRoot := t.TempDir()
+	destinationParent := t.TempDir()
+	destinationRoot := filepath.Join(destinationParent, "repo")
+	if err := os.Mkdir(destinationRoot, 0o700); err != nil {
+		t.Fatalf("mkdir destination root: %v", err)
+	}
+	if err := os.Chmod(destinationParent, 0); err != nil {
+		t.Fatalf("chmod destination parent: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(destinationParent, 0o700)
+	}()
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, owner, group, 4, "-keep 0:365"))
@@ -213,6 +223,9 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 		}
 	}
 	values := extractValidationValues(t, report)
+	if values["Storage Access"] != "Requires sudo" {
+		t.Fatalf("Storage Access = %q:\n%s", values["Storage Access"], report)
+	}
 	if values["Repository Access"] != "Requires sudo" {
 		t.Fatalf("Repository Access = %q:\n%s", values["Repository Access"], report)
 	}

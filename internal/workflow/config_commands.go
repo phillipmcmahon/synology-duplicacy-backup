@@ -92,8 +92,6 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 		btrfsErr = validateConfigSourceBtrfs(plan, planner.runner)
 	}
 
-	destinationStatus, destinationErr := validateConfigDestination(cfg)
-
 	repoStatus := "Not checked"
 	var repoErr error
 	repoFailureMessage := ""
@@ -103,6 +101,12 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
 	secretsNeeded := storageSpec.NeedsSecrets()
 	secretsChecked := !secretsNeeded
+	repositoryRequiresSudo := localRepositoryRequiresSudo(cfg, planner.rt)
+	destinationStatus := presentation.ValueRequiresSudo
+	var destinationErr error
+	if !repositoryRequiresSudo {
+		destinationStatus, destinationErr = validateConfigDestination(cfg)
+	}
 	targetSemanticsErr := cfg.ValidateTargetSemantics()
 	if secretsNeeded {
 		secretsChecked = true
@@ -114,7 +118,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 
 	if sourceAccessible && destinationErr == nil {
 		switch {
-		case localRepositoryRequiresSudo(cfg, planner.rt):
+		case repositoryRequiresSudo:
 			repoStatus = presentation.ValueRequiresSudo
 			repoFailureMessage = presentation.LocalRepositoryRequiresSudoMessage("")
 			repoHint = presentation.LocalRepositoryRequiresSudoMessage("")
