@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.6] - 2026-04-28
+
 ### Fixed
 - Restore drills now run Duplicacy with `-ignore-owner`, preventing non-root
   remote/object restores from failing when archived UID/GID metadata cannot be
@@ -27,6 +29,10 @@ coverage floor and package-level baseline.
   restore report includes `-ignore-owner`.
 - Sudo-required wording now distinguishes root-protected local filesystem
   repositories from remote mounted filesystem repositories.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Project board audit**: `scripts/project-board-audit.sh`
 
 ## [v9.1.5] - 2026-04-28
 
