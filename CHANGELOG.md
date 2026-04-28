@@ -18,6 +18,10 @@ coverage floor and package-level baseline.
   `{target}`, `{snapshot_timestamp}`, `{revision}`, and `{run_timestamp}` so
   operators can recover the same revision from different targets without
   clobbering or obscuring prior drills.
+- UI surface smoke restore automation now creates a smoke-owned restore root,
+  runs a workspace-template dry-run matrix, supports multiple restore targets
+  with per-target sudo policy, and verifies restored data exists after the real
+  optional restore.
 - NAS UI surface smoke restore runs now use explicit smoke-marked workspaces
   named with the selected snapshot, revision, tested commit, and run timestamp
   so automated restore tests are easy to identify, avoid operator restore

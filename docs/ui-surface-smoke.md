@@ -88,10 +88,10 @@ The runner automatically:
 
 ## Optional Restore Run
 
-The default run skips actual restore execution. To include a small real restore
-surface, choose a narrow snapshot-relative path. The runner auto-selects the
-latest visible revision for `RESTORE_TARGET` unless `RESTORE_REVISION` is set
-explicitly:
+The default run skips actual restore execution. To include small real restore
+surfaces, choose a narrow snapshot-relative path. The runner auto-selects the
+latest visible revision for each restore target unless `RESTORE_REVISION` is
+set explicitly:
 
 ```sh
 RUN_RESTORE=1 \
@@ -101,17 +101,21 @@ CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
 
-For a root-protected local filesystem repository, run the optional restore
-capture through sudo from the operator account:
+To exercise both object/remote and root-protected local filesystem restore in
+one release smoke run, provide multiple targets and name the targets that need
+sudo:
 
 ```sh
 RUN_RESTORE=1 \
-RESTORE_USE_SUDO=1 \
-RESTORE_TARGET="$TARGET_LOCAL" \
+RESTORE_TARGETS="$TARGET_OBJECT $TARGET_LOCAL" \
+RESTORE_USE_SUDO_TARGETS="$TARGET_LOCAL" \
 RESTORE_PATH='phillipmcmahon/code/*' \
 CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
+
+`RESTORE_USE_SUDO=1` is still available for single-target runs where the only
+restore target is root-protected local filesystem storage.
 
 For fully automated release smoke bundles, bake the restore defaults into the
 bundle when packaging:
@@ -119,46 +123,57 @@ bundle when packaging:
 ```sh
 scripts/package-ui-surface-smoke.sh \
   --default-run-restore 1 \
-  --default-restore-target offsite-storj \
+  --default-restore-targets 'onsite-garage onsite-usb' \
+  --default-restore-use-sudo-targets 'onsite-usb' \
   --default-restore-path 'phillipmcmahon/code/*'
 ```
 
 Use `--default-restore-use-sudo 1` only for bundles whose default restore
 target is a root-protected local filesystem repository.
 
-The restore command uses an explicit smoke workspace rather than the normal
-operator-derived restore workspace. The workspace name is:
+The restore automation creates a smoke-owned root namespace first:
 
 ```text
-<label>-<target>-<snapshot-ts>-rev<revision>-smoke-<shortsha>-<run-ts>
+<workspace-root>/ui-smoke-<shortsha>-<run-ts>/
 ```
 
-For example:
+Inside that namespace, it creates case roots such as:
 
 ```text
-homes-offsite-garage-20260427-010000-rev1-smoke-4ec4f55-20260428-112500
+default/
+revision-target-run/
+target-revision-snapshot/
+same-revision-cross-target/
+data-restore-<target>/
 ```
 
-The `smoke` marker makes the workspace obviously test-owned, the short commit
-identifies the build under test, and the run timestamp prevents an existing
-workspace from hiding restore behaviour by letting Duplicacy skip work. Set
-`RESTORE_WORKSPACE` only when you deliberately want to override this generated
-path. Smoke workspaces can be listed or removed with:
+The template-matrix cases run `restore run --dry-run` with different
+`--workspace-template` combinations to prove that `{label}`, `{target}`,
+`{snapshot_timestamp}`, `{revision}`, and `{run_timestamp}` are rendered
+consistently. The real data restore uses a smoke-marked derived workspace:
+
+```text
+<label>-rev<revision>-<target>-smoke-<run_timestamp>
+```
+
+The `ui-smoke` and `smoke` markers make the workspace obviously test-owned, the
+short commit identifies the build under test, and the run timestamp prevents an
+existing workspace from hiding restore behaviour by letting Duplicacy skip
+work. Smoke workspaces can be listed or removed with:
 
 ```sh
-find "$WORKSPACE_ROOT" -maxdepth 1 -type d -name '*-smoke-*'
+find "$WORKSPACE_ROOT" -maxdepth 1 -type d -name 'ui-smoke-*'
 ```
 
-With `RUN_RESTORE=1`, the real restore and restore dry-run captures are
-expected to succeed. The runner also asserts that both restore reports include
-`-ignore-owner`, which protects non-root drill restores from Duplicacy UID/GID
-replay failures while keeping copy-back manual. If `RESTORE_REVISION` is
-omitted, the capture includes a `restore_revision_auto_select` step showing the
-selected revision. If `RESTORE_REVISION` is provided, the runner captures a
-`restore_revision_lookup` listing so the smoke workspace can still include the
-snapshot timestamp when the revision appears in the listing. Increase
-`RESTORE_REVISION_LOOKUP_LIMIT` if smoke workspaces show `unknown-snapshot` for
-revisions older than the default 200-entry lookup.
+With `RUN_RESTORE=1`, the template dry-runs, real restore, restore content
+presence check, and restore dry-run captures are expected to succeed for every
+target in `RESTORE_TARGETS`. The runner also asserts that restore reports
+include `-ignore-owner`, which protects non-root drill restores from Duplicacy
+UID/GID replay failures while keeping copy-back manual. If `RESTORE_REVISION`
+is omitted, each target capture includes a `restore_revision_auto_select` step
+showing the selected revision. If `RESTORE_REVISION` is provided, the runner
+captures a `restore_revision_lookup` listing for each target before running the
+template matrix.
 
 ## Optional Interactive Checks
 

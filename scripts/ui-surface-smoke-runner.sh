@@ -123,15 +123,15 @@ run_capture() {
 }
 
 run_restore_capture() {
-    name="$1"
-    expectation="$2"
-    shift 2
+	name="$1"
+	expectation="$2"
+	shift 2
 
-    if [ "$RESTORE_USE_SUDO" = "1" ]; then
-        run_capture "$name" "$expectation" sudo -n "$BIN" "$@"
-    else
-        run_capture "$name" "$expectation" "$BIN" "$@"
-    fi
+	if [ "${ACTIVE_RESTORE_USE_SUDO:-$RESTORE_USE_SUDO}" = "1" ]; then
+		run_capture "$name" "$expectation" sudo -n "$BIN" "$@"
+	else
+		run_capture "$name" "$expectation" "$BIN" "$@"
+	fi
 }
 
 skip_capture() {
@@ -185,41 +185,23 @@ extract_first_revision() {
     ' "$file"
 }
 
-extract_revision_timestamp() {
-    file="$1"
-    revision="$2"
-    # Soft dependency on the human restore list-revisions output. If the
-    # format changes, the smoke workspace still works with unknown-snapshot.
-    awk -v rev="$revision" '
-        /^[[:space:]]*Revision[[:space:]]*:/ {
-            line = $0
-            sub(/^[[:space:]]*Revision[[:space:]]*:[[:space:]]*/, "", line)
-            split(line, parts, /[[:space:](]/)
-            if (parts[1] == rev) {
-                split($0, left, "(")
-                if (left[2] != "") {
-                    split(left[2], right, ")")
-                    print right[1]
-                    exit
-                }
-            }
-        }
-    ' "$file"
-}
-
-format_snapshot_timestamp() {
-    value="$1"
-    if [ -z "$value" ]; then
-        printf '%s\n' "unknown-snapshot"
-        return 0
-    fi
-    printf '%s' "$value" | sed 's/-//g; s/://g; s/ /-/g'
+target_uses_sudo() {
+	target="$1"
+	if [ -n "$RESTORE_USE_SUDO_TARGETS" ]; then
+		for sudo_target in $RESTORE_USE_SUDO_TARGETS; do
+			if [ "$sudo_target" = "$target" ]; then
+				return 0
+			fi
+		done
+		return 1
+	fi
+	[ "$RESTORE_USE_SUDO" = "1" ]
 }
 
 read_build_commit() {
-    file="$BUNDLE_ROOT/metadata/build.json"
-    [ -f "$file" ] || return 1
-    sed -n 's/.*"git_commit"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | sed -n '1p'
+	file="$BUNDLE_ROOT/metadata/build.json"
+	[ -f "$file" ] || return 1
+	sed -n 's/.*"git_commit"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | sed -n '1p'
 }
 
 short_build_commit() {
@@ -238,19 +220,109 @@ short_build_commit() {
     printf '%s\n' "$commit" | cut -c1-7
 }
 
-build_smoke_restore_workspace() {
-    snapshot_timestamp="$1"
-    short_commit="$2"
-    run_timestamp="$3"
-    snapshot_part="$(format_snapshot_timestamp "$snapshot_timestamp")"
-    printf '%s/%s-%s-%s-rev%s-smoke-%s-%s\n' \
-        "$WORKSPACE_ROOT" \
-        "$(safe_name "$LABEL")" \
-        "$(safe_name "$RESTORE_TARGET")" \
-        "$(safe_name "$snapshot_part")" \
-        "$(safe_name "$RESTORE_REVISION")" \
-        "$(safe_name "$short_commit")" \
-        "$(safe_name "$run_timestamp")"
+build_smoke_restore_root() {
+	short_commit="$1"
+	run_timestamp="$2"
+	printf '%s/ui-smoke-%s-%s\n' \
+		"$WORKSPACE_ROOT" \
+		"$(safe_name "$short_commit")" \
+		"$(safe_name "$run_timestamp")"
+}
+
+restore_capture_name() {
+	prefix="$1"
+	target="$2"
+	case_name="$3"
+	printf '%s_%s_%s\n' "$prefix" "$(safe_name "$target")" "$(safe_name "$case_name")"
+}
+
+restore_content_check_path() {
+	path="$1"
+	case "$path" in
+		*"*"*)
+			prefix="${path%%\**}"
+			prefix="${prefix%/}"
+			printf '%s\n' "$prefix"
+			;;
+		*)
+			printf '%s\n' "$path"
+			;;
+	esac
+}
+
+extract_workspace_from_capture() {
+	file="$1"
+	awk -F: '
+		/^[[:space:]]*(Workspace|Path)[[:space:]]*:/ {
+			value = $2
+			sub(/^[[:space:]]*/, "", value)
+			if (value ~ /^\//) {
+				print value
+				exit
+			}
+		}
+	' "$file"
+}
+
+prepare_restore_case_root() {
+	target="$1"
+	case_name="$2"
+	case_root="$3"
+	run_capture "$(restore_capture_name restore_workspace_root_prepare "$target" "$case_name")" pass mkdir -p "$case_root"
+}
+
+run_restore_template_matrix() {
+	target="$1"
+	revision="$2"
+	restore_root="$3"
+
+	for case_spec in \
+		"default|" \
+		"revision-target-run|{label}-rev{revision}-{target}-{run_timestamp}" \
+		"target-revision-snapshot|{target}-{label}-rev{revision}-{snapshot_timestamp}" \
+		"same-revision-cross-target|smoke-rev{revision}-{target}-{run_timestamp}"
+	do
+		case_name="${case_spec%%|*}"
+		template="${case_spec#*|}"
+		case_root="$restore_root/$case_name"
+		prepare_restore_case_root "$target" "$case_name" "$case_root"
+		if [ -n "$template" ]; then
+			run_restore_capture "$(restore_capture_name restore_workspace_template_dry_run "$target" "$case_name")" pass restore run --target "$target" --revision "$revision" --path "$RESTORE_PATH" --workspace-root "$case_root" --workspace-template "$template" --dry-run --yes "$LABEL"
+			assert_last_capture_contains "--workspace-template"
+		else
+			run_restore_capture "$(restore_capture_name restore_workspace_template_dry_run "$target" "$case_name")" pass restore run --target "$target" --revision "$revision" --path "$RESTORE_PATH" --workspace-root "$case_root" --dry-run --yes "$LABEL"
+			assert_last_capture_contains "$case_root"
+		fi
+		assert_last_capture_contains "$target"
+		assert_last_capture_contains "rev$revision"
+	done
+}
+
+run_restore_data_capture() {
+	target="$1"
+	revision="$2"
+	restore_root="$3"
+
+	case_root="$restore_root/data-restore-$target"
+	template="{label}-rev{revision}-{target}-smoke-{run_timestamp}"
+	prepare_restore_case_root "$target" "data-restore" "$case_root"
+	run_restore_capture "$(restore_capture_name restore_run_optional "$target" data_restore)" pass restore run --target "$target" --revision "$revision" --path "$RESTORE_PATH" --workspace-root "$case_root" --workspace-template "$template" --yes "$LABEL"
+	assert_last_capture_contains "-ignore-owner"
+	assert_last_capture_contains "-smoke-"
+	assert_last_capture_contains "$case_root"
+	actual_workspace="$(extract_workspace_from_capture "$output_file")"
+	check_path="$(restore_content_check_path "$RESTORE_PATH")"
+	if [ -n "$actual_workspace" ] && [ -n "$check_path" ]; then
+		run_capture "$(restore_capture_name restore_data_presence "$target" data_restore)" pass test -e "$actual_workspace/$check_path"
+	else
+		skip_capture "$(restore_capture_name restore_data_presence "$target" data_restore)" "Unable to derive restored content check path from RESTORE_PATH=$RESTORE_PATH"
+		unexpected_count=$((unexpected_count + 1))
+	fi
+
+	run_restore_capture "$(restore_capture_name restore_run_optional_dry_run "$target" data_restore)" pass restore run --target "$target" --revision "$revision" --path "$RESTORE_PATH" --workspace-root "$case_root" --workspace-template "$template" --dry-run --yes "$LABEL"
+	assert_last_capture_contains "-ignore-owner"
+	assert_last_capture_contains "-smoke-"
+	assert_last_capture_contains "$case_root"
 }
 
 BUNDLE_ROOT="$(script_dir)"
@@ -266,11 +338,12 @@ RUN_NOTIFY="${RUN_NOTIFY:-0}"
 RUN_RESTORE="${RUN_RESTORE:-0}"
 CAPTURE_COLOUR="${CAPTURE_COLOUR:-0}"
 RESTORE_TARGET="${RESTORE_TARGET:-$TARGET_REMOTE}"
+RESTORE_TARGETS="${RESTORE_TARGETS:-$RESTORE_TARGET}"
 RESTORE_REVISION="${RESTORE_REVISION:-}"
 RESTORE_PATH="${RESTORE_PATH:-}"
-RESTORE_WORKSPACE="${RESTORE_WORKSPACE:-}"
 RESTORE_REVISION_LOOKUP_LIMIT="${RESTORE_REVISION_LOOKUP_LIMIT:-200}"
 RESTORE_USE_SUDO="${RESTORE_USE_SUDO:-0}"
+RESTORE_USE_SUDO_TARGETS="${RESTORE_USE_SUDO_TARGETS:-}"
 
 if MANAGED_BIN_RESOLVED="$(resolve_managed_bin)"; then
     managed_status="$MANAGED_BIN_RESOLVED"
@@ -297,7 +370,9 @@ unexpected_count=0
     printf 'Workspace root\t%s\n' "$WORKSPACE_ROOT"
     printf 'Managed binary\t%s\n' "$managed_status"
     printf 'Capture colour\t%s\n' "$CAPTURE_COLOUR"
-    printf 'Restore sudo\t%s\n' "$RESTORE_USE_SUDO"
+	printf 'Restore sudo\t%s\n' "$RESTORE_USE_SUDO"
+	printf 'Restore targets\t%s\n' "$RESTORE_TARGETS"
+	printf 'Restore sudo targets\t%s\n' "$RESTORE_USE_SUDO_TARGETS"
     printf '\n'
     printf 'Index\tName\tStatus\tExitCode\tFile\n'
 } > "$SUMMARY"
@@ -312,6 +387,8 @@ UI surface smoke capture
   Managed binary: $managed_status
   Capture colour: $CAPTURE_COLOUR
   Restore sudo  : $RESTORE_USE_SUDO
+  Restore targets: $RESTORE_TARGETS
+  Sudo targets  : $RESTORE_USE_SUDO_TARGETS
   Capture dir   : $CAPTURE_DIR
 
 EOF
@@ -384,46 +461,46 @@ run_capture "restore_list_revisions_remote_json_summary" any "$BIN" restore list
 run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
 
 if [ "$RUN_RESTORE" = "1" ]; then
-    if [ -n "$RESTORE_PATH" ]; then
-        revision_listing_file=""
-        if [ -z "$RESTORE_REVISION" ]; then
-            run_restore_capture "restore_revision_auto_select" pass restore list-revisions --target "$RESTORE_TARGET" --limit 1 "$LABEL"
-            revision_listing_file="$output_file"
-            RESTORE_REVISION="$(extract_first_revision "$output_file")"
-            if [ -z "$RESTORE_REVISION" ]; then
-                echo "Unable to auto-select restore revision from: $output_file" >&2
-                unexpected_count=$((unexpected_count + 1))
-            else
-                printf '%-50s %s\n' "restore_revision_auto_select_value" "$RESTORE_REVISION"
-            fi
-        else
-            run_restore_capture "restore_revision_lookup" any restore list-revisions --target "$RESTORE_TARGET" --limit "$RESTORE_REVISION_LOOKUP_LIMIT" "$LABEL"
-            revision_listing_file="$output_file"
-        fi
-        if [ -n "$RESTORE_REVISION" ]; then
-            if [ -z "$RESTORE_WORKSPACE" ]; then
-                snapshot_timestamp="$(extract_revision_timestamp "$revision_listing_file" "$RESTORE_REVISION")"
-                RESTORE_WORKSPACE="$(build_smoke_restore_workspace "$snapshot_timestamp" "$(short_build_commit)" "$STAMP")"
-            fi
-            printf '%-50s %s\n' "restore_workspace_smoke" "$RESTORE_WORKSPACE"
-            run_restore_capture "restore_run_optional" pass restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --yes "$LABEL"
-            assert_last_capture_contains "-ignore-owner"
-            assert_last_capture_contains "-smoke-"
-            run_restore_capture "restore_run_optional_dry_run" pass restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --dry-run --yes "$LABEL"
-            assert_last_capture_contains "-ignore-owner"
-            assert_last_capture_contains "-smoke-"
-        else
-            skip_capture "restore_run_optional" "Restore revision auto-selection failed"
-            skip_capture "restore_run_optional_dry_run" "Restore revision auto-selection failed"
-        fi
-    else
-        skip_capture "restore_run_optional" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
-        skip_capture "restore_run_optional_dry_run" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
-        unexpected_count=$((unexpected_count + 1))
-    fi
+	if [ -n "$RESTORE_PATH" ]; then
+		SMOKE_RESTORE_ROOT="${SMOKE_RESTORE_ROOT:-$(build_smoke_restore_root "$(short_build_commit)" "$STAMP")}"
+		run_capture "restore_smoke_root_prepare" pass mkdir -p "$SMOKE_RESTORE_ROOT"
+		printf '%-50s %s\n' "restore_smoke_root" "$SMOKE_RESTORE_ROOT"
+		for restore_target in $RESTORE_TARGETS; do
+			if target_uses_sudo "$restore_target"; then
+				ACTIVE_RESTORE_USE_SUDO=1
+			else
+				ACTIVE_RESTORE_USE_SUDO=0
+			fi
+
+			target_revision="$RESTORE_REVISION"
+			if [ -z "$target_revision" ]; then
+				run_restore_capture "$(restore_capture_name restore_revision_auto_select "$restore_target" latest)" pass restore list-revisions --target "$restore_target" --limit 1 "$LABEL"
+				target_revision="$(extract_first_revision "$output_file")"
+				if [ -z "$target_revision" ]; then
+					echo "Unable to auto-select restore revision from: $output_file" >&2
+					unexpected_count=$((unexpected_count + 1))
+				else
+					printf '%-50s %s\n' "restore_revision_auto_select_value_$restore_target" "$target_revision"
+				fi
+			else
+				run_restore_capture "$(restore_capture_name restore_revision_lookup "$restore_target" requested)" any restore list-revisions --target "$restore_target" --limit "$RESTORE_REVISION_LOOKUP_LIMIT" "$LABEL"
+			fi
+			if [ -n "$target_revision" ]; then
+				run_restore_template_matrix "$restore_target" "$target_revision" "$SMOKE_RESTORE_ROOT"
+				run_restore_data_capture "$restore_target" "$target_revision" "$SMOKE_RESTORE_ROOT"
+			else
+				skip_capture "$(restore_capture_name restore_run_optional "$restore_target" data_restore)" "Restore revision auto-selection failed"
+				skip_capture "$(restore_capture_name restore_run_optional_dry_run "$restore_target" data_restore)" "Restore revision auto-selection failed"
+			fi
+		done
+	else
+		skip_capture "restore_run_optional" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
+		skip_capture "restore_run_optional_dry_run" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
+		unexpected_count=$((unexpected_count + 1))
+	fi
 else
-    skip_capture "restore_run_optional" "Actual restore is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
-    skip_capture "restore_run_optional_dry_run" "Restore dry-run is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
+	skip_capture "restore_run_optional" "Actual restore is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
+	skip_capture "restore_run_optional_dry_run" "Restore dry-run is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
 fi
 skip_capture "restore_select_interactive" "Interactive TUI; run manually with tee as described in instructions/smoke-test.md"
 
