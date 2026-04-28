@@ -234,7 +234,9 @@ One architecture pressure point is worth keeping visible:
 
 - If `internal/workflow` grows another subsystem comparable in size to restore,
   health, or update, consider splitting that subsystem into a focused
-  subpackage rather than continuing to expand the orchestration package.
+  subpackage rather than continuing to expand the orchestration package. The
+  current package-boundary decision is recorded in
+  [workflow-boundary-review.md](workflow-boundary-review.md).
 
 ## Main Packages
 
