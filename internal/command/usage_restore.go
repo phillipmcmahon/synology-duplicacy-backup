@@ -172,8 +172,9 @@ SAFETY MODEL:
     Restore drills should restore into a separate workspace first. Inspect the
     restored data there, then copy back deliberately with rsync --dry-run before
     any live write. See docs/restore-drills.md for the full procedure.
-    Use sudo for path-based local repositories; object and remote repositories
-    remain governed by their configured credentials.
+    Use sudo for local filesystem repositories; object repositories and remote
+    mounted filesystem repositories remain governed by credentials or mount
+    permissions.
 
 EXAMPLES:
     sudo {{script}} restore select --target onsite-usb homes

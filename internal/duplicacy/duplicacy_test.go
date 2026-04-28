@@ -1361,6 +1361,21 @@ func TestRestoreRevision_RunsFullAndSelectiveRestoreCommands(t *testing.T) {
 	}
 }
 
+func TestRestoreRevision_IgnoreOwnerAddsDuplicacyFlag(t *testing.T) {
+	s, mock := newTestSetup(t, false, execpkg.MockResult{Stdout: "selective\n"})
+	s.IgnoreOwner = true
+
+	if output, err := s.RestoreRevision(2404, "docs/readme.md"); err != nil || output != "selective\n" {
+		t.Fatalf("RestoreRevision(selective) output = %q err = %v", output, err)
+	}
+	if len(mock.Invocations) != 1 {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+	if strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2404 -stats -ignore-owner -- docs/readme.md" {
+		t.Fatalf("selective restore args = %#v", mock.Invocations[0].Args)
+	}
+}
+
 func TestRestoreRevision_ReturnsCombinedOutputOnFailure(t *testing.T) {
 	s, _ := newTestSetup(t, false, execpkg.MockResult{
 		Stdout: "stdout\n",

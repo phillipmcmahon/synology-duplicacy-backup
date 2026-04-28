@@ -67,6 +67,7 @@ type Setup struct {
 	RepositoryPath string // Snapshot source or target
 	BackupTarget   string // Storage destination
 	DryRun         bool
+	IgnoreOwner    bool           // Restore without replaying stored uid/gid metadata.
 	Runner         execpkg.Runner // Command runner for external process execution
 }
 
@@ -375,6 +376,9 @@ func (s *Setup) RestoreRevisionContext(ctx context.Context, revision int, relati
 	}
 
 	args := []string{"restore", "-r", strconv.Itoa(revision), "-stats"}
+	if s.IgnoreOwner {
+		args = append(args, "-ignore-owner")
+	}
 	if strings.TrimSpace(relativePath) != "" {
 		args = append(args, "--", relativePath)
 	}

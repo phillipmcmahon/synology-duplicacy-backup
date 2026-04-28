@@ -233,10 +233,15 @@ to run NAS smoke tests for hardware-specific behavior and real operator output.
 
 NAS UI surface smoke coverage:
 
-- Generate the bundle with `scripts/package-ui-surface-smoke.sh`.
+- Generate the bundle with `scripts/package-ui-surface-smoke.sh`. For
+  restore-sensitive releases, bake the restore smoke path into the bundle with
+  `--default-run-restore 1 --default-restore-target <target>
+  --default-restore-path '<snapshot-relative-path>'`; the runner auto-selects
+  the latest visible revision.
 - Run `CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh` on the NAS before tagging
   operator-facing releases.
-- Include `RUN_RESTORE=1` with a small path such as
+- If the bundle was not packaged with restore defaults, include
+  `RUN_RESTORE=1` with a small path such as
   `RESTORE_PATH='phillipmcmahon/code/*'` when restore output changed.
 - Bring back the generated `ui-surface-captures-<timestamp>.tar.gz` archive
   and review it with [`ui-surface-smoke.md`](ui-surface-smoke.md).

@@ -299,7 +299,7 @@ enforcement, so these are valid and distinct intents:
 - forced prune
 
 `prune --dry-run` is repository-derived: it runs the safe-prune preview and
-reads snapshot/revision metadata. For path-based local repositories that means
+reads snapshot/revision metadata. For local filesystem repositories that means
 the same sudo boundary as real prune. `cleanup-storage --dry-run` is different:
 it is simulation-only and prints the commands without scanning chunks.
 
@@ -345,13 +345,14 @@ keeps diagnostics and restore drill commands out of the runtime executor path:
 read-only, `restore select` is an interactive revision-first guide that can
 inspect or delegate a restore only after explicit confirmation, and
 `restore run` prepares or reuses a drill workspace before executing Duplicacy
-only inside that workspace. Restore execution prints operator progress to
-stderr while keeping the final report on stdout.
+with `-ignore-owner` only inside that workspace. Restore execution prints
+operator progress to stderr while keeping the final report on stdout.
 
-Path-based local restore repositories are root-protected OS resources, so
+Local filesystem restore repositories are root-protected OS resources, so
 `restore list-revisions`, `restore select`, and `restore run` require `sudo`
-for those targets. Object and remote restore remains governed by the operator
-profile and storage credentials.
+for those targets. Object restore remains governed by the operator profile and
+storage credentials; remote mounted filesystem restore remains governed by the
+operator profile and mount permissions.
 
 `diagnostics` is the support-bundle path. It resolves one label and target,
 redacts secret values, reports config/storage/state/path context, and exits
@@ -753,7 +754,7 @@ That keeps message tone and punctuation consistent.
 probe for the selected repository and reports operator-facing outcomes such as
 `Valid`, `Not initialized`, `Requires sudo`, and `Invalid (...)` without
 initialising storage or mutating repository state. `Requires sudo` is used for
-path-based local repositories because their chunk and snapshot metadata is
+local filesystem repositories because their chunk and snapshot metadata is
 intentionally protected by root-owned OS permissions.
 
 For source paths, `config validate` proves path presence and Btrfs subvolume
@@ -762,9 +763,10 @@ protected source contents; actual backup execution remains the root/sudo path
 that creates the snapshot and reads the snapshot tree.
 
 `health status`, `health doctor`, and `health verify` use the same local
-repository privilege boundary for repository probes: path-based local
-repositories should be checked with `sudo`, while object and remote
-repositories remain governed by their configured credentials.
+repository privilege boundary for repository probes: local filesystem
+repositories should be checked with `sudo`, while remote mounted filesystem
+repositories remain governed by mount credentials and object repositories
+remain governed by configured storage credentials.
 
 ### Main error families
 

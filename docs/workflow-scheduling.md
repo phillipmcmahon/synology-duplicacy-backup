@@ -20,15 +20,17 @@ Use these rules before creating tasks:
 - `backup` always uses `sudo -n` because it needs btrfs snapshot access and
   full source read access, regardless of whether the target storage is local or
   remote.
-- `prune` uses `sudo -n` for path-based local filesystem storage because the
-  repository files are OS-protected resources.
-- `prune` runs as the operator user for object or remote storage when the
-  operator owns the config, secrets, state, log, lock, and credential access.
+- `prune` uses `sudo -n` for local filesystem storage because the repository
+  files are root-protected OS resources.
+- `prune` runs as the operator user for object storage or remote mounted
+  filesystem storage when the operator owns the config, secrets, state, log,
+  lock, and credential or mount access.
 - `health status` / `doctor` / `verify` and restore revision/list/run/select
-  commands use `sudo -n` for path-based local repositories because repository
+  commands use `sudo -n` for local filesystem repositories because repository
   metadata is root-protected.
-- `health`, `diagnostics`, restore planning, and object or remote repository
-  restore commands run as the operator user.
+- `health`, `diagnostics`, restore planning, object repository restore, and
+  remote mounted filesystem repository restore commands run as the operator
+  user.
 - `cleanup-storage` is manual or exceptional maintenance, not a routine
   schedule.
 - `prune --force` is manual only. Do not schedule it routinely.
@@ -144,10 +146,10 @@ Recommended cadence:
 Command templates:
 
 ```bash
-# Path-based local filesystem repository
+# Local filesystem repository
 sudo -n /usr/local/bin/duplicacy-backup prune --target <local-path-target> <label>
 
-# Object or remote repository
+# Object repository or remote mounted filesystem repository
 /usr/local/bin/duplicacy-backup prune --target <object-or-remote-target> <label>
 ```
 
@@ -166,10 +168,10 @@ revision signal is sensible.
 Command templates:
 
 ```bash
-# Path-based local repositories
+# Local filesystem repositories
 sudo -n /usr/local/bin/duplicacy-backup health status --target <target> <label>
 
-# Object or remote repositories
+# Object repositories or remote mounted filesystem repositories
 /usr/local/bin/duplicacy-backup health status --target <target> <label>
 ```
 
@@ -187,10 +189,10 @@ Use this for a deeper repository and configuration check.
 Command templates:
 
 ```bash
-# Path-based local repositories
+# Local filesystem repositories
 sudo -n /usr/local/bin/duplicacy-backup health doctor --target <target> <label>
 
-# Object or remote repositories
+# Object repositories or remote mounted filesystem repositories
 /usr/local/bin/duplicacy-backup health doctor --target <target> <label>
 ```
 
@@ -206,18 +208,19 @@ homes      -> offsite-storj   -> weekly
 Use this for storage-integrity verification. It can take longer than status or
 doctor checks, so give it its own window.
 
-Use `sudo -n` for path-based local repositories because their Duplicacy metadata
+Use `sudo -n` for local filesystem repositories because their Duplicacy metadata
 is root-protected. `prune --dry-run` is also repository-derived and needs the
-same boundary for path-based local repositories. Object and remote repository
-verification can run as the operator user without `sudo`.
+same boundary for local filesystem repositories. Object repositories and remote
+mounted filesystem repositories can run as the operator user without `sudo`
+when their credentials or mount permissions allow access.
 
 Command templates:
 
 ```bash
-# Path-based local repositories
+# Local filesystem repositories
 sudo -n /usr/local/bin/duplicacy-backup health verify --target <target> <label>
 
-# Object or remote repositories
+# Object repositories or remote mounted filesystem repositories
 /usr/local/bin/duplicacy-backup health verify --target <target> <label>
 ```
 
@@ -253,10 +256,10 @@ Use it only for explicit maintenance when no other client is writing to the
 repository:
 
 ```bash
-# Path-based local filesystem repository
+# Local filesystem repository
 sudo -n /usr/local/bin/duplicacy-backup cleanup-storage --target <local-path-target> <label>
 
-# Object or remote repository
+# Object repository or remote mounted filesystem repository
 /usr/local/bin/duplicacy-backup cleanup-storage --target <object-or-remote-target> <label>
 ```
 

@@ -22,14 +22,20 @@ be read without putting production data at risk.
 
 Restore commands are designed to run as the operator user when that user can
 read the selected repository, config/secrets, and write to the drill
-workspace. Object and remote repositories normally meet that model through the
-operator-owned profile and storage credentials.
+workspace. Object repositories and remote mounted filesystem repositories
+normally meet that model through the operator-owned profile plus storage
+credentials or mount permissions.
 
-Path-based local repositories, such as USB-attached filesystem storage, are
-root-protected by design. Use `sudo` for `restore select`, `restore
-list-revisions`, and `restore run` against those targets. When the command is
-invoked through `sudo` from the operator account, the tool repairs the drill
-workspace ownership back to the operator so restored data remains inspectable.
+Local filesystem repositories, such as directly attached USB filesystem
+storage, are root-protected by design. Use `sudo` for `restore select`,
+`restore list-revisions`, and `restore run` against those targets. When the
+command is invoked through `sudo` from the operator account, the tool repairs
+the drill workspace ownership back to the operator so restored data remains
+inspectable.
+Restore drills also run Duplicacy with `-ignore-owner`, so stored UID/GID
+metadata is not replayed into the workspace. The drill workspace is for
+content inspection and deliberate manual copy-back, not for proving live
+ownership restoration.
 
 Create the parent `--workspace-root` yourself first, preferably as a Synology
 shared folder when DSM visibility matters. The tool preserves that parent
@@ -307,12 +313,9 @@ sudo duplicacy-backup restore run \
 
 Because the drill workspace starts empty, avoid `-overwrite` and `-delete`.
 Those flags are useful in some Duplicacy workflows, but they are not needed
-for a safe first restore drill.
-
-If you are restoring on a different machine or under a normal user account,
-consider Duplicacy's `-ignore-owner` option for the drill. If the drill is
-intended to prove Synology ownership restoration, run the restore in the
-appropriate NAS context and omit `-ignore-owner`.
+for a safe first restore drill. The wrapper uses Duplicacy's `-ignore-owner`
+flag automatically so non-root drills do not fail while replaying archived
+UID/GID metadata into the workspace.
 
 After the restore completes, inspect the restored tree:
 
@@ -321,7 +324,7 @@ find . -maxdepth 3 -type f | head
 du -sh .
 ```
 
-Open a few representative files, confirm ownership and modes where they
+Open a few representative files, confirm accessibility and modes where they
 matter, and record the revision that was successfully restored.
 
 ## Selective Restore Drill
@@ -399,10 +402,10 @@ assuming a file-level copy is sufficient.
 ## Current Boundary
 
 `duplicacy-backup restore run` prepares or reuses a drill workspace and
-executes `duplicacy restore` only inside that workspace. It refuses to use the
-live source path, refuses source-child workspaces, and does not copy restored
-data back. That keeps the wrapper useful for actual restore drills without
-turning it into an unreviewed live-data mutation tool.
+executes `duplicacy restore -ignore-owner` only inside that workspace. It
+refuses to use the live source path, refuses source-child workspaces, and does
+not copy restored data back. That keeps the wrapper useful for actual restore
+drills without turning it into an unreviewed live-data mutation tool.
 
 `duplicacy-backup restore select` is intentionally one step more conservative:
 it keeps inspect-only read-only, and for restore actions it still shows the

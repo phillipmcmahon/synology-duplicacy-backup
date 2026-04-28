@@ -136,8 +136,8 @@ func newRestorePlanReport(req *RestoreRequest, meta Metadata, plan *Plan, storag
 		Workspace:         workspace,
 		ListCommand:       "duplicacy list",
 		ListFilesCommand:  "duplicacy list -files -r <revision>",
-		FullRestore:       "duplicacy restore -r <revision> -stats",
-		SelectiveRestore:  `duplicacy restore -r <revision> -stats -- "relative/path/from/snapshot"`,
+		FullRestore:       "duplicacy restore -r <revision> -stats -ignore-owner",
+		SelectiveRestore:  `duplicacy restore -r <revision> -stats -ignore-owner -- "relative/path/from/snapshot"`,
 		DocumentationPath: "docs/restore-drills.md",
 	}
 	if secretsRequired {
@@ -185,7 +185,7 @@ func newRestoreRevisionsReport(req *RestoreRequest, ctx *restoreExecutionContext
 }
 
 func newRestoreRunReport(req *RestoreRequest, plan *Plan, storage, workspace string, revision int, restorePath string, dryRun bool) *restoreRunReport {
-	command := fmt.Sprintf("duplicacy restore -r %d -stats", revision)
+	command := fmt.Sprintf("duplicacy restore -r %d -stats -ignore-owner", revision)
 	if restorePath != "" {
 		command += " -- " + shellQuote(restorePath)
 	}
@@ -237,7 +237,7 @@ func newRestoreSelectReport(req *RestoreRequest, meta Metadata, plan *Plan, stor
 		WorkspacePrepared: workspacePrepared,
 		Revision:          revision,
 		RestorePaths:      normaliseRestoreSelection(restorePaths),
-		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace, duplicacy.NewStorageSpec(storage).IsLocalPath()),
+		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace, restoreStorageRequiresSudo(plan, storage)),
 		Guide:             "docs/restore-drills.md",
 	}
 }

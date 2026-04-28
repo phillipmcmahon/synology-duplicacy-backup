@@ -12,6 +12,22 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Fixed
+- Restore drills now run Duplicacy with `-ignore-owner`, preventing non-root
+  remote/object restores from failing when archived UID/GID metadata cannot be
+  replayed into the drill workspace.
+- Remote mounted filesystem repositories no longer inherit the sudo-required
+  policy for root-protected local filesystem repositories; targets with
+  `location = "remote"` and path-based storage now use the operator's mount
+  permissions, matching object-storage style access.
+
+### Changed
+- UI surface smoke restore checks now auto-select the latest visible revision,
+  require optional real restore captures to pass when enabled, and assert the
+  restore report includes `-ignore-owner`.
+- Sudo-required wording now distinguishes root-protected local filesystem
+  repositories from remote mounted filesystem repositories.
+
 ## [v9.1.5] - 2026-04-28
 
 ### Added

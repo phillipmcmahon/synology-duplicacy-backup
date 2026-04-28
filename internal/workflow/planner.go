@@ -106,7 +106,7 @@ func (p *Planner) validateRepositoryMutationPrivilege(req *RuntimeRequest, cfg *
 	if req == nil || cfg == nil || p.rt.Geteuid() == 0 {
 		return nil
 	}
-	if !cfg.UsesLocalDiskStorage() {
+	if !cfg.UsesRootProtectedLocalRepository() {
 		return nil
 	}
 

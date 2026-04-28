@@ -1,7 +1,7 @@
 # Operator Cheat Sheet
 
 Run commands as the operator user by default. Use `sudo` only for operations
-that need root-level OS access, such as `backup`, path-based local repository
+that need root-level OS access, such as `backup`, local filesystem repository
 `prune`, `cleanup-storage`, `health status`, `health doctor`, or
 `health verify`, and managed install activation with `update --yes` or
 `rollback --yes`.
@@ -60,16 +60,16 @@ sudo duplicacy-backup cleanup-storage --target onsite-usb homes
 ## Health Checks
 
 ```bash
-# Fast health summary for homes on path-based local target onsite-usb
+# Fast health summary for homes on local filesystem target onsite-usb
 sudo duplicacy-backup health status --target onsite-usb homes
 
-# Run a doctor check for homes on path-based local target onsite-usb
+# Run a doctor check for homes on local filesystem target onsite-usb
 sudo duplicacy-backup health doctor --target onsite-usb homes
 
-# Run verify for homes on path-based local target onsite-usb
+# Run verify for homes on local filesystem target onsite-usb
 sudo duplicacy-backup health verify --target onsite-usb homes
 
-# Write a JSON verify report for homes on path-based local target onsite-usb
+# Write a JSON verify report for homes on local filesystem target onsite-usb
 sudo duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
@@ -153,14 +153,16 @@ Installer behaviour:
 - Keep `source_path` pointed at the real Btrfs volume or subvolume for the label when the NAS will run backups, then use Duplicacy filters to include or exclude nested directories beneath that root.
 - For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
-- Path-based filesystem repositories are OS-protected resources. Run actual
+- Local filesystem repositories are OS-protected resources. Run actual
   `prune`, `prune --dry-run`, and `cleanup-storage` mutation for those targets
-  as root; object or remote repositories are governed by credentials.
+  as root. Remote mounted filesystem repositories are governed by mount
+  permissions; object repositories are governed by credentials.
 - `cleanup-storage --dry-run` is simulation-only and does not scan repository
   chunks.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `config validate` is intended to be useful as the operator user; it validates source path presence/Btrfs shape without requiring direct read access to protected source contents.
-- For path-based local repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
+- For local filesystem repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
+- For remote mounted filesystem repositories, run readiness and restore checks as the operator user. Access is controlled by the mount credentials and permissions, not by root-owned local repository files.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
 - `Repository Access : Requires sudo` means the local repository may be healthy, but the readiness, diagnostic, or integrity probe needs sudo because local repository metadata is root-protected.
@@ -172,13 +174,13 @@ Installer behaviour:
 ### Health and Output
 
 - Use `health status` for quick checks, `health doctor` for diagnostics, and `health verify` for integrity confidence.
-- Run `health status`, `health doctor`, and `health verify` with `sudo` for path-based local repositories; object and remote repository checks remain operator-user and credential-governed.
+- Run `health status`, `health doctor`, and `health verify` with `sudo` for local filesystem repositories; object repositories and remote mounted filesystem repositories remain operator-user and credential/mount governed.
 - Unhealthy `health verify --json-summary` includes `failure_code`, `failure_codes`, and `recommended_action_codes`.
 - JSON goes to `stdout`; human logs stay on `stderr`.
 
 ### Restore Drills
 
-- `duplicacy-backup restore run` prepares or reuses a drill workspace, restores only there, and never copies data back to the live source.
+- `duplicacy-backup restore run` prepares or reuses a drill workspace, restores only there with Duplicacy `-ignore-owner`, and never copies data back to the live source.
 - On an existing NAS, start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
 - On a replacement NAS where `source_path` is not known yet, use `config explain` and `restore list-revisions` to prove restore access first.
 - Use snapshot ID `data` for repositories created by this tool.

@@ -147,7 +147,7 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 			Target:       req.Target(),
 			Revision:     strconv.Itoa(revision),
 			Workspace:    ctx.workspace,
-			RequiresSudo: duplicacy.NewStorageSpec(ctx.cfg.Storage).IsLocalPath(),
+			RequiresSudo: restoreStorageRequiresSudo(ctx.plan, ctx.cfg.Storage),
 		},
 	}); err != nil {
 		if errors.Is(err, restorepicker.ErrPickerCancelled) {
@@ -188,7 +188,7 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 			Workspace:    ctx.workspace,
 			RootPath:     rootPath,
 			RootIsDir:    rootIsDir,
-			RequiresSudo: duplicacy.NewStorageSpec(ctx.cfg.Storage).IsLocalPath(),
+			RequiresSudo: restoreStorageRequiresSudo(ctx.plan, ctx.cfg.Storage),
 		},
 	})
 	if err != nil {

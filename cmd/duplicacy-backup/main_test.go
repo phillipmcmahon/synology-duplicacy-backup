@@ -1591,7 +1591,7 @@ func TestRunWithArgs_RestorePlanReturnsZero(t *testing.T) {
 			"Executes Restore",
 			"Section: Suggested Commands",
 			"duplicacy init",
-			"duplicacy restore -r <revision> -stats",
+			"duplicacy restore -r <revision> -stats -ignore-owner",
 			"docs/restore-drills.md",
 		} {
 			if !strings.Contains(stdout, token) {

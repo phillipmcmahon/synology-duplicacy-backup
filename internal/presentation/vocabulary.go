@@ -46,7 +46,7 @@ const (
 	ValueWritable       = "Writable"
 )
 
-const localRepositorySudoDetail = "path-based local repository storage is protected by OS filesystem permissions"
+const localRepositorySudoDetail = "local filesystem repository storage is protected by OS filesystem permissions"
 
 func LocalRepositoryRequiresSudoMessage(command string) string {
 	message := localRepositorySudoDetail + "; rerun with sudo from the operator account"

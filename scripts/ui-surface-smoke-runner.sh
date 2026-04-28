@@ -140,6 +140,30 @@ skip_capture() {
     printf '%-50s SKIPPED\n' "$name"
 }
 
+assert_last_capture_contains() {
+    expected="$1"
+    if ! grep -F -- "$expected" "$output_file" >/dev/null; then
+        echo "Expected latest capture to contain: $expected" >&2
+        echo "Capture file: $output_file" >&2
+        unexpected_count=$((unexpected_count + 1))
+    fi
+}
+
+extract_first_revision() {
+    file="$1"
+    awk -F: '
+        /^[[:space:]]*Revision[[:space:]]*:/ {
+            value = $2
+            sub(/^[[:space:]]*/, "", value)
+            split(value, parts, /[[:space:](]/)
+            if (parts[1] ~ /^[0-9]+$/) {
+                print parts[1]
+                exit
+            }
+        }
+    ' "$file"
+}
+
 BUNDLE_ROOT="$(script_dir)"
 # shellcheck disable=SC1091
 . "$BUNDLE_ROOT/setup-env.sh" >/dev/null
@@ -250,16 +274,34 @@ run_capture "restore_list_revisions_remote_json_summary" any "$BIN" restore list
 run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
 
 if [ "$RUN_RESTORE" = "1" ]; then
-    if [ -n "$RESTORE_REVISION" ] && [ -n "$RESTORE_PATH" ]; then
-        run_capture "restore_run_optional" any "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --yes "$LABEL"
-        run_capture "restore_run_optional_dry_run" any "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --dry-run --yes "$LABEL"
+    if [ -n "$RESTORE_PATH" ]; then
+        if [ -z "$RESTORE_REVISION" ]; then
+            run_capture "restore_revision_auto_select" pass "$BIN" restore list-revisions --target "$RESTORE_TARGET" --limit 1 "$LABEL"
+            RESTORE_REVISION="$(extract_first_revision "$output_file")"
+            if [ -z "$RESTORE_REVISION" ]; then
+                echo "Unable to auto-select restore revision from: $output_file" >&2
+                unexpected_count=$((unexpected_count + 1))
+            else
+                printf '%-50s %s\n' "restore_revision_auto_select_value" "$RESTORE_REVISION"
+            fi
+        fi
+        if [ -n "$RESTORE_REVISION" ]; then
+            run_capture "restore_run_optional" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --yes "$LABEL"
+            assert_last_capture_contains "-ignore-owner"
+            run_capture "restore_run_optional_dry_run" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace-root "$WORKSPACE_ROOT" --dry-run --yes "$LABEL"
+            assert_last_capture_contains "-ignore-owner"
+        else
+            skip_capture "restore_run_optional" "Restore revision auto-selection failed"
+            skip_capture "restore_run_optional_dry_run" "Restore revision auto-selection failed"
+        fi
     else
-        skip_capture "restore_run_optional" "RUN_RESTORE=1 requires RESTORE_REVISION and RESTORE_PATH"
-        skip_capture "restore_run_optional_dry_run" "RUN_RESTORE=1 requires RESTORE_REVISION and RESTORE_PATH"
+        skip_capture "restore_run_optional" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
+        skip_capture "restore_run_optional_dry_run" "RUN_RESTORE=1 requires RESTORE_PATH; RESTORE_REVISION is auto-selected when omitted"
+        unexpected_count=$((unexpected_count + 1))
     fi
 else
-    skip_capture "restore_run_optional" "Actual restore is skipped by default; set RUN_RESTORE=1 with RESTORE_REVISION and RESTORE_PATH"
-    skip_capture "restore_run_optional_dry_run" "Restore dry-run is skipped by default; set RUN_RESTORE=1 with RESTORE_REVISION and RESTORE_PATH"
+    skip_capture "restore_run_optional" "Actual restore is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
+    skip_capture "restore_run_optional_dry_run" "Restore dry-run is skipped by default; set RUN_RESTORE=1 with RESTORE_PATH"
 fi
 skip_capture "restore_select_interactive" "Interactive TUI; run manually with tee as described in instructions/smoke-test.md"
 

@@ -29,7 +29,7 @@ $HOME/.local/state/duplicacy-backup
 ```
 
 Root is still required for operations that need privileged OS access, such as
-backup snapshots, path-based filesystem repository mutation, and managed install
+backup snapshots, local filesystem repository mutation, and managed install
 activation. Restore, health, diagnostics, config, notify, and object/remote
 repository maintenance can run as the operator user when that user can access
 the selected config, secrets, storage, state, logs, locks, and restore workspace.
@@ -187,9 +187,10 @@ For restore validation:
 sudo duplicacy-backup restore select --target onsite-usb homes
 ```
 
-For path-based local repositories such as USB targets, run repository readiness
+For local filesystem repositories such as USB targets, run repository readiness
 and health probes with `sudo` because backup metadata is root-protected. For
-object or remote repositories, those commands remain operator-user and
+remote mounted filesystem repositories, those commands remain operator-user and
+mount-permission governed. Object repositories remain operator-user and
 credential-governed.
 
 ```bash
@@ -212,17 +213,18 @@ Review Synology Task Scheduler or cron entries after migration.
 Keep `sudo` or root scheduling only for commands that need OS privilege:
 
 - `backup`
-- path-based local repository `config validate`, `health status`, `health doctor`, and `health verify`
+- local filesystem repository `config validate`, `health status`, `health doctor`, and `health verify`
+- local filesystem repository `restore select`, `restore list-revisions`, and `restore run`
 - managed `update` activation
 - managed `rollback` activation
 
 Prefer the operator user for non-root-capable commands:
 
-- `restore select`
-- `restore run`
-- object or remote repository `health status`
-- object or remote repository `health doctor`
-- object or remote repository `health verify`
+- object or remote mounted filesystem repository `restore select`
+- object or remote mounted filesystem repository `restore run`
+- object or remote mounted filesystem repository `health status`
+- object or remote mounted filesystem repository `health doctor`
+- object or remote mounted filesystem repository `health verify`
 - `diagnostics`
 - `config`
 - `notify test`

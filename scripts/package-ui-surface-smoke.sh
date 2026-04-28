@@ -12,6 +12,9 @@ REPO_ROOT=""
 DEFAULT_LABEL="homes"
 DEFAULT_TARGET="onsite-garage"
 DEFAULT_WORKSPACE_ROOT="/volume1/restore-drills"
+DEFAULT_RUN_RESTORE="0"
+DEFAULT_RESTORE_TARGET=""
+DEFAULT_RESTORE_PATH=""
 
 usage() {
     cat <<'EOF'
@@ -33,6 +36,12 @@ Options:
                          TARGET default written to setup-env.sh
   --default-workspace-root <path>
                          WORKSPACE_ROOT default written to setup-env.sh
+  --default-run-restore <0|1>
+                         RUN_RESTORE default written to setup-env.sh
+  --default-restore-target <name>
+                         RESTORE_TARGET default written to setup-env.sh
+  --default-restore-path <path>
+                         RESTORE_PATH default written to setup-env.sh
   --repo-root <path>     Repository root (default: script parent directory)
   --help                 Show this help text
 EOF
@@ -65,6 +74,10 @@ archive_without_macos_metadata() {
     fi
     rm -f "$archive"
     COPYFILE_DISABLE=1 tar -czf "$archive" -C "$parent" "$entry"
+}
+
+shell_quote() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -114,6 +127,21 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_WORKSPACE_ROOT="$2"
             shift 2
             ;;
+        --default-run-restore)
+            [ "$#" -ge 2 ] || fail "--default-run-restore requires a value"
+            DEFAULT_RUN_RESTORE="$2"
+            shift 2
+            ;;
+        --default-restore-target)
+            [ "$#" -ge 2 ] || fail "--default-restore-target requires a value"
+            DEFAULT_RESTORE_TARGET="$2"
+            shift 2
+            ;;
+        --default-restore-path)
+            [ "$#" -ge 2 ] || fail "--default-restore-path requires a value"
+            DEFAULT_RESTORE_PATH="$2"
+            shift 2
+            ;;
         --repo-root)
             [ "$#" -ge 2 ] || fail "--repo-root requires a value"
             REPO_ROOT="$2"
@@ -128,6 +156,11 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
+
+case "$DEFAULT_RUN_RESTORE" in
+    0|1) ;;
+    *) fail "--default-run-restore must be 0 or 1" ;;
+esac
 
 ROOT="${REPO_ROOT:-$(repo_root_default)}"
 [ -f "$ROOT/README.md" ] || fail "repo root not valid: $ROOT"
@@ -171,6 +204,25 @@ bundle_dir="$ROOT/build/test-packages/release/$RUN_ID/${RUN_ID}_bundle"
 
 cp "$ROOT/scripts/ui-surface-smoke-runner.sh" "$bundle_dir/run-ui-surface-smoke.sh"
 chmod 755 "$bundle_dir/run-ui-surface-smoke.sh"
+
+quoted_default_run_restore="$(shell_quote "$DEFAULT_RUN_RESTORE")"
+quoted_default_restore_target="$(shell_quote "$DEFAULT_RESTORE_TARGET")"
+quoted_default_restore_path="$(shell_quote "$DEFAULT_RESTORE_PATH")"
+cat >> "$bundle_dir/setup-env.sh" <<EOF
+
+# UI surface restore automation defaults. Existing environment values are preserved.
+DEFAULT_RUN_RESTORE=$quoted_default_run_restore
+DEFAULT_RESTORE_TARGET=$quoted_default_restore_target
+DEFAULT_RESTORE_PATH=$quoted_default_restore_path
+
+RUN_RESTORE="\${RUN_RESTORE:-\$DEFAULT_RUN_RESTORE}"
+if [ -z "\${RESTORE_TARGET:-}" ] && [ -n "\$DEFAULT_RESTORE_TARGET" ]; then
+    RESTORE_TARGET="\$DEFAULT_RESTORE_TARGET"
+fi
+RESTORE_PATH="\${RESTORE_PATH:-\$DEFAULT_RESTORE_PATH}"
+
+export RUN_RESTORE RESTORE_TARGET RESTORE_PATH
+EOF
 
 output_dir="$ROOT/build/test-packages/release/$RUN_ID"
 bundle_archive="$output_dir/${RUN_ID}_bundle.tar.gz"

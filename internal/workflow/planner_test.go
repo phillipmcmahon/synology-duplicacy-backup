@@ -237,17 +237,17 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 		{
 			name: "prune",
 			req:  &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "prune requires sudo; path-based local repository storage",
+			want: "prune requires sudo; local filesystem repository storage",
 		},
 		{
 			name: "prune dry-run",
 			req:  &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "prune --dry-run requires sudo; path-based local repository storage",
+			want: "prune --dry-run requires sudo; local filesystem repository storage",
 		},
 		{
 			name: "cleanup storage",
 			req:  &Request{Source: "homes", DoCleanupStore: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "cleanup-storage requires sudo; path-based local repository storage",
+			want: "cleanup-storage requires sudo; local filesystem repository storage",
 		},
 	}
 
@@ -296,6 +296,25 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 	}
 	if plan.Paths.BackupTarget != "s3://rustfs.local/bucket" {
 		t.Fatalf("BackupTarget = %q", plan.Paths.BackupTarget)
+	}
+}
+
+func TestPlannerBuild_NonRootRemoteMountedRepositoryMutationUsesMountAccess(t *testing.T) {
+	configDir := t.TempDir()
+	storage := filepath.Join(t.TempDir(), "smb-mounted", "homes")
+	writeTargetTestConfig(t, configDir, "homes", "offsite-usb", buildTargetConfig("homes", "offsite-usb", locationRemote, "/volume1/homes", storage, "", "", 4, "-keep 0:365"))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+
+	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "offsite-usb", ConfigDir: configDir}
+	plan, err := planner.Build(runtimeRequestForTest(req))
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if plan.Config.Location != locationRemote || plan.Paths.BackupTarget != storage {
+		t.Fatalf("plan = %+v", plan)
 	}
 }
 

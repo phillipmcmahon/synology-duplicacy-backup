@@ -166,8 +166,8 @@ func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 		"Section: Suggested Commands",
 		"duplicacy init 'data' '/backups/homes'",
 		"duplicacy list -files -r <revision>",
-		"duplicacy restore -r <revision> -stats",
-		`duplicacy restore -r <revision> -stats -- "relative/path/from/snapshot"`,
+		"duplicacy restore -r <revision> -stats -ignore-owner",
+		`duplicacy restore -r <revision> -stats -ignore-owner -- "relative/path/from/snapshot"`,
 		"rsync -a --dry-run",
 		"Section: Safety",
 		"not performed by this command",
@@ -370,7 +370,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 			t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
 
 			_, err := restoreHandleCommand(tt.req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
-			if err == nil || !strings.Contains(err.Error(), "requires sudo; path-based local repository storage") {
+			if err == nil || !strings.Contains(err.Error(), "requires sudo; local filesystem repository storage") {
 				t.Fatalf("restoreHandleCommand() err = %v", err)
 			}
 			if len(mock.Invocations) != 0 {
@@ -470,7 +470,7 @@ func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	if _, ok := prefs[0]["keys"].(map[string]any); ok {
 		t.Fatalf("local restore run should not write storage keys: %#v", prefs[0])
 	}
-	if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != workspace || strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats -- docs/readme.md" {
+	if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != workspace || strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats -ignore-owner -- docs/readme.md" {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
 }
@@ -838,7 +838,7 @@ func TestHandleRestoreCommand_RunRestoresOnlyIntoPreparedWorkspace(t *testing.T)
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != workspace || strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats -- docs/readme.md" {
+	if len(mock.Invocations) != 1 || mock.Invocations[0].Dir != workspace || strings.Join(mock.Invocations[0].Args, " ") != "restore -r 2403 -stats -ignore-owner -- docs/readme.md" {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
 }
@@ -882,7 +882,7 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	}
 	if len(mock.Invocations) != 2 ||
 		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
-		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats -- docs/readme.md" ||
+		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats -ignore-owner -- docs/readme.md" ||
 		mock.Invocations[1].Dir != wantWorkspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
@@ -1309,7 +1309,7 @@ func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
 	if len(mock.Invocations) != 3 ||
 		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
 		strings.Join(mock.Invocations[1].Args, " ") != "list -files -r 2403" ||
-		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -- "+restorePath ||
+		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -ignore-owner -- "+restorePath ||
 		mock.Invocations[2].Dir != workspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
@@ -1349,7 +1349,7 @@ func TestHandleRestoreCommand_SelectAutoPreparesWorkspaceBeforeExecution(t *test
 	}
 	if len(mock.Invocations) != 2 ||
 		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
-		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats" ||
+		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats -ignore-owner" ||
 		mock.Invocations[1].Dir != workspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
@@ -1448,7 +1448,7 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 	if len(mock.Invocations) != 3 ||
 		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
 		strings.Join(mock.Invocations[1].Args, " ") != "list -files -r 2403" ||
-		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -- docs/manual.pdf" ||
+		strings.Join(mock.Invocations[2].Args, " ") != "restore -r 2403 -stats -ignore-owner -- docs/manual.pdf" ||
 		mock.Invocations[2].Dir != workspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}

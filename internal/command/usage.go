@@ -104,25 +104,25 @@ COMMAND OVERVIEW:
     Runtime operations      Run or maintain one configured label target
       backup                Run a backup for the selected label and target
       prune                 Run threshold-guarded prune for the selected label and target
-                              Root is required for path-based filesystem repositories,
+                              Root is required for local filesystem repositories,
                               including --dry-run previews
       cleanup-storage       Request storage maintenance:
                               duplicacy prune -exhaustive -exclusive
                               Use only when no other client is writing to the same storage
-                              Root is required for path-based filesystem repositories,
+                              Root is required for local filesystem repositories,
                               except --dry-run simulation
     Config and inspection   Read, explain, validate, or diagnose configured targets
       config validate       Validate backup-readiness, including source path and configured secrets
-                              Use sudo when validating path-based local repository readiness
+                              Use sudo when validating local filesystem repository readiness
       config explain        Show resolved config values for the selected target
       config paths          Show resolved config, source, log, and secrets paths
       diagnostics           Print a redacted support bundle for one label and target
       health status         Fast read-only health summary for operators and schedulers
-                              Use sudo for path-based local repositories
+                              Use sudo for local filesystem repositories
       health doctor         Read-only environment and storage diagnostics
-                              Use sudo for path-based local repositories
+                              Use sudo for local filesystem repositories
       health verify         Read-only integrity check across revisions found for the current label
-                              Use sudo for path-based local repositories
+                              Use sudo for local filesystem repositories
 
     Notifications           Send explicit synthetic notification checks
       notify test           Send a simulated notification through configured providers
@@ -213,7 +213,7 @@ CONFIG STRUCTURE:
       config validate reports:
         Source Path Access : Present when source_path exists and is a directory
         Btrfs Source       : Valid when source_path is a Btrfs subvolume root
-        Repository Access  : Requires sudo for path-based local repositories
+        Repository Access  : Requires sudo for local filesystem repositories
 
 HEALTH STATE:
     Target-specific run and health state are stored under:
@@ -278,9 +278,10 @@ OUTPUT MODEL:
 PRIVILEGE MODEL:
     Run commands as the operator user by default. Root is required for backup,
     prune, prune --dry-run, and actual cleanup-storage mutation against
-    path-based filesystem repositories. Those repositories are protected OS
+    local filesystem repositories. Those repositories are protected OS
     resources, and prune previews inspect repository metadata.
-    Object and remote repositories are governed by their Duplicacy credentials.
+    Remote mounted filesystem repositories and object repositories are governed
+    by mount permissions or Duplicacy credentials.
     cleanup-storage --dry-run is simulation-only and does not scan repository
     chunks.
     Root-required commands should be invoked with sudo from the operator

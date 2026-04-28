@@ -81,21 +81,37 @@ The runner automatically:
 ## Optional Restore Run
 
 The default run skips actual restore execution. To include a small real restore
-surface, choose a revision and a narrow snapshot-relative path:
+surface, choose a narrow snapshot-relative path. The runner auto-selects the
+latest visible revision for `RESTORE_TARGET` unless `RESTORE_REVISION` is set
+explicitly:
 
 ```sh
 RUN_RESTORE=1 \
 RESTORE_TARGET="$TARGET_REMOTE" \
-RESTORE_REVISION=1 \
 RESTORE_PATH='phillipmcmahon/code/*' \
 CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
 
+For fully automated release smoke bundles, bake the restore defaults into the
+bundle when packaging:
+
+```sh
+scripts/package-ui-surface-smoke.sh \
+  --default-run-restore 1 \
+  --default-restore-target offsite-storj \
+  --default-restore-path 'phillipmcmahon/code/*'
+```
+
 The restore command always uses `--workspace-root "$WORKSPACE_ROOT"` and
-restores into the derived drill workspace. If that workspace already exists,
-Duplicacy may report files as skipped rather than downloaded; that still
-validates the command path and output shape.
+restores into the derived drill workspace. With `RUN_RESTORE=1`, the real
+restore and restore dry-run captures are expected to succeed. The runner also
+asserts that both restore reports include `-ignore-owner`, which protects
+non-root drill restores from Duplicacy UID/GID replay failures while keeping
+copy-back manual. If `RESTORE_REVISION` is omitted, the capture includes a
+`restore_revision_auto_select` step showing the selected revision. If the
+workspace already exists, Duplicacy may report files as skipped rather than
+downloaded; that still validates the command path and output shape.
 
 ## Optional Interactive Checks
 
@@ -147,7 +163,7 @@ Review the `.txt` captures for UI consistency:
   `Writable`, `Present`, `Requires sudo`, `Healthy`, `Degraded`, and
   `Unhealthy`
 - local repository sudo guidance uses the shared phrase:
-  `Requires sudo; path-based local repository storage is protected by OS
+  `Requires sudo; local filesystem repository storage is protected by OS
   filesystem permissions; rerun with sudo from the operator account`
 - timestamped runtime and health output remains framed/log-style, while
   report-style commands remain plain and readable

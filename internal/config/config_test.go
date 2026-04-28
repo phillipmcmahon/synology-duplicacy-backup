@@ -926,14 +926,18 @@ func TestValidateTargetSemantics(t *testing.T) {
 	}
 }
 
-func TestConfigUsesLocalDiskStorageBoundary(t *testing.T) {
+func TestConfigPathStorageAndRootProtectedRepositoryBoundaries(t *testing.T) {
 	tests := []struct {
-		name    string
-		storage string
-		local   bool
+		name          string
+		location      string
+		storage       string
+		pathStorage   bool
+		rootProtected bool
 	}{
-		{name: "absolute path", storage: "/volumeUSB1/usbshare/duplicacy/homes", local: true},
-		{name: "file URL", storage: "file:///mnt/nfs/duplicacy/homes", local: true},
+		{name: "local absolute path", location: "local", storage: "/volumeUSB1/usbshare/duplicacy/homes", pathStorage: true, rootProtected: true},
+		{name: "remote mounted absolute path", location: "remote", storage: "/volume1/duplicacy/usbshare2/homes", pathStorage: true},
+		{name: "local file URL", location: "local", storage: "file:///mnt/nfs/duplicacy/homes", pathStorage: true, rootProtected: true},
+		{name: "remote file URL", location: "remote", storage: "file:///mnt/smb/duplicacy/homes", pathStorage: true},
 		{name: "s3", storage: "s3://gateway.example.invalid/bucket/homes"},
 		{name: "b2", storage: "b2://bucket/homes"},
 		{name: "wasabi", storage: "wasabi://bucket/homes"},
@@ -947,15 +951,21 @@ func TestConfigUsesLocalDiskStorageBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := Config{Storage: tt.storage}
-			if got := cfg.UsesLocalDiskStorage(); got != tt.local {
-				t.Fatalf("UsesLocalDiskStorage() = %t, want %t", got, tt.local)
+			cfg := Config{Location: tt.location, Storage: tt.storage}
+			if got := cfg.UsesPathStorage(); got != tt.pathStorage {
+				t.Fatalf("UsesPathStorage() = %t, want %t", got, tt.pathStorage)
+			}
+			if got := cfg.UsesRootProtectedLocalRepository(); got != tt.rootProtected {
+				t.Fatalf("UsesRootProtectedLocalRepository() = %t, want %t", got, tt.rootProtected)
 			}
 		})
 	}
 
-	if (*Config)(nil).UsesLocalDiskStorage() {
-		t.Fatal("UsesLocalDiskStorage() on nil config = true, want false")
+	if (*Config)(nil).UsesPathStorage() {
+		t.Fatal("UsesPathStorage() on nil config = true, want false")
+	}
+	if (*Config)(nil).UsesRootProtectedLocalRepository() {
+		t.Fatal("UsesRootProtectedLocalRepository() on nil config = true, want false")
 	}
 }
 

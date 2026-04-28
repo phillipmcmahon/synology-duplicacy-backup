@@ -321,9 +321,9 @@ Example: scheduled JSON integrity verification for label `homes` on target `onsi
 sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
-Use `sudo -n` for path-based local repositories because backup metadata is
-root-protected. Object and remote repository health checks can run as the
-operator user without `sudo`.
+Use `sudo -n` for local filesystem repositories because backup metadata is
+root-protected. Object repositories and remote mounted filesystem repositories
+can run health checks as the operator user without `sudo`.
 
 The health JSON report is meant for automation rather than terminal reading.
 It exposes structured fields such as:
@@ -399,7 +399,7 @@ recurring job.
 
 Treat `cleanup-storage` and `prune --force` as explicit operator actions
 rather than routine scheduled work. `prune --dry-run` still reads repository
-metadata, so use `sudo -n` for path-based local repositories. By contrast,
+metadata, so use `sudo -n` for local filesystem repositories. By contrast,
 `cleanup-storage --dry-run` is simulation-only and does not scan chunks.
 
 ## Release Verification

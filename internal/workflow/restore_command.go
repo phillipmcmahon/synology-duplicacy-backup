@@ -178,6 +178,7 @@ func executeRestoreRunConfirmed(req *RestoreRequest, rt Runtime, deps RestoreDep
 	}
 
 	dup := duplicacy.NewWorkspaceSetup(inputs.Workspace, ctx.storage, false, deps.NewRunner())
+	dup.IgnoreOwner = true
 	stopActivity := func() {}
 	if !inputs.SuppressRestoreActivity {
 		stopActivity = deps.Progress.StartActivity(restoreProgressActivity(inputs))

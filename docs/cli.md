@@ -45,8 +45,8 @@ are not supported.
 | Command | Description |
 |---|---|
 | `backup --target <target> <label>` | Run a backup for the selected label and target |
-| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for path-based filesystem repositories, including `--dry-run` previews |
-| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for path-based filesystem repositories except `--dry-run` simulation |
+| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for root-protected local filesystem repositories, including `--dry-run` previews |
+| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for root-protected local filesystem repositories except `--dry-run` simulation |
 
 ## Modifiers
 
@@ -67,7 +67,7 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path shape, storage, repository, and any required storage secrets. Use `sudo` for path-based local repository readiness checks. |
+| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path shape, storage, repository, and any required storage secrets. Use `sudo` for local filesystem repository readiness checks. |
 | `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
 | `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
@@ -111,9 +111,9 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers. Use sudo for path-based local repositories |
-| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass. Use sudo for path-based local repositories |
-| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for path-based local repositories |
+| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers. Use sudo for local filesystem repositories |
+| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass. Use sudo for local filesystem repositories |
+| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for local filesystem repositories |
 
 ## Environment Variables
 
@@ -188,8 +188,9 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - Runtime operations are first-class commands; old top-level operation flags
   such as `--backup` and `--prune` are not supported.
 - Root is required for `backup`, `prune`, `prune --dry-run`, and actual
-  `cleanup-storage` mutation against path-based filesystem repositories.
-  Object and remote repositories are governed by their storage credentials.
+  `cleanup-storage` mutation against root-protected local filesystem
+  repositories. Remote mounted filesystem repositories are governed by mount
+  permissions; object repositories are governed by storage credentials.
 - `prune --dry-run` is repository-derived and reads revision metadata.
 - `cleanup-storage --dry-run` is simulation-only and does not scan repository
   chunks.
@@ -203,7 +204,9 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `restore list-revisions` is a read-only discovery command. It creates a
   temporary Duplicacy workspace unless `--workspace` is supplied.
 - `restore run` prepares the drill workspace when needed, executes
-  `duplicacy restore` only inside that workspace, and never copies data back.
+  `duplicacy restore -ignore-owner` only inside that workspace, and never
+  copies data back. Stored UID/GID metadata is intentionally not replayed into
+  the drill workspace so non-root restores remain inspectable by the operator.
   If `--workspace` is omitted, the workspace is derived from the restore job:
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
   Use `--workspace-root` to choose the parent folder while keeping the derived

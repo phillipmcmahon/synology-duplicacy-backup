@@ -3,22 +3,33 @@ package workflow
 import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 
 type localStoragePolicy interface {
-	UsesLocalDiskStorage() bool
+	UsesRootProtectedLocalRepository() bool
 }
 
 // Privilege policy has two intentionally separate enforcement points:
 // cmd/duplicacy-backup rejects ambiguous direct-root profile resolution before
-// dispatch, while workflow rejects non-root access to protected path-based
-// local repositories at the command boundary that is about to probe storage.
+// dispatch, while workflow rejects non-root access to root-protected local
+// filesystem repositories at the command boundary that is about to probe
+// storage.
 // Keep these rules separate: one protects profile selection, the other protects
 // root-owned repository metadata and chunks.
 
-// Path-based local repositories are root-protected by policy; non-root
-// commands should stop before probing them through Duplicacy.
+// Local filesystem repositories are root-protected by policy; non-root commands
+// should stop before probing them through Duplicacy. Path-based remote mounts
+// are not blocked here because their access is governed by the mount
+// credentials and permissions.
 func localRepositoryRequiresSudo(cfg *config.Config, rt Runtime) bool {
 	return localRepositoryRequiresSudoForStorage(cfg, rt)
 }
 
 func localRepositoryRequiresSudoForStorage(cfg localStoragePolicy, rt Runtime) bool {
-	return cfg != nil && cfg.UsesLocalDiskStorage() && runtimeEUID(rt) != 0
+	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && runtimeEUID(rt) != 0
+}
+
+func restoreStorageRequiresSudo(plan *Plan, storage string) bool {
+	return plan != nil && plan.Config.Location == locationLocal && configUsesPathStorage(storage)
+}
+
+func configUsesPathStorage(storage string) bool {
+	return (&config.Config{Storage: storage}).UsesPathStorage()
 }

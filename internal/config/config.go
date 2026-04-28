@@ -767,7 +767,7 @@ func (c *Config) ValidateThresholds() error {
 // permission-management operations only and must be set on path-based Duplicacy
 // targets that opt into local account ownership.
 func (c *Config) ValidateOwnerGroup() error {
-	if !c.UsesLocalDiskStorage() {
+	if !c.UsesPathStorage() {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("target %q does not support local account ownership or permission management because it does not use path-based Duplicacy storage", c.Target))
 	}
 	if (c.Target != "" || c.AllowLocalAccounts) && !c.AllowLocalAccounts {
@@ -800,15 +800,21 @@ func (c *Config) ValidateOwnerGroup() error {
 	return nil
 }
 
-// UsesLocalDiskStorage is the privilege boundary for repository mutation.
-// It is true only when Duplicacy storage is governed by local OS filesystem
-// permissions: bare absolute paths and file:// URLs. Mounted network filesystems
-// still count as local because the process mutates files through the OS. Backend
-// URLs such as s3://, b2://, storj://, sftp://, webdav://, gcd://, and unknown
-// schemes are treated as credential/back-end governed, even when they point at
-// localhost.
-func (c *Config) UsesLocalDiskStorage() bool {
+// UsesPathStorage reports whether Duplicacy accesses the repository through an
+// OS filesystem path: bare paths and file:// URLs. This describes the access
+// method only, not the target's resilience location. For example, an SMB share
+// mounted under /volume1 can be path-based storage while still being a remote
+// target.
+func (c *Config) UsesPathStorage() bool {
 	return c != nil && duplicacy.NewStorageSpec(c.Storage).IsLocalPath()
+}
+
+// UsesRootProtectedLocalRepository is the sudo boundary for repository access.
+// Only path-based targets whose configured location is local are treated as
+// root-protected local repositories. Remote mounted filesystems are governed by
+// their mount credentials and permissions, like object-storage targets.
+func (c *Config) UsesRootProtectedLocalRepository() bool {
+	return c != nil && c.Location == "local" && c.UsesPathStorage()
 }
 
 func (c *Config) IsRemoteLocation() bool {
@@ -871,7 +877,7 @@ func (c *Config) ValidateTargetSemantics() error {
 		return nil
 	}
 
-	if !c.UsesLocalDiskStorage() {
+	if !c.UsesPathStorage() {
 		return apperrors.NewConfigError("local-accounts", fmt.Errorf("allow_local_accounts, local_owner, and local_group are only supported for path-based Duplicacy storage targets"))
 	}
 

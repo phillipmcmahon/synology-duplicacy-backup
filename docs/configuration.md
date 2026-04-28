@@ -82,7 +82,7 @@ Operational rules:
 - every target passes `storage` directly to Duplicacy
 - do not split storage into `destination` and `repository`; include the full backend path in `storage`
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
-- path-based filesystem repositories are protected OS resources; manage custom
+- local filesystem repositories are protected OS resources; manage custom
   ownership or permissions with DSM/Linux tools outside this application
 
 Breaking change note:
@@ -522,7 +522,7 @@ the operator user so later non-root commands can read the same state.
 | prune policy syntax validation | `config validate`, prune |
 | Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
-| repository readiness and integrity probes | `config validate`, `health status`, `health doctor`, `health verify`; path-based local repositories are protected OS resources and require `sudo` for these probes |
+| repository readiness and integrity probes | `config validate`, `health status`, `health doctor`, `health verify`; local filesystem repositories are protected OS resources and require `sudo` for these probes |
 | target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
 
 ## Output Model
@@ -554,7 +554,7 @@ reported as:
 - `Repository Access : Invalid (...)`
 
 `Requires sudo` is expected when validating, checking status, diagnosing, or
-integrity-checking a path-based local repository from the operator account.
+integrity-checking a local filesystem repository from the operator account.
 Backups write local repository chunk and snapshot metadata as root for
 data-at-rest protection, so repository readiness and integrity probes must be
 run through `sudo` for those targets:
@@ -566,8 +566,10 @@ sudo duplicacy-backup health doctor --target onsite-usb homes
 sudo duplicacy-backup health verify --target onsite-usb homes
 ```
 
-Object and remote repositories continue to validate and verify as the operator
-user because their authority boundary is the configured storage credentials.
+Remote mounted filesystem repositories continue to validate and verify as the
+operator user because their authority boundary is the mount credentials and
+permissions. Object repositories use the same operator-user model, governed by
+the configured storage credentials.
 
 When `config validate` can stat a configured `source_path`, Btrfs source
 validation is mandatory and fails if the path is not on Btrfs or is not a
@@ -577,8 +579,9 @@ then relies on sudo/root execution for complete source-tree read access.
 Conditional lines may be reported as `Not checked` when their prerequisite
 input is unavailable, such as a missing or non-stat-accessible `source_path`.
 In the v9 profile model this should be uncommon; Btrfs source validation,
-secrets loading, and object/remote repository probing are designed to run as
-the operator user when the selected paths are accessible.
+secrets loading, object repository probing, and remote mounted filesystem
+repository probing are designed to run as the operator user when the selected
+paths are accessible.
 
 ## Current File Naming
 
