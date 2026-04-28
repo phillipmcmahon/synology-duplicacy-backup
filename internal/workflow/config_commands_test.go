@@ -34,7 +34,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -94,7 +94,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootRunsSafeChecks(t
 	rt.Geteuid = func() int { return 1000 }
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -148,7 +148,7 @@ func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootRunsSafe
 	rt.Geteuid = func() int { return 1000 }
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "onsite-rustfs"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -207,7 +207,7 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 	rt.Geteuid = func() int { return 1000 }
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
 	}
@@ -240,7 +240,7 @@ storage = "s3://bucket/homes"
 `))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir}
-	if _, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime()); err == nil || !strings.Contains(err.Error(), "requires an explicit target selection") {
+	if _, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime()); err == nil || !strings.Contains(err.Error(), "requires an explicit target selection") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 }
@@ -262,7 +262,7 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -298,7 +298,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTarget(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(destinationRoot, "homes"), 4, ""))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -334,7 +334,7 @@ func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -369,7 +369,7 @@ doctor_warn_after_hours = 48000000
 `))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -404,7 +404,7 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", nestedSourcePath, t.TempDir(), 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -446,7 +446,7 @@ func TestHandleConfigCommand_ValidateDoesNotRequireNonRootSourceReadAccess(t *te
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v\n%s", err, ConfigCommandOutput(err))
 	}
@@ -472,7 +472,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalDestinationDoesNotExist(t *te
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, filepath.Join(t.TempDir(), "missing-destination"), 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -502,7 +502,7 @@ func TestHandleConfigCommand_ValidateFailsWhenDuplicacyStorageIsInvalid(t *testi
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "not-a-duplicacy-url", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/offsite-storj") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -538,7 +538,7 @@ func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *tes
 	}
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -564,7 +564,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "initialize the repository before running backups") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -592,7 +592,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "initialize the repository before running backups") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
@@ -622,7 +622,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, destinationRoot, 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
 	}
@@ -653,7 +653,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	_, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
 	}
@@ -676,7 +676,7 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	restoreSection := "[restore]\nworkspace_root = \"/volume1/restore-drills\"\nworkspace_template = \"{label}-rev{revision}-{target}-{run_timestamp}\"\n"
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365", restoreSection))
 
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := testRuntime()
 
 	explainReq := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
@@ -715,7 +715,7 @@ func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -737,7 +737,7 @@ func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -759,7 +759,7 @@ func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) 
 	writeTargetTestConfig(t, configDir, "homes", "onsite-garage", buildTargetConfig("homes", "onsite-garage", locationLocal, "/volume1/homes", "minio://garage@192.168.202.24:3900/garage/homes", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-garage"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -787,7 +787,7 @@ storage = "/backups/homes"
 `)
 
 	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
@@ -802,7 +802,7 @@ func TestHandleConfigCommand_PathsDuplicacyStorageIncludesSecrets(t *testing.T) 
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(paths remote) error = %v", err)
 	}
@@ -819,7 +819,7 @@ func TestHandleConfigCommand_PathsLocalDuplicacyIncludesSecrets(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
 
 	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
-	out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(paths local duplicacy) error = %v", err)
 	}
@@ -832,7 +832,7 @@ func TestHandleConfigCommand_PathsLocalDuplicacyIncludesSecrets(t *testing.T) {
 }
 
 func TestHandleConfigCommand_Unsupported(t *testing.T) {
-	_, err := HandleConfigCommand(&Request{ConfigCommand: "unknown", Source: "homes"}, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := HandleConfigCommand(&Request{ConfigCommand: "unknown", Source: "homes"}, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "unsupported config command") {
 		t.Fatalf("err = %v", err)
 	}
@@ -891,7 +891,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 
 	t.Run("local-enabled", func(t *testing.T) {
 		req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-		out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
 		}
@@ -900,7 +900,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 
 	t.Run("local-not-enabled", func(t *testing.T) {
 		req := &Request{ConfigCommand: "validate", Source: "readmedia", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-		out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
 		}
@@ -909,7 +909,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 
 	t.Run("remote", func(t *testing.T) {
 		req := &Request{ConfigCommand: "validate", Source: "archives", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-		out, err := HandleConfigCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
 		}

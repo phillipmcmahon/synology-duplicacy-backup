@@ -9,7 +9,7 @@ import (
 
 func newHealthStateTestRunner(t *testing.T, now time.Time) (*HealthRunner, Metadata) {
 	t.Helper()
-	meta := DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	return &HealthRunner{meta: meta, rt: rt}, meta

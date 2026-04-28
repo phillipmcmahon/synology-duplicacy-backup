@@ -103,12 +103,12 @@ type Metadata struct {
 	HasProfileOwner bool
 }
 
-// DefaultMetadata returns metadata rooted around an explicit log directory.
+// MetadataForLogDir returns metadata rooted around an explicit log directory.
 //
 // Production entry points should use DefaultMetadataForRuntime so defaults
-// follow the invoking user's runtime profile. This helper remains useful for
-// tests and other callers that need deterministic sibling state/lock roots.
-func DefaultMetadata(scriptName, version, buildTime, logDir string) Metadata {
+// follow the invoking user's runtime profile. Tests use this helper when
+// they need deterministic sibling state and lock roots.
+func MetadataForLogDir(scriptName, version, buildTime, logDir string) Metadata {
 	baseDir := filepath.Dir(logDir)
 	logName := filepath.Base(logDir)
 	stateRoot := filepath.Join(baseDir, logName+"-state")

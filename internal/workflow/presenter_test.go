@@ -23,7 +23,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 	log, logDir := newPresenterTestLogger(t)
 	rt := testRuntime()
 	rt.Now = func() time.Time { return time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC) }
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
 
 	presenter.PrintHeader(&Plan{
 		Request: PlanRequest{OperationMode: "Backup"},
@@ -51,7 +51,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 
 func TestPresenterCommandOutputVerboseAndForce(t *testing.T) {
 	log, logDir := newPresenterTestLogger(t)
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, true)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, true)
 
 	presenter.PrintCommandOutput("Repository set to /volume1/homes\n", "warning line\n", false)
 	presenter.PrintBackupResult("raw line\n", "stderr line\n", true)
@@ -67,7 +67,7 @@ func TestPresenterCommandOutputVerboseAndForce(t *testing.T) {
 
 func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 	log, logDir := newPresenterTestLogger(t)
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
 
 	presenter.PrintPreRunFailurePlan(&Plan{
 		Request: PlanRequest{OperationMode: "Storage cleanup"},
@@ -89,7 +89,7 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 
 func TestPresenterPreRunFailureContextAndStatus(t *testing.T) {
 	log, logDir := newPresenterTestLogger(t)
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
 
 	presenter.PrintPreRunFailureContext(&RuntimeRequest{
 		Mode:       RuntimeModePrune,
@@ -113,7 +113,7 @@ func TestPresenterPreRunFailureContextAndStatus(t *testing.T) {
 func TestPresenterHeaderDataNilPlan(t *testing.T) {
 	log, logDir := newPresenterTestLogger(t)
 	start := time.Date(2026, 4, 25, 17, 0, 0, 0, time.UTC)
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), testRuntime(), log, false)
 
 	presenter.PrintHeader(nil, start, "")
 	log.Close()

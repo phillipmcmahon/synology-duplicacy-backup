@@ -36,7 +36,7 @@ func TestHandleNotifyCommand_DryRun(t *testing.T) {
 		NotifySeverity:  "warning",
 		DryRun:          true,
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -96,7 +96,7 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 		NotifyProvider:  "all",
 		NotifySeverity:  "critical",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -139,7 +139,7 @@ func TestHandleNotifyCommand_JSONSummary(t *testing.T) {
 		DryRun:          true,
 		JSONSummary:     true,
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -172,7 +172,7 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 		NotifyProvider:  "all",
 		NotifySeverity:  "warning",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err == nil {
@@ -214,7 +214,7 @@ func TestHandleNotifyCommand_DuplicacyTargetCanSendWithoutReadableSecretsWhenTok
 		SecretsDir:      t.TempDir(),
 		NotifyProvider:  "ntfy",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
 		return "", apperrors.NewSecretsError("open", errors.New("secrets file is not readable: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"), "path", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
 	})
@@ -264,7 +264,7 @@ func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 		NotifyProvider:  "webhook",
 		NotifySeverity:  "warning",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -301,7 +301,7 @@ func TestHandleNotifyCommand_DuplicacyTargetTokenParseErrorStillFails(t *testing
 		SecretsDir:      t.TempDir(),
 		NotifyProvider:  "ntfy",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
 		return "", apperrors.NewSecretsError("parse", errors.New("unexpected key \"bad\" in secrets file /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"), "source", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml")
 	})
@@ -335,7 +335,7 @@ func TestHandleNotifyCommand_UpdateDryRun(t *testing.T) {
 		NotifySeverity: "critical",
 		DryRun:         true,
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -378,7 +378,7 @@ func TestHandleNotifyCommand_UpdateSendNtfyWithoutTargetSecrets(t *testing.T) {
 		NotifyProvider: "ntfy",
 		NotifySeverity: "warning",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err != nil {
@@ -403,7 +403,7 @@ func TestHandleNotifyCommand_UpdateMissingConfigFailsClearly(t *testing.T) {
 		NotifyProvider: "ntfy",
 		NotifySeverity: "warning",
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
 	out, err := HandleNotifyCommand(req, meta, testRuntime())
 	if err == nil {

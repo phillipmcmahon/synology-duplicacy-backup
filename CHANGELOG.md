@@ -12,6 +12,14 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Renamed the deterministic test metadata helper to `MetadataForLogDir`, making
+  the production `DefaultMetadataForRuntime` path the only default-named
+  metadata constructor.
+- Restore selection now calls the canonical Duplicacy list-file parser directly
+  and handles parser errors explicitly, removing the old compact helper that
+  discarded parser errors.
+
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,
   `[target]`, `[storage]`, `[capture]`, and `[retention]` layouts. Config files

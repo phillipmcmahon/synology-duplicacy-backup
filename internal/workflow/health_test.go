@@ -205,7 +205,7 @@ func assertOrderedTokens(t *testing.T, text string, tokens ...string) {
 
 func TestHealthRunner_StatusHealthy(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -298,7 +298,7 @@ func TestRootProfileConfigWarningIgnoresNonRootAndExplicitConfig(t *testing.T) {
 
 func TestHealthRunner_StatusAllowsLocalReadOnlyTarget(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -335,7 +335,7 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTarget(t *testing.T) {
 
 func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -395,7 +395,7 @@ func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 
 func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -438,7 +438,7 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 	}))
 	defer server.Close()
 
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	now := time.Date(2026, 4, 10, 21, 11, 7, 0, time.UTC)
 	rt := newHealthRuntime(now, t.TempDir())
@@ -488,7 +488,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 	}))
 	defer server.Close()
 
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	now := time.Date(2026, 4, 10, 21, 11, 7, 0, time.UTC)
 	rt := newHealthRuntime(now, t.TempDir())
@@ -609,7 +609,7 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 
 func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -662,7 +662,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 
 func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -726,7 +726,7 @@ func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 
 func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -837,7 +837,7 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 
 func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -903,7 +903,7 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 
 func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1027,7 +1027,7 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 
 func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1086,7 +1086,7 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 
 func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1139,7 +1139,7 @@ func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *test
 
 func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1202,7 +1202,7 @@ func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testi
 
 func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityFailure(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1253,7 +1253,7 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 
 func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	rt.Geteuid = func() int { return 1000 }
@@ -1315,7 +1315,7 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 
 func TestHealthRunner_StatusLocalRepositoryRequiresSudoBeforeRevisionListing(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	rt.Geteuid = func() int { return 1000 }
@@ -1394,7 +1394,7 @@ func TestHealthRunner_AddVerifyFailureCodeDeduplicatesActions(t *testing.T) {
 
 func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1453,7 +1453,7 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 
 func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1643,7 +1643,7 @@ func TestHumanAgoFormatting(t *testing.T) {
 
 func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()

@@ -277,7 +277,7 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 }
 
 func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logDir)
+	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, logDir)
 	rt := workflow.DefaultRuntime()
 	usage := command.FullUsageText(meta, rt)
 

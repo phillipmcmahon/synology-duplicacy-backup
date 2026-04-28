@@ -290,7 +290,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 }
 
 func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
-	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 
 	cases := []struct {
@@ -374,7 +374,7 @@ func TestWriteCommandFailureHonoursForcedColour(t *testing.T) {
 }
 
 func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
-	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 
 	withTestGlobals(t, func() {
@@ -408,7 +408,7 @@ func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 }
 
 func TestRunHealthNonRootReachesRealDependencyFailure(t *testing.T) {
-	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 	rt.Geteuid = func() int { return 1000 }
 	rt.Now = func() time.Time { return time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC) }
@@ -445,7 +445,7 @@ func TestUpdateAndRollbackOptionAdapters(t *testing.T) {
 }
 
 func TestRunUpdateRequestFailureNotificationWarning(t *testing.T) {
-	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()
 	rt.Geteuid = func() int { return 0 }
 
@@ -2023,7 +2023,7 @@ func TestWriteHealthJSONSummaryFailureOnlyUpgradesHealthySuccess(t *testing.T) {
 }
 
 func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
+	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
 	rt := workflow.DefaultRuntime()
 
 	stdout, stderr := captureOutput(t, func() {
@@ -2044,7 +2044,7 @@ func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
 }
 
 func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
+	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
 	rt := workflow.DefaultRuntime()
 
 	stdout, stderr := captureOutput(t, func() {
@@ -2068,7 +2068,7 @@ func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 }
 
 func TestBuildRequest_JSONSummaryNotifyUpdateFailureInfersScope(t *testing.T) {
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, t.TempDir())
+	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
 	rt := workflow.DefaultRuntime()
 
 	stdout, stderr := captureOutput(t, func() {
@@ -2165,7 +2165,7 @@ func TestBuildRequest_JSONSummaryParseFailureDoesNotRequireLogger(t *testing.T) 
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	meta := workflow.DefaultMetadata(scriptName, version, buildTime, logFilePath)
+	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, logFilePath)
 	rt := workflow.DefaultRuntime()
 
 	stdout, stderr := captureOutput(t, func() {

@@ -23,7 +23,7 @@ func TestNewConfigPlanRequestProjectsOnlyPlannerInputs(t *testing.T) {
 }
 
 func TestDerivePlanFromConfigPlanRequestDoesNotCarryRuntimeModes(t *testing.T) {
-	planner := NewConfigPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	planner := NewConfigPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	plan := planner.derivePlan(ConfigPlanRequest{
 		Label:      "homes",
 		TargetName: "onsite-usb",

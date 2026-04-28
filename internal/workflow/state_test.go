@@ -7,7 +7,7 @@ import (
 )
 
 func TestRunStateRoundTrip(t *testing.T) {
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 
 	state := &RunState{
@@ -48,7 +48,7 @@ func TestRunStateRoundTrip(t *testing.T) {
 }
 
 func TestSaveRunStateRestoresSudoOperatorOwnership(t *testing.T) {
-	meta := DefaultMetadata("duplicacy-backup", "9.1.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "9.1.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	meta.HasProfileOwner = true
 	meta.ProfileOwnerUID = 1026
@@ -77,7 +77,7 @@ func TestSaveRunStateRestoresSudoOperatorOwnership(t *testing.T) {
 }
 
 func TestLoadRunState_DoesNotFallbackToLegacyLabelState(t *testing.T) {
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 
 	legacyPath := filepath.Join(meta.StateDir, "homes.json")
@@ -95,7 +95,7 @@ func TestLoadRunState_DoesNotFallbackToLegacyLabelState(t *testing.T) {
 }
 
 func TestMutateRunStateLoadsMutatesAndSaves(t *testing.T) {
-	meta := DefaultMetadata("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 
 	if err := mutateRunState(meta, "homes", "onsite-usb", func(state *RunState) error {

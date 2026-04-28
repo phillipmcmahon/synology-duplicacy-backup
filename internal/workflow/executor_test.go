@@ -75,7 +75,7 @@ func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T
 			SafePruneMaxDeletePercent: 10,
 		},
 	}
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testExecutorLogger(t), execpkg.NewMockRunner(), plan)
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testExecutorLogger(t), execpkg.NewMockRunner(), plan)
 
 	preview := &duplicacy.PrunePreview{
 		DeleteCount:     2,
@@ -100,7 +100,7 @@ func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) 
 	}
 
 	executor := NewExecutor(
-		DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir),
+		MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir),
 		testRuntime(),
 		log,
 		execpkg.NewMockRunner(),
@@ -181,7 +181,7 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 		Err:    errors.New("exit status 1"),
 	})
 
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, runner, plan)
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, runner, plan)
 	if code := executor.Run(); code != 1 {
 		t.Fatalf("Run() = %d, want 1", code)
 	}
@@ -219,11 +219,11 @@ func TestExecutorStartVisibleRunResetsOverallStartTime(t *testing.T) {
 	}
 
 	executor := &Executor{
-		meta:      DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()),
+		meta:      MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()),
 		rt:        rt,
 		log:       log,
 		plan:      plan,
-		view:      NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, log, false),
+		view:      NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, log, false),
 		startedAt: base,
 		report:    NewRunReport(plan, base),
 	}
@@ -252,7 +252,7 @@ func TestPresenterPrintDurationTruncates(t *testing.T) {
 	rt := testRuntime()
 	rt.Now = func() time.Time { return end }
 
-	presenter := NewPresenter(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
+	presenter := NewPresenter(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, false)
 	presenter.PrintDuration(start)
 	log.Close()
 
@@ -427,7 +427,7 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 	rt.StdinIsTTY = func() bool { return true }
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
 		Request: PlanRequest{
 			ForcePrune:    true,
 			OperationMode: "Prune",
@@ -510,7 +510,7 @@ func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
 		},
 	}
 
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
 	if code := executor.Run(); code != 0 {
 		t.Fatalf("Run() = %d, want 0", code)
 	}
@@ -549,7 +549,7 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(badParent, label) }
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
 		Request: PlanRequest{
 			DoBackup:      true,
 			DryRun:        true,
@@ -638,7 +638,7 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 		},
 	}
 
-	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
+	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
 	if code := executor.Run(); code != 0 {
 		t.Fatalf("Run() = %d, want 0", code)
 	}

@@ -48,7 +48,7 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
 	)
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), runner)
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), runner)
 	req.ConfigDir = dir
 
 	plan, err := planner.Build(runtimeRequestForTest(req))
@@ -94,7 +94,7 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
 	)
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
@@ -124,7 +124,7 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
 	)
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), runner)
 
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
@@ -148,7 +148,7 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 }
 
 func TestPlannerValidateEnvironmentErrors(t *testing.T) {
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 
 	t.Run("non-root", func(t *testing.T) {
 		rt := testRuntime()
@@ -194,7 +194,7 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
 	tests := []struct {
 		name string
@@ -234,7 +234,7 @@ func TestPlannerBuild_NonRootLocalRepositoryCleanupDryRunIsSimulationOnly(t *tes
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
 	req := &Request{Source: "homes", DoCleanupStore: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
@@ -254,7 +254,7 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
 	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
@@ -273,7 +273,7 @@ func TestPlannerBuild_NonRootRemoteMountedRepositoryMutationUsesMountAccess(t *t
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
 	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "offsite-usb", ConfigDir: configDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
@@ -293,7 +293,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	sec, err := planner.loadSecrets(&Plan{
 		Config: PlanConfig{Target: "offsite-storj"},
 		Paths:  PlanPaths{SecretsFile: secretsFile},
@@ -307,7 +307,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 }
 
 func TestPlannerLoadConfig_MissingFile(t *testing.T) {
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{Paths: PlanPaths{ConfigFile: filepath.Join(t.TempDir(), "missing.toml")}})
 	if err == nil || !strings.Contains(err.Error(), "configuration file not found") {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -321,7 +321,7 @@ func TestPlannerLoadConfig_MissingCanonicalFileReportsCanonicalPath(t *testing.T
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
@@ -341,7 +341,7 @@ func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 	configDir := t.TempDir()
 	configFile := writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("plexaudio", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
@@ -362,7 +362,7 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadSecrets(&Plan{
 		Config: PlanConfig{Target: "offsite-storj"},
 		Paths:  PlanPaths{SecretsFile: secretsFile},
@@ -380,7 +380,7 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadSecrets(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
@@ -397,7 +397,7 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 }
 
 func TestPlannerValidateBackupFilesystem(t *testing.T) {
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner(
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "ext4\n"},
 	))
 
@@ -421,7 +421,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	dir := t.TempDir()
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 
-	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
+	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	plan := planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", DoBackup: true, ConfigDir: dir, RequestedTarget: "onsite-usb"}))
 
 	cfg, err := planner.loadConfig(plan)

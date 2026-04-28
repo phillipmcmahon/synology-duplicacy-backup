@@ -13,7 +13,7 @@ func TestHandleDiagnosticsCommand_LocalTargetIncludesStateAndPermissions(t *test
 	sourcePath := t.TempDir()
 	storagePath := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storagePath, 4, ""))
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
 		LastRunResult:                "success",
@@ -57,7 +57,7 @@ func TestHandleDiagnosticsCommand_LocalRootProtectedRepositoryUsesPolicyWording(
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
 	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
-	out, err := HandleDiagnosticsCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
 	}
@@ -85,7 +85,7 @@ func TestHandleDiagnosticsCommand_RemoteSecretsAreRedacted(t *testing.T) {
 	}
 
 	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
-	out, err := HandleDiagnosticsCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
 	}
@@ -102,7 +102,7 @@ func TestHandleDiagnosticsCommand_JSONSummary(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://user:password@gateway.example.invalid/bucket/homes?token=secret-token&region=EU", 4, ""))
 
 	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: t.TempDir(), RequestedTarget: "offsite-storj", JSONSummary: true}
-	out, err := HandleDiagnosticsCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
 	}
@@ -125,7 +125,7 @@ func TestHandleDiagnosticsCommand_JSONSummary(t *testing.T) {
 func TestHandleDiagnosticsCommand_JSONSummaryIncludesZeroRevisionWhenStateExists(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", t.TempDir(), t.TempDir(), 4, ""))
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
 		LastRunResult:                "success",

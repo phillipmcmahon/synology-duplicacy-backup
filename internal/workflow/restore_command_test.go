@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -131,7 +130,7 @@ func stubRestoreProgress(t *testing.T, progress RestoreProgress) {
 func TestHandleRestoreCommand_PlanLocalReadOnlyWithState(t *testing.T) {
 	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
 	configDir := t.TempDir()
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{
@@ -286,7 +285,7 @@ func TestValidateRestoreWorkspaceRoot_RejectsMissingRoot(t *testing.T) {
 
 func TestHandleRestoreCommand_RejectsWorkspaceAndRoot(t *testing.T) {
 	req := &Request{RestoreCommand: "run", Source: "homes", RequestedTarget: "onsite-usb", RestoreWorkspace: "/restore/exact", RestoreWorkspaceRoot: "/restore/root", RestoreRevision: 2403, RestoreYes: true}
-	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := restoreHandleCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "--workspace and --workspace-root cannot be used together") {
 		t.Fatalf("restoreHandleCommand() err = %v", err)
 	}
@@ -313,7 +312,7 @@ func TestResolvedRestoreSelectWorkspace_DefaultRootIgnoresSourcePath(t *testing.
 func TestHandleRestoreCommand_PlanRemoteDoesNotLoadSecrets(t *testing.T) {
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://gateway.example.invalid/bucket/homes", 4, "-keep 0:365"))
 
@@ -346,7 +345,7 @@ func TestHandleRestoreCommand_PlanRemoteDoesNotLoadSecrets(t *testing.T) {
 func TestHandleRestoreCommand_PlanAllowsMissingSourcePathForDR(t *testing.T) {
 	stubRestoreWorkspaceTime(t, time.Date(2026, 4, 24, 8, 15, 30, 0, time.Local))
 	configDir := t.TempDir()
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", `
 label = "homes"
@@ -416,7 +415,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 			newRestoreCommandRunner = func() execpkg.Runner { return mock }
 			t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
 
-			_, err := restoreHandleCommand(tt.req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
+			_, err := restoreHandleCommand(tt.req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
 			if err == nil || !strings.Contains(err.Error(), "requires sudo: local filesystem repository is root-protected") {
 				t.Fatalf("restoreHandleCommand() err = %v", err)
 			}
@@ -429,7 +428,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 
 func TestHandleRestoreCommand_RunDryRunDerivesWorkspaceWithoutSourcePath(t *testing.T) {
 	configDir := t.TempDir()
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", `
 label = "homes"
 
@@ -473,7 +472,7 @@ func TestHandleRestoreCommand_RunPreparesExplicitWorkspace(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
@@ -633,7 +632,7 @@ func TestHandleRestoreCommand_RunEmitsProgress(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
@@ -667,7 +666,7 @@ func TestHandleRestoreCommand_RunReportsInterruptedRestore(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{
@@ -707,7 +706,7 @@ func TestHandleRestoreCommand_RunRemoteLoadsSecretsWithoutPrintingValues(t *test
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket/homes", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
@@ -752,7 +751,7 @@ func TestHandleRestoreCommand_RunRejectsUnsafeWorkspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: tt.workspace, RestoreRevision: 2403, RestoreYes: true}
-			_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+			_, err := restoreHandleCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
@@ -769,7 +768,7 @@ func TestHandleRestoreCommand_RunRejectsNonEmptyUnpreparedWorkspace(t *testing.T
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", filepath.Join(t.TempDir(), "backups", "homes"), 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace, RestoreRevision: 2403, RestoreYes: true}
-	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := restoreHandleCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "must be empty") {
 		t.Fatalf("error = %v", err)
 	}
@@ -779,7 +778,7 @@ func TestHandleRestoreCommand_RevisionsListsVisibleRevisionsReadOnly(t *testing.
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
@@ -814,33 +813,12 @@ func TestHandleRestoreCommand_RevisionsListsVisibleRevisionsReadOnly(t *testing.
 	}
 }
 
-func TestExtractRestoreFileLinesParsesDuplicacyRows(t *testing.T) {
-	output := strings.Join([]string{
-		"5585354 2026-04-20 19:29:38 45fcaf55f07a698bd608e892802bd3f7275a8688374de79acbc5ebb078ebdc06 phillipmcmahon/code/archive.tar.gz",
-		"1024 2026-04-21 08:10:11 1234567890abcdef Documents/Folder With Spaces/report final.pdf",
-		"Files: 2471",
-		"Snapshot data revision 1 created at 2026-04-23 02:30 -hash",
-		"Total size: 287254112235, file chunks: 6658, metadata chunks: 4",
-		"plain/path/from/test-fixture.txt",
-	}, "\n")
-
-	paths := extractRestoreFilePaths(output)
-	want := []string{
-		"phillipmcmahon/code/archive.tar.gz",
-		"Documents/Folder With Spaces/report final.pdf",
-		"plain/path/from/test-fixture.txt",
-	}
-	if !reflect.DeepEqual(paths, want) {
-		t.Fatalf("paths = %#v, want %#v", paths, want)
-	}
-}
-
 func TestHandleRestoreCommand_RevisionsWithWorkspaceRequiresPreparedWorkspace(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	req := &Request{RestoreCommand: "list-revisions", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
@@ -861,7 +839,7 @@ func TestHandleRestoreCommand_RunRestoresOnlyIntoPreparedWorkspace(t *testing.T)
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Restored docs/readme.md\n"})
@@ -898,7 +876,7 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	_ = os.RemoveAll(wantWorkspace)
 	t.Cleanup(func() { _ = os.RemoveAll(wantWorkspace) })
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -941,7 +919,7 @@ func TestHandleRestoreCommand_RunUsesConfiguredWorkspaceTemplate(t *testing.T) {
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-rev2403-20260424-070000")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"{label}-{target}-rev{revision}-{snapshot_timestamp}\"\n", root)
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
@@ -972,7 +950,7 @@ func TestHandleRestoreCommand_RunCLIWorkspaceTemplateOverridesConfig(t *testing.
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "manual-onsite-usb-2403-20260424-070000")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"config-{label}-{target}-{revision}\"\n", root)
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
@@ -1003,7 +981,7 @@ func TestHandleRestoreCommand_RunPreservesExistingWorkspaceRootPermissions(t *te
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1038,7 +1016,7 @@ func TestHandleRestoreCommand_SelectRejectsNonInteractiveUse(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &Request{RestoreCommand: "select", Source: "homes", RequestedTarget: "onsite-usb"}
-	_, err := restoreHandleCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	_, err := restoreHandleCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err == nil || !strings.Contains(err.Error(), "requires an interactive terminal") {
 		t.Fatalf("error = %v", err)
 	}
@@ -1050,7 +1028,7 @@ func TestHandleRestoreCommand_SelectShowsRestorePointPrompt(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
@@ -1084,7 +1062,7 @@ func TestHandleRestoreCommand_SelectInspectsRevisionWithoutWorkspace(t *testing.
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1141,7 +1119,7 @@ func TestHandleRestoreCommand_SelectGeneratesFullRestoreCommand(t *testing.T) {
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-20260420-023000-rev2403")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\nSnapshot data revision 2402 created at 2026-04-19 02:30\n"})
@@ -1185,7 +1163,7 @@ func TestHandleRestoreCommand_SelectOptionTwoWithPathPrefixUsesScopedSubtree(t *
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"})
@@ -1225,7 +1203,7 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1275,7 +1253,7 @@ func TestHandleRestoreCommand_SelectReportsListFilesDiagnostics(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1329,7 +1307,7 @@ func TestHandleRestoreCommand_SelectBuildsMultipleRestoreCommands(t *testing.T) 
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1373,7 +1351,7 @@ func TestHandleRestoreCommand_SelectParsesDuplicacyFileListRows(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1431,7 +1409,7 @@ func TestHandleRestoreCommand_SelectAutoPreparesWorkspaceBeforeExecution(t *test
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
 	workspace := filepath.Join(t.TempDir(), "restore-workspace")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1477,7 +1455,7 @@ func TestHandleRestoreCommand_SelectStopsAfterPreviewWhenExecutionNotConfirmed(t
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"})
@@ -1514,7 +1492,7 @@ func TestHandleRestoreCommand_SelectExecuteDelegatesToRestoreRun(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1576,7 +1554,7 @@ func TestHandleRestoreCommand_SelectExecuteMultiplePathsUsesBatchProgress(t *tes
 	if err := os.WriteFile(filepath.Join(workspace, ".duplicacy", "preferences"), []byte("[]\n"), 0660); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1625,7 +1603,7 @@ func TestHandleRestoreCommand_SelectGeneratesDirectoryPattern(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1662,7 +1640,7 @@ func TestHandleRestoreCommand_SelectPassesPathPrefixToPicker(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1700,7 +1678,7 @@ func TestHandleRestoreCommand_SelectCancellationFromPicker(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(
@@ -1727,7 +1705,7 @@ func TestHandleRestoreCommand_SelectCancellationAtRevisionPrompt(t *testing.T) {
 	configDir := t.TempDir()
 	sourcePath := filepath.Join(t.TempDir(), "source", "homes")
 	storage := filepath.Join(t.TempDir(), "backups", "homes")
-	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	mock := execpkg.NewMockRunner(execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-20 02:30\n"})
@@ -1749,7 +1727,7 @@ func TestHandleRestoreCommand_SelectCancellationAtRevisionPrompt(t *testing.T) {
 }
 
 func TestHandleRestoreCommand_Unsupported(t *testing.T) {
-	_, err := restoreHandleCommand(&Request{RestoreCommand: "execute", Source: "homes"}, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
+	_, err := restoreHandleCommand(&Request{RestoreCommand: "execute", Source: "homes"}, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(err.Error(), "unsupported restore command") {
 		t.Fatalf("err = %v", err)
 	}

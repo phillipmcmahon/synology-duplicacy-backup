@@ -35,7 +35,7 @@ func TestMaybeSendUpdateFailureNotification(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &UpdateRequest{Command: "update", ConfigDir: configDir, Yes: true}
-	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
 	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("update install failed: exit status 1")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
@@ -55,7 +55,7 @@ func TestMaybeSendUpdateFailureNotificationMissingConfigNoops(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &UpdateRequest{Command: "update", ConfigDir: t.TempDir(), Yes: true}
-	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
 	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("release lookup failed")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
@@ -79,7 +79,7 @@ func TestMaybeSendUpdateFailureNotificationHonoursInteractiveGate(t *testing.T) 
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return true }
 	req := &UpdateRequest{Command: "update", ConfigDir: configDir}
-	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
 	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, errors.New("release lookup failed")); err != nil {
 		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
@@ -108,7 +108,7 @@ func TestMaybeSendUpdateSuccessNotificationOptIn(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &UpdateRequest{Command: "update", ConfigDir: configDir, Yes: true}
-	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
 	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, UpdateStatusInstalled); err != nil {
 		t.Fatalf("MaybeSendUpdateSuccessNotification() error = %v", err)
@@ -137,7 +137,7 @@ func TestMaybeSendUpdateSuccessNotificationUsesStructuredStatus(t *testing.T) {
 	rt := testRuntime()
 	rt.StdinIsTTY = func() bool { return false }
 	req := &UpdateRequest{Command: "update", ConfigDir: configDir, Yes: true}
-	meta := DefaultMetadata("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
 
 	if err := MaybeSendUpdateSuccessNotification(req, meta, rt, UpdateStatusAvailable); err != nil {
 		t.Fatalf("MaybeSendUpdateSuccessNotification(available) error = %v", err)

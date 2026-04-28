@@ -135,7 +135,10 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 	if err != nil {
 		return restoreListFilesError(err, output, revision)
 	}
-	paths := extractRestoreFilePaths(output)
+	paths, err := duplicacy.ParseListFilesOutput(strings.NewReader(output))
+	if err != nil {
+		return NewRequestError("restore select could not parse file list for revision %d: %v", revision, err)
+	}
 	if len(paths) == 0 {
 		return NewRequestError("restore select found no restorable paths in revision %d", revision)
 	}
@@ -173,7 +176,10 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 	if err != nil {
 		return nil, restoreListFilesError(err, output, revision)
 	}
-	paths := extractRestoreFilePaths(output)
+	paths, err := duplicacy.ParseListFilesOutput(strings.NewReader(output))
+	if err != nil {
+		return nil, NewRequestError("restore select could not parse file list for revision %d: %v", revision, err)
+	}
 	if len(paths) == 0 {
 		return nil, NewRequestError("restore select found no restorable paths in revision %d", revision)
 	}
