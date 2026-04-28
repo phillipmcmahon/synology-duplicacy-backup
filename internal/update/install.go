@@ -125,10 +125,6 @@ func (u *Updater) detectManagedLayoutFor(operation string) (*managedLayout, erro
 	}, nil
 }
 
-func (u *Updater) stableCommandPath(resolvedExecutable string) (string, error) {
-	return u.stableCommandPathFor("update", resolvedExecutable)
-}
-
 func (u *Updater) stableCommandPathFor(operation, resolvedExecutable string) (string, error) {
 	if u.Runtime.CommandPath == nil {
 		return "", fmt.Errorf("%s requires the managed stable command path %q; current executable is %s", operation, u.ScriptName, resolvedExecutable)
