@@ -167,6 +167,8 @@ extract_first_revision() {
 extract_revision_timestamp() {
     file="$1"
     revision="$2"
+    # Soft dependency on the human restore list-revisions output. If the
+    # format changes, the smoke workspace still works with unknown-snapshot.
     awk -v rev="$revision" '
         /^[[:space:]]*Revision[[:space:]]*:/ {
             line = $0
@@ -203,6 +205,8 @@ short_build_commit() {
     commit="$(read_build_commit 2>/dev/null || true)"
     case "$commit" in
         ""|unknown)
+            # Bundles should have build.json. This fallback only covers ad-hoc
+            # git-describe-style binaries such as v9.1.6-1-gabcdef0.
             commit="$("$BIN" --version 2>/dev/null | sed -n 's/.*-g\([0-9a-f][0-9a-f]*\).*/\1/p' | sed -n '1p')"
             ;;
     esac

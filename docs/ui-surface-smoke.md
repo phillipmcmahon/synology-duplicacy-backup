@@ -133,7 +133,9 @@ replay failures while keeping copy-back manual. If `RESTORE_REVISION` is
 omitted, the capture includes a `restore_revision_auto_select` step showing the
 selected revision. If `RESTORE_REVISION` is provided, the runner captures a
 `restore_revision_lookup` listing so the smoke workspace can still include the
-snapshot timestamp when the revision appears in the listing.
+snapshot timestamp when the revision appears in the listing. Increase
+`RESTORE_REVISION_LOOKUP_LIMIT` if smoke workspaces show `unknown-snapshot` for
+revisions older than the default 200-entry lookup.
 
 ## Optional Interactive Checks
 
