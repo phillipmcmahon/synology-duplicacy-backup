@@ -86,8 +86,9 @@ make validate
 
 That local gate mirrors GitHub's lint and test jobs: formatting check,
 `go vet ./...`, `go run honnef.co/go/tools/cmd/staticcheck ./...`,
-race-enabled tests, and all shell script tests. For changes that touch UI
-smoke automation, release packaging, or GitHub workflow gates, run:
+the `Plan` section-boundary architecture guard, race-enabled tests, and all
+shell script tests. For changes that touch UI smoke automation, release
+packaging, or GitHub workflow gates, run:
 
 ```bash
 make validate-full

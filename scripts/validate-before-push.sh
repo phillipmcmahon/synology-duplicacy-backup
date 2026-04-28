@@ -54,6 +54,9 @@ go vet ./...
 echo "go run honnef.co/go/tools/cmd/staticcheck ./..."
 go run honnef.co/go/tools/cmd/staticcheck ./...
 
+echo "Plan section boundary check"
+sh scripts/check-plan-section-boundary.sh
+
 echo "go test -v -race ./..."
 go test -v -race ./...
 

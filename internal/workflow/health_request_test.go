@@ -25,9 +25,9 @@ func TestNewHealthRequestProjectsOnlyHealthIntent(t *testing.T) {
 	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" || !got.JSONSummary || !got.Verbose {
 		t.Fatalf("health option projection failed: %#v", got)
 	}
-	plan := got.PlanRequest()
-	if plan.Label != "homes" || plan.Target() != "onsite-usb" || plan.ConfigDir != "/home/operator/.config/duplicacy-backup" || plan.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
-		t.Fatalf("PlanRequest() = %#v", plan)
+	projected := got.PlanRequest()
+	if projected.Label != "homes" || projected.Target() != "onsite-usb" || projected.ConfigDir != "/home/operator/.config/duplicacy-backup" || projected.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
+		t.Fatalf("PlanRequest() = %#v", projected)
 	}
 }
 

@@ -130,8 +130,9 @@ make validate
 
 This command mirrors GitHub's lint and test jobs by checking formatting,
 running `go vet ./...`, running
-`go run honnef.co/go/tools/cmd/staticcheck ./...`, running race-enabled tests,
-and running all `scripts/test-*.sh` checks. If the change touches UI smoke
+`go run honnef.co/go/tools/cmd/staticcheck ./...`, checking the `Plan`
+section-boundary architecture guard, running race-enabled tests, and running
+all `scripts/test-*.sh` checks. If the change touches UI smoke
 automation, release packaging, or GitHub workflow gating, run the fuller local
 gate too:
 

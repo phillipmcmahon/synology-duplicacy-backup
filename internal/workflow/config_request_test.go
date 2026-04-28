@@ -31,12 +31,12 @@ func TestNewConfigRequestFromNilIsZeroValue(t *testing.T) {
 	if got != (ConfigRequest{}) {
 		t.Fatalf("NewConfigRequest(nil) = %#v", got)
 	}
-	plan := NewConfigPlanRequest(nil)
-	if plan != (ConfigPlanRequest{}) {
-		t.Fatalf("NewConfigPlanRequest(nil) = %#v", plan)
+	projected := NewConfigPlanRequest(nil)
+	if projected != (ConfigPlanRequest{}) {
+		t.Fatalf("NewConfigPlanRequest(nil) = %#v", projected)
 	}
-	if plan.Target() != "" {
-		t.Fatalf("ConfigPlanRequest.Target() = %q", plan.Target())
+	if projected.Target() != "" {
+		t.Fatalf("ConfigPlanRequest.Target() = %q", projected.Target())
 	}
 }
 

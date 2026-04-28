@@ -31,6 +31,9 @@ jobs:
       - name: Run staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck ./...
 
+      - name: Check Plan section boundary
+        run: sh scripts/check-plan-section-boundary.sh
+
       - name: Check formatting
         shell: bash
         run: |
