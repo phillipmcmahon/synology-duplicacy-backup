@@ -41,15 +41,15 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 		return report
 	}
 
-	report.Label = plan.BackupLabel
+	report.Label = plan.Config.BackupLabel
 	report.Target = plan.TargetName()
-	report.Operation = plan.OperationMode
+	report.Operation = plan.Request.OperationMode
 	report.Mode = plan.TargetName()
 	if report.Mode == "" {
-		report.Mode = plan.ModeDisplay
+		report.Mode = plan.Display.ModeDisplay
 	}
-	report.Location = plan.Location
-	report.DryRun = plan.DryRun
+	report.Location = plan.Config.Location
+	report.DryRun = plan.Request.DryRun
 	report.Remote = plan.IsRemoteLocation()
 	return report
 }
@@ -84,21 +84,21 @@ func NewFailureRunReport(req *RuntimeRequest, plan *Plan, startedAt time.Time, c
 	}
 	if plan != nil {
 		if report.Label == "" {
-			report.Label = plan.BackupLabel
+			report.Label = plan.Config.BackupLabel
 		}
 		if report.Target == "" {
 			report.Target = plan.TargetName()
 		}
 		if report.Operation == "" {
-			report.Operation = plan.OperationMode
+			report.Operation = plan.Request.OperationMode
 		}
 		if report.Mode == "" {
 			report.Mode = plan.TargetName()
 			if report.Mode == "" {
-				report.Mode = plan.ModeDisplay
+				report.Mode = plan.Display.ModeDisplay
 			}
 		}
-		report.Location = plan.Location
+		report.Location = plan.Config.Location
 		report.Remote = plan.IsRemoteLocation()
 	}
 	return report

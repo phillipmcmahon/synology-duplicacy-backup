@@ -52,5 +52,5 @@ func (h *HealthRunner) loadHealthNotifyConfig(req *HealthRequest) (config.Health
 	if err := cfg.Health.Validate(); err != nil {
 		return config.HealthConfig{}, "", false
 	}
-	return cfg.Health, plan.SecretsFile, true
+	return cfg.Health, plan.Paths.SecretsFile, true
 }

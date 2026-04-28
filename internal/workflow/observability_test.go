@@ -11,7 +11,18 @@ func TestObservabilityHelpers(t *testing.T) {
 	start := time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC)
 	end := time.Date(2026, 4, 10, 16, 47, 54, 100_000_000, time.UTC)
 
-	plan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Backup", ModeDisplay: "onsite-usb", Location: locationLocal, DryRun: true}
+	plan := &Plan{
+		Request: PlanRequest{
+			OperationMode: "Backup",
+			DryRun:        true,
+		},
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "onsite-usb",
+			Location:    locationLocal,
+		},
+		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
+	}
 	report := NewRunReport(plan, start)
 	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || report.Location != locationLocal || !report.DryRun {
 		t.Fatalf("report = %+v", report)
@@ -39,7 +50,14 @@ func TestObservabilityHelpers(t *testing.T) {
 	}
 
 	req := &RuntimeRequest{Label: "homes", Mode: RuntimeModePrune, TargetName: "onsite-usb"}
-	failurePlan := &Plan{BackupLabel: "homes", Target: "onsite-usb", OperationMode: "Safe prune", Location: locationLocal}
+	failurePlan := &Plan{
+		Request: PlanRequest{OperationMode: "Safe prune"},
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "onsite-usb",
+			Location:    locationLocal,
+		},
+	}
 	failure := NewFailureRunReport(req, failurePlan, start, end, 1, "boom")
 	if failure.Operation != "Safe prune" || failure.Result != "failed" || failure.DurationSecond != 3 || failure.Location != locationLocal {
 		t.Fatalf("failure = %+v", failure)
@@ -54,7 +72,11 @@ func TestObservabilityHelpers(t *testing.T) {
 }
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
-	plan := &Plan{Location: locationRemote, ModeDisplay: "offsite-storj", WorkRoot: "/tmp/work"}
+	plan := &Plan{
+		Config:  PlanConfig{Location: locationRemote},
+		Paths:   PlanPaths{WorkRoot: "/tmp/work"},
+		Display: PlanDisplay{ModeDisplay: "offsite-storj"},
+	}
 	if !plan.IsRemoteLocation() {
 		t.Fatal("IsRemoteLocation() = false, want true")
 	}
@@ -64,7 +86,7 @@ func TestPlanHelpersAndVersionText(t *testing.T) {
 	if plan.WorkDir() != "/tmp/work/duplicacy" {
 		t.Fatalf("WorkDir() = %q", plan.WorkDir())
 	}
-	plan.DuplicacyRoot = "/tmp/custom"
+	plan.Paths.DuplicacyRoot = "/tmp/custom"
 	if plan.WorkDir() != "/tmp/custom" {
 		t.Fatalf("WorkDir() = %q", plan.WorkDir())
 	}
@@ -73,14 +95,20 @@ func TestPlanHelpersAndVersionText(t *testing.T) {
 
 func TestPlanSectionsExposeFocusedViews(t *testing.T) {
 	plan := &Plan{
-		DoBackup:      true,
-		OperationMode: "Backup",
-		BackupLabel:   "homes",
-		Target:        "onsite-usb",
-		Location:      locationLocal,
-		BackupTarget:  "/backups/homes",
-		WorkRoot:      "/tmp/work",
-		ModeDisplay:   "onsite-usb",
+		Request: PlanRequest{
+			DoBackup:      true,
+			OperationMode: "Backup",
+		},
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "onsite-usb",
+			Location:    locationLocal,
+		},
+		Paths: PlanPaths{
+			BackupTarget: "/backups/homes",
+			WorkRoot:     "/tmp/work",
+		},
+		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
 	}
 	sections := plan.Sections()
 

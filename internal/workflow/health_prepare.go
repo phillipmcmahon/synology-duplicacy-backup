@@ -21,22 +21,22 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 		return nil, nil, nil, err
 	}
 
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.ConfigFile = cfgPlan.ConfigFile
-	plan.SecretsFile = cfgPlan.SecretsFile
-	plan.BackupTarget = cfg.Storage
-	plan.SnapshotSource = cfg.SourcePath
-	plan.RepositoryPath = cfg.SourcePath
-	plan.ModeDisplay = modeDisplay(plan.TargetName())
-	plan.OperationMode = "Health " + presentation.Title(req.Command)
-	plan.LocalOwner = cfg.LocalOwner
-	plan.LocalGroup = cfg.LocalGroup
-	plan.LogRetentionDays = cfg.LogRetentionDays
-	plan.Filter = cfg.Filter
-	plan.FilterLines = splitNonEmptyLines(cfg.Filter)
-	plan.PruneOptions = cfg.Prune
-	plan.Threads = cfg.Threads
+	plan.Config.Target = cfg.Target
+	plan.Config.Location = cfg.Location
+	plan.Paths.ConfigFile = cfgPlan.Paths.ConfigFile
+	plan.Paths.SecretsFile = cfgPlan.Paths.SecretsFile
+	plan.Paths.BackupTarget = cfg.Storage
+	plan.Paths.SnapshotSource = cfg.SourcePath
+	plan.Paths.RepositoryPath = cfg.SourcePath
+	plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
+	plan.Request.OperationMode = "Health " + presentation.Title(req.Command)
+	plan.Config.LocalOwner = cfg.LocalOwner
+	plan.Config.LocalGroup = cfg.LocalGroup
+	plan.Config.LogRetentionDays = cfg.LogRetentionDays
+	plan.Config.Filter = cfg.Filter
+	plan.Config.FilterLines = splitNonEmptyLines(cfg.Filter)
+	plan.Config.PruneOptions = cfg.Prune
+	plan.Config.Threads = cfg.Threads
 
 	var sec *secrets.Secrets
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
@@ -50,15 +50,15 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 }
 
 func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (*duplicacy.Setup, error) {
-	dup := duplicacy.NewSetup(plan.WorkRoot, plan.RepositoryPath, plan.BackupTarget, false, h.runner)
+	dup := duplicacy.NewSetup(plan.Paths.WorkRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, false, h.runner)
 	if err := dup.CreateDirs(); err != nil {
 		return nil, err
 	}
 	if err := dup.WritePreferences(sec); err != nil {
 		return nil, err
 	}
-	if plan.Filter != "" {
-		if err := dup.WriteFilters(plan.Filter); err != nil {
+	if plan.Config.Filter != "" {
+		if err := dup.WriteFilters(plan.Config.Filter); err != nil {
 			return nil, err
 		}
 	}

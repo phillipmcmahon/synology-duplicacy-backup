@@ -8,31 +8,37 @@ import (
 
 func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 	plan := &Plan{
-		Verbose:                     true,
-		DoBackup:                    true,
-		Threads:                     4,
-		LogRetentionDays:            30,
-		SafePruneMaxDeletePercent:   10,
-		SafePruneMaxDeleteCount:     25,
-		SafePruneMinTotalForPercent: 20,
+		Request: PlanRequest{
+			Verbose:       true,
+			DoBackup:      true,
+			OperationMode: "Backup",
+		},
+		Config: PlanConfig{
+			Threads:                     4,
+			LogRetentionDays:            30,
+			SafePruneMaxDeletePercent:   10,
+			SafePruneMaxDeleteCount:     25,
+			SafePruneMinTotalForPercent: 20,
+			BackupLabel:                 "homes",
+			Target:                      "offsite-storj",
+			Location:                    locationRemote,
+		},
 		Secrets: &secrets.Secrets{
 			Keys: map[string]string{
 				"s3_id":     "1234567890123456789012345678",
 				"s3_secret": "12345678901234567890123456789012345678901234567890123",
 			},
 		},
-		BackupLabel:    "homes",
-		Target:         "offsite-storj",
-		Location:       locationRemote,
-		SnapshotSource: "/volume1/homes",
-		RepositoryPath: "/volume1/homes-snap",
-		WorkRoot:       "/tmp/work",
-		BackupTarget:   "/backups/homes",
-		ConfigFile:     "/config/homes-backup.toml",
-		SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
-		SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
-		ModeDisplay:    "offsite-storj",
-		OperationMode:  "Backup",
+		Paths: PlanPaths{
+			SnapshotSource: "/volume1/homes",
+			RepositoryPath: "/volume1/homes-snap",
+			WorkRoot:       "/tmp/work",
+			BackupTarget:   "/backups/homes",
+			ConfigFile:     "/config/homes-backup.toml",
+			SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
+			SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
+		},
+		Display: PlanDisplay{ModeDisplay: "offsite-storj"},
 	}
 
 	lines := SummaryLines(plan)
@@ -57,31 +63,37 @@ func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 
 func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testing.T) {
 	plan := &Plan{
-		Verbose:                     true,
-		DoBackup:                    true,
-		Threads:                     4,
-		LogRetentionDays:            30,
-		SafePruneMaxDeletePercent:   10,
-		SafePruneMaxDeleteCount:     25,
-		SafePruneMinTotalForPercent: 20,
+		Request: PlanRequest{
+			Verbose:       true,
+			DoBackup:      true,
+			OperationMode: "Backup",
+		},
+		Config: PlanConfig{
+			Threads:                     4,
+			LogRetentionDays:            30,
+			SafePruneMaxDeletePercent:   10,
+			SafePruneMaxDeleteCount:     25,
+			SafePruneMinTotalForPercent: 20,
+			BackupLabel:                 "homes",
+			Target:                      "onsite-rustfs",
+			Location:                    locationLocal,
+		},
 		Secrets: &secrets.Secrets{
 			Keys: map[string]string{
 				"s3_id":     "1234567890123456789012345678",
 				"s3_secret": "12345678901234567890123456789012345678901234567890123",
 			},
 		},
-		BackupLabel:    "homes",
-		Target:         "onsite-rustfs",
-		Location:       locationLocal,
-		SnapshotSource: "/volume1/homes",
-		RepositoryPath: "/volume1/homes-snap",
-		WorkRoot:       "/tmp/work",
-		BackupTarget:   "s3://rustfs.local/bucket/homes",
-		ConfigFile:     "/config/homes-backup.toml",
-		SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
-		SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
-		ModeDisplay:    "onsite-rustfs",
-		OperationMode:  "Backup",
+		Paths: PlanPaths{
+			SnapshotSource: "/volume1/homes",
+			RepositoryPath: "/volume1/homes-snap",
+			WorkRoot:       "/tmp/work",
+			BackupTarget:   "s3://rustfs.local/bucket/homes",
+			ConfigFile:     "/config/homes-backup.toml",
+			SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
+			SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
+		},
+		Display: PlanDisplay{ModeDisplay: "onsite-rustfs"},
 	}
 
 	lines := SummaryLines(plan)
@@ -103,23 +115,29 @@ func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testin
 
 func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	plan := &Plan{
-		DoBackup:       true,
-		DoPrune:        true,
-		ForcePrune:     true,
-		BackupLabel:    "homes",
-		Target:         "onsite-usb",
-		Location:       locationLocal,
-		SnapshotSource: "/volume1/homes",
-		RepositoryPath: "/volume1/homes-snap",
-		BackupTarget:   "/backups/homes",
-		ConfigFile:     "/config/homes-backup.toml",
-		ModeDisplay:    "onsite-usb",
-		OperationMode:  "Backup + Forced prune",
-		WorkRoot:       "/tmp/work",
-		Threads:        16,
-		Filter:         "exclude",
-		LocalOwner:     "phillip",
-		LocalGroup:     "users",
+		Request: PlanRequest{
+			DoBackup:      true,
+			DoPrune:       true,
+			ForcePrune:    true,
+			OperationMode: "Backup + Forced prune",
+		},
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "onsite-usb",
+			Location:    locationLocal,
+			Threads:     16,
+			Filter:      "exclude",
+			LocalOwner:  "phillip",
+			LocalGroup:  "users",
+		},
+		Paths: PlanPaths{
+			SnapshotSource: "/volume1/homes",
+			RepositoryPath: "/volume1/homes-snap",
+			BackupTarget:   "/backups/homes",
+			ConfigFile:     "/config/homes-backup.toml",
+			WorkRoot:       "/tmp/work",
+		},
+		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
 	}
 
 	lines := SummaryLines(plan)

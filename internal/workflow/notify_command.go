@@ -30,10 +30,10 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 		return "", err
 	}
 
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.Notify = cfg.Health.Notify
-	plan.SecretsFile = secretsFileForPlan(plan)
+	plan.Config.Target = cfg.Target
+	plan.Config.Location = cfg.Location
+	plan.Config.Notify = cfg.Health.Notify
+	plan.Paths.SecretsFile = secretsFileForPlan(plan)
 
 	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.Target, cfg.Location, req)
 	destinations, err := notify.ConfiguredDestinations(cfg.Health.Notify, req.Provider)
@@ -58,7 +58,7 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 
 	results, sendErr := notify.SendConfiguredDetailedWithOptions(
 		cfg.Health.Notify,
-		plan.SecretsFile,
+		plan.Paths.SecretsFile,
 		cfg.Target,
 		payload,
 		req.Provider,
@@ -177,5 +177,5 @@ func secretsFileForPlan(plan *Plan) string {
 	if plan == nil {
 		return ""
 	}
-	return plan.SecretsFile
+	return plan.Paths.SecretsFile
 }

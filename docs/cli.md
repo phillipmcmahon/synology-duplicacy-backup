@@ -121,6 +121,7 @@ are not supported.
 |---|---|
 | `DUPLICACY_BACKUP_CONFIG_DIR` | Override config directory unless `--config-dir` is provided |
 | `DUPLICACY_BACKUP_SECRETS_DIR` | Override secrets directory unless `--secrets-dir` is provided |
+| `DUPLICACY_BACKUP_FORCE_COLOUR` | Force ANSI colour output when set to `1`, even when output is captured by a non-interactive runner. This is mainly useful for UI smoke capture and support diagnostics; normal operator runs should leave colour auto-detection in control. |
 
 ## Exit Codes
 

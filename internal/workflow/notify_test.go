@@ -14,7 +14,7 @@ import (
 
 func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 	rt := testRuntime()
-	plan := &Plan{DoBackup: true}
+	plan := &Plan{Request: PlanRequest{DoBackup: true}}
 	report := &RunReport{
 		Label:     "homes",
 		Target:    "offsite-storj",
@@ -40,7 +40,7 @@ func TestBuildRuntimeNotificationPayload_BackupCouldNotStart(t *testing.T) {
 
 func TestBuildRuntimeNotificationPayload_LocalDuplicacyBackupCouldNotStart(t *testing.T) {
 	rt := testRuntime()
-	plan := &Plan{DoBackup: true}
+	plan := &Plan{Request: PlanRequest{DoBackup: true}}
 	report := &RunReport{
 		Label:     "homes",
 		Target:    "onsite-rustfs",
@@ -63,7 +63,7 @@ func TestBuildRuntimeNotificationPayload_LocalDuplicacyBackupCouldNotStart(t *te
 
 func TestBuildRuntimeNotificationPayload_BackupFailed(t *testing.T) {
 	rt := testRuntime()
-	plan := &Plan{DoBackup: true}
+	plan := &Plan{Request: PlanRequest{DoBackup: true}}
 	report := &RunReport{
 		Label:          "homes",
 		Target:         "onsite-usb",
@@ -90,9 +90,11 @@ func TestBuildRuntimeNotificationPayload_BackupFailed(t *testing.T) {
 func TestBuildRuntimeNotificationPayload_SafePruneBlocked(t *testing.T) {
 	rt := testRuntime()
 	plan := &Plan{
-		DoPrune:                   true,
-		SafePruneMaxDeletePercent: 10,
-		SafePruneMaxDeleteCount:   25,
+		Request: PlanRequest{DoPrune: true},
+		Config: PlanConfig{
+			SafePruneMaxDeletePercent: 10,
+			SafePruneMaxDeleteCount:   25,
+		},
 	}
 	report := &RunReport{
 		Label:    "homes",
@@ -127,7 +129,7 @@ func TestBuildRuntimeNotificationPayload_SafePruneBlocked(t *testing.T) {
 
 func TestBuildRuntimeNotificationPayload_PruneFailed(t *testing.T) {
 	rt := testRuntime()
-	plan := &Plan{DoPrune: true}
+	plan := &Plan{Request: PlanRequest{DoPrune: true}}
 	report := &RunReport{
 		Label:    "homes",
 		Target:   "offsite-storj",
@@ -287,7 +289,7 @@ func TestExecutorMaybeSendFailureNotification_BackupFailed(t *testing.T) {
 	executor := &Executor{
 		rt:                rt,
 		log:               log,
-		plan:              &Plan{Notify: configHealthNotifyForTest(server.URL)},
+		plan:              &Plan{Config: PlanConfig{Notify: configHealthNotifyForTest(server.URL)}},
 		report:            &RunReport{Label: "homes", Target: "onsite-usb", Location: locationLocal, ExitCode: 1, Phases: []PhaseReport{{Name: "Backup", Result: "failed"}}},
 		lastErr:           errors.New("boom"),
 		visibleRunStarted: true,
@@ -314,9 +316,13 @@ func TestExecutorMaybeSendFailureNotification_SafePruneBlocked(t *testing.T) {
 	defer server.Close()
 
 	executor := &Executor{
-		rt:   rt,
-		log:  log,
-		plan: &Plan{Notify: configHealthNotifyForTest(server.URL), SafePruneMaxDeletePercent: 10, SafePruneMaxDeleteCount: 25},
+		rt:  rt,
+		log: log,
+		plan: &Plan{Config: PlanConfig{
+			Notify:                    configHealthNotifyForTest(server.URL),
+			SafePruneMaxDeletePercent: 10,
+			SafePruneMaxDeleteCount:   25,
+		}},
 		report: &RunReport{
 			Label:    "homes",
 			Target:   "offsite-storj",

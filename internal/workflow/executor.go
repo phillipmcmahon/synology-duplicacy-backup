@@ -40,10 +40,10 @@ type Executor struct {
 
 func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
 	startedAt := rt.Now()
-	targetLockKey := targetRepositoryLockKey(plan.BackupLabel, plan.TargetName())
-	sourceLock := rt.NewLock(meta.LockParent, "source-"+plan.BackupLabel)
+	targetLockKey := targetRepositoryLockKey(plan.Config.BackupLabel, plan.TargetName())
+	sourceLock := rt.NewLock(meta.LockParent, "source-"+plan.Config.BackupLabel)
 	if rt.NewSourceLock != nil {
-		sourceLock = rt.NewSourceLock(meta.LockParent, plan.BackupLabel)
+		sourceLock = rt.NewSourceLock(meta.LockParent, plan.Config.BackupLabel)
 	}
 	return &Executor{
 		meta:       meta,
@@ -51,7 +51,7 @@ func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.R
 		log:        log,
 		runner:     runner,
 		plan:       plan,
-		view:       NewPresenter(meta, rt, log, plan.Verbose),
+		view:       NewPresenter(meta, rt, log, plan.Request.Verbose),
 		sourceLock: sourceLock,
 		targetLock: rt.NewLock(meta.LockParent, targetLockKey),
 		startedAt:  startedAt,
@@ -63,7 +63,7 @@ func (e *Executor) Run() int {
 	e.installSignalHandler()
 	defer e.cleanup()
 
-	e.log.CleanupOldLogs(e.plan.LogRetentionDays, e.plan.DryRun)
+	e.log.CleanupOldLogs(e.plan.Config.LogRetentionDays, e.plan.Request.DryRun)
 	if err := e.confirmSafetyRails(); err != nil {
 		e.view.PrintPreRunFailurePlan(e.plan)
 		e.fail(err)
@@ -78,7 +78,7 @@ func (e *Executor) Run() int {
 
 	e.startVisibleRun()
 	e.view.PrintHeader(e.plan, e.startedAt, e.targetLock.Path)
-	if e.plan.Verbose {
+	if e.plan.Request.Verbose {
 		e.view.PrintSummary(e.plan)
 	}
 
@@ -139,8 +139,8 @@ func (e *Executor) confirmSafetyRails() error {
 }
 
 func (e *Executor) execute() error {
-	if e.plan.NeedsDuplicacySetup {
-		if e.plan.DoBackup {
+	if e.plan.Request.NeedsDuplicacySetup {
+		if e.plan.Request.DoBackup {
 			e.view.PrintPhase("Backup")
 			if err := e.runTrackedPhase("Backup", func() error {
 				if err := e.prepareDuplicacySetup(); err != nil {
@@ -151,7 +151,7 @@ func (e *Executor) execute() error {
 				return err
 			}
 		} else {
-			if e.plan.DryRun {
+			if e.plan.Request.DryRun {
 				if err := e.runTrackedPhase("Setup", e.runSetupPhase); err != nil {
 					return err
 				}
@@ -162,12 +162,12 @@ func (e *Executor) execute() error {
 			}
 		}
 	}
-	if e.plan.DoPrune {
+	if e.plan.Request.DoPrune {
 		if err := e.runTrackedPhase("Prune", e.runPrunePhase); err != nil {
 			return err
 		}
 	}
-	if e.plan.DoCleanupStore {
+	if e.plan.Request.DoCleanupStore {
 		if err := e.runTrackedPhase("Storage cleanup", e.runCleanupStoragePhase); err != nil {
 			return err
 		}
@@ -201,46 +201,46 @@ func (e *Executor) runTrackedPhase(name string, fn func() error) error {
 }
 
 func (e *Executor) prepareDuplicacySetup() error {
-	if e.plan.NeedsSnapshot {
+	if e.plan.Request.NeedsSnapshot {
 		if err := e.withSourceLock(func() error {
-			if e.plan.DryRun {
-				e.log.DryRun("%s", e.plan.SnapshotCreateCommand)
+			if e.plan.Request.DryRun {
+				e.log.DryRun("%s", e.plan.Display.SnapshotCreateCommand)
 				return nil
 			}
-			if err := btrfs.CreateSnapshot(e.runner, e.plan.SnapshotSource, e.plan.SnapshotTarget, false); err != nil {
+			if err := btrfs.CreateSnapshot(e.runner, e.plan.Paths.SnapshotSource, e.plan.Paths.SnapshotTarget, false); err != nil {
 				return err
 			}
-			e.log.PrintLine("Snapshot", e.plan.SnapshotTarget)
+			e.log.PrintLine("Snapshot", e.plan.Paths.SnapshotTarget)
 			return nil
 		}); err != nil {
 			return err
 		}
 	}
 
-	dup := duplicacy.NewSetup(e.plan.WorkRoot, e.plan.RepositoryPath, e.plan.BackupTarget, e.plan.DryRun, e.runner)
+	dup := duplicacy.NewSetup(e.plan.Paths.WorkRoot, e.plan.Paths.RepositoryPath, e.plan.Paths.BackupTarget, e.plan.Request.DryRun, e.runner)
 	if err := dup.CreateDirs(); err != nil {
 		return err
 	}
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.WorkDirCreateCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.WorkDirCreateCommand)
 	}
 
 	if err := dup.WritePreferences(e.plan.Secrets); err != nil {
 		return err
 	}
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.PreferencesWriteCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.PreferencesWriteCommand)
 	}
 
-	if e.plan.DoBackup && e.plan.Filter != "" {
-		if err := dup.WriteFilters(e.plan.Filter); err != nil {
+	if e.plan.Request.DoBackup && e.plan.Config.Filter != "" {
+		if err := dup.WriteFilters(e.plan.Config.Filter); err != nil {
 			return err
 		}
-		if e.plan.DryRun {
-			e.log.DryRun("%s", e.plan.FiltersWriteCommand)
+		if e.plan.Request.DryRun {
+			e.log.DryRun("%s", e.plan.Display.FiltersWriteCommand)
 		}
-		if e.plan.Verbose {
-			for _, line := range e.plan.FilterLines {
+		if e.plan.Request.Verbose {
+			for _, line := range e.plan.Config.FilterLines {
 				e.log.PrintLine("Filter", line)
 			}
 		}
@@ -249,12 +249,12 @@ func (e *Executor) prepareDuplicacySetup() error {
 	if err := dup.SetPermissions(); err != nil {
 		return err
 	}
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.WorkDirDirPermsCommand)
-		e.log.DryRun("%s", e.plan.WorkDirFilePermsCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.WorkDirDirPermsCommand)
+		e.log.DryRun("%s", e.plan.Display.WorkDirFilePermsCommand)
 	}
 
-	if e.plan.Verbose {
+	if e.plan.Request.Verbose {
 		e.log.PrintLine("Directory", dup.DuplicacyRoot)
 	}
 	e.dup = dup
@@ -265,14 +265,14 @@ func (e *Executor) runBackupPhase() error {
 	start := e.rt.Now()
 	stopBackup := e.view.StartStatusActivity("Backing up snapshot")
 
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.BackupCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.BackupCommand)
 		stopBackup()
 		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)"))
 		return nil
 	}
 
-	stdout, stderr, err := e.dup.RunBackup(e.plan.Threads)
+	stdout, stderr, err := e.dup.RunBackup(e.plan.Config.Threads)
 	stopBackup()
 	e.view.PrintBackupResult(stdout, stderr, err != nil)
 	if err != nil {
@@ -283,7 +283,7 @@ func (e *Executor) runBackupPhase() error {
 			e.lastBackupRevision = revision
 		}
 	}
-	if e.plan.Verbose {
+	if e.plan.Request.Verbose {
 		e.view.PrintDuration(start)
 	}
 	e.log.Info("%s", statusLinef("Backup phase completed successfully"))

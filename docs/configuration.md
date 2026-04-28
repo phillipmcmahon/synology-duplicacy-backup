@@ -34,6 +34,17 @@ config or secrets. Operators moving from the legacy root-era layout should
 follow [`v8-migration.md`](v8-migration.md). The migration helper is packaged
 in the release tarball; it is not installed by `duplicacy-backup update`.
 
+## Runtime Environment Overrides
+
+The command line is the preferred place for operator choices. Environment
+variables are still useful for schedulers, smoke captures, and support runs:
+
+| Variable | Purpose |
+|---|---|
+| `DUPLICACY_BACKUP_CONFIG_DIR` | Override the config directory unless `--config-dir` is provided |
+| `DUPLICACY_BACKUP_SECRETS_DIR` | Override the secrets directory unless `--secrets-dir` is provided |
+| `DUPLICACY_BACKUP_FORCE_COLOUR` | Force ANSI colour output when set to `1`, even for captured non-interactive output. Use this for UI smoke captures or diagnostics, not routine scheduled tasks. |
+
 ## Config File Format
 
 Each config file defines one source label and one or more named targets.

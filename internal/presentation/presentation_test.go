@@ -160,17 +160,77 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 
 func TestDisplayLabelUsesSharedOperatorVocabulary(t *testing.T) {
 	cases := map[string]string{
+		"Btrfs":             LabelBtrfs,
 		"Config file":       "Config File",
+		"Repository":        LabelRepository,
 		"Source path":       "Source Path",
 		"Repository access": "Repository Access",
 		"Revision count":    "Revision Count",
 		"Integrity check":   "Integrity Check",
+		"Healthy":           ValueHealthy,
+		"Degraded":          ValueDegraded,
 		"Unknown check":     "Unknown check",
 	}
 
 	for input, want := range cases {
 		if got := DisplayLabel(input); got != want {
 			t.Fatalf("DisplayLabel(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestDisplayVocabularyExplicitlyMapsSharedConstants(t *testing.T) {
+	labelConstants := []string{
+		LabelBackupState,
+		LabelBackupFreshness,
+		LabelBtrfs,
+		LabelBtrfsRoot,
+		LabelBtrfsSource,
+		LabelConfigFile,
+		LabelIntegrityCheck,
+		LabelLastDoctorRun,
+		LabelLastVerifyRun,
+		LabelLatestRevision,
+		LabelRepository,
+		LabelRepositoryAccess,
+		LabelRevisionCount,
+		LabelRevisionsChecked,
+		LabelRevisionsFailed,
+		LabelRevisionsPassed,
+		LabelRootConfigProfile,
+		LabelSourcePath,
+		LabelStorageAccess,
+	}
+	valueConstants := []string{
+		ValueDegraded,
+		ValueFailed,
+		ValueHealthy,
+		ValueInvalid,
+		ValueLimited,
+		ValueNotChecked,
+		ValueNotConfigured,
+		ValueNotEnabled,
+		ValueNotInitialized,
+		ValueNotRequired,
+		ValueParsed,
+		ValuePassed,
+		ValuePresent,
+		ValueReadable,
+		ValueRequiresSudo,
+		ValueResolved,
+		ValueSkipped,
+		ValueUnhealthy,
+		ValueValidated,
+		ValueValid,
+		ValueWritable,
+	}
+
+	for _, input := range append(labelConstants, valueConstants...) {
+		if _, ok := displayVocabulary[input]; !ok {
+			t.Fatalf("displayVocabulary is missing explicit identity mapping for %q", input)
+		}
+		if got := DisplayLabel(input); got != input {
+			t.Fatalf("DisplayLabel(%q) = %q, want explicit identity mapping", input, got)
 		}
 	}
 }

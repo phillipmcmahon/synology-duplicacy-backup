@@ -13,10 +13,10 @@ import (
 )
 
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
-	report.AddCheck("Config file", "pass", plan.ConfigFile)
+	report.AddCheck("Config file", "pass", plan.Paths.ConfigFile)
 	defer func() {
 		if plan.Secrets != nil {
-			report.AddCheck("Secrets", "pass", plan.SecretsFile)
+			report.AddCheck("Secrets", "pass", plan.Paths.SecretsFile)
 		}
 	}()
 
@@ -75,9 +75,9 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest,
 }
 
 func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, req *HealthRequest, plan *Plan) {
-	report.AddCheck("Config file", "pass", plan.ConfigFile)
+	report.AddCheck("Config file", "pass", plan.Paths.ConfigFile)
 	if plan.Secrets != nil {
-		report.AddCheck("Secrets", "pass", plan.SecretsFile)
+		report.AddCheck("Secrets", "pass", plan.Paths.SecretsFile)
 	}
 	// Doctor and verify add the repository-access row in runDoctorChecks,
 	// after reporting the source-path and Btrfs readiness context.
@@ -88,14 +88,14 @@ func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, 
 
 func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
 	verifyMode := req.Command == "verify"
-	if _, err := os.Stat(plan.SnapshotSource); err != nil {
+	if _, err := os.Stat(plan.Paths.SnapshotSource); err != nil {
 		if verifyMode {
 			report.AddDisplayCheck("Source path", "info", fmt.Sprintf("Backup-readiness check failed: source path is not accessible: %v", err))
 		} else {
 			report.AddCheck("Source path", "fail", fmt.Sprintf("Source path is not accessible: %v", err))
 		}
 	} else {
-		report.AddCheck("Source path", "pass", plan.SnapshotSource)
+		report.AddCheck("Source path", "pass", plan.Paths.SnapshotSource)
 	}
 	if verifyMode {
 		report.AddDisplayCheck("Btrfs", "info", "Not checked; backup-readiness validation is not required for storage integrity verification")
@@ -149,7 +149,7 @@ type btrfsReadinessReport struct {
 func (h *HealthRunner) runBtrfsReadinessChecks(plan *Plan) btrfsReadinessReport {
 	return btrfsReadinessReport{
 		RootErr:   btrfs.CheckVolume(h.runner, h.meta.RootVolume, false),
-		SourceErr: btrfs.CheckVolume(h.runner, plan.SnapshotSource, false),
+		SourceErr: btrfs.CheckVolume(h.runner, plan.Paths.SnapshotSource, false),
 	}
 }
 

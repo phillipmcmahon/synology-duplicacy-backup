@@ -59,19 +59,19 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	resolved := []SummaryLine{
 		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
-		{Label: "Config File", Value: plan.ConfigFile},
+		{Label: "Config File", Value: plan.Paths.ConfigFile},
 	}
 
 	cfg, err := planner.loadConfigForValidation(plan)
 	if err != nil {
 		return "", err
 	}
-	resolved[2].Value = plan.ConfigFile
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.SnapshotSource = cfg.SourcePath
-	plan.RepositoryPath = cfg.SourcePath
-	plan.BackupTarget = cfg.Storage
+	resolved[2].Value = plan.Paths.ConfigFile
+	plan.Config.Target = cfg.Target
+	plan.Config.Location = cfg.Location
+	plan.Paths.SnapshotSource = cfg.SourcePath
+	plan.Paths.RepositoryPath = cfg.SourcePath
+	plan.Paths.BackupTarget = cfg.Storage
 	collector := newConfigValidationCollector([]SummaryLine{{Label: "Config", Value: "Valid"}})
 
 	requiredErr := cfg.ValidateRequired(true, false)
@@ -84,7 +84,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 		pruneErr = cfg.ValidatePrunePolicy()
 	}
 
-	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.SnapshotSource)
+	sourceAccessible, sourceStatus, sourceErr := validateConfigSourcePathAccess(plan.Paths.SnapshotSource)
 	btrfsStatus := "Not checked"
 	var btrfsErr error
 	if sourceAccessible {
@@ -186,25 +186,25 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	plan.Target = cfg.Target
-	plan.Location = cfg.Location
-	plan.ModeDisplay = modeDisplay(plan.TargetName())
-	plan.SnapshotSource = cfg.SourcePath
-	plan.BackupTarget = cfg.Storage
-	plan.Threads = cfg.Threads
-	plan.Filter = cfg.Filter
-	plan.PruneOptions = cfg.Prune
-	plan.LocalOwner = cfg.LocalOwner
-	plan.LocalGroup = cfg.LocalGroup
+	plan.Config.Target = cfg.Target
+	plan.Config.Location = cfg.Location
+	plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
+	plan.Paths.SnapshotSource = cfg.SourcePath
+	plan.Paths.BackupTarget = cfg.Storage
+	plan.Config.Threads = cfg.Threads
+	plan.Config.Filter = cfg.Filter
+	plan.Config.PruneOptions = cfg.Prune
+	plan.Config.LocalOwner = cfg.LocalOwner
+	plan.Config.LocalGroup = cfg.LocalGroup
 
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Location", Value: cfg.Location},
-		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Source Path", Value: plan.SnapshotSource},
+		{Label: "Config File", Value: plan.Paths.ConfigFile},
+		{Label: "Source Path", Value: plan.Paths.SnapshotSource},
 	}
-	lines = append(lines, SummaryLine{Label: "Storage", Value: plan.BackupTarget})
+	lines = append(lines, SummaryLine{Label: "Storage", Value: plan.Paths.BackupTarget})
 
 	if cfg.Threads > 0 {
 		lines = append(lines, SummaryLine{Label: "Threads", Value: fmt.Sprintf("%d", cfg.Threads)})
@@ -218,7 +218,7 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		lines = append(lines,
-			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
+			SummaryLine{Label: "Secrets File", Value: plan.Paths.SecretsFile},
 		)
 	}
 	if cfg.AllowLocalAccounts || cfg.LocalOwner != "" || cfg.LocalGroup != "" {
@@ -235,25 +235,25 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 func handleConfigPaths(req *ConfigRequest, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req.PlanRequest())
 	if cfg, err := planner.loadConfig(plan); err == nil {
-		plan.Target = cfg.Target
-		plan.Location = cfg.Location
-		plan.ModeDisplay = modeDisplay(plan.TargetName())
-		plan.SnapshotSource = cfg.SourcePath
-		plan.BackupTarget = cfg.Storage
+		plan.Config.Target = cfg.Target
+		plan.Config.Location = cfg.Location
+		plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
+		plan.Paths.SnapshotSource = cfg.SourcePath
+		plan.Paths.BackupTarget = cfg.Storage
 	}
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Label},
 		{Label: "Target", Value: plan.TargetName()},
-		{Label: "Location", Value: plan.Location},
-		{Label: "Config Dir", Value: plan.ConfigDir},
-		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Source Path", Value: plan.SnapshotSource},
+		{Label: "Location", Value: plan.Config.Location},
+		{Label: "Config Dir", Value: plan.Paths.ConfigDir},
+		{Label: "Config File", Value: plan.Paths.ConfigFile},
+		{Label: "Source Path", Value: plan.Paths.SnapshotSource},
 		{Label: "Log Dir", Value: meta.LogDir},
 	}
-	if duplicacy.NewStorageSpec(plan.BackupTarget).NeedsSecrets() {
+	if duplicacy.NewStorageSpec(plan.Paths.BackupTarget).NeedsSecrets() {
 		lines = append(lines,
-			SummaryLine{Label: "Secrets Dir", Value: plan.SecretsDir},
-			SummaryLine{Label: "Secrets File", Value: plan.SecretsFile},
+			SummaryLine{Label: "Secrets Dir", Value: plan.Paths.SecretsDir},
+			SummaryLine{Label: "Secrets File", Value: plan.Paths.SecretsFile},
 		)
 	}
 
@@ -343,7 +343,7 @@ func validateConfigSourcePathAccess(sourcePath string) (bool, string, error) {
 }
 
 func validateConfigSourceBtrfs(plan *Plan, runner execpkg.Runner) error {
-	if err := btrfs.CheckVolume(runner, plan.SnapshotSource, false); err != nil {
+	if err := btrfs.CheckVolume(runner, plan.Paths.SnapshotSource, false); err != nil {
 		return err
 	}
 	return nil
@@ -376,7 +376,7 @@ func validateConfigRepository(plan *Plan, cfg *config.Config, runner execpkg.Run
 }
 
 func prepareConfigValidationProbe(plan *Plan, runner execpkg.Runner, sec *secrets.Secrets) (*duplicacy.Setup, error) {
-	dup := duplicacy.NewSetup(plan.WorkRoot, plan.RepositoryPath, plan.BackupTarget, false, runner)
+	dup := duplicacy.NewSetup(plan.Paths.WorkRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, false, runner)
 	if err := dup.CreateDirs(); err != nil {
 		return nil, err
 	}

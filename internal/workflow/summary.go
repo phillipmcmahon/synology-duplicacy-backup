@@ -29,67 +29,67 @@ func OperationMode(req *RuntimeRequest) string {
 
 func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{
-		{Label: "Operation Mode", Value: plan.OperationMode},
+		{Label: "Operation Mode", Value: plan.Request.OperationMode},
 		{Label: "Target", Value: plan.TargetName()},
-		{Label: "Location", Value: plan.Location},
-		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Source Path", Value: plan.SnapshotSource},
+		{Label: "Location", Value: plan.Config.Location},
+		{Label: "Config File", Value: plan.Paths.ConfigFile},
+		{Label: "Source Path", Value: plan.Paths.SnapshotSource},
 	}
-	if plan.DoBackup {
-		lines = append(lines, []SummaryLine{{Label: "Snapshot", Value: plan.RepositoryPath}}...)
+	if plan.Request.DoBackup {
+		lines = append(lines, []SummaryLine{{Label: "Snapshot", Value: plan.Paths.RepositoryPath}}...)
 	}
-	lines = append(lines, []SummaryLine{{Label: "Storage", Value: plan.BackupTarget}}...)
+	lines = append(lines, []SummaryLine{{Label: "Storage", Value: plan.Paths.BackupTarget}}...)
 
-	if !plan.Verbose {
-		if plan.DryRun {
+	if !plan.Request.Verbose {
+		if plan.Request.DryRun {
 			lines = append(lines, []SummaryLine{{Label: "Dry Run", Value: "true"}}...)
 		}
-		if plan.ForcePrune {
+		if plan.Request.ForcePrune {
 			lines = append(lines, []SummaryLine{{Label: "Force Prune", Value: "true"}}...)
 		}
-		if plan.DoCleanupStore {
+		if plan.Request.DoCleanupStore {
 			lines = append(lines, []SummaryLine{{Label: "Cleanup Storage", Value: "true"}}...)
 		}
 		return lines
 	}
 
 	lines = append(lines, []SummaryLine{
-		{Label: "Backup Label", Value: plan.BackupLabel},
+		{Label: "Backup Label", Value: plan.Config.BackupLabel},
 		{Label: "Work Dir", Value: plan.WorkDir()},
 	}...)
 
-	if plan.Threads > 0 {
-		lines = append(lines, []SummaryLine{{Label: "Threads", Value: fmt.Sprintf("%d", plan.Threads)}}...)
+	if plan.Config.Threads > 0 {
+		lines = append(lines, []SummaryLine{{Label: "Threads", Value: fmt.Sprintf("%d", plan.Config.Threads)}}...)
 	} else {
 		lines = append(lines, []SummaryLine{{Label: "Threads", Value: "<n/a>"}}...)
 	}
 
-	if plan.Filter != "" {
-		lines = append(lines, []SummaryLine{{Label: "Filter", Value: plan.Filter}}...)
+	if plan.Config.Filter != "" {
+		lines = append(lines, []SummaryLine{{Label: "Filter", Value: plan.Config.Filter}}...)
 	} else {
 		lines = append(lines, []SummaryLine{{Label: "Filter", Value: "<none>"}}...)
 	}
 
-	if plan.PruneOptions != "" {
-		lines = append(lines, []SummaryLine{{Label: "Prune Options", Value: plan.PruneOptions}}...)
+	if plan.Config.PruneOptions != "" {
+		lines = append(lines, []SummaryLine{{Label: "Prune Options", Value: plan.Config.PruneOptions}}...)
 	} else {
 		lines = append(lines, []SummaryLine{{Label: "Prune Options", Value: "<none>"}}...)
 	}
 
 	lines = append(lines, []SummaryLine{
-		{Label: "Log Retention", Value: fmt.Sprintf("%d", plan.LogRetentionDays)},
-		{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.DryRun)},
-		{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.ForcePrune)},
-		{Label: "Cleanup Storage", Value: fmt.Sprintf("%t", plan.DoCleanupStore)},
-		{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeletePercent)},
-		{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.SafePruneMaxDeleteCount)},
-		{Label: "Prune Min Total Revs", Value: fmt.Sprintf("%d", plan.SafePruneMinTotalForPercent)},
+		{Label: "Log Retention", Value: fmt.Sprintf("%d", plan.Config.LogRetentionDays)},
+		{Label: "Dry Run", Value: fmt.Sprintf("%t", plan.Request.DryRun)},
+		{Label: "Force Prune", Value: fmt.Sprintf("%t", plan.Request.ForcePrune)},
+		{Label: "Cleanup Storage", Value: fmt.Sprintf("%t", plan.Request.DoCleanupStore)},
+		{Label: "Prune Max %", Value: fmt.Sprintf("%d", plan.Config.SafePruneMaxDeletePercent)},
+		{Label: "Prune Max Count", Value: fmt.Sprintf("%d", plan.Config.SafePruneMaxDeleteCount)},
+		{Label: "Prune Min Total Revs", Value: fmt.Sprintf("%d", plan.Config.SafePruneMinTotalForPercent)},
 	}...)
 
 	if plan.Secrets != nil {
 		lines = append(lines, []SummaryLine{
-			{Label: "Secrets Dir", Value: plan.SecretsDir},
-			{Label: "Secrets File", Value: plan.SecretsFile},
+			{Label: "Secrets Dir", Value: plan.Paths.SecretsDir},
+			{Label: "Secrets File", Value: plan.Paths.SecretsFile},
 			{Label: "Storage Keys", Value: plan.Secrets.MaskedKeys()},
 		}...)
 	}

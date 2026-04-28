@@ -57,7 +57,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 	if err != nil {
 		return nil, err
 	}
-	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
+	if err := validateRestoreWorkspace(workspace, plan.Paths.SnapshotSource); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +113,7 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 		secrets:    sec,
 		dup:        duplicacy.NewWorkspaceSetup(workspace, cfg.Storage, false, deps.NewRunner()),
 		cleanup:    cleanup,
-		secretPath: plan.SecretsFile,
+		secretPath: plan.Paths.SecretsFile,
 	}, nil
 }
 

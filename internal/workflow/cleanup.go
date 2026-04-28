@@ -12,7 +12,7 @@ func (e *Executor) cleanup() {
 	}
 	e.cleanedUp = true
 
-	if e.plan.Verbose && e.cleanupHasDetails() {
+	if e.plan.Request.Verbose && e.cleanupHasDetails() {
 		e.view.PrintPhase("Cleanup")
 	}
 	e.cleanupSnapshot()
@@ -25,7 +25,7 @@ func (e *Executor) cleanup() {
 	if e.exitCode != 0 {
 		e.maybeSendFailureNotification()
 	}
-	if !e.plan.DryRun {
+	if !e.plan.Request.DryRun {
 		if err := updateRunState(e.meta, e.plan, e.report, e.lastBackupRevision); err != nil {
 			e.log.Warn("%s", statusLinef("Failed to update local run state: %v", err))
 		}
@@ -35,13 +35,13 @@ func (e *Executor) cleanup() {
 }
 
 func (e *Executor) cleanupHasDetails() bool {
-	if e.plan.NeedsSnapshot {
-		if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
+	if e.plan.Request.NeedsSnapshot {
+		if _, err := os.Stat(e.plan.Paths.SnapshotTarget); err == nil {
 			return true
 		}
 	}
 
-	workRoot := e.plan.WorkRoot
+	workRoot := e.plan.Paths.WorkRoot
 	if e.dup != nil {
 		workRoot = e.dup.WorkRoot
 	}
@@ -53,7 +53,7 @@ func (e *Executor) cleanupHasDetails() bool {
 }
 
 func (e *Executor) cleanupSnapshot() {
-	if !e.plan.NeedsSnapshot {
+	if !e.plan.Request.NeedsSnapshot {
 		return
 	}
 
@@ -67,33 +67,33 @@ func (e *Executor) cleanupSnapshot() {
 	}
 	defer releaseSource()
 
-	if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-		if e.plan.Verbose {
-			e.log.PrintLine("Snapshot", e.plan.SnapshotTarget)
+	if _, err := os.Stat(e.plan.Paths.SnapshotTarget); err == nil {
+		if e.plan.Request.Verbose {
+			e.log.PrintLine("Snapshot", e.plan.Paths.SnapshotTarget)
 		}
-		if e.plan.DryRun {
-			e.log.DryRun("%s", e.plan.SnapshotDeleteCommand)
-		} else if delErr := btrfs.DeleteSnapshot(e.runner, e.plan.SnapshotTarget, false); delErr != nil {
-			e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v", e.plan.SnapshotTarget, delErr))
-		} else if e.plan.Verbose {
+		if e.plan.Request.DryRun {
+			e.log.DryRun("%s", e.plan.Display.SnapshotDeleteCommand)
+		} else if delErr := btrfs.DeleteSnapshot(e.runner, e.plan.Paths.SnapshotTarget, false); delErr != nil {
+			e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v", e.plan.Paths.SnapshotTarget, delErr))
+		} else if e.plan.Request.Verbose {
 			e.log.PrintLine("Snapshot", "Removed")
 		}
 	}
 
-	if _, err := os.Stat(e.plan.SnapshotTarget); err == nil {
-		if e.plan.Verbose {
-			e.log.PrintLine("Snapshot Dir", e.plan.SnapshotTarget)
+	if _, err := os.Stat(e.plan.Paths.SnapshotTarget); err == nil {
+		if e.plan.Request.Verbose {
+			e.log.PrintLine("Snapshot Dir", e.plan.Paths.SnapshotTarget)
 		}
-		if e.plan.DryRun {
-			e.log.DryRun("rm -rf %s", e.plan.SnapshotTarget)
-		} else if rmErr := os.RemoveAll(e.plan.SnapshotTarget); rmErr != nil {
-			e.log.Warn("%s", statusLinef("Failed to remove snapshot directory %s: %v", e.plan.SnapshotTarget, rmErr))
+		if e.plan.Request.DryRun {
+			e.log.DryRun("rm -rf %s", e.plan.Paths.SnapshotTarget)
+		} else if rmErr := os.RemoveAll(e.plan.Paths.SnapshotTarget); rmErr != nil {
+			e.log.Warn("%s", statusLinef("Failed to remove snapshot directory %s: %v", e.plan.Paths.SnapshotTarget, rmErr))
 		}
 	}
 }
 
 func (e *Executor) cleanupWorkRoot() {
-	workRoot := e.plan.WorkRoot
+	workRoot := e.plan.Paths.WorkRoot
 	if e.dup != nil {
 		workRoot = e.dup.WorkRoot
 	}
@@ -101,18 +101,18 @@ func (e *Executor) cleanupWorkRoot() {
 		return
 	}
 
-	if e.plan.Verbose {
+	if e.plan.Request.Verbose {
 		e.log.PrintLine("Work Dir", workRoot)
 	}
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.WorkDirRemoveCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.WorkDirRemoveCommand)
 		return
 	}
 
 	if e.dup != nil {
 		if err := e.dup.Cleanup(); err != nil {
 			e.log.Warn("%s", statusLinef("Failed to remove work directory: %v", err))
-		} else if e.plan.Verbose {
+		} else if e.plan.Request.Verbose {
 			e.log.PrintLine("Work Dir", "Removed")
 		}
 		return
@@ -120,7 +120,7 @@ func (e *Executor) cleanupWorkRoot() {
 
 	if err := os.RemoveAll(workRoot); err != nil {
 		e.log.Warn("%s", statusLinef("Failed to remove work directory %s: %v", workRoot, err))
-	} else if e.plan.Verbose {
+	} else if e.plan.Request.Verbose {
 		e.log.PrintLine("Work Dir", "Removed")
 	}
 }

@@ -124,9 +124,9 @@ func newRestorePlanReport(req *RestoreRequest, meta Metadata, plan *Plan, storag
 	report := &restorePlanReport{
 		Label:             req.Label,
 		Target:            req.Target(),
-		Location:          plan.Location,
-		ConfigFile:        plan.ConfigFile,
-		SourcePath:        plan.SnapshotSource,
+		Location:          plan.Config.Location,
+		ConfigFile:        plan.Paths.ConfigFile,
+		SourcePath:        plan.Paths.SnapshotSource,
 		Storage:           storage,
 		SecretsFile:       "Not required for this storage backend",
 		SecretsRequired:   secretsRequired,
@@ -141,12 +141,12 @@ func newRestorePlanReport(req *RestoreRequest, meta Metadata, plan *Plan, storag
 		DocumentationPath: "docs/restore-drills.md",
 	}
 	if secretsRequired {
-		report.SecretsFile = plan.SecretsFile
+		report.SecretsFile = plan.Paths.SecretsFile
 	}
 	report.InitCommand = fmt.Sprintf("duplicacy init %s %s", shellQuote(report.SnapshotID), shellQuote(storage))
 	report.CopyBackPreview = "Unavailable until source_path is configured"
-	if strings.TrimSpace(plan.SnapshotSource) != "" {
-		report.CopyBackPreview = fmt.Sprintf("rsync -a --dry-run %s %s", shellQuote(filepath.Join(workspace, "relative/path")), shellQuote(filepath.Join(plan.SnapshotSource, "relative/path")))
+	if strings.TrimSpace(plan.Paths.SnapshotSource) != "" {
+		report.CopyBackPreview = fmt.Sprintf("rsync -a --dry-run %s %s", shellQuote(filepath.Join(workspace, "relative/path")), shellQuote(filepath.Join(plan.Paths.SnapshotSource, "relative/path")))
 	}
 	return report
 }
@@ -169,9 +169,9 @@ func newRestoreRevisionsReport(req *RestoreRequest, ctx *restoreExecutionContext
 	return &restoreRevisionsReport{
 		Label:           req.Label,
 		Target:          req.Target(),
-		Location:        ctx.plan.Location,
-		ConfigFile:      ctx.plan.ConfigFile,
-		SourcePath:      ctx.plan.SnapshotSource,
+		Location:        ctx.plan.Config.Location,
+		ConfigFile:      ctx.plan.Paths.ConfigFile,
+		SourcePath:      ctx.plan.Paths.SnapshotSource,
 		Storage:         ctx.cfg.Storage,
 		Workspace:       ctx.workspace,
 		WorkspaceMode:   ctx.mode,
@@ -192,9 +192,9 @@ func newRestoreRunReport(req *RestoreRequest, plan *Plan, storage, workspace str
 	return &restoreRunReport{
 		Label:             req.Label,
 		Target:            req.Target(),
-		Location:          plan.Location,
-		ConfigFile:        plan.ConfigFile,
-		SourcePath:        plan.SnapshotSource,
+		Location:          plan.Config.Location,
+		ConfigFile:        plan.Paths.ConfigFile,
+		SourcePath:        plan.Paths.SnapshotSource,
 		Storage:           storage,
 		Workspace:         workspace,
 		WorkspacePrepared: restoreWorkspacePrepared(workspace),
@@ -215,9 +215,9 @@ func newRestoreInspectReport(req *RestoreRequest, plan *Plan, storage string, re
 	return &restoreInspectReport{
 		Label:      req.Label,
 		Target:     req.Target(),
-		Location:   plan.Location,
-		ConfigFile: plan.ConfigFile,
-		SourcePath: plan.SnapshotSource,
+		Location:   plan.Config.Location,
+		ConfigFile: plan.Paths.ConfigFile,
+		SourcePath: plan.Paths.SnapshotSource,
 		Storage:    storage,
 		Revision:   revision,
 		PathPrefix: pathPrefix,
@@ -229,9 +229,9 @@ func newRestoreSelectReport(req *RestoreRequest, meta Metadata, plan *Plan, stor
 	return &restoreSelectReport{
 		Label:             req.Label,
 		Target:            req.Target(),
-		Location:          plan.Location,
-		ConfigFile:        plan.ConfigFile,
-		SourcePath:        plan.SnapshotSource,
+		Location:          plan.Config.Location,
+		ConfigFile:        plan.Paths.ConfigFile,
+		SourcePath:        plan.Paths.SnapshotSource,
 		Storage:           storage,
 		Workspace:         workspace,
 		WorkspacePrepared: workspacePrepared,

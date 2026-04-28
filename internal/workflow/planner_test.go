@@ -88,22 +88,22 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if plan.OperationMode != "Backup" {
-		t.Fatalf("OperationMode = %q, want %q", plan.OperationMode, "Backup")
+	if plan.Request.OperationMode != "Backup" {
+		t.Fatalf("OperationMode = %q, want %q", plan.Request.OperationMode, "Backup")
 	}
-	if plan.BackupTarget != "/backups/homes" {
-		t.Fatalf("BackupTarget = %q", plan.BackupTarget)
+	if plan.Paths.BackupTarget != "/backups/homes" {
+		t.Fatalf("BackupTarget = %q", plan.Paths.BackupTarget)
 	}
-	if !plan.NeedsDuplicacySetup || !plan.NeedsSnapshot {
+	if !plan.Request.NeedsDuplicacySetup || !plan.Request.NeedsSnapshot {
 		t.Fatalf("expected backup plan to need setup and snapshot: %+v", plan)
 	}
-	if plan.PruneArgsDisplay != "" {
-		t.Fatalf("PruneArgsDisplay = %q, want empty", plan.PruneArgsDisplay)
+	if plan.Config.PruneArgsDisplay != "" {
+		t.Fatalf("PruneArgsDisplay = %q, want empty", plan.Config.PruneArgsDisplay)
 	}
-	if plan.BackupCommand != "duplicacy backup -stats -threads 4" {
-		t.Fatalf("BackupCommand = %q", plan.BackupCommand)
+	if plan.Display.BackupCommand != "duplicacy backup -stats -threads 4" {
+		t.Fatalf("BackupCommand = %q", plan.Display.BackupCommand)
 	}
-	if plan.SnapshotCreateCommand == "" || plan.WorkDirCreateCommand == "" {
+	if plan.Display.SnapshotCreateCommand == "" || plan.Display.WorkDirCreateCommand == "" {
 		t.Fatalf("expected execution-ready commands, got %+v", plan)
 	}
 	if len(plan.Summary) == 0 {
@@ -136,8 +136,8 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	if plan.Secrets == nil {
 		t.Fatal("expected secrets to be loaded for remote plan")
 	}
-	if plan.SecretsFile != secretsFile {
-		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
+	if plan.Paths.SecretsFile != secretsFile {
+		t.Fatalf("SecretsFile = %q, want %q", plan.Paths.SecretsFile, secretsFile)
 	}
 	if len(runner.Invocations) != 4 {
 		t.Fatalf("invocations = %d, want 4", len(runner.Invocations))
@@ -166,14 +166,14 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	if plan.IsRemoteLocation() {
 		t.Fatal("expected local duplicacy target not to be reported as remote")
 	}
-	if plan.Location != locationLocal {
-		t.Fatalf("Location = %q, want %q", plan.Location, locationLocal)
+	if plan.Config.Location != locationLocal {
+		t.Fatalf("Location = %q, want %q", plan.Config.Location, locationLocal)
 	}
 	if plan.Secrets == nil {
 		t.Fatal("expected secrets to be loaded for local duplicacy plan")
 	}
-	if plan.SecretsFile != secretsFile {
-		t.Fatalf("SecretsFile = %q, want %q", plan.SecretsFile, secretsFile)
+	if plan.Paths.SecretsFile != secretsFile {
+		t.Fatalf("SecretsFile = %q, want %q", plan.Paths.SecretsFile, secretsFile)
 	}
 	if len(runner.Invocations) != 4 {
 		t.Fatalf("invocations = %d, want 4", len(runner.Invocations))
@@ -274,8 +274,8 @@ func TestPlannerBuild_NonRootLocalRepositoryCleanupDryRunIsSimulationOnly(t *tes
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if !plan.DoCleanupStore || !plan.DryRun {
-		t.Fatalf("plan cleanup/dry-run = %t/%t, want true/true", plan.DoCleanupStore, plan.DryRun)
+	if !plan.Request.DoCleanupStore || !plan.Request.DryRun {
+		t.Fatalf("plan cleanup/dry-run = %t/%t, want true/true", plan.Request.DoCleanupStore, plan.Request.DryRun)
 	}
 }
 
@@ -294,8 +294,8 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if plan.BackupTarget != "s3://rustfs.local/bucket" {
-		t.Fatalf("BackupTarget = %q", plan.BackupTarget)
+	if plan.Paths.BackupTarget != "s3://rustfs.local/bucket" {
+		t.Fatalf("BackupTarget = %q", plan.Paths.BackupTarget)
 	}
 }
 
@@ -308,7 +308,10 @@ func TestPlannerLoadSecrets(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	sec, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile, Target: "offsite-storj"})
+	sec, err := planner.loadSecrets(&Plan{
+		Config: PlanConfig{Target: "offsite-storj"},
+		Paths:  PlanPaths{SecretsFile: secretsFile},
+	})
 	if err != nil {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
@@ -319,7 +322,7 @@ func TestPlannerLoadSecrets(t *testing.T) {
 
 func TestPlannerLoadConfig_MissingFile(t *testing.T) {
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadConfig(&Plan{ConfigFile: filepath.Join(t.TempDir(), "missing.toml")})
+	_, err := planner.loadConfig(&Plan{Paths: PlanPaths{ConfigFile: filepath.Join(t.TempDir(), "missing.toml")}})
 	if err == nil || !strings.Contains(err.Error(), "configuration file not found") {
 		t.Fatalf("loadConfig() error = %v", err)
 	}
@@ -334,10 +337,14 @@ func TestPlannerLoadConfig_MissingCanonicalFileReportsCanonicalPath(t *testing.T
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
-		ConfigDir:   configDir,
-		ConfigFile:  filepath.Join(configDir, "homes-backup.toml"),
-		BackupLabel: "homes",
-		Target:      "offsite-storj",
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "offsite-storj",
+		},
+		Paths: PlanPaths{
+			ConfigDir:  configDir,
+			ConfigFile: filepath.Join(configDir, "homes-backup.toml"),
+		},
 	})
 	if err == nil || !strings.Contains(err.Error(), "homes-backup.toml") {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -350,9 +357,11 @@ func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadConfig(&Plan{
-		ConfigFile:  configFile,
-		BackupLabel: "homes",
-		Target:      "offsite-storj",
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "offsite-storj",
+		},
+		Paths: PlanPaths{ConfigFile: configFile},
 	})
 	if err == nil || !strings.Contains(err.Error(), "expected \"homes\"") {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -368,7 +377,10 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadSecrets(&Plan{SecretsFile: secretsFile, Target: "offsite-storj"})
+	_, err := planner.loadSecrets(&Plan{
+		Config: PlanConfig{Target: "offsite-storj"},
+		Paths:  PlanPaths{SecretsFile: secretsFile},
+	})
 	if err == nil || !strings.Contains(err.Error(), "s3_id") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
@@ -383,7 +395,16 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 	}
 
 	planner := NewPlanner(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	_, err := planner.loadSecrets(&Plan{SecretsDir: secretsDir, SecretsFile: filepath.Join(secretsDir, "homes-secrets.toml"), BackupLabel: "homes", Target: "offsite-storj"})
+	_, err := planner.loadSecrets(&Plan{
+		Config: PlanConfig{
+			BackupLabel: "homes",
+			Target:      "offsite-storj",
+		},
+		Paths: PlanPaths{
+			SecretsDir:  secretsDir,
+			SecretsFile: filepath.Join(secretsDir, "homes-secrets.toml"),
+		},
+	})
 	if err == nil || !strings.Contains(err.Error(), "homes-secrets.toml") {
 		t.Fatalf("loadSecrets() error = %v", err)
 	}
@@ -398,7 +419,13 @@ func TestPlannerValidateBackupFilesystem(t *testing.T) {
 		t.Fatalf("validateBackupFilesystem(no backup) error = %v", err)
 	}
 
-	err := planner.validateBackupFilesystem(&Plan{DoBackup: true, SnapshotSource: "/volume1/homes", RepositoryPath: "/volume1/homes-snap"})
+	err := planner.validateBackupFilesystem(&Plan{
+		Request: PlanRequest{DoBackup: true},
+		Paths: PlanPaths{
+			SnapshotSource: "/volume1/homes",
+			RepositoryPath: "/volume1/homes-snap",
+		},
+	})
 	if err == nil || !strings.Contains(err.Error(), "not on a btrfs filesystem") {
 		t.Fatalf("validateBackupFilesystem() error = %v", err)
 	}

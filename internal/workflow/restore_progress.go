@@ -60,7 +60,7 @@ func (p *loggerRestoreProgress) PrintRunStart(req *RestoreRequest, plan *Plan, i
 		Target:    req.Target(),
 	}
 	if plan != nil {
-		data.Location = plan.Location
+		data.Location = plan.Config.Location
 	}
 	p.runtime.PrintHeader(data)
 	p.log.PrintLine("Revision", strconv.Itoa(inputs.Revision))
@@ -77,7 +77,7 @@ func (p *loggerRestoreProgress) PrintSelectionStart(req *RestoreRequest, plan *P
 		Target:    req.Target(),
 	}
 	if plan != nil {
-		data.Location = plan.Location
+		data.Location = plan.Config.Location
 	}
 	p.runtime.PrintHeader(data)
 	p.log.PrintLine("Revision", strconv.Itoa(revision))

@@ -51,7 +51,7 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 		details["duration_seconds"] = report.DurationSecond
 	}
 
-	if !visibleRunStarted && plan.DoBackup {
+	if !visibleRunStarted && plan.Request.DoBackup {
 		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "backup", string(notify.EventBackupCouldNotStart),
 			fmt.Sprintf("Backup could not start for %s/%s", report.Label, report.Target),
 			report.Label, report.Target, report.Location,
@@ -74,8 +74,8 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 				if preview.TotalRevisions > 0 {
 					details["delete_percent"] = preview.DeletePercent
 				}
-				details["max_delete_percent"] = plan.SafePruneMaxDeletePercent
-				details["max_delete_count"] = plan.SafePruneMaxDeleteCount
+				details["max_delete_percent"] = plan.Config.SafePruneMaxDeletePercent
+				details["max_delete_count"] = plan.Config.SafePruneMaxDeleteCount
 			}
 			return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "maintenance", string(notify.EventSafePruneBlocked),
 				fmt.Sprintf("Safe prune blocked for %s/%s", report.Label, report.Target),

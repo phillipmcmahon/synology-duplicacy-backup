@@ -28,20 +28,34 @@ const (
 // planning, and execution. Tests can replace individual functions without
 // needing to stub whole packages.
 type Runtime struct {
-	Geteuid       func() int
-	LookPath      func(string) (string, error)
-	NewLock       func(string, string) *lock.Lock
+	// Geteuid reports the effective user id used for root/sudo policy checks.
+	Geteuid func() int
+	// LookPath resolves required external binaries such as duplicacy and btrfs.
+	LookPath func(string) (string, error)
+	// NewLock creates target-level runtime locks.
+	NewLock func(string, string) *lock.Lock
+	// NewSourceLock creates source-level runtime locks for snapshot operations.
 	NewSourceLock func(string, string) *lock.Lock
-	Now           func() time.Time
-	TempDir       func() string
-	Getpid        func() int
-	Getenv        func(string) string
-	Stdin         func() *os.File
-	StdinIsTTY    func() bool
-	Executable    func() (string, error)
-	EvalSymlinks  func(string) (string, error)
-	SignalNotify  func(chan<- os.Signal, ...os.Signal)
-	UserLookup    func(string) (*user.User, error)
+	// Now supplies timestamps for planning, reporting, and deterministic tests.
+	Now func() time.Time
+	// TempDir supplies the base directory for temporary runtime workspaces.
+	TempDir func() string
+	// Getpid supplies process ids for lock files and notification identity.
+	Getpid func() int
+	// Getenv reads environment variables used for runtime profile resolution.
+	Getenv func(string) string
+	// Stdin supplies interactive input for confirmation prompts.
+	Stdin func() *os.File
+	// StdinIsTTY reports whether interactive prompts and notifications are allowed.
+	StdinIsTTY func() bool
+	// Executable returns the current binary path for managed update checks.
+	Executable func() (string, error)
+	// EvalSymlinks resolves stable command paths for update and rollback checks.
+	EvalSymlinks func(string) (string, error)
+	// SignalNotify wires interrupt handling for long-running operations.
+	SignalNotify func(chan<- os.Signal, ...os.Signal)
+	// UserLookup resolves the sudo operator's home and group metadata.
+	UserLookup func(string) (*user.User, error)
 }
 
 type UserProfileDirs struct {

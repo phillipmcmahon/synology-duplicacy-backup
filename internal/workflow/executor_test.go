@@ -70,8 +70,10 @@ func newTempInputFile(t *testing.T, content string) *os.File {
 
 func TestExecutor_EnforcePrunePreview_ThresholdExceededWithoutForce(t *testing.T) {
 	plan := &Plan{
-		SafePruneMaxDeleteCount:   1,
-		SafePruneMaxDeletePercent: 10,
+		Config: PlanConfig{
+			SafePruneMaxDeleteCount:   1,
+			SafePruneMaxDeletePercent: 10,
+		},
 	}
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testExecutorLogger(t), execpkg.NewMockRunner(), plan)
 
@@ -102,7 +104,7 @@ func TestExecutor_LogPrunePreviewOutput_SuppressesRevisionListing(t *testing.T) 
 		testRuntime(),
 		log,
 		execpkg.NewMockRunner(),
-		&Plan{Verbose: true},
+		&Plan{Request: PlanRequest{Verbose: true}},
 	)
 
 	preview := &duplicacy.PrunePreview{
@@ -155,17 +157,23 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 
 	workRoot := filepath.Join(t.TempDir(), "work")
 	plan := &Plan{
-		DoBackup:            true,
-		NeedsDuplicacySetup: true,
-		LogRetentionDays:    30,
-		BackupLabel:         "homes",
-		OperationMode:       "Backup",
-		ModeDisplay:         "Local",
-		WorkRoot:            workRoot,
-		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
-		RepositoryPath:      "/volume1/homes-snap",
-		BackupTarget:        "/backups/homes",
-		Threads:             4,
+		Request: PlanRequest{
+			DoBackup:            true,
+			NeedsDuplicacySetup: true,
+			OperationMode:       "Backup",
+		},
+		Config: PlanConfig{
+			LogRetentionDays: 30,
+			BackupLabel:      "homes",
+			Threads:          4,
+		},
+		Paths: PlanPaths{
+			WorkRoot:       workRoot,
+			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+			RepositoryPath: "/volume1/homes-snap",
+			BackupTarget:   "/backups/homes",
+		},
+		Display: PlanDisplay{ModeDisplay: "Local"},
 	}
 	runner := execpkg.NewMockRunner(execpkg.MockResult{
 		Stdout: "Repository set to /volume1/homes-snap\n",
@@ -205,9 +213,9 @@ func TestExecutorStartVisibleRunResetsOverallStartTime(t *testing.T) {
 	rt.Now = func() time.Time { return header }
 
 	plan := &Plan{
-		BackupLabel:   "homes",
-		OperationMode: "Storage cleanup",
-		ModeDisplay:   "Local",
+		Request: PlanRequest{OperationMode: "Storage cleanup"},
+		Config:  PlanConfig{BackupLabel: "homes"},
+		Display: PlanDisplay{ModeDisplay: "Local"},
 	}
 
 	executor := &Executor{
@@ -264,42 +272,45 @@ func TestShouldPromptForSafety(t *testing.T) {
 	}{
 		{
 			name:              "force prune interactive tty",
-			plan:              &Plan{ForcePrune: true},
+			plan:              &Plan{Request: PlanRequest{ForcePrune: true}},
 			stderrInteractive: true,
 			stdinTTY:          true,
 			want:              true,
 		},
 		{
 			name:              "cleanup storage interactive tty",
-			plan:              &Plan{DoCleanupStore: true},
+			plan:              &Plan{Request: PlanRequest{DoCleanupStore: true}},
 			stderrInteractive: true,
 			stdinTTY:          true,
 			want:              true,
 		},
 		{
-			name:              "dry run does not prompt",
-			plan:              &Plan{ForcePrune: true, DryRun: true},
+			name: "dry run does not prompt",
+			plan: &Plan{Request: PlanRequest{
+				ForcePrune: true,
+				DryRun:     true,
+			}},
 			stderrInteractive: true,
 			stdinTTY:          true,
 			want:              false,
 		},
 		{
 			name:              "non interactive does not prompt",
-			plan:              &Plan{ForcePrune: true},
+			plan:              &Plan{Request: PlanRequest{ForcePrune: true}},
 			stderrInteractive: false,
 			stdinTTY:          true,
 			want:              false,
 		},
 		{
 			name:              "non tty stdin does not prompt",
-			plan:              &Plan{DoCleanupStore: true},
+			plan:              &Plan{Request: PlanRequest{DoCleanupStore: true}},
 			stderrInteractive: true,
 			stdinTTY:          false,
 			want:              false,
 		},
 		{
 			name:              "safe prune does not prompt",
-			plan:              &Plan{DoPrune: true},
+			plan:              &Plan{Request: PlanRequest{DoPrune: true}},
 			stderrInteractive: true,
 			stdinTTY:          true,
 			want:              false,
@@ -323,7 +334,7 @@ func TestShouldPromptForSafety(t *testing.T) {
 }
 
 func TestSafetyWarnings(t *testing.T) {
-	plan := &Plan{ForcePrune: true, DoCleanupStore: true}
+	plan := &Plan{Request: PlanRequest{ForcePrune: true, DoCleanupStore: true}}
 	warnings := safetyWarnings(plan)
 	if len(warnings) != 2 {
 		t.Fatalf("len(warnings) = %d, want 2", len(warnings))
@@ -350,7 +361,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		executor := &Executor{
 			log:  log,
 			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
-			plan: &Plan{ForcePrune: true},
+			plan: &Plan{Request: PlanRequest{ForcePrune: true}},
 		}
 
 		if err := executor.confirmSafetyRails(); err != nil {
@@ -368,7 +379,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		executor := &Executor{
 			log:  log,
 			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
-			plan: &Plan{DoCleanupStore: true},
+			plan: &Plan{Request: PlanRequest{DoCleanupStore: true}},
 		}
 
 		err := executor.confirmSafetyRails()
@@ -390,7 +401,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		executor := &Executor{
 			log:  log,
 			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
-			plan: &Plan{ForcePrune: true},
+			plan: &Plan{Request: PlanRequest{ForcePrune: true}},
 		}
 
 		err := executor.confirmSafetyRails()
@@ -417,13 +428,17 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
-		ForcePrune:       true,
-		BackupLabel:      "homes",
-		Target:           "onsite-usb",
-		Location:         locationLocal,
-		OperationMode:    "Prune",
-		ModeDisplay:      "Local",
-		LogRetentionDays: 30,
+		Request: PlanRequest{
+			ForcePrune:    true,
+			OperationMode: "Prune",
+		},
+		Config: PlanConfig{
+			BackupLabel:      "homes",
+			Target:           "onsite-usb",
+			Location:         locationLocal,
+			LogRetentionDays: 30,
+		},
+		Display: PlanDisplay{ModeDisplay: "Local"},
 	})
 
 	if code := executor.Run(); code != 1 {
@@ -463,28 +478,36 @@ func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{
-		DoPrune:                     true,
-		DryRun:                      true,
-		Verbose:                     true,
-		NeedsDuplicacySetup:         true,
-		LogRetentionDays:            30,
-		BackupLabel:                 "homes",
-		OperationMode:               "Prune",
-		ModeDisplay:                 "Local",
-		WorkRoot:                    workRoot,
-		DuplicacyRoot:               filepath.Join(workRoot, "duplicacy"),
-		RepositoryPath:              "/volume1/homes",
-		BackupTarget:                "/backups/homes",
-		WorkDirCreateCommand:        "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-		PreferencesWriteCommand:     "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-		WorkDirDirPermsCommand:      "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-		WorkDirFilePermsCommand:     "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-		ValidateRepoCommand:         "duplicacy list -files",
-		PrunePreviewCommand:         "duplicacy prune -dry-run",
-		PolicyPruneCommand:          "duplicacy prune",
-		SafePruneMaxDeleteCount:     25,
-		SafePruneMaxDeletePercent:   10,
-		SafePruneMinTotalForPercent: 20,
+		Request: PlanRequest{
+			DoPrune:             true,
+			DryRun:              true,
+			Verbose:             true,
+			NeedsDuplicacySetup: true,
+			OperationMode:       "Prune",
+		},
+		Config: PlanConfig{
+			LogRetentionDays:            30,
+			BackupLabel:                 "homes",
+			SafePruneMaxDeleteCount:     25,
+			SafePruneMaxDeletePercent:   10,
+			SafePruneMinTotalForPercent: 20,
+		},
+		Paths: PlanPaths{
+			WorkRoot:       workRoot,
+			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+			RepositoryPath: "/volume1/homes",
+			BackupTarget:   "/backups/homes",
+		},
+		Display: PlanDisplay{
+			ModeDisplay:             "Local",
+			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+			ValidateRepoCommand:     "duplicacy list -files",
+			PrunePreviewCommand:     "duplicacy prune -dry-run",
+			PolicyPruneCommand:      "duplicacy prune",
+		},
 	}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
@@ -527,14 +550,18 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), &Plan{
-		DoBackup:         true,
-		DryRun:           true,
-		BackupLabel:      "homes",
-		Target:           "onsite-usb",
-		Location:         locationLocal,
-		OperationMode:    "Backup",
-		ModeDisplay:      "Local",
-		LogRetentionDays: 30,
+		Request: PlanRequest{
+			DoBackup:      true,
+			DryRun:        true,
+			OperationMode: "Backup",
+		},
+		Config: PlanConfig{
+			BackupLabel:      "homes",
+			Target:           "onsite-usb",
+			Location:         locationLocal,
+			LogRetentionDays: 30,
+		},
+		Display: PlanDisplay{ModeDisplay: "Local"},
 	})
 	if code := executor.Run(); code != 1 {
 		t.Fatalf("Run() = %d, want 1", code)
@@ -570,37 +597,45 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 	rt.SignalNotify = func(chan<- os.Signal, ...os.Signal) {}
 
 	plan := &Plan{
-		DoBackup:                    true,
-		DoPrune:                     true,
-		DoCleanupStore:              true,
-		DryRun:                      true,
-		Verbose:                     true,
-		NeedsDuplicacySetup:         true,
-		NeedsSnapshot:               true,
-		LogRetentionDays:            30,
-		BackupLabel:                 "homes",
-		OperationMode:               "Backup + Safe prune + Storage cleanup",
-		ModeDisplay:                 "Local",
-		WorkRoot:                    workRoot,
-		DuplicacyRoot:               filepath.Join(workRoot, "duplicacy"),
-		RepositoryPath:              "/volume1/homes-snap",
-		BackupTarget:                "/backups/homes",
-		SnapshotSource:              "/volume1/homes",
-		SnapshotTarget:              "/volume1/homes-snap",
-		SnapshotCreateCommand:       "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
-		WorkDirCreateCommand:        "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-		PreferencesWriteCommand:     "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-		WorkDirDirPermsCommand:      "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-		WorkDirFilePermsCommand:     "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-		WorkDirRemoveCommand:        "rm -rf " + workRoot,
-		BackupCommand:               "duplicacy backup -stats -threads 4",
-		ValidateRepoCommand:         "duplicacy list -files",
-		PrunePreviewCommand:         "duplicacy prune -dry-run",
-		PolicyPruneCommand:          "duplicacy prune",
-		CleanupStorageCommand:       "duplicacy prune -exhaustive -exclusive",
-		SafePruneMaxDeleteCount:     25,
-		SafePruneMaxDeletePercent:   10,
-		SafePruneMinTotalForPercent: 20,
+		Request: PlanRequest{
+			DoBackup:            true,
+			DoPrune:             true,
+			DoCleanupStore:      true,
+			DryRun:              true,
+			Verbose:             true,
+			NeedsDuplicacySetup: true,
+			NeedsSnapshot:       true,
+			OperationMode:       "Backup + Safe prune + Storage cleanup",
+		},
+		Config: PlanConfig{
+			LogRetentionDays:            30,
+			BackupLabel:                 "homes",
+			SafePruneMaxDeleteCount:     25,
+			SafePruneMaxDeletePercent:   10,
+			SafePruneMinTotalForPercent: 20,
+		},
+		Paths: PlanPaths{
+			WorkRoot:       workRoot,
+			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+			RepositoryPath: "/volume1/homes-snap",
+			BackupTarget:   "/backups/homes",
+			SnapshotSource: "/volume1/homes",
+			SnapshotTarget: "/volume1/homes-snap",
+		},
+		Display: PlanDisplay{
+			ModeDisplay:             "Local",
+			SnapshotCreateCommand:   "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
+			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+			WorkDirRemoveCommand:    "rm -rf " + workRoot,
+			BackupCommand:           "duplicacy backup -stats -threads 4",
+			ValidateRepoCommand:     "duplicacy list -files",
+			PrunePreviewCommand:     "duplicacy prune -dry-run",
+			PolicyPruneCommand:      "duplicacy prune",
+			CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
+		},
 	}
 
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)

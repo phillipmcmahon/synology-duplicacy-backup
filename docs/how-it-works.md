@@ -637,8 +637,8 @@ The `Plan` is no longer just “resolved config plus some flags.”
 
 It is the execution contract.
 
-It exposes named section views so future changes can be discussed in the right
-shape:
+It stores those concerns in explicit named sections so future changes can be
+discussed in the right shape:
 
 - `PlanRequest` for mode decisions and resolved operator intent
 - `PlanConfig` for label, target, health notify, ownership, prune, and threshold values

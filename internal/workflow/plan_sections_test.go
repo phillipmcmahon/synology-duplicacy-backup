@@ -11,33 +11,41 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 	}
 
 	plan := &Plan{
-		DoBackup:                true,
-		DoPrune:                 true,
-		DoCleanupStore:          true,
-		ForcePrune:              true,
-		DryRun:                  true,
-		Verbose:                 true,
-		JSONSummary:             true,
-		NeedsDuplicacySetup:     true,
-		NeedsSnapshot:           true,
-		DefaultNotice:           "notice",
-		OperationMode:           "Backup",
-		Target:                  "onsite-usb",
-		Location:                locationLocal,
-		BackupLabel:             "homes",
-		Threads:                 16,
-		FilterLines:             []string{"-e *.tmp"},
-		PruneArgs:               []string{"-keep", "1:7"},
-		WorkRoot:                "/tmp/work",
-		DuplicacyRoot:           "/tmp/work/duplicacy",
-		BackupTarget:            "/backups/homes",
-		SnapshotCreateCommand:   "btrfs subvolume snapshot",
-		BackupCommand:           "duplicacy backup",
-		CleanupStorageCommand:   "duplicacy prune -exclusive",
-		WorkDirRemoveCommand:    "rm -rf /tmp/work",
-		ModeDisplay:             "local",
-		LogRetentionDays:        28,
-		SafePruneMaxDeleteCount: 25,
+		Request: PlanRequest{
+			DoBackup:            true,
+			DoPrune:             true,
+			DoCleanupStore:      true,
+			ForcePrune:          true,
+			DryRun:              true,
+			Verbose:             true,
+			JSONSummary:         true,
+			NeedsDuplicacySetup: true,
+			NeedsSnapshot:       true,
+			DefaultNotice:       "notice",
+			OperationMode:       "Backup",
+		},
+		Config: PlanConfig{
+			Target:                  "onsite-usb",
+			Location:                locationLocal,
+			BackupLabel:             "homes",
+			Threads:                 16,
+			FilterLines:             []string{"-e *.tmp"},
+			PruneArgs:               []string{"-keep", "1:7"},
+			LogRetentionDays:        28,
+			SafePruneMaxDeleteCount: 25,
+		},
+		Paths: PlanPaths{
+			WorkRoot:      "/tmp/work",
+			DuplicacyRoot: "/tmp/work/duplicacy",
+			BackupTarget:  "/backups/homes",
+		},
+		Display: PlanDisplay{
+			SnapshotCreateCommand: "btrfs subvolume snapshot",
+			BackupCommand:         "duplicacy backup",
+			CleanupStorageCommand: "duplicacy prune -exclusive",
+			WorkDirRemoveCommand:  "rm -rf /tmp/work",
+			ModeDisplay:           "local",
+		},
 	}
 
 	sections := plan.Sections()
@@ -60,13 +68,13 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 
 	sections.Config.FilterLines[0] = "mutated"
 	sections.Config.PruneArgs[0] = "mutated"
-	if plan.FilterLines[0] == "mutated" || plan.PruneArgs[0] == "mutated" {
+	if plan.Config.FilterLines[0] == "mutated" || plan.Config.PruneArgs[0] == "mutated" {
 		t.Fatal("Sections should copy slices")
 	}
 	if plan.TargetName() != "onsite-usb" || plan.WorkDir() != "/tmp/work/duplicacy" || plan.IsRemoteLocation() {
 		t.Fatalf("plan helpers failed")
 	}
-	plan.DuplicacyRoot = ""
+	plan.Paths.DuplicacyRoot = ""
 	if plan.WorkDir() != "/tmp/work/duplicacy" {
 		t.Fatalf("WorkDir fallback = %q", plan.WorkDir())
 	}

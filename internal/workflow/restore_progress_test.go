@@ -25,7 +25,7 @@ func TestRestoreProgressSafetyWarningAlignment(t *testing.T) {
 
 		progress.PrintRunStart(
 			&RestoreRequest{Label: "homes", TargetName: "onsite-usb"},
-			&Plan{Location: locationLocal},
+			&Plan{Config: PlanConfig{Location: locationLocal}},
 			restoreRunInputs{
 				Revision:    8,
 				Workspace:   "/volume1/restore-drills/homes-onsite-usb-20260425-130000-rev8",
@@ -97,7 +97,7 @@ func TestRestoreProgressSelectionStartStatusActivityAndCompletion(t *testing.T) 
 
 		progress.PrintSelectionStart(
 			&RestoreRequest{Label: "homes", TargetName: "onsite-usb"},
-			&Plan{Location: locationLocal},
+			&Plan{Config: PlanConfig{Location: locationLocal}},
 			8,
 			"/volume1/restore-drills/homes-onsite-usb-20260425-130000-rev8",
 			3,

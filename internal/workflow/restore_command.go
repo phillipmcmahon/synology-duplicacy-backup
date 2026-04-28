@@ -289,7 +289,7 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 	}
 	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
 	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
-	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.SnapshotSource); err != nil {
+	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.Paths.SnapshotSource); err != nil {
 		return "", err
 	}
 	report := newRestoreSelectReport(req, meta, ctx.plan, ctx.cfg.Storage, commandWorkspace, workspacePrepared, revision.Revision, restorePaths)
@@ -304,7 +304,7 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 	batchReport := &restoreBatchRunReport{
 		Label:        req.Label,
 		Target:       req.Target(),
-		Location:     ctx.plan.Location,
+		Location:     ctx.plan.Config.Location,
 		Workspace:    commandWorkspace,
 		Revision:     revision.Revision,
 		RestorePaths: normaliseRestoreSelection(restorePaths),

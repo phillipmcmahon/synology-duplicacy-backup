@@ -94,11 +94,11 @@ func chownProfilePath(meta Metadata, path string) error {
 }
 
 func updateRunState(meta Metadata, plan *Plan, report *RunReport, backupRevision int) error {
-	if plan == nil || report == nil || plan.BackupLabel == "" {
+	if plan == nil || report == nil || plan.Config.BackupLabel == "" {
 		return nil
 	}
 
-	return mutateRunState(meta, plan.BackupLabel, plan.TargetName(), func(state *RunState) error {
+	return mutateRunState(meta, plan.Config.BackupLabel, plan.TargetName(), func(state *RunState) error {
 		state.LastRunStartedAt = report.StartedAt
 		state.LastRunCompletedAt = report.CompletedAt
 		state.LastRunResult = report.Result

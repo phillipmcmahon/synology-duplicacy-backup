@@ -281,7 +281,7 @@ func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 
 	executor := workflow.NewExecutor(meta, rt, log, runner, plan)
 	code := executor.Run()
-	if plan.JSONSummary {
+	if plan.Request.JSONSummary {
 		code = writeRuntimeJSONSummary(os.Stdout, executor.Report(), code)
 	}
 	return code

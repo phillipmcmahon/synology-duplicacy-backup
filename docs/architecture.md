@@ -33,6 +33,18 @@ handlers so they do not inherit runtime requirements such as root access,
 logger setup, or target storage secrets unless that command actually needs
 them.
 
+## Design Principles
+
+Design simplicity and operational clarity take priority over backwards
+compatibility. If a CLI surface, config shape, output format, workflow, or
+internal API needs to change to make the model clearer and safer, prefer the
+cleaner contract over compatibility shims.
+
+Breaking changes are acceptable when they reduce ambiguity, remove legacy
+behaviour, or make the operator model easier to reason about. When a surface
+changes, update the help text, docs, smoke tests, release notes, and migration
+guidance so operators can see the new contract plainly.
+
 ## Request
 
 `internal/command` owns CLI intent and help/usage generation.
@@ -75,7 +87,7 @@ runtime concerns separated even though they share one command-line parser.
 For runtime operations, `internal/workflow/planner.go` turns a
 `RuntimeRequest` into a validated `Plan`.
 
-The `Plan` exposes smaller section views for review and tests:
+The `Plan` stores runtime data in composed sections:
 
 - `PlanRequest` carries the resolved operator intent and mode flags
 - `PlanConfig` carries values resolved from the selected label/target config
@@ -105,6 +117,12 @@ It is responsible for:
 The important design rule is that planning does not mutate operational state.
 It can inspect the environment and run validations, but it does not acquire
 locks, create work directories, create snapshots, or change permissions.
+
+The section structs are the canonical storage shape. `Plan.Sections()` returns
+a defensive read-side projection for reports and tests. Call sites should use
+explicit `plan.Request`, `plan.Config`, `plan.Paths`, and `plan.Display`
+access so runtime intent, configuration, filesystem paths, and display strings
+remain visibly separate.
 
 Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
 planner uses that domain helper to decide whether storage keys should be
@@ -212,15 +230,11 @@ happen to be used during execution.
 
 ## Future Watch
 
-Two architecture pressure points are worth keeping visible:
+One architecture pressure point is worth keeping visible:
 
 - If `internal/workflow` grows another subsystem comparable in size to restore,
   health, or update, consider splitting that subsystem into a focused
   subpackage rather than continuing to expand the orchestration package.
-- `Plan` currently exposes section views while still storing flat fields. If
-  plan mutation or review complexity grows again, consider a deliberate sprint
-  to make those section views the composed storage model rather than only a
-  read-side view.
 
 ## Main Packages
 

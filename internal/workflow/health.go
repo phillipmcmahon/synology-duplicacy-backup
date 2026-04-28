@@ -96,7 +96,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 		h.presenter.PrintReport(report)
 		return report, healthpkg.ExitCode(report.Status)
 	}
-	report.Location = plan.Location
+	report.Location = plan.Config.Location
 	h.presenter.PrintHeader(report)
 
 	state, stateErr := loadRunState(h.meta, req.Label, req.Target())
@@ -155,7 +155,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	report.Finalize()
 	if h.shouldSendNotification(req, cfg.Health, report.Status) {
 		if payload := buildHealthNotificationPayload(h.rt, report); payload != nil {
-			if err := notify.SendConfigured(cfg.Health.Notify, plan.SecretsFile, report.Target, payload); err != nil {
+			if err := notify.SendConfigured(cfg.Health.Notify, plan.Paths.SecretsFile, report.Target, payload); err != nil {
 				report.AddCheck("Notification", "warn", OperatorMessage(err))
 			} else {
 				report.NotificationSent = true

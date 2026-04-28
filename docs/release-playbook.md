@@ -79,6 +79,9 @@ Recommended project support:
 ### 1. Confirm Scope
 
 - Decide exactly which user-visible changes are shipping.
+- Prefer clear, simple contracts over backwards compatibility. If a release
+  intentionally changes CLI, config, output, or workflow surfaces, document the
+  new contract and migration path rather than preserving compatibility shims.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
   real release entry if needed.
 - Create or update the release-prep issue and move it to `In Progress`.

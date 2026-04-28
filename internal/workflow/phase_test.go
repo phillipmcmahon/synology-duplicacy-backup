@@ -26,25 +26,33 @@ func newPhaseExecutor(t *testing.T, plan *Plan, runner *execpkg.MockRunner) (*Ex
 	rt.NewLock = func(_, label string) *lock.Lock { return lock.New(t.TempDir(), label) }
 	rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(t.TempDir(), label) }
 	executor := NewExecutor(DefaultMetadata("duplicacy-backup", "1.0.0", "now", logDir), rt, log, runner, plan)
-	executor.dup = duplicacy.NewSetup(plan.WorkRoot, plan.RepositoryPath, plan.BackupTarget, plan.DryRun, runner)
+	executor.dup = duplicacy.NewSetup(plan.Paths.WorkRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, plan.Request.DryRun, runner)
 	return executor, logDir
 }
 
 func TestPruneAndCleanupStoragePhases(t *testing.T) {
 	t.Run("prune dry-run", func(t *testing.T) {
 		plan := &Plan{
-			DryRun:                      true,
-			Verbose:                     true,
-			WorkRoot:                    t.TempDir(),
-			DuplicacyRoot:               filepath.Join(t.TempDir(), "duplicacy"),
-			RepositoryPath:              "/volume1/homes",
-			BackupTarget:                "/backups/homes",
-			ValidateRepoCommand:         "duplicacy list -files",
-			PrunePreviewCommand:         "duplicacy prune -dry-run",
-			PolicyPruneCommand:          "duplicacy prune",
-			SafePruneMaxDeleteCount:     25,
-			SafePruneMaxDeletePercent:   10,
-			SafePruneMinTotalForPercent: 20,
+			Request: PlanRequest{
+				DryRun:  true,
+				Verbose: true,
+			},
+			Config: PlanConfig{
+				SafePruneMaxDeleteCount:     25,
+				SafePruneMaxDeletePercent:   10,
+				SafePruneMinTotalForPercent: 20,
+			},
+			Paths: PlanPaths{
+				WorkRoot:       t.TempDir(),
+				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ValidateRepoCommand: "duplicacy list -files",
+				PrunePreviewCommand: "duplicacy prune -dry-run",
+				PolicyPruneCommand:  "duplicacy prune",
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.runPrunePhase(); err != nil {
@@ -61,19 +69,27 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 
 	t.Run("prune success", func(t *testing.T) {
 		plan := &Plan{
-			Verbose:                     true,
-			WorkRoot:                    t.TempDir(),
-			DuplicacyRoot:               filepath.Join(t.TempDir(), "duplicacy"),
-			RepositoryPath:              "/volume1/homes",
-			BackupTarget:                "/backups/homes",
-			PruneArgs:                   []string{"-keep", "0:365"},
-			PruneArgsDisplay:            "-keep 0:365",
-			ValidateRepoCommand:         "duplicacy list -files",
-			PrunePreviewCommand:         "duplicacy prune -keep 0:365 -dry-run",
-			PolicyPruneCommand:          "duplicacy prune -keep 0:365",
-			SafePruneMaxDeleteCount:     25,
-			SafePruneMaxDeletePercent:   10,
-			SafePruneMinTotalForPercent: 20,
+			Request: PlanRequest{
+				Verbose: true,
+			},
+			Config: PlanConfig{
+				PruneArgs:                   []string{"-keep", "0:365"},
+				PruneArgsDisplay:            "-keep 0:365",
+				SafePruneMaxDeleteCount:     25,
+				SafePruneMaxDeletePercent:   10,
+				SafePruneMinTotalForPercent: 20,
+			},
+			Paths: PlanPaths{
+				WorkRoot:       t.TempDir(),
+				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ValidateRepoCommand: "duplicacy list -files",
+				PrunePreviewCommand: "duplicacy prune -keep 0:365 -dry-run",
+				PolicyPruneCommand:  "duplicacy prune -keep 0:365",
+			},
 		}
 		var revisionLines strings.Builder
 		for i := 1; i <= 20; i++ {
@@ -102,13 +118,17 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 
 	t.Run("storage cleanup dry-run", func(t *testing.T) {
 		plan := &Plan{
-			DryRun:                true,
-			WorkRoot:              t.TempDir(),
-			DuplicacyRoot:         filepath.Join(t.TempDir(), "duplicacy"),
-			RepositoryPath:        "/volume1/homes",
-			BackupTarget:          "/backups/homes",
-			ValidateRepoCommand:   "duplicacy list -files",
-			CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			Request: PlanRequest{DryRun: true},
+			Paths: PlanPaths{
+				WorkRoot:       t.TempDir(),
+				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ValidateRepoCommand:   "duplicacy list -files",
+				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.runCleanupStoragePhase(); err != nil {
@@ -125,13 +145,17 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 
 	t.Run("storage cleanup success", func(t *testing.T) {
 		plan := &Plan{
-			Verbose:               true,
-			WorkRoot:              t.TempDir(),
-			DuplicacyRoot:         filepath.Join(t.TempDir(), "duplicacy"),
-			RepositoryPath:        "/volume1/homes",
-			BackupTarget:          "/backups/homes",
-			ValidateRepoCommand:   "duplicacy list -files",
-			CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			Request: PlanRequest{Verbose: true},
+			Paths: PlanPaths{
+				WorkRoot:       t.TempDir(),
+				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ValidateRepoCommand:   "duplicacy list -files",
+				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			},
 		}
 		runner := execpkg.NewMockRunner(
 			execpkg.MockResult{},
@@ -154,9 +178,11 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 func TestCleanupHelpers(t *testing.T) {
 	t.Run("no details when nothing exists", func(t *testing.T) {
 		plan := &Plan{
-			NeedsSnapshot:  true,
-			SnapshotTarget: filepath.Join(t.TempDir(), "missing-snapshot"),
-			WorkRoot:       filepath.Join(t.TempDir(), "missing-work"),
+			Request: PlanRequest{NeedsSnapshot: true},
+			Paths: PlanPaths{
+				SnapshotTarget: filepath.Join(t.TempDir(), "missing-snapshot"),
+				WorkRoot:       filepath.Join(t.TempDir(), "missing-work"),
+			},
 		}
 		executor, _ := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if executor.cleanupHasDetails() {
@@ -170,11 +196,17 @@ func TestCleanupHelpers(t *testing.T) {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
 		plan := &Plan{
-			NeedsSnapshot:         true,
-			DryRun:                true,
-			Verbose:               true,
-			SnapshotTarget:        snapshotTarget,
-			SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
+			Request: PlanRequest{
+				NeedsSnapshot: true,
+				DryRun:        true,
+				Verbose:       true,
+			},
+			Paths: PlanPaths{
+				SnapshotTarget: snapshotTarget,
+			},
+			Display: PlanDisplay{
+				SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		executor.cleanupSnapshot()
@@ -198,12 +230,18 @@ func TestCleanupHelpers(t *testing.T) {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
 		plan := &Plan{
-			NeedsSnapshot:         true,
-			Verbose:               true,
-			SnapshotTarget:        snapshotTarget,
-			SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
-			WorkRoot:              workRoot,
-			WorkDirRemoveCommand:  "rm -rf " + workRoot,
+			Request: PlanRequest{
+				NeedsSnapshot: true,
+				Verbose:       true,
+			},
+			Paths: PlanPaths{
+				SnapshotTarget: snapshotTarget,
+				WorkRoot:       workRoot,
+			},
+			Display: PlanDisplay{
+				SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
+				WorkDirRemoveCommand:  "rm -rf " + workRoot,
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner(execpkg.MockResult{}))
 		if !executor.cleanupHasDetails() {
@@ -233,10 +271,16 @@ func TestCleanupHelpers(t *testing.T) {
 		}
 
 		plan := &Plan{
-			DryRun:               true,
-			Verbose:              true,
-			WorkRoot:             workRoot,
-			WorkDirRemoveCommand: "rm -rf " + workRoot,
+			Request: PlanRequest{
+				DryRun:  true,
+				Verbose: true,
+			},
+			Paths: PlanPaths{
+				WorkRoot: workRoot,
+			},
+			Display: PlanDisplay{
+				WorkDirRemoveCommand: "rm -rf " + workRoot,
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		executor.cleanupWorkRoot()
@@ -255,24 +299,32 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("prepare setup dry-run with filters", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			DoBackup:                true,
-			DryRun:                  true,
-			Verbose:                 true,
-			NeedsSnapshot:           true,
-			WorkRoot:                workRoot,
-			DuplicacyRoot:           filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath:          "/volume1/homes-snap",
-			BackupTarget:            "/backups/homes",
-			SnapshotSource:          "/volume1/homes",
-			SnapshotTarget:          "/volume1/homes-snap",
-			SnapshotCreateCommand:   "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
-			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-			FiltersWriteCommand:     "write filters to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "filters"),
-			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			Filter:                  "-e *.tmp",
-			FilterLines:             []string{"-e *.tmp"},
+			Request: PlanRequest{
+				DoBackup:      true,
+				DryRun:        true,
+				Verbose:       true,
+				NeedsSnapshot: true,
+			},
+			Config: PlanConfig{
+				Filter:      "-e *.tmp",
+				FilterLines: []string{"-e *.tmp"},
+			},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes-snap",
+				BackupTarget:   "/backups/homes",
+				SnapshotSource: "/volume1/homes",
+				SnapshotTarget: "/volume1/homes-snap",
+			},
+			Display: PlanDisplay{
+				SnapshotCreateCommand:   "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
+				WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+				PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+				FiltersWriteCommand:     "write filters to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "filters"),
+				WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+				WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.prepareDuplicacySetup(); err != nil {
@@ -290,15 +342,21 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("prepare setup success", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			Verbose:               true,
-			NeedsSnapshot:         true,
-			WorkRoot:              workRoot,
-			DuplicacyRoot:         filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath:        "/volume1/homes-snap",
-			BackupTarget:          "/backups/homes",
-			SnapshotSource:        "/volume1/homes",
-			SnapshotTarget:        "/volume1/homes-snap",
-			SnapshotCreateCommand: "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
+			Request: PlanRequest{
+				Verbose:       true,
+				NeedsSnapshot: true,
+			},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes-snap",
+				BackupTarget:   "/backups/homes",
+				SnapshotSource: "/volume1/homes",
+				SnapshotTarget: "/volume1/homes-snap",
+			},
+			Display: PlanDisplay{
+				SnapshotCreateCommand: "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
+			},
 		}
 		runner := execpkg.NewMockRunner(execpkg.MockResult{})
 		executor, logDir := newPhaseExecutor(t, plan, runner)
@@ -321,16 +379,18 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("backup dry-run", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			DryRun:         true,
-			Threads:        4,
-			WorkRoot:       workRoot,
-			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath: "/volume1/homes-snap",
-			BackupTarget:   "/backups/homes",
-			BackupCommand:  "duplicacy backup -stats -threads 4",
+			Request: PlanRequest{DryRun: true},
+			Config:  PlanConfig{Threads: 4},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes-snap",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{BackupCommand: "duplicacy backup -stats -threads 4"},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
-		executor.dup = duplicacy.NewSetup(workRoot, plan.RepositoryPath, plan.BackupTarget, true, execpkg.NewMockRunner())
+		executor.dup = duplicacy.NewSetup(workRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, true, execpkg.NewMockRunner())
 		if err := os.MkdirAll(executor.dup.DuplicacyDir, 0755); err != nil {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
@@ -349,18 +409,20 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("backup success", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			Verbose:        false,
-			Threads:        4,
-			WorkRoot:       workRoot,
-			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath: "/volume1/homes-snap",
-			BackupTarget:   "/backups/homes",
+			Request: PlanRequest{Verbose: false},
+			Config:  PlanConfig{Threads: 4},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes-snap",
+				BackupTarget:   "/backups/homes",
+			},
 		}
 		runner := execpkg.NewMockRunner(execpkg.MockResult{
 			Stdout: "Backup for /volume1/homes-snap at revision 2361 completed\nFiles: 10 total, 42 bytes; 1 new, 10 bytes\nTotal running time: 00:00:03\n",
 		})
 		executor, logDir := newPhaseExecutor(t, plan, runner)
-		executor.dup = duplicacy.NewSetup(workRoot, plan.RepositoryPath, plan.BackupTarget, false, runner)
+		executor.dup = duplicacy.NewSetup(workRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, false, runner)
 		if err := os.MkdirAll(executor.dup.DuplicacyDir, 0755); err != nil {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
@@ -379,25 +441,33 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("execute cleanup storage", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			DryRun:                  true,
-			Verbose:                 true,
-			NeedsDuplicacySetup:     true,
-			DoCleanupStore:          true,
-			BackupLabel:             "homes",
-			OperationMode:           "Storage cleanup",
-			ModeDisplay:             "Local",
-			WorkRoot:                workRoot,
-			DuplicacyRoot:           filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath:          "/volume1/homes",
-			BackupTarget:            "/backups/homes",
-			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			ValidateRepoCommand:     "duplicacy list -files",
-			CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
-			WorkDirRemoveCommand:    "rm -rf " + workRoot,
-			LogRetentionDays:        30,
+			Request: PlanRequest{
+				DryRun:              true,
+				Verbose:             true,
+				NeedsDuplicacySetup: true,
+				DoCleanupStore:      true,
+				OperationMode:       "Storage cleanup",
+			},
+			Config: PlanConfig{
+				BackupLabel:      "homes",
+				LogRetentionDays: 30,
+			},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ModeDisplay:             "Local",
+				WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
+				PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
+				WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
+				WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
+				ValidateRepoCommand:     "duplicacy list -files",
+				CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
+				WorkDirRemoveCommand:    "rm -rf " + workRoot,
+			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.execute(); err != nil {
@@ -415,14 +485,20 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 	t.Run("execute stops on storage cleanup error", func(t *testing.T) {
 		workRoot := t.TempDir()
 		plan := &Plan{
-			NeedsDuplicacySetup:   true,
-			DoCleanupStore:        true,
-			WorkRoot:              workRoot,
-			DuplicacyRoot:         filepath.Join(workRoot, "duplicacy"),
-			RepositoryPath:        "/volume1/homes",
-			BackupTarget:          "/backups/homes",
-			ValidateRepoCommand:   "duplicacy list -files",
-			CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			Request: PlanRequest{
+				NeedsDuplicacySetup: true,
+				DoCleanupStore:      true,
+			},
+			Paths: PlanPaths{
+				WorkRoot:       workRoot,
+				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+				RepositoryPath: "/volume1/homes",
+				BackupTarget:   "/backups/homes",
+			},
+			Display: PlanDisplay{
+				ValidateRepoCommand:   "duplicacy list -files",
+				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
+			},
 		}
 		runner := execpkg.NewMockRunner(execpkg.MockResult{Err: errors.New("repo not ready")})
 		executor, _ := newPhaseExecutor(t, plan, runner)

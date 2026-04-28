@@ -76,7 +76,7 @@ func (p *Planner) FailureContext(req *RuntimeRequest) *Plan {
 	if _, err := p.loadConfigForValidation(plan); err == nil {
 		return plan
 	}
-	if plan.Location != "" {
+	if plan.Config.Location != "" {
 		return plan
 	}
 	return nil
@@ -190,30 +190,38 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 	secretsDir := ResolveDir(p.rt, input.secretsDir, "DUPLICACY_BACKUP_SECRETS_DIR", EffectiveSecretsDir(p.rt))
 
 	return &Plan{
-		DoBackup:            input.doBackup,
-		DoPrune:             input.doPrune,
-		DoCleanupStore:      input.doCleanupStore,
-		ForcePrune:          input.forcePrune,
-		DryRun:              input.dryRun,
-		Verbose:             input.verbose,
-		JSONSummary:         input.jsonSummary,
-		NeedsDuplicacySetup: input.needsDuplicacySetup,
-		NeedsSnapshot:       input.needsSnapshot,
-		DefaultNotice:       input.defaultNotice,
-		OperationMode:       input.operationMode,
-		ModeDisplay:         modeDisplay(target),
-		Target:              target,
-		BackupLabel:         backupLabel,
-		RunTimestamp:        runTimestamp,
-		SnapshotSource:      snapshotSource,
-		SnapshotTarget:      snapshotTarget,
-		RepositoryPath:      repositoryPath,
-		WorkRoot:            workRoot,
-		DuplicacyRoot:       filepath.Join(workRoot, "duplicacy"),
-		ConfigDir:           configDir,
-		ConfigFile:          filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", backupLabel)),
-		SecretsDir:          secretsDir,
-		SecretsFile:         secrets.GetSecretsFilePath(secretsDir, backupLabel),
+		Request: PlanRequest{
+			DoBackup:            input.doBackup,
+			DoPrune:             input.doPrune,
+			DoCleanupStore:      input.doCleanupStore,
+			ForcePrune:          input.forcePrune,
+			DryRun:              input.dryRun,
+			Verbose:             input.verbose,
+			JSONSummary:         input.jsonSummary,
+			NeedsDuplicacySetup: input.needsDuplicacySetup,
+			NeedsSnapshot:       input.needsSnapshot,
+			DefaultNotice:       input.defaultNotice,
+			OperationMode:       input.operationMode,
+		},
+		Config: PlanConfig{
+			Target:      target,
+			BackupLabel: backupLabel,
+		},
+		Paths: PlanPaths{
+			RunTimestamp:   runTimestamp,
+			SnapshotSource: snapshotSource,
+			SnapshotTarget: snapshotTarget,
+			RepositoryPath: repositoryPath,
+			WorkRoot:       workRoot,
+			DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
+			ConfigDir:      configDir,
+			ConfigFile:     filepath.Join(configDir, fmt.Sprintf("%s-backup.toml", backupLabel)),
+			SecretsDir:     secretsDir,
+			SecretsFile:    secrets.GetSecretsFilePath(secretsDir, backupLabel),
+		},
+		Display: PlanDisplay{
+			ModeDisplay: modeDisplay(target),
+		},
 	}
 }
 
@@ -231,16 +239,16 @@ type loadConfigOptions struct {
 }
 
 func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*config.Config, error) {
-	if _, err := os.Stat(plan.ConfigFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("configuration file not found: %s", plan.ConfigFile)
+	if _, err := os.Stat(plan.Paths.ConfigFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("configuration file not found: %s", plan.Paths.ConfigFile)
 	}
 
 	cfg := config.NewDefaults()
-	raw, err := config.ParseFile(plan.ConfigFile)
+	raw, err := config.ParseFile(plan.Paths.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
-	values, err := raw.ResolveValues(plan.TargetName(), plan.ConfigFile)
+	values, err := raw.ResolveValues(plan.TargetName(), plan.Paths.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -249,18 +257,18 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	}
 	cfg.Health = raw.ResolveHealth(cfg.Target)
 	if cfg.Label == "" {
-		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s is missing required label value", plan.ConfigFile), "path", plan.ConfigFile)
+		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s is missing required label value", plan.Paths.ConfigFile), "path", plan.Paths.ConfigFile)
 	}
-	if cfg.Label != plan.BackupLabel {
-		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s defines label %q, expected %q", plan.ConfigFile, cfg.Label, plan.BackupLabel), "path", plan.ConfigFile, "label", cfg.Label)
+	if cfg.Label != plan.Config.BackupLabel {
+		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s defines label %q, expected %q", plan.Paths.ConfigFile, cfg.Label, plan.Config.BackupLabel), "path", plan.Paths.ConfigFile, "label", cfg.Label)
 	}
 	if cfg.Target == "" {
 		cfg.Target = plan.TargetName()
 	}
 	plan.applyConfigIdentity(cfg)
-	plan.SecretsFile = secrets.GetSecretsFilePath(plan.SecretsDir, plan.BackupLabel)
+	plan.Paths.SecretsFile = secrets.GetSecretsFilePath(plan.Paths.SecretsDir, plan.Config.BackupLabel)
 
-	if err := cfg.ValidateRequired(plan.DoBackup, plan.DoPrune); err != nil {
+	if err := cfg.ValidateRequired(plan.Request.DoBackup, plan.Request.DoPrune); err != nil {
 		return nil, err
 	}
 	if opts.validateThresholds {
@@ -274,7 +282,7 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 		}
 	}
 	cfg.BuildPruneArgs()
-	if plan.DoBackup {
+	if plan.Request.DoBackup {
 		if err := cfg.ValidateThreads(); err != nil {
 			return nil, err
 		}
@@ -287,10 +295,10 @@ func (p *Plan) applyConfigIdentity(cfg *config.Config) {
 	if p == nil || cfg == nil {
 		return
 	}
-	p.Target = cfg.Target
-	p.Location = cfg.Location
-	p.Notify = cfg.Health.Notify
-	p.ModeDisplay = modeDisplay(cfg.Target)
+	p.Config.Target = cfg.Target
+	p.Config.Location = cfg.Location
+	p.Config.Notify = cfg.Health.Notify
+	p.Display.ModeDisplay = modeDisplay(cfg.Target)
 }
 
 func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
@@ -298,37 +306,37 @@ func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
 		return
 	}
 	p.applyConfigIdentity(cfg)
-	p.SnapshotSource = cfg.SourcePath
-	p.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", p.BackupLabel, p.TargetName(), p.RunTimestamp, rt.Getpid()))
-	p.RepositoryPath = cfg.SourcePath
-	if p.DoBackup {
-		p.RepositoryPath = p.SnapshotTarget
+	p.Paths.SnapshotSource = cfg.SourcePath
+	p.Paths.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", p.Config.BackupLabel, p.TargetName(), p.Paths.RunTimestamp, rt.Getpid()))
+	p.Paths.RepositoryPath = cfg.SourcePath
+	if p.Request.DoBackup {
+		p.Paths.RepositoryPath = p.Paths.SnapshotTarget
 	}
-	p.BackupTarget = cfg.Storage
-	p.Threads = cfg.Threads
-	p.Filter = cfg.Filter
-	p.FilterLines = splitNonEmptyLines(cfg.Filter)
-	p.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
-	p.PruneOptions = cfg.Prune
-	p.PruneArgs = append([]string(nil), cfg.PruneArgs...)
-	p.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
-	p.LocalOwner = cfg.LocalOwner
-	p.LocalGroup = cfg.LocalGroup
-	p.LogRetentionDays = cfg.LogRetentionDays
-	p.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
-	p.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
-	p.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
+	p.Paths.BackupTarget = cfg.Storage
+	p.Config.Threads = cfg.Threads
+	p.Config.Filter = cfg.Filter
+	p.Config.FilterLines = splitNonEmptyLines(cfg.Filter)
+	p.Config.OwnerGroup = fmt.Sprintf("%s:%s", cfg.LocalOwner, cfg.LocalGroup)
+	p.Config.PruneOptions = cfg.Prune
+	p.Config.PruneArgs = append([]string(nil), cfg.PruneArgs...)
+	p.Config.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
+	p.Config.LocalOwner = cfg.LocalOwner
+	p.Config.LocalGroup = cfg.LocalGroup
+	p.Config.LogRetentionDays = cfg.LogRetentionDays
+	p.Config.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
+	p.Config.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
+	p.Config.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 }
 
 func (p *Planner) validateBackupFilesystem(plan *Plan) error {
-	if !plan.DoBackup {
+	if !plan.Request.DoBackup {
 		return nil
 	}
 
-	if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.DryRun); err != nil {
+	if err := btrfs.CheckVolume(p.runner, p.meta.RootVolume, plan.Request.DryRun); err != nil {
 		return err
 	}
-	if err := btrfs.CheckVolume(p.runner, plan.SnapshotSource, plan.DryRun); err != nil {
+	if err := btrfs.CheckVolume(p.runner, plan.Paths.SnapshotSource, plan.Request.DryRun); err != nil {
 		return err
 	}
 
@@ -336,25 +344,25 @@ func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 }
 
 func (p *Planner) populateCommands(plan *Plan) {
-	plan.SnapshotCreateCommand = fmt.Sprintf("btrfs subvolume snapshot -r %s %s", plan.SnapshotSource, plan.SnapshotTarget)
-	plan.SnapshotDeleteCommand = fmt.Sprintf("btrfs subvolume delete %s", plan.SnapshotTarget)
-	plan.WorkDirCreateCommand = fmt.Sprintf("mkdir -p %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy"))
-	plan.PreferencesWriteCommand = fmt.Sprintf("write JSON preferences to %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy", "preferences"))
-	plan.FiltersWriteCommand = fmt.Sprintf("write filters to %s", filepath.Join(plan.DuplicacyRoot, ".duplicacy", "filters"))
-	plan.WorkDirDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.DuplicacyRoot)
-	plan.WorkDirFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.DuplicacyRoot)
-	plan.BackupCommand = fmt.Sprintf("duplicacy backup -stats -threads %d", plan.Threads)
-	plan.ValidateRepoCommand = "duplicacy list -files"
-	plan.PrunePreviewCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s -dry-run", plan.PruneArgsDisplay))
-	if plan.PrunePreviewCommand == "duplicacy prune  -dry-run" {
-		plan.PrunePreviewCommand = "duplicacy prune -dry-run"
+	plan.Display.SnapshotCreateCommand = fmt.Sprintf("btrfs subvolume snapshot -r %s %s", plan.Paths.SnapshotSource, plan.Paths.SnapshotTarget)
+	plan.Display.SnapshotDeleteCommand = fmt.Sprintf("btrfs subvolume delete %s", plan.Paths.SnapshotTarget)
+	plan.Display.WorkDirCreateCommand = fmt.Sprintf("mkdir -p %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy"))
+	plan.Display.PreferencesWriteCommand = fmt.Sprintf("write JSON preferences to %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy", "preferences"))
+	plan.Display.FiltersWriteCommand = fmt.Sprintf("write filters to %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy", "filters"))
+	plan.Display.WorkDirDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.Paths.DuplicacyRoot)
+	plan.Display.WorkDirFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.Paths.DuplicacyRoot)
+	plan.Display.BackupCommand = fmt.Sprintf("duplicacy backup -stats -threads %d", plan.Config.Threads)
+	plan.Display.ValidateRepoCommand = "duplicacy list -files"
+	plan.Display.PrunePreviewCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s -dry-run", plan.Config.PruneArgsDisplay))
+	if plan.Display.PrunePreviewCommand == "duplicacy prune  -dry-run" {
+		plan.Display.PrunePreviewCommand = "duplicacy prune -dry-run"
 	}
-	plan.PolicyPruneCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s", plan.PruneArgsDisplay))
-	if plan.PolicyPruneCommand == "duplicacy prune" || plan.PolicyPruneCommand == "duplicacy prune " {
-		plan.PolicyPruneCommand = "duplicacy prune"
+	plan.Display.PolicyPruneCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s", plan.Config.PruneArgsDisplay))
+	if plan.Display.PolicyPruneCommand == "duplicacy prune" || plan.Display.PolicyPruneCommand == "duplicacy prune " {
+		plan.Display.PolicyPruneCommand = "duplicacy prune"
 	}
-	plan.CleanupStorageCommand = "duplicacy prune -exhaustive -exclusive"
-	plan.WorkDirRemoveCommand = fmt.Sprintf("rm -rf %s", plan.WorkRoot)
+	plan.Display.CleanupStorageCommand = "duplicacy prune -exhaustive -exclusive"
+	plan.Display.WorkDirRemoveCommand = fmt.Sprintf("rm -rf %s", plan.Paths.WorkRoot)
 }
 
 func splitNonEmptyLines(value string) []string {
@@ -395,7 +403,7 @@ func rootVolumeForSource(sourcePath string) string {
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
-	sec, err := secrets.LoadSecretsFile(plan.SecretsFile, plan.Target)
+	sec, err := secrets.LoadSecretsFile(plan.Paths.SecretsFile, plan.Config.Target)
 	if err != nil {
 		return nil, err
 	}

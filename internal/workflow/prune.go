@@ -11,22 +11,22 @@ func (e *Executor) runPrunePhase() error {
 	e.view.PrintPhase("Prune")
 	stopInspecting := e.view.StartStatusActivity("Inspecting repository revisions")
 
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.ValidateRepoCommand)
 	} else {
 		if err := e.dup.ValidateRepo(); err != nil {
 			stopInspecting()
 			return err
 		}
-		if e.plan.Verbose {
+		if e.plan.Request.Verbose {
 			e.log.PrintLine("Repository", "Validated")
 		}
 	}
 
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.PrunePreviewCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.PrunePreviewCommand)
 	}
-	preview, err := e.dup.SafePrunePreview(e.plan.PruneArgs, e.plan.SafePruneMinTotalForPercent)
+	preview, err := e.dup.SafePrunePreview(e.plan.Config.PruneArgs, e.plan.Config.SafePruneMinTotalForPercent)
 	stopInspecting()
 	if err != nil {
 		return err
@@ -38,12 +38,12 @@ func (e *Executor) runPrunePhase() error {
 		return err
 	}
 
-	if e.plan.DryRun {
-		e.log.DryRun("%s", e.plan.PolicyPruneCommand)
+	if e.plan.Request.DryRun {
+		e.log.DryRun("%s", e.plan.Display.PolicyPruneCommand)
 		e.log.Info("%s", statusLinef("Prune phase completed (dry-run)"))
 	} else {
 		stopApplying := e.view.StartStatusActivity("Applying retention policy")
-		stdout, stderr, err := e.dup.RunPrune(e.plan.PruneArgs)
+		stdout, stderr, err := e.dup.RunPrune(e.plan.Config.PruneArgs)
 		stopApplying()
 		e.view.PrintCommandOutput(stdout, stderr, err != nil)
 		if err != nil {
@@ -61,10 +61,10 @@ func (e *Executor) runCleanupStoragePhase() error {
 	e.view.PrintPhase("Storage cleanup")
 	stopScanning := e.view.StartStatusActivity("Scanning storage for unreferenced chunks")
 
-	if e.plan.DryRun {
+	if e.plan.Request.DryRun {
 		e.log.PrintLine("Dry Run", "simulation-only; repository chunks are not scanned")
-		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
-		e.log.DryRun("%s", e.plan.CleanupStorageCommand)
+		e.log.DryRun("%s", e.plan.Display.ValidateRepoCommand)
+		e.log.DryRun("%s", e.plan.Display.CleanupStorageCommand)
 		stopScanning()
 		e.log.Info("%s", statusLinef("Storage cleanup phase completed (dry-run)"))
 		return nil
@@ -74,7 +74,7 @@ func (e *Executor) runCleanupStoragePhase() error {
 		stopScanning()
 		return err
 	}
-	if e.plan.Verbose {
+	if e.plan.Request.Verbose {
 		e.log.PrintLine("Repository", "Validated")
 	}
 
@@ -90,7 +90,7 @@ func (e *Executor) runCleanupStoragePhase() error {
 }
 
 func (e *Executor) logPrunePreviewOutput(preview *duplicacy.PrunePreview) {
-	if !e.plan.Verbose {
+	if !e.plan.Request.Verbose {
 		return
 	}
 	if preview.Output != "" {
@@ -104,26 +104,26 @@ func (e *Executor) logPrunePreviewOutput(preview *duplicacy.PrunePreview) {
 
 func (e *Executor) enforcePrunePreview(preview *duplicacy.PrunePreview) error {
 	if preview.RevisionCountFailed {
-		if e.plan.ForcePrune {
+		if e.plan.Request.ForcePrune {
 			e.log.Warn("%s", statusLinef("Revision count failed; proceeding because prune --force was supplied (percentage threshold not enforced)"))
 		} else {
 			return NewMessageError("Revision count is required for safe prune but failed; use prune --force to override")
 		}
 	}
 
-	e.view.PrintPrunePreview(preview, e.plan.SafePruneMinTotalForPercent)
+	e.view.PrintPrunePreview(preview, e.plan.Config.SafePruneMinTotalForPercent)
 
 	blocked := false
-	if preview.DeleteCount > e.plan.SafePruneMaxDeleteCount {
-		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete count threshold: %d > %d", preview.DeleteCount, e.plan.SafePruneMaxDeleteCount))
+	if preview.DeleteCount > e.plan.Config.SafePruneMaxDeleteCount {
+		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete count threshold: %d > %d", preview.DeleteCount, e.plan.Config.SafePruneMaxDeleteCount))
 		blocked = true
 	}
-	if preview.ExceedsPercent(e.plan.SafePruneMaxDeletePercent) {
-		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%)", preview.DeleteCount, preview.TotalRevisions, e.plan.SafePruneMaxDeletePercent))
+	if preview.ExceedsPercent(e.plan.Config.SafePruneMaxDeletePercent) {
+		e.log.Error("%s", statusLinef("Safe prune preview exceeds delete percentage threshold (%d of %d revisions > %d%%)", preview.DeleteCount, preview.TotalRevisions, e.plan.Config.SafePruneMaxDeletePercent))
 		blocked = true
 	}
 	if blocked {
-		if e.plan.ForcePrune {
+		if e.plan.Request.ForcePrune {
 			e.log.Warn("%s", statusLinef("Proceeding despite safe prune threshold breach because prune --force was supplied"))
 		} else {
 			return NewMessageError("Refusing to continue because safe prune thresholds were exceeded")

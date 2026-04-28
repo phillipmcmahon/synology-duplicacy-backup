@@ -68,30 +68,30 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 }
 
 func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan) *DiagnosticsReport {
-	storage := duplicacy.NewStorageSpec(plan.BackupTarget)
+	storage := duplicacy.NewStorageSpec(plan.Paths.BackupTarget)
 	report := &DiagnosticsReport{
 		Label:         req.Label,
 		Target:        req.Target(),
-		Location:      plan.Location,
-		ConfigDir:     plan.ConfigDir,
-		ConfigFile:    plan.ConfigFile,
-		SecretsDir:    plan.SecretsDir,
-		SourcePath:    plan.SnapshotSource,
-		Storage:       redactStorageValue(plan.BackupTarget),
+		Location:      plan.Config.Location,
+		ConfigDir:     plan.Paths.ConfigDir,
+		ConfigFile:    plan.Paths.ConfigFile,
+		SecretsDir:    plan.Paths.SecretsDir,
+		SourcePath:    plan.Paths.SnapshotSource,
+		Storage:       redactStorageValue(plan.Paths.BackupTarget),
 		StorageScheme: storage.Scheme(),
 		StateFile:     stateFilePath(meta, req.Label, req.Target()),
 		StateStatus:   "Not found",
 		Paths: []DiagnosticsPathSummary{
-			pathSummary("Config Dir", plan.ConfigDir),
-			pathSummary("Config File", plan.ConfigFile),
-			pathSummary("Source Path", plan.SnapshotSource),
+			pathSummary("Config Dir", plan.Paths.ConfigDir),
+			pathSummary("Config File", plan.Paths.ConfigFile),
+			pathSummary("Source Path", plan.Paths.SnapshotSource),
 			pathSummary("State Dir", meta.StateDir),
 			pathSummary("State File", stateFilePath(meta, req.Label, req.Target())),
 			pathSummary("Log Dir", meta.LogDir),
 		},
 	}
 	if storage.IsLocalPath() {
-		report.Paths = append(report.Paths, pathSummary("Storage Path", plan.BackupTarget))
+		report.Paths = append(report.Paths, pathSummary("Storage Path", plan.Paths.BackupTarget))
 	} else {
 		report.Paths = append(report.Paths, DiagnosticsPathSummary{
 			Name:   "Storage Path",

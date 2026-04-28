@@ -79,11 +79,11 @@ func (p *Presenter) headerData(plan *Plan, startedAt time.Time) presentation.Hea
 	}
 	return presentation.HeaderData{
 		StartedAt:     startedAt,
-		Operation:     plan.OperationMode,
-		Label:         plan.BackupLabel,
+		Operation:     plan.Request.OperationMode,
+		Label:         plan.Config.BackupLabel,
 		Target:        plan.TargetName(),
-		Location:      plan.Location,
-		DefaultNotice: plan.DefaultNotice,
+		Location:      plan.Config.Location,
+		DefaultNotice: plan.Request.DefaultNotice,
 	}
 }
 
@@ -97,9 +97,9 @@ func (p *Presenter) preRunFailureDataFromRequest(req *RuntimeRequest) presentati
 
 func (p *Presenter) preRunFailureDataFromPlan(plan *Plan) presentation.PreRunFailureData {
 	return presentation.PreRunFailureData{
-		Operation: plan.OperationMode,
-		Label:     plan.BackupLabel,
+		Operation: plan.Request.OperationMode,
+		Label:     plan.Config.BackupLabel,
 		Target:    plan.TargetName(),
-		Location:  plan.Location,
+		Location:  plan.Config.Location,
 	}
 }

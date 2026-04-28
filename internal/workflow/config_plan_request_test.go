@@ -31,10 +31,10 @@ func TestDerivePlanFromConfigPlanRequestDoesNotCarryRuntimeModes(t *testing.T) {
 		SecretsDir: "/home/operator/.config/duplicacy-backup/secrets",
 	})
 
-	if plan.BackupLabel != "homes" || plan.TargetName() != "onsite-usb" {
+	if plan.Config.BackupLabel != "homes" || plan.TargetName() != "onsite-usb" {
 		t.Fatalf("plan identity = %#v", plan)
 	}
-	if plan.DoBackup || plan.DoPrune || plan.DoCleanupStore || plan.DryRun || plan.JSONSummary {
+	if plan.Request.DoBackup || plan.Request.DoPrune || plan.Request.DoCleanupStore || plan.Request.DryRun || plan.Request.JSONSummary {
 		t.Fatalf("config plan leaked runtime flags: %#v", plan)
 	}
 }

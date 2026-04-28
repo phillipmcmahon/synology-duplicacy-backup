@@ -167,7 +167,7 @@ func ensureRestoreWorkspaceReady(workspace string) error {
 func restoreWorkspaceForRead(req *RestoreRequest, plan *Plan, rt Runtime, allowTemporary bool, deps RestoreDeps) (string, string, func(), error) {
 	if strings.TrimSpace(req.Workspace) != "" {
 		workspace := resolvedRestoreWorkspace(req, plan, deps)
-		if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
+		if err := validateRestoreWorkspace(workspace, plan.Paths.SnapshotSource); err != nil {
 			return "", "", func() {}, err
 		}
 		if !restoreWorkspacePrepared(workspace) {
@@ -195,7 +195,7 @@ func temporaryRestoreWorkspace(plan *Plan, rt Runtime) (string, func(), error) {
 	if err != nil {
 		return "", func() {}, fmt.Errorf("restore temporary workspace cannot be created: %w", err)
 	}
-	if err := validateRestoreWorkspace(workspace, plan.SnapshotSource); err != nil {
+	if err := validateRestoreWorkspace(workspace, plan.Paths.SnapshotSource); err != nil {
 		_ = os.RemoveAll(workspace)
 		return "", func() {}, err
 	}
