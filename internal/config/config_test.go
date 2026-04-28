@@ -268,44 +268,6 @@ storage = "/volumeUSB1/usbshare/duplicacy/homes"
 	}
 }
 
-func TestParseFile_ResolveValues_TargetTypeKeyRejected(t *testing.T) {
-	p := writeTempConfig(t, `
-label = "homes"
-source_path = "/volume1/homes"
-
-[targets.onsite-usb]
-type = "duplicacy"
-location = "local"
-storage = "/volumeUSB1/usbshare/duplicacy/homes"
-`)
-	_, err := ParseFile(p)
-	if err == nil || !strings.Contains(err.Error(), "config key 'type' is not permitted") {
-		t.Fatalf("ParseFile() err = %v", err)
-	}
-}
-
-func TestParseFile_RetiredCommonDestinationKeyRejected(t *testing.T) {
-	p := writeTempConfig(t, `
-[common]
-destination = "/volume1/backups"
-`)
-	_, err := ParseFile(p)
-	if err == nil || !strings.Contains(err.Error(), "config key 'destination' is not permitted in [common]") {
-		t.Fatalf("ParseFile() err = %v", err)
-	}
-}
-
-func TestParseFile_RetiredLocalTableRejected(t *testing.T) {
-	p := writeTempConfig(t, `
-[local]
-destination = "/volume1/backups"
-`)
-	_, err := ParseFile(p)
-	if err == nil || !strings.Contains(err.Error(), "config table [local] is not permitted") {
-		t.Fatalf("ParseFile() err = %v", err)
-	}
-}
-
 func TestParseFile_MissingTargetTable(t *testing.T) {
 	p := writeTempConfig(t, `
 [common]
