@@ -20,7 +20,7 @@ coverage floor and package-level baseline.
 - Root-protected local repository sudo guidance now uses the shorter shared
   wording `requires sudo: local filesystem repository is root-protected`.
 - UI surface smoke checks now assert the shared local repository sudo wording
-  and reject raw `permission denied` leakage for root-protected local
+  and reject raw `permission denied`/`EACCES` leakage for root-protected local
   filesystem repositories.
 
 ### Fixed

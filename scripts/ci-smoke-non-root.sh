@@ -40,12 +40,12 @@ assert_output_contains() {
     fi
 }
 
-assert_output_not_contains() {
+assert_output_not_matches() {
     file="$1"
-    unexpected="$2"
-    if grep -F -- "$unexpected" "$file" >/dev/null; then
+    unexpected_pattern="$2"
+    if grep -Ei -- "$unexpected_pattern" "$file" >/dev/null; then
         cat "$file" >&2
-        ci_fail "expected output not to contain: $unexpected"
+        ci_fail "expected output not to match: $unexpected_pattern"
     fi
 }
 
@@ -55,6 +55,17 @@ run_operator_expect_fail() {
     if run_operator "$@" >"$output_file" 2>&1; then
         cat "$output_file" >&2
         ci_fail "expected command to fail: $*"
+    fi
+}
+
+run_operator_expect_policy_fail() {
+    output_file="$1"
+    expected="$2"
+    shift 2
+    run_operator_expect_fail "$output_file" "$@"
+    if ! grep -F -- "$expected" "$output_file" >/dev/null; then
+        cat "$output_file" >&2
+        ci_fail "command failed without expected policy output: $expected"
     fi
 }
 
@@ -70,22 +81,18 @@ chown -R root:root /volume1/duplicacy
 tmp_output="$(mktemp)"
 trap 'rm -f "$tmp_output"; cleanup' EXIT
 
-run_operator_expect_fail "$tmp_output" duplicacy-backup config validate --target "$TARGET" homes
+run_operator_expect_policy_fail "$tmp_output" "local filesystem repository is root-protected" duplicacy-backup config validate --target "$TARGET" homes
 assert_output_contains "$tmp_output" "Storage Access"
 assert_output_contains "$tmp_output" "Repository Access"
 assert_output_contains "$tmp_output" "Requires sudo"
-assert_output_contains "$tmp_output" "local filesystem repository is root-protected"
-assert_output_not_contains "$tmp_output" "permission denied"
+assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_fail "$tmp_output" duplicacy-backup health status --target "$TARGET" homes
+run_operator_expect_policy_fail "$tmp_output" "Requires sudo: local filesystem repository is root-protected" duplicacy-backup health status --target "$TARGET" homes
 assert_output_contains "$tmp_output" "Repository Access"
-assert_output_contains "$tmp_output" "Requires sudo: local filesystem repository is root-protected"
-assert_output_not_contains "$tmp_output" "permission denied"
+assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_fail "$tmp_output" duplicacy-backup restore list-revisions --target "$TARGET" homes
-assert_output_contains "$tmp_output" "restore list-revisions requires sudo: local filesystem repository is root-protected"
-assert_output_not_contains "$tmp_output" "permission denied"
+run_operator_expect_policy_fail "$tmp_output" "restore list-revisions requires sudo: local filesystem repository is root-protected" duplicacy-backup restore list-revisions --target "$TARGET" homes
+assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_fail "$tmp_output" duplicacy-backup prune --target "$TARGET" --dry-run homes
-assert_output_contains "$tmp_output" "prune --dry-run requires sudo: local filesystem repository is root-protected"
-assert_output_not_contains "$tmp_output" "permission denied"
+run_operator_expect_policy_fail "$tmp_output" "prune --dry-run requires sudo: local filesystem repository is root-protected" duplicacy-backup prune --target "$TARGET" --dry-run homes
+assert_output_not_matches "$tmp_output" "permission denied|EACCES"

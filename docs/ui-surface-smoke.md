@@ -200,7 +200,7 @@ Review the `.txt` captures for UI consistency:
   `restore list-revisions requires sudo: local filesystem repository is
   root-protected`
 - root-protected local repository captures do not fall through to raw
-  `permission denied` storage errors
+  `permission denied`/`EACCES` storage errors
 - timestamped runtime and health output remains framed/log-style, while
   report-style commands remain plain and readable
 - colour semantics are consistent: errors red, warnings yellow, labels cyan,
