@@ -115,9 +115,9 @@ Update notification policy is configured globally in
 Config and secrets stay in their existing directories during upgrades, so you
 do not need to copy TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
-when needed, one matching secrets file.
-In normal operation, storage keys are needed only when the selected backend requires them;
-see [Configuration and secrets](configuration.md#secrets) for the target-scoped
+when needed, one matching secrets file. Storage keys are needed only when the
+selected backend requires them; see
+[Configuration and secrets](configuration.md#secrets) for the target-scoped
 secrets model.
 
 Use `update --force` only when you intentionally want to reinstall the selected
