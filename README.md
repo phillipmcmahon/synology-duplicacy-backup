@@ -234,7 +234,7 @@ Core operating rules:
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
   commands require an explicit `--target <name>`.
 - Runtime operations are first-class commands. Use `backup`, `prune`,
-  or `cleanup-storage`; old top-level operation flags are not supported.
+  or `cleanup-storage`.
 - Storage keys are loaded for known Duplicacy backends that require them.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.

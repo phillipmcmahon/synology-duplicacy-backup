@@ -37,8 +37,7 @@ Supported locations are:
 - local
 - remote
 
-Runtime operations are first-class commands. The old top-level operation flags
-are not supported.
+Runtime operations are first-class commands with their own command names.
 
 ## Runtime Commands
 
@@ -185,8 +184,7 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - Every `backup`, `prune`, `cleanup-storage`, `config`,
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
   command needs `--target <name>`.
-- Runtime operations are first-class commands; old top-level operation flags
-  such as `--backup` and `--prune` are not supported.
+- Runtime operations are first-class commands with their own command names.
 - Root is required for `backup`, `prune`, `prune --dry-run`, and actual
   `cleanup-storage` mutation against root-protected local filesystem
   repositories. Remote mounted filesystem repositories are governed by mount

@@ -1,7 +1,6 @@
 // Package config handles TOML configuration file parsing and validation.
 // It supports the current single-file-per-label model with shared [common]
-// values plus [targets.<name>] sections, and rejects retired layouts with
-// migration-focused errors.
+// values plus [targets.<name>] sections.
 package config
 
 import (
@@ -88,7 +87,6 @@ type tableUpdate struct {
 }
 
 type tableCommon struct {
-	Destination                 *string `toml:"destination"`
 	Filter                      *string `toml:"filter"`
 	LogRetentionDays            *int    `toml:"log_retention_days"`
 	Prune                       *string `toml:"prune"`
@@ -103,29 +101,9 @@ type tableRestore struct {
 	WorkspaceTemplate *string `toml:"workspace_template"`
 }
 
-type tableLocal struct {
-	Destination                 *string `toml:"destination"`
-	Filter                      *string `toml:"filter"`
-	LogRetentionDays            *int    `toml:"log_retention_days"`
-	Prune                       *string `toml:"prune"`
-	Threads                     *int    `toml:"threads"`
-	SafePruneMaxDeletePercent   *int    `toml:"safe_prune_max_delete_percent"`
-	SafePruneMaxDeleteCount     *int    `toml:"safe_prune_max_delete_count"`
-	SafePruneMinTotalForPercent *int    `toml:"safe_prune_min_total_for_percent"`
-}
-
-type tableTargetMeta struct {
-	Name     *string `toml:"name"`
-	Type     *string `toml:"type"`
-	Location *string `toml:"location"`
-}
-
 type tableTarget struct {
-	Type                        *string      `toml:"type"`
 	Location                    *string      `toml:"location"`
-	Destination                 *string      `toml:"destination"`
 	Storage                     *string      `toml:"storage"`
-	Repository                  *string      `toml:"repository"`
 	Filter                      *string      `toml:"filter"`
 	Threads                     *int         `toml:"threads"`
 	Prune                       *string      `toml:"prune"`
@@ -136,26 +114,6 @@ type tableTarget struct {
 	Health                      *tableHealth `toml:"health"`
 }
 
-type tableStorage struct {
-	Destination *string `toml:"destination"`
-	Storage     *string `toml:"storage"`
-	Repository  *string `toml:"repository"`
-}
-
-type tableCapture struct {
-	Filter  *string `toml:"filter"`
-	Threads *int    `toml:"threads"`
-}
-
-type tableRetention struct {
-	Prune                       *string  `toml:"prune"`
-	Keep                        []string `toml:"keep"`
-	LogRetentionDays            *int     `toml:"log_retention_days"`
-	SafePruneMaxDeletePercent   *int     `toml:"safe_prune_max_delete_percent"`
-	SafePruneMaxDeleteCount     *int     `toml:"safe_prune_max_delete_count"`
-	SafePruneMinTotalForPercent *int     `toml:"safe_prune_min_total_for_percent"`
-}
-
 // File holds the decoded TOML config file before mode-specific resolution.
 type File struct {
 	Label      *string                `toml:"label"`
@@ -163,12 +121,6 @@ type File struct {
 	Common     *tableCommon           `toml:"common"`
 	Restore    *tableRestore          `toml:"restore"`
 	Targets    map[string]tableTarget `toml:"targets"`
-	Local      *tableLocal            `toml:"local"`
-	Remote     *tableCommon           `toml:"remote"`
-	TargetMeta *tableTargetMeta       `toml:"target"`
-	Storage    *tableStorage          `toml:"storage"`
-	Capture    *tableCapture          `toml:"capture"`
-	Retention  *tableRetention        `toml:"retention"`
 	Health     *tableHealth           `toml:"health"`
 	Notify     *tableHealthNotify     `toml:"notify"`
 }
@@ -290,30 +242,8 @@ func LoadAppConfig(path string) (*AppConfig, error) {
 }
 
 // ResolveValues merges the decoded file into the key/value shape used by
-// Config.Apply. It supports the current [targets.<name>] layout and the
-// transitional single-target layout, and rejects retired local/remote layouts.
+// Config.Apply. Only the current [targets.<name>] layout is supported.
 func (f *File) ResolveValues(targetName, path string) (map[string]string, error) {
-	if f.usesTargetsLayout() {
-		return f.resolveTargetsValues(targetName, path)
-	}
-	if f.usesSingleTargetLayout() {
-		return f.resolveTargetValues(targetName, path)
-	}
-	return f.resolveLegacyValues(targetName, path)
-}
-
-func (f *File) usesTargetsLayout() bool {
-	return len(f.Targets) > 0
-}
-
-func (f *File) usesSingleTargetLayout() bool {
-	// This deliberately includes top-level label/source_path because the
-	// transitional single-target layout uses them. Call this only after
-	// usesTargetsLayout, because modern multi-target files use them too.
-	return f.Label != nil || f.SourcePath != nil || f.TargetMeta != nil || f.Storage != nil || f.Capture != nil || f.Retention != nil || f.Restore != nil || f.Notify != nil
-}
-
-func (f *File) resolveTargetsValues(targetName, path string) (map[string]string, error) {
 	values := make(map[string]string)
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
@@ -328,28 +258,16 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 	}
 
 	if f.Common != nil {
-		if f.Common.Destination != nil {
-			return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses common.destination; use targets.%s.storage instead", path, selected), "path", path, "target", selected)
-		}
 		mergeCommon(values, f.Common)
 	}
 	mergeRestore(values, f.Restore)
 
 	values["TARGET"] = selected
-	if target.Type != nil {
-		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses targets.%s.type; remove this key because storage is always delegated to Duplicacy", path, selected), "path", path, "target", selected)
-	}
 	if target.Location != nil {
 		values["LOCATION"] = strings.TrimSpace(*target.Location)
 	}
-	if target.Destination != nil {
-		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses targets.%s.destination; use targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
-	}
 	if target.Storage == nil || strings.TrimSpace(*target.Storage) == "" {
 		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required targets.%s.storage value", path, selected), "path", path, "target", selected)
-	}
-	if target.Repository != nil && strings.TrimSpace(*target.Repository) != "" {
-		return nil, apperrors.NewConfigError("repository", fmt.Errorf("config file %s uses targets.%s.repository; include the repository/path component in targets.%s.storage instead", path, selected, selected), "path", path, "target", selected)
 	}
 	values["STORAGE"] = strings.TrimSpace(*target.Storage)
 	if target.Filter != nil {
@@ -385,58 +303,6 @@ func (f *File) selectTarget(targetName, path string) (string, tableTarget, error
 		return selected, target, nil
 	}
 	return "", tableTarget{}, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [targets.%s] table", path, selected), "path", path, "section", selected)
-}
-
-func (f *File) resolveLegacyValues(targetName, path string) (map[string]string, error) {
-	return nil, apperrors.NewConfigError(
-		"legacy-layout",
-		fmt.Errorf("config file %s uses the retired [common]/[local]/[remote] layout; migrate to [targets.<name>] or [target]/[storage] using location = \"local\"|\"remote\" and a Duplicacy storage string", path),
-		"path", path,
-	)
-}
-
-func (f *File) resolveTargetValues(targetName, path string) (map[string]string, error) {
-	values := make(map[string]string)
-	if f.TargetMeta == nil {
-		return nil, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [target] table", path), "path", path)
-	}
-	if f.Storage == nil {
-		return nil, apperrors.NewConfigError("section-storage", fmt.Errorf("config file %s is missing required [storage] table", path), "path", path)
-	}
-	if f.TargetMeta.Name == nil || strings.TrimSpace(*f.TargetMeta.Name) == "" {
-		return nil, apperrors.NewConfigError("target-name", fmt.Errorf("config file %s is missing required target.name value", path), "path", path)
-	}
-	resolvedTarget := strings.TrimSpace(*f.TargetMeta.Name)
-	if targetName != "" && targetName != resolvedTarget {
-		return nil, apperrors.NewConfigError("target-name", fmt.Errorf("config file %s defines target %q, expected %q", path, resolvedTarget, targetName), "path", path, "target", resolvedTarget)
-	}
-	if f.SourcePath != nil && strings.TrimSpace(*f.SourcePath) != "" {
-		values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
-	}
-	values["TARGET"] = resolvedTarget
-	if f.Label != nil {
-		values["LABEL"] = strings.TrimSpace(*f.Label)
-	}
-	if f.TargetMeta.Type != nil {
-		return nil, apperrors.NewConfigError("target-type", fmt.Errorf("config file %s uses target.type; remove this key because storage is always delegated to Duplicacy", path), "path", path)
-	}
-	if f.TargetMeta.Location != nil {
-		values["LOCATION"] = strings.TrimSpace(*f.TargetMeta.Location)
-	}
-	if f.Storage.Destination != nil {
-		return nil, apperrors.NewConfigError("destination", fmt.Errorf("config file %s uses storage.destination; use storage.storage instead", path), "path", path)
-	}
-	if f.Storage.Storage == nil || strings.TrimSpace(*f.Storage.Storage) == "" {
-		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required storage.storage value", path), "path", path)
-	}
-	if f.Storage.Repository != nil && strings.TrimSpace(*f.Storage.Repository) != "" {
-		return nil, apperrors.NewConfigError("repository", fmt.Errorf("config file %s uses storage.repository; include the repository/path component in storage.storage instead", path), "path", path)
-	}
-	values["STORAGE"] = strings.TrimSpace(*f.Storage.Storage)
-	mergeCapture(values, f.Capture)
-	mergeRetention(values, f.Retention)
-	mergeRestore(values, f.Restore)
-	return values, nil
 }
 
 func (f *File) ResolveHealth(targetName string) HealthConfig {
@@ -529,41 +395,6 @@ func mergeCommon(dst map[string]string, src *tableCommon) {
 	}
 }
 
-func mergeCapture(dst map[string]string, src *tableCapture) {
-	if src == nil {
-		return
-	}
-	if src.Filter != nil {
-		dst["FILTER"] = *src.Filter
-	}
-	if src.Threads != nil {
-		dst["THREADS"] = fmt.Sprintf("%d", *src.Threads)
-	}
-}
-
-func mergeRetention(dst map[string]string, src *tableRetention) {
-	if src == nil {
-		return
-	}
-	if src.Prune != nil {
-		dst["PRUNE"] = *src.Prune
-	} else if len(src.Keep) > 0 {
-		dst["PRUNE"] = buildKeepPolicy(src.Keep)
-	}
-	if src.LogRetentionDays != nil {
-		dst["LOG_RETENTION_DAYS"] = fmt.Sprintf("%d", *src.LogRetentionDays)
-	}
-	if src.SafePruneMaxDeletePercent != nil {
-		dst["SAFE_PRUNE_MAX_DELETE_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeletePercent)
-	}
-	if src.SafePruneMaxDeleteCount != nil {
-		dst["SAFE_PRUNE_MAX_DELETE_COUNT"] = fmt.Sprintf("%d", *src.SafePruneMaxDeleteCount)
-	}
-	if src.SafePruneMinTotalForPercent != nil {
-		dst["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *src.SafePruneMinTotalForPercent)
-	}
-}
-
 func mergeRestore(dst map[string]string, src *tableRestore) {
 	if src == nil {
 		return
@@ -574,18 +405,6 @@ func mergeRestore(dst map[string]string, src *tableRestore) {
 	if src.WorkspaceTemplate != nil {
 		dst["RESTORE_WORKSPACE_TEMPLATE"] = strings.TrimSpace(*src.WorkspaceTemplate)
 	}
-}
-
-func buildKeepPolicy(values []string) string {
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		parts = append(parts, "-keep "+value)
-	}
-	return strings.Join(parts, " ")
 }
 
 func unexpectedTOMLKey(path string, key toml.Key) error {

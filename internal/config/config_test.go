@@ -200,145 +200,6 @@ storage = "/volumeUSB1/usbshare/duplicacy/homes"
 	}
 }
 
-func TestParseFile_ResolveValues_ProductNeutralTargetLayout(t *testing.T) {
-	p := writeTempConfig(t, `
-label = "homes"
-source_path = "/volume1/homes"
-
-[target]
-name = "onsite-usb"
-location = "local"
-
-[storage]
-storage = "/volumeUSB1/usbshare/duplicacy/homes"
-
-[capture]
-filter = "e:^tmp$"
-threads = 8
-
-[retention]
-keep = ["0:30", "", "7:14"]
-log_retention_days = 14
-safe_prune_max_delete_percent = 12
-safe_prune_max_delete_count = 34
-safe_prune_min_total_for_percent = 56
-
-[health]
-freshness_warn_hours = 12
-
-[notify]
-webhook_url = "https://example.invalid/hook"
-notify_on = ["unhealthy"]
-send_for = ["verify"]
-interactive = true
-`)
-
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-
-	values, err := raw.ResolveValues("onsite-usb", p)
-	if err != nil {
-		t.Fatalf("ResolveValues() error = %v", err)
-	}
-
-	expect := map[string]string{
-		"LABEL":                            "homes",
-		"TARGET":                           "onsite-usb",
-		"LOCATION":                         "local",
-		"SOURCE_PATH":                      "/volume1/homes",
-		"STORAGE":                          "/volumeUSB1/usbshare/duplicacy/homes",
-		"FILTER":                           "e:^tmp$",
-		"THREADS":                          "8",
-		"PRUNE":                            "-keep 0:30 -keep 7:14",
-		"LOG_RETENTION_DAYS":               "14",
-		"SAFE_PRUNE_MAX_DELETE_PERCENT":    "12",
-		"SAFE_PRUNE_MAX_DELETE_COUNT":      "34",
-		"SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT": "56",
-	}
-	for key, want := range expect {
-		if got := values[key]; got != want {
-			t.Fatalf("values[%q] = %q, want %q", key, got, want)
-		}
-	}
-
-	health := raw.ResolveHealth("onsite-usb")
-	if health.FreshnessWarnHours != 12 {
-		t.Fatalf("FreshnessWarnHours = %d, want 12", health.FreshnessWarnHours)
-	}
-	if health.Notify.WebhookURL != "https://example.invalid/hook" || !health.Notify.Interactive {
-		t.Fatalf("health notify = %+v", health.Notify)
-	}
-	if health.Notify.Ntfy.URL != "https://ntfy.sh" || health.Notify.Ntfy.Topic != "" {
-		t.Fatalf("health notify ntfy = %+v", health.Notify.Ntfy)
-	}
-	if got := strings.Join(health.Notify.NotifyOn, ","); got != "unhealthy" {
-		t.Fatalf("NotifyOn = %q", got)
-	}
-	if got := strings.Join(health.Notify.SendFor, ","); got != "verify" {
-		t.Fatalf("SendFor = %q", got)
-	}
-}
-
-func TestParseFile_ResolveValues_ProductNeutralTargetLayoutPrefersExplicitPrune(t *testing.T) {
-	p := writeTempConfig(t, `
-label = "homes"
-source_path = "/volume1/homes"
-
-[target]
-name = "offsite-storj"
-location = "remote"
-
-[storage]
-storage = "s3://bucket/homes"
-
-[retention]
-prune = "-keep 1:365 -keep 30:90"
-keep = ["0:30", "7:14"]
-`)
-
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-
-	values, err := raw.ResolveValues("offsite-storj", p)
-	if err != nil {
-		t.Fatalf("ResolveValues() error = %v", err)
-	}
-	if values["PRUNE"] != "-keep 1:365 -keep 30:90" {
-		t.Fatalf("PRUNE = %q", values["PRUNE"])
-	}
-	if values["LOCATION"] != "remote" {
-		t.Fatalf("LOCATION = %q", values["LOCATION"])
-	}
-}
-
-func TestParseFile_ResolveValues_ProductNeutralTargetMismatchFails(t *testing.T) {
-	p := writeTempConfig(t, `
-label = "homes"
-source_path = "/volume1/homes"
-
-[target]
-name = "onsite-usb"
-location = "local"
-
-[storage]
-storage = "/volumeUSB1/usbshare/duplicacy/homes"
-`)
-
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-
-	_, err = raw.ResolveValues("offsite-storj", p)
-	if err == nil || !strings.Contains(err.Error(), `defines target "onsite-usb", expected "offsite-storj"`) {
-		t.Fatalf("ResolveValues() err = %v", err)
-	}
-}
-
 func TestParseFile_ResolveHealth_TargetSpecificOverride(t *testing.T) {
 	p := writeTempConfig(t, `
 label = "homes"
@@ -417,77 +278,53 @@ type = "duplicacy"
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
 `)
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-	_, err = raw.ResolveValues("onsite-usb", p)
-	if err == nil || !strings.Contains(err.Error(), "remove this key because storage is always delegated to Duplicacy") {
-		t.Fatalf("ResolveValues() err = %v", err)
+	_, err := ParseFile(p)
+	if err == nil || !strings.Contains(err.Error(), "config key 'type' is not permitted") {
+		t.Fatalf("ParseFile() err = %v", err)
 	}
 }
 
-func TestParseFile_IgnoresUnrelatedTable(t *testing.T) {
+func TestParseFile_RetiredCommonDestinationKeyRejected(t *testing.T) {
 	p := writeTempConfig(t, `
 [common]
 destination = "/volume1/backups"
-
-[remote]
-threads = 2
-
-[local]
-threads = 8
 `)
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-	_, err = raw.ResolveValues("local", p)
-	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
-		t.Fatalf("ResolveValues() err = %v", err)
+	_, err := ParseFile(p)
+	if err == nil || !strings.Contains(err.Error(), "config key 'destination' is not permitted in [common]") {
+		t.Fatalf("ParseFile() err = %v", err)
 	}
 }
 
-func TestParseFile_MissingCommonTable(t *testing.T) {
+func TestParseFile_RetiredLocalTableRejected(t *testing.T) {
 	p := writeTempConfig(t, `
 [local]
 destination = "/volume1/backups"
 `)
-	raw, err := ParseFile(p)
-	if err != nil {
-		t.Fatalf("ParseFile() error = %v", err)
-	}
-	_, err = raw.ResolveValues("local", p)
-	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
-		t.Fatalf("ResolveValues() err = %v", err)
+	_, err := ParseFile(p)
+	if err == nil || !strings.Contains(err.Error(), "config table [local] is not permitted") {
+		t.Fatalf("ParseFile() err = %v", err)
 	}
 }
 
 func TestParseFile_MissingTargetTable(t *testing.T) {
 	p := writeTempConfig(t, `
 [common]
-destination = "/volume1/backups"
+threads = 4
 `)
 	raw, err := ParseFile(p)
 	if err != nil {
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 	_, err = raw.ResolveValues("local", p)
-	if err == nil || !strings.Contains(err.Error(), "retired [common]/[local]/[remote] layout") {
+	if err == nil || !strings.Contains(err.Error(), "missing required [targets.local] table") {
 		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
 
 func TestParseFile_UnknownTableRejected(t *testing.T) {
 	p := writeTempConfig(t, `
-[common]
-destination = "/volume1/backups"
-
 [archive]
 threads = 4
-
-[local]
-threads = 2
 `)
 	_, err := ParseFile(p)
 	if err == nil {
@@ -501,11 +338,7 @@ threads = 2
 func TestParseFile_UnknownKeyRejected(t *testing.T) {
 	p := writeTempConfig(t, `
 [common]
-destination = "/volume1/backups"
 unknown_key = "foo"
-
-[local]
-threads = 4
 `)
 	_, err := ParseFile(p)
 	if err == nil {
@@ -532,16 +365,13 @@ storage = "/volume1/backups/homes"
 func TestParseFile_UppercaseKeysRejected(t *testing.T) {
 	_, err := ParseFile(writeTempConfig(t, `
 [common]
-DESTINATION = "/volume1/backups"
-
-[local]
-threads = 4
+THREADS = 4
 `))
 	if err == nil {
 		t.Fatal("expected uppercase key rejection")
 	}
-	if !strings.Contains(err.Error(), "DESTINATION") {
-		t.Errorf("error should mention DESTINATION, got: %v", err)
+	if !strings.Contains(err.Error(), "THREADS") {
+		t.Errorf("error should mention THREADS, got: %v", err)
 	}
 }
 

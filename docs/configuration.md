@@ -29,10 +29,8 @@ Recommended permissions:
 - config directory: owned by the operator user with mode `0700`
 - config files: owned by the operator user with mode `0600`
 
-The installer manages the binary only. It does not automatically move runtime
-config or secrets. Operators moving from the legacy root-era layout should
-follow [`v8-migration.md`](v8-migration.md). The migration helper is packaged
-in the release tarball; it is not installed by `duplicacy-backup update`.
+The installer manages the binary only. Runtime config and secrets are
+operator-owned files under the user profile.
 
 ## Runtime Environment Overrides
 
@@ -81,57 +79,10 @@ management decisions.
 Operational rules:
 
 - every target passes `storage` directly to Duplicacy
-- do not split storage into `destination` and `repository`; include the full backend path in `storage`
+- include the complete backend path in `storage`
 - runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
 - local filesystem repositories are protected OS resources; manage custom
   ownership or permissions with DSM/Linux tools outside this application
-
-Breaking change note:
-
-- the `type` key has been retired because every target delegates storage to Duplicacy
-- target-level `destination` and `repository` keys have been retired; use `storage`
-- `requires_network` has been retired
-
-## Migrating From The Old Target Schema
-
-Older configs split storage into `type`, `destination`, and `repository`, and
-Storj-over-S3 secrets used Storj-specific key names. The current schema gives
-Duplicacy the complete storage value directly and stores backend keys under a
-generic `[targets.<name>.keys]` table.
-
-Before, in `homes-backup.toml`:
-
-```toml
-[targets.offsite-storj]
-type = "object"
-location = "remote"
-destination = "s3://EU@gateway.storjshare.io/bucket-id"
-repository = "homes"
-```
-
-Before, in `homes-secrets.toml`:
-
-```toml
-[targets.offsite-storj]
-storj_s3_id = "..."
-storj_s3_secret = "..."
-```
-
-After, in `homes-backup.toml`:
-
-```toml
-[targets.offsite-storj]
-location = "remote"
-storage = "s3://EU@gateway.storjshare.io/bucket-id/homes"
-```
-
-After, in `homes-secrets.toml`:
-
-```toml
-[targets.offsite-storj.keys]
-s3_id = "..."
-s3_secret = "..."
-```
 
 ## Config Keys
 
