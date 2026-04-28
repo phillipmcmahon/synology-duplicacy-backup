@@ -278,7 +278,7 @@ The parser `Request` contains raw CLI intent only:
 
 - selected runtime command such as `backup`, `prune`, or `cleanup-storage`
 - `--force` as a prune-threshold override for `prune`
-- `--target <name>` as the explicit destination selector
+- `--target <name>` as the explicit configured target selector
 - `--dry-run`
 - config/secrets directory overrides
 - source label

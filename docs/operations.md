@@ -287,7 +287,7 @@ sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
 
 Recommended scheduled pattern:
 
-- keep backup, prune, cleanup, health, and diagnostics as separate tasks
+- keep backup, prune, health, and diagnostics as separate tasks
 - use repeat scheduling for frequent onsite backups where it helps
 - avoid routine `cleanup-storage`
 - do not schedule `prune --force` as a normal recurring task

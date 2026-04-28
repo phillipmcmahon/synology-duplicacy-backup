@@ -162,7 +162,7 @@ See [`ui-surface-smoke.md`](ui-surface-smoke.md) for the NAS execution and
 review process.
 
 ```bash
-RUN_ID="v8-nonroot-smoke-$(date -u '+%Y%m%d%H%M%S')"
+RUN_ID="nas-runtime-smoke-$(date -u '+%Y%m%d%H%M%S')"
 
 sh ./scripts/package-test-bundle.sh \
   --run-id "$RUN_ID" \

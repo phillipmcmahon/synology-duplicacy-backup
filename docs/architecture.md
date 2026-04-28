@@ -42,8 +42,8 @@ cleaner contract over compatibility shims.
 
 Breaking changes are acceptable when they reduce ambiguity, remove legacy
 behaviour, or make the operator model easier to reason about. When a surface
-changes, update the help text, docs, smoke tests, release notes, and migration
-guidance so operators can see the new contract plainly.
+changes, update the help text, docs, smoke tests, release notes, and operator
+transition guidance so operators can see the new contract plainly.
 
 ## Request
 

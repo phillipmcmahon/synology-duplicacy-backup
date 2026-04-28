@@ -288,7 +288,7 @@ Additional v5.1.0 validation:
   targets preserve `Location` in operator-facing output and webhook payloads
   without exposing a redundant target type.
 - Config tests confirm the retired `type`, `destination`, and `repository`
-  schema is rejected with migration-focused messages.
+  schema is rejected with clear current-model messages.
 - Required-value validation now points operators at modern `common.*` and
   `targets.<name>.*` keys instead of the retired single-target key names.
 

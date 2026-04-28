@@ -51,7 +51,7 @@ sudo duplicacy-backup backup --target offsite-usb homes
 sudo duplicacy-backup backup --target onsite-usb --dry-run homes
 
 # Preview prune for homes on target onsite-usb with detailed logs
-duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
+sudo duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
 
 # Run storage cleanup for homes on target onsite-usb
 sudo duplicacy-backup cleanup-storage --target onsite-usb homes
@@ -140,11 +140,12 @@ Installer behaviour:
 ### Scheduling
 
 - Start with `--dry-run` for anything destructive or unfamiliar.
-- Schedule backup, prune, cleanup, health, and diagnostics as separate tasks.
+- Schedule backup, prune, health, and diagnostics as separate tasks.
 - Use Synology repeat scheduling for frequent onsite backups instead of creating several near-identical jobs.
 - Use `cleanup-storage` only as manual or exceptional maintenance, and only when no other client is writing to the same storage.
 - Use `prune --force` only as an explicit operator action, not as a routine scheduled task.
-- See `docs/workflow-scheduling.md` for the recommended Task Scheduler naming pattern and workload cadence.
+- See [Workflow and scheduling](workflow-scheduling.md) for the recommended
+  Task Scheduler naming pattern and workload cadence.
 
 ### Config and Validation
 

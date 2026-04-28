@@ -15,9 +15,8 @@ release notes from memory, or generate release artefacts on the macOS host.
   `honnef.co/go/tools/cmd/staticcheck` and the version is pinned in Go module
   metadata so Dependabot can update it.
 - Keep CI smoke jobs for non-root runtime posture, sudo/operator-owned secrets,
-  migration-helper layout, and UI smoke bundle integrity in the release gate.
-  These jobs are Ubuntu-based DSM proxies, not replacements for NAS smoke
-  testing.
+  and UI smoke bundle integrity in the release gate. These jobs are
+  Ubuntu-based DSM proxies, not replacements for NAS smoke testing.
 - Use the Go container image declared in
   [`tools/release-validation/Dockerfile`](../tools/release-validation/Dockerfile);
   Dependabot monitors that Dockerfile for image updates.
@@ -81,7 +80,8 @@ Recommended project support:
 - Decide exactly which user-visible changes are shipping.
 - Prefer clear, simple contracts over backwards compatibility. If a release
   intentionally changes CLI, config, output, or workflow surfaces, document the
-  new contract and migration path rather than preserving compatibility shims.
+  new contract and operator transition path rather than preserving
+  compatibility shims.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
   real release entry if needed.
 - Create or update the release-prep issue and move it to `In Progress`.
@@ -203,7 +203,7 @@ bundle whose extracted layout is `README.md`, `setup-env.sh`, `artifacts/`,
 `checksums/`, `instructions/`, and `metadata/`.
 
 Smoke bundles should use a campaign-style run id such as
-`v8-nonroot-smoke-<timestamp>` rather than a fix-specific name. The exact
+`nas-runtime-smoke-<timestamp>` rather than a fix-specific name. The exact
 commit, version, build time, platform, and original instruction filename belong
 in `metadata/build.json`. The operator instructions should start with:
 

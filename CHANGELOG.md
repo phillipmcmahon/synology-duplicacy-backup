@@ -22,6 +22,9 @@ coverage floor and package-level baseline.
 - Health and config tests now use current `storage` terminology and fixtures
   directly instead of translating legacy-shaped `destination`/`repository`
   snippets.
+- Operator and release documentation now avoids retired migration-helper and
+  old-schema wording in active guidance, and the cheat sheet aligns local prune
+  previews with the root-protected repository policy.
 
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,
