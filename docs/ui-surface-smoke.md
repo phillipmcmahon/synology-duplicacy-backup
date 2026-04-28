@@ -101,6 +101,18 @@ CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
 
+For a root-protected local filesystem repository, run the optional restore
+capture through sudo from the operator account:
+
+```sh
+RUN_RESTORE=1 \
+RESTORE_USE_SUDO=1 \
+RESTORE_TARGET="$TARGET_LOCAL" \
+RESTORE_PATH='phillipmcmahon/code/*' \
+CAPTURE_COLOUR=1 \
+./run-ui-surface-smoke.sh
+```
+
 For fully automated release smoke bundles, bake the restore defaults into the
 bundle when packaging:
 
@@ -110,6 +122,9 @@ scripts/package-ui-surface-smoke.sh \
   --default-restore-target offsite-storj \
   --default-restore-path 'phillipmcmahon/code/*'
 ```
+
+Use `--default-restore-use-sudo 1` only for bundles whose default restore
+target is a root-protected local filesystem repository.
 
 The restore command uses an explicit smoke workspace rather than the normal
 operator-derived restore workspace. The workspace name is:

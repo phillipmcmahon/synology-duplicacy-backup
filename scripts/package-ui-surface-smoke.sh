@@ -15,6 +15,7 @@ DEFAULT_WORKSPACE_ROOT="/volume1/restore-drills"
 DEFAULT_RUN_RESTORE="0"
 DEFAULT_RESTORE_TARGET=""
 DEFAULT_RESTORE_PATH=""
+DEFAULT_RESTORE_USE_SUDO="0"
 
 usage() {
     cat <<'EOF'
@@ -42,6 +43,8 @@ Options:
                          RESTORE_TARGET default written to setup-env.sh
   --default-restore-path <path>
                          RESTORE_PATH default written to setup-env.sh
+  --default-restore-use-sudo <0|1>
+                         RESTORE_USE_SUDO default written to setup-env.sh
   --repo-root <path>     Repository root (default: script parent directory)
   --help                 Show this help text
 EOF
@@ -142,6 +145,11 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_RESTORE_PATH="$2"
             shift 2
             ;;
+        --default-restore-use-sudo)
+            [ "$#" -ge 2 ] || fail "--default-restore-use-sudo requires a value"
+            DEFAULT_RESTORE_USE_SUDO="$2"
+            shift 2
+            ;;
         --repo-root)
             [ "$#" -ge 2 ] || fail "--repo-root requires a value"
             REPO_ROOT="$2"
@@ -160,6 +168,10 @@ done
 case "$DEFAULT_RUN_RESTORE" in
     0|1) ;;
     *) fail "--default-run-restore must be 0 or 1" ;;
+esac
+case "$DEFAULT_RESTORE_USE_SUDO" in
+    0|1) ;;
+    *) fail "--default-restore-use-sudo must be 0 or 1" ;;
 esac
 
 ROOT="${REPO_ROOT:-$(repo_root_default)}"
@@ -208,20 +220,23 @@ chmod 755 "$bundle_dir/run-ui-surface-smoke.sh"
 quoted_default_run_restore="$(shell_quote "$DEFAULT_RUN_RESTORE")"
 quoted_default_restore_target="$(shell_quote "$DEFAULT_RESTORE_TARGET")"
 quoted_default_restore_path="$(shell_quote "$DEFAULT_RESTORE_PATH")"
+quoted_default_restore_use_sudo="$(shell_quote "$DEFAULT_RESTORE_USE_SUDO")"
 cat >> "$bundle_dir/setup-env.sh" <<EOF
 
 # UI surface restore automation defaults. Existing environment values are preserved.
 DEFAULT_RUN_RESTORE=$quoted_default_run_restore
 DEFAULT_RESTORE_TARGET=$quoted_default_restore_target
 DEFAULT_RESTORE_PATH=$quoted_default_restore_path
+DEFAULT_RESTORE_USE_SUDO=$quoted_default_restore_use_sudo
 
 RUN_RESTORE="\${RUN_RESTORE:-\$DEFAULT_RUN_RESTORE}"
 if [ -z "\${RESTORE_TARGET:-}" ] && [ -n "\$DEFAULT_RESTORE_TARGET" ]; then
     RESTORE_TARGET="\$DEFAULT_RESTORE_TARGET"
 fi
 RESTORE_PATH="\${RESTORE_PATH:-\$DEFAULT_RESTORE_PATH}"
+RESTORE_USE_SUDO="\${RESTORE_USE_SUDO:-\$DEFAULT_RESTORE_USE_SUDO}"
 
-export RUN_RESTORE RESTORE_TARGET RESTORE_PATH
+export RUN_RESTORE RESTORE_TARGET RESTORE_PATH RESTORE_USE_SUDO
 EOF
 
 output_dir="$ROOT/build/test-packages/release/$RUN_ID"

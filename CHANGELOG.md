@@ -22,6 +22,9 @@ coverage floor and package-level baseline.
 - UI surface smoke checks now assert the shared local repository sudo wording
   and reject raw `permission denied`/`EACCES` leakage for root-protected local
   filesystem repositories.
+- Optional UI surface smoke restore captures can now run through sudo with
+  `RESTORE_USE_SUDO=1`, allowing the same bundle to exercise remote/object
+  restores and root-protected local filesystem restores.
 
 ### Fixed
 - Non-root `config validate` for root-protected local filesystem repositories

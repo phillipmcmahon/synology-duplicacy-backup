@@ -24,10 +24,13 @@ assert_contains "$tmp/package-help.txt" "Build a structured NAS UI surface smoke
 assert_contains "$tmp/package-help.txt" "--default-workspace-root"
 assert_contains "$tmp/package-help.txt" "--default-restore-path"
 assert_contains "$tmp/package-help.txt" "--default-run-restore"
+assert_contains "$tmp/package-help.txt" "--default-restore-use-sudo"
 
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "/usr/local/bin/duplicacy-backup"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "DUPLICACY_BACKUP_FORCE_COLOUR=1"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "ui-surface-captures-"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "RESTORE_USE_SUDO"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "run_restore_capture"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "RESTORE_REVISION is auto-selected when omitted"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_revision_auto_select"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_revision_lookup"

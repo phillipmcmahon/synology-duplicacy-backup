@@ -122,6 +122,18 @@ run_capture() {
     printf '%-50s %s (exit %s)\n' "$name" "$status" "$code"
 }
 
+run_restore_capture() {
+    name="$1"
+    expectation="$2"
+    shift 2
+
+    if [ "$RESTORE_USE_SUDO" = "1" ]; then
+        run_capture "$name" "$expectation" sudo -n "$BIN" "$@"
+    else
+        run_capture "$name" "$expectation" "$BIN" "$@"
+    fi
+}
+
 skip_capture() {
     name="$1"
     reason="$2"
@@ -258,6 +270,7 @@ RESTORE_REVISION="${RESTORE_REVISION:-}"
 RESTORE_PATH="${RESTORE_PATH:-}"
 RESTORE_WORKSPACE="${RESTORE_WORKSPACE:-}"
 RESTORE_REVISION_LOOKUP_LIMIT="${RESTORE_REVISION_LOOKUP_LIMIT:-200}"
+RESTORE_USE_SUDO="${RESTORE_USE_SUDO:-0}"
 
 if MANAGED_BIN_RESOLVED="$(resolve_managed_bin)"; then
     managed_status="$MANAGED_BIN_RESOLVED"
@@ -284,6 +297,7 @@ unexpected_count=0
     printf 'Workspace root\t%s\n' "$WORKSPACE_ROOT"
     printf 'Managed binary\t%s\n' "$managed_status"
     printf 'Capture colour\t%s\n' "$CAPTURE_COLOUR"
+    printf 'Restore sudo\t%s\n' "$RESTORE_USE_SUDO"
     printf '\n'
     printf 'Index\tName\tStatus\tExitCode\tFile\n'
 } > "$SUMMARY"
@@ -297,6 +311,7 @@ UI surface smoke capture
   Local target  : $TARGET_LOCAL
   Managed binary: $managed_status
   Capture colour: $CAPTURE_COLOUR
+  Restore sudo  : $RESTORE_USE_SUDO
   Capture dir   : $CAPTURE_DIR
 
 EOF
@@ -372,7 +387,7 @@ if [ "$RUN_RESTORE" = "1" ]; then
     if [ -n "$RESTORE_PATH" ]; then
         revision_listing_file=""
         if [ -z "$RESTORE_REVISION" ]; then
-            run_capture "restore_revision_auto_select" pass "$BIN" restore list-revisions --target "$RESTORE_TARGET" --limit 1 "$LABEL"
+            run_restore_capture "restore_revision_auto_select" pass restore list-revisions --target "$RESTORE_TARGET" --limit 1 "$LABEL"
             revision_listing_file="$output_file"
             RESTORE_REVISION="$(extract_first_revision "$output_file")"
             if [ -z "$RESTORE_REVISION" ]; then
@@ -382,7 +397,7 @@ if [ "$RUN_RESTORE" = "1" ]; then
                 printf '%-50s %s\n' "restore_revision_auto_select_value" "$RESTORE_REVISION"
             fi
         else
-            run_capture "restore_revision_lookup" any "$BIN" restore list-revisions --target "$RESTORE_TARGET" --limit "$RESTORE_REVISION_LOOKUP_LIMIT" "$LABEL"
+            run_restore_capture "restore_revision_lookup" any restore list-revisions --target "$RESTORE_TARGET" --limit "$RESTORE_REVISION_LOOKUP_LIMIT" "$LABEL"
             revision_listing_file="$output_file"
         fi
         if [ -n "$RESTORE_REVISION" ]; then
@@ -391,10 +406,10 @@ if [ "$RUN_RESTORE" = "1" ]; then
                 RESTORE_WORKSPACE="$(build_smoke_restore_workspace "$snapshot_timestamp" "$(short_build_commit)" "$STAMP")"
             fi
             printf '%-50s %s\n' "restore_workspace_smoke" "$RESTORE_WORKSPACE"
-            run_capture "restore_run_optional" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --yes "$LABEL"
+            run_restore_capture "restore_run_optional" pass restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --yes "$LABEL"
             assert_last_capture_contains "-ignore-owner"
             assert_last_capture_contains "-smoke-"
-            run_capture "restore_run_optional_dry_run" pass "$BIN" restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --dry-run --yes "$LABEL"
+            run_restore_capture "restore_run_optional_dry_run" pass restore run --target "$RESTORE_TARGET" --revision "$RESTORE_REVISION" --path "$RESTORE_PATH" --workspace "$RESTORE_WORKSPACE" --dry-run --yes "$LABEL"
             assert_last_capture_contains "-ignore-owner"
             assert_last_capture_contains "-smoke-"
         else
