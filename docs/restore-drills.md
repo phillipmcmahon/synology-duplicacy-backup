@@ -159,8 +159,43 @@ That command derives a workspace such as:
 /volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403
 ```
 
+Use `--workspace-template` when you want the derived child folder to include a
+different set of restore metadata. The template controls only one folder name
+below the root; it cannot contain `/` or `\`. Supported variables are:
+
+- `{label}`
+- `{target}`
+- `{snapshot_timestamp}`
+- `{revision}`
+- `{run_timestamp}`
+
+For example, this lets you recover the same snapshot id from multiple targets
+without clobbering prior drills:
+
+```bash
+sudo duplicacy-backup restore run \
+  --target onsite-usb \
+  --revision 2403 \
+  --workspace-root /volume1/restore-drills \
+  --workspace-template '{label}-rev{revision}-{target}-{run_timestamp}' \
+  --path 'phillipmcmahon/code/*' \
+  --yes homes
+```
+
+You can also make those naming defaults part of the label config:
+
+```toml
+[restore]
+workspace_root = "/volume1/restore-drills"
+workspace_template = "{label}-rev{revision}-{target}-{run_timestamp}"
+```
+
+Command-line flags win over config defaults. Use `--workspace` only when you
+want one exact path rather than a derived child name.
+
 Use `--workspace` only when you want to provide the exact workspace path
-yourself. `--workspace` and `--workspace-root` cannot be combined.
+yourself. `--workspace` cannot be combined with `--workspace-root` or
+`--workspace-template`.
 
 When you use `--workspace-root`, the tool preserves the existing root folder
 permissions and creates or permissions only the derived restore-job child
@@ -257,8 +292,10 @@ point, for example
 `/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev3`. That gives
 the drill workspace an obvious link back to the restore point the operator
 chose. Pass `--workspace-root` when you want that derived folder under a
-specific shared-folder root. Pass `--workspace` explicitly only when you want
-to pin the flow to one exact drill directory.
+specific shared-folder root. Pass `--workspace-template` when you want the
+derived folder to use a different mix of label, target, revision, snapshot, and
+run timestamp metadata. Pass `--workspace` explicitly only when you want to pin
+the flow to one exact drill directory.
 
 The common restore shapes are:
 

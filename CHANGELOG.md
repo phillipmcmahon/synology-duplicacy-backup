@@ -13,6 +13,11 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Changed
+- Restore drill workspace names can now be configured with
+  `--workspace-template` or `[restore].workspace_template`, using `{label}`,
+  `{target}`, `{snapshot_timestamp}`, `{revision}`, and `{run_timestamp}` so
+  operators can recover the same revision from different targets without
+  clobbering or obscuring prior drills.
 - NAS UI surface smoke restore runs now use explicit smoke-marked workspaces
   named with the selected snapshot, revision, tested commit, and run timestamp
   so automated restore tests are easy to identify, avoid operator restore

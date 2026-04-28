@@ -408,6 +408,16 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 			}
 			req.RestoreWorkspaceRoot = value
 			return true, nil
+		case "--workspace-template":
+			if action != "run" && action != "select" {
+				return false, nil
+			}
+			value, err := consumeRequiredValue(args, index, "--workspace-template")
+			if err != nil {
+				return false, err
+			}
+			req.RestoreWorkspaceTemplate = value
+			return true, nil
 		case "--revision":
 			if action != "run" {
 				return false, nil

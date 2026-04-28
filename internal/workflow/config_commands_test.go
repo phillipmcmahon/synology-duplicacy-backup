@@ -687,7 +687,8 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	owner, group := currentUserGroup(t)
 	configDir := t.TempDir()
-	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365"))
+	restoreSection := "[restore]\nworkspace_root = \"/volume1/restore-drills\"\nworkspace_template = \"{label}-rev{revision}-{target}-{run_timestamp}\"\n"
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", owner, group, 4, "-keep 0:365", restoreSection))
 
 	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := testRuntime()
@@ -697,12 +698,12 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(explain) error = %v", err)
 	}
-	for _, token := range []string{"Config explanation for homes/onsite-usb", "Target", "onsite-usb", "Local Owner", owner, "Local Group", group, "Storage", "/backups/homes"} {
+	for _, token := range []string{"Config explanation for homes/onsite-usb", "Target", "onsite-usb", "Local Owner", owner, "Local Group", group, "Storage", "/backups/homes", "Restore Workspace Root", "/volume1/restore-drills", "Restore Workspace Template", "{label}-rev{revision}-{target}-{run_timestamp}"} {
 		if !strings.Contains(explainOut, token) {
 			t.Fatalf("explain output missing %q:\n%s", token, explainOut)
 		}
 	}
-	assertFlatLabels(t, explainOut, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
+	assertFlatLabels(t, explainOut, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Restore Workspace Root", "Restore Workspace Template", "Allow Local Accounts", "Local Owner", "Local Group")
 
 	pathsReq := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	pathsOut, err := HandleConfigCommand(pathsReq, meta, rt)

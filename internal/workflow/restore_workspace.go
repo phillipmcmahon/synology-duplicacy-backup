@@ -4,18 +4,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 const defaultRestoreWorkspaceRoot = "/volume1/restore-drills"
+const defaultRestoreWorkspaceTemplate = "{label}-{target}-{snapshot_timestamp}-rev{revision}"
+const defaultRestorePlanWorkspaceTemplate = "{label}-{target}-{run_timestamp}"
+
+var unsafeRestoreWorkspaceSegmentPattern = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 func resolvedRestoreWorkspace(req *RestoreRequest, plan *Plan, deps RestoreDeps) string {
 	workspace := req.Workspace
 	if strings.TrimSpace(workspace) == "" {
-		workspace = recommendedRestoreWorkspaceRoot(req.Label, req.Target(), restoreWorkspaceRootForRequest(req, deps), deps)
+		workspace = recommendedRestoreWorkspaceRoot(req.Label, req.Target(), restoreWorkspaceRootForRequest(req, deps), req.WorkspaceTemplate, deps)
 	}
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
@@ -38,27 +45,60 @@ func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, st
 	if err != nil {
 		return "", err
 	}
-	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), deps), nil
+	workspace, err := recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), req.WorkspaceTemplate, deps)
+	if err != nil {
+		return "", err
+	}
+	return workspace, nil
 }
 
-func resolvedRestoreSelectWorkspace(req *RestoreRequest, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) string {
+func resolvedRestoreSelectWorkspace(req *RestoreRequest, plan *Plan, revision duplicacy.RevisionInfo, deps RestoreDeps) (string, error) {
 	if strings.TrimSpace(req.Workspace) != "" {
-		return resolvedRestoreWorkspace(req, plan, deps)
+		return resolvedRestoreWorkspace(req, plan, deps), nil
 	}
-	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), deps)
+	return recommendedRestoreWorkspaceForRevisionRoot(req.Label, req.Target(), revision, restoreWorkspaceRootForRequest(req, deps), req.WorkspaceTemplate, deps)
 }
 
-func recommendedRestoreWorkspaceRoot(label, target string, root string, deps RestoreDeps) string {
-	timestamp := deps.Now().Local().Format("20060102-150405")
-	return filepath.Join(root, fmt.Sprintf("%s-%s-%s", label, target, timestamp))
+func recommendedRestoreWorkspaceRoot(label, target string, root string, workspaceTemplate string, deps RestoreDeps) string {
+	now := deps.Now()
+	template := strings.TrimSpace(workspaceTemplate)
+	if template == "" {
+		template = defaultRestorePlanWorkspaceTemplate
+	}
+	name, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
+		Label:             label,
+		Target:            target,
+		SnapshotTimestamp: "<restore-point-timestamp>",
+		Revision:          "<revision>",
+		RunTimestamp:      restoreWorkspaceTimestamp(now),
+	})
+	if err != nil {
+		name = fmt.Sprintf("%s-%s-%s", safeRestoreWorkspaceSegment(label), safeRestoreWorkspaceSegment(target), restoreWorkspaceTimestamp(now))
+	}
+	return filepath.Join(root, name)
 }
 
-func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision duplicacy.RevisionInfo, root string, deps RestoreDeps) string {
-	timestamp := deps.Now().Local().Format("20060102-150405")
+func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision duplicacy.RevisionInfo, root string, workspaceTemplate string, deps RestoreDeps) (string, error) {
+	now := deps.Now()
+	snapshotTimestamp := restoreWorkspaceTimestamp(now)
 	if !revision.CreatedAt.IsZero() {
-		timestamp = revision.CreatedAt.Local().Format("20060102-150405")
+		snapshotTimestamp = restoreWorkspaceTimestamp(revision.CreatedAt)
 	}
-	return filepath.Join(root, fmt.Sprintf("%s-%s-%s-rev%d", label, target, timestamp, revision.Revision))
+	template := strings.TrimSpace(workspaceTemplate)
+	if template == "" {
+		template = defaultRestoreWorkspaceTemplate
+	}
+	name, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
+		Label:             label,
+		Target:            target,
+		SnapshotTimestamp: snapshotTimestamp,
+		Revision:          fmt.Sprintf("%d", revision.Revision),
+		RunTimestamp:      restoreWorkspaceTimestamp(now),
+	})
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, name), nil
 }
 
 func restoreWorkspaceRoot(deps RestoreDeps) string {
@@ -81,13 +121,116 @@ func validateRestoreWorkspaceSelection(req *RestoreRequest) error {
 	if req == nil {
 		return nil
 	}
-	if strings.TrimSpace(req.Workspace) != "" && strings.TrimSpace(req.WorkspaceRoot) != "" {
-		return NewRequestError("--workspace and --workspace-root cannot be used together")
+	if strings.TrimSpace(req.Workspace) != "" {
+		if strings.TrimSpace(req.WorkspaceRoot) != "" {
+			return NewRequestError("--workspace and --workspace-root cannot be used together")
+		}
+		if strings.TrimSpace(req.WorkspaceTemplate) != "" {
+			return NewRequestError("--workspace and --workspace-template cannot be used together")
+		}
 	}
 	if strings.TrimSpace(req.WorkspaceRoot) != "" && !filepath.IsAbs(filepath.Clean(strings.TrimSpace(req.WorkspaceRoot))) {
 		return NewRequestError("--workspace-root must be an absolute path: %s", req.WorkspaceRoot)
 	}
+	if err := validateRestoreWorkspaceTemplate(req.WorkspaceTemplate); err != nil {
+		return err
+	}
 	return nil
+}
+
+func applyRestoreConfigDefaults(req *RestoreRequest, cfg *config.Config) {
+	if req == nil || cfg == nil {
+		return
+	}
+	if strings.TrimSpace(req.Workspace) != "" {
+		return
+	}
+	if strings.TrimSpace(req.WorkspaceRoot) == "" {
+		req.WorkspaceRoot = cfg.RestoreWorkspaceRoot
+	}
+	if strings.TrimSpace(req.WorkspaceTemplate) == "" {
+		req.WorkspaceTemplate = cfg.RestoreWorkspaceTemplate
+	}
+}
+
+type restoreWorkspaceTemplateValues struct {
+	Label             string
+	Target            string
+	SnapshotTimestamp string
+	Revision          string
+	RunTimestamp      string
+}
+
+func restoreWorkspaceTimestamp(value time.Time) string {
+	return value.Local().Format("20060102-150405")
+}
+
+func validateRestoreWorkspaceTemplate(template string) error {
+	template = strings.TrimSpace(template)
+	if template == "" {
+		return nil
+	}
+	_, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
+		Label:             "label",
+		Target:            "target",
+		SnapshotTimestamp: "20260424-070000",
+		Revision:          "2403",
+		RunTimestamp:      "20260428-120000",
+	})
+	return err
+}
+
+func renderRestoreWorkspaceTemplate(template string, values restoreWorkspaceTemplateValues) (string, error) {
+	template = strings.TrimSpace(template)
+	if template == "" {
+		return "", NewRequestError("restore workspace template must not be empty")
+	}
+	replacements := map[string]string{
+		"label":              safeRestoreWorkspaceSegment(values.Label),
+		"target":             safeRestoreWorkspaceSegment(values.Target),
+		"snapshot_timestamp": safeRestoreWorkspaceSegment(values.SnapshotTimestamp),
+		"revision":           safeRestoreWorkspaceSegment(values.Revision),
+		"run_timestamp":      safeRestoreWorkspaceSegment(values.RunTimestamp),
+	}
+
+	var out strings.Builder
+	for i := 0; i < len(template); {
+		if template[i] != '{' {
+			out.WriteByte(template[i])
+			i++
+			continue
+		}
+		end := strings.IndexByte(template[i+1:], '}')
+		if end < 0 {
+			return "", NewRequestError("restore workspace template has an unclosed variable: %s", template)
+		}
+		name := template[i+1 : i+1+end]
+		value, ok := replacements[name]
+		if !ok {
+			return "", NewRequestError("restore workspace template uses unsupported variable {%s}; supported variables are {label}, {target}, {snapshot_timestamp}, {revision}, and {run_timestamp}", name)
+		}
+		out.WriteString(value)
+		i += end + 2
+	}
+
+	name := strings.TrimSpace(out.String())
+	if name == "" || name == "." || name == ".." {
+		return "", NewRequestError("restore workspace template must produce a folder name")
+	}
+	if strings.ContainsAny(name, `/\`) || strings.ContainsRune(name, 0) {
+		return "", NewRequestError("restore workspace template must produce one folder name, not a path: %s", template)
+	}
+	return name, nil
+}
+
+func safeRestoreWorkspaceSegment(value string) string {
+	value = strings.TrimSpace(value)
+	value = unsafeRestoreWorkspaceSegmentPattern.ReplaceAllString(value, "_")
+	value = strings.Trim(value, "_")
+	if value == "" {
+		return "unknown"
+	}
+	return value
 }
 
 func validateRestoreWorkspaceRoot(req *RestoreRequest) error {

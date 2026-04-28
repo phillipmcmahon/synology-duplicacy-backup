@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
@@ -196,7 +198,10 @@ func TestResolvedRestoreSelectWorkspace_UsesRevisionTimestampAndID(t *testing.T)
 	}
 
 	deps := defaultRestoreDeps()
-	got := resolvedRestoreSelectWorkspace(req, plan, revision, deps)
+	got, err := resolvedRestoreSelectWorkspace(req, plan, revision, deps)
+	if err != nil {
+		t.Fatalf("resolvedRestoreSelectWorkspace() error = %v", err)
+	}
 	want := filepath.Join(root, "homes-onsite-usb-20260424-070000-rev2403")
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
@@ -211,7 +216,10 @@ func TestResolvedRestoreSelectWorkspace_UsesExplicitWorkspace(t *testing.T) {
 		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
 	}
 
-	got := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
+	got, err := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
+	if err != nil {
+		t.Fatalf("resolvedRestoreSelectWorkspace() error = %v", err)
+	}
 	want := "/restore/exact"
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
@@ -228,6 +236,42 @@ func TestValidateRestoreWorkspaceSelection_RejectsWorkspaceAndRoot(t *testing.T)
 func TestValidateRestoreWorkspaceSelection_RejectsRelativeRoot(t *testing.T) {
 	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceRoot: "restore-drills"})
 	if err == nil || !strings.Contains(err.Error(), "--workspace-root must be an absolute path") {
+		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
+	}
+}
+
+func TestValidateRestoreWorkspaceSelection_RejectsWorkspaceAndTemplate(t *testing.T) {
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{Workspace: "/restore/exact", WorkspaceTemplate: "{label}-{target}"})
+	if err == nil || !strings.Contains(err.Error(), "--workspace and --workspace-template cannot be used together") {
+		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
+	}
+}
+
+func TestApplyRestoreConfigDefaults_ExactWorkspaceOverridesConfigDefaults(t *testing.T) {
+	req := &RestoreRequest{Workspace: "/restore/exact"}
+	applyRestoreConfigDefaults(req, &config.Config{
+		RestoreWorkspaceRoot:     "/restore/root",
+		RestoreWorkspaceTemplate: "{label}-{target}",
+	})
+
+	if req.WorkspaceRoot != "" || req.WorkspaceTemplate != "" {
+		t.Fatalf("exact workspace should ignore config defaults: %+v", req)
+	}
+	if err := validateRestoreWorkspaceSelection(req); err != nil {
+		t.Fatalf("validateRestoreWorkspaceSelection() error = %v", err)
+	}
+}
+
+func TestValidateRestoreWorkspaceSelection_RejectsUnsupportedTemplateVariable(t *testing.T) {
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceTemplate: "{label}-{unknown}"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported variable {unknown}") {
+		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
+	}
+}
+
+func TestValidateRestoreWorkspaceSelection_RejectsTemplatePath(t *testing.T) {
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceTemplate: "{label}/{target}"})
+	if err == nil || !strings.Contains(err.Error(), "must produce one folder name") {
 		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
 	}
 }
@@ -256,7 +300,10 @@ func TestResolvedRestoreSelectWorkspace_DefaultRootIgnoresSourcePath(t *testing.
 		CreatedAt: time.Date(2026, 4, 24, 7, 0, 0, 0, time.Local),
 	}
 
-	got := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
+	got, err := resolvedRestoreSelectWorkspace(req, plan, revision, defaultRestoreDeps())
+	if err != nil {
+		t.Fatalf("resolvedRestoreSelectWorkspace() error = %v", err)
+	}
 	want := "/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403"
 	if got != want {
 		t.Fatalf("resolvedRestoreSelectWorkspace() = %q, want %q", got, want)
@@ -884,6 +931,68 @@ func TestHandleRestoreCommand_RunDerivesWorkspaceFromRevision(t *testing.T) {
 		strings.Join(mock.Invocations[0].Args, " ") != "list" ||
 		strings.Join(mock.Invocations[1].Args, " ") != "restore -r 2403 -stats -ignore-owner -- docs/readme.md" ||
 		mock.Invocations[1].Dir != wantWorkspace {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
+func TestHandleRestoreCommand_RunUsesConfiguredWorkspaceTemplate(t *testing.T) {
+	configDir := t.TempDir()
+	sourcePath := "/tmp/homes-run-config-template-test"
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	root := setupRestoreWorkspaceRoot(t)
+	wantWorkspace := filepath.Join(root, "homes-onsite-usb-rev2403-20260424-070000")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"{label}-{target}-rev{revision}-{snapshot_timestamp}\"\n", root)
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365", restoreSection))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
+		execpkg.MockResult{Stdout: "Restored docs/readme.md\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	out, err := restoreHandleCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	if !strings.Contains(out, wantWorkspace) {
+		t.Fatalf("output missing configured workspace %q:\n%s", wantWorkspace, out)
+	}
+	if len(mock.Invocations) != 2 || mock.Invocations[1].Dir != wantWorkspace {
+		t.Fatalf("invocations = %#v", mock.Invocations)
+	}
+}
+
+func TestHandleRestoreCommand_RunCLIWorkspaceTemplateOverridesConfig(t *testing.T) {
+	configDir := t.TempDir()
+	sourcePath := "/tmp/homes-run-cli-template-test"
+	storage := filepath.Join(t.TempDir(), "backups", "homes")
+	root := setupRestoreWorkspaceRoot(t)
+	wantWorkspace := filepath.Join(root, "manual-onsite-usb-2403-20260424-070000")
+	meta := DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"config-{label}-{target}-{revision}\"\n", root)
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, "", "", 4, "-keep 0:365", restoreSection))
+
+	mock := execpkg.NewMockRunner(
+		execpkg.MockResult{Stdout: "Snapshot data revision 2403 created at 2026-04-24 07:00\n"},
+		execpkg.MockResult{Stdout: "Restored docs/readme.md\n"},
+	)
+	oldRunner := newRestoreCommandRunner
+	newRestoreCommandRunner = func() execpkg.Runner { return mock }
+	defer func() { newRestoreCommandRunner = oldRunner }()
+
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceTemplate: "manual-{target}-{revision}-{snapshot_timestamp}", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	out, err := restoreHandleCommand(req, meta, testRuntime())
+	if err != nil {
+		t.Fatalf("restoreHandleCommand() error = %v", err)
+	}
+	if !strings.Contains(out, wantWorkspace) || strings.Contains(out, "config-homes-onsite-usb-2403") {
+		t.Fatalf("output should use CLI workspace template over config:\n%s", out)
+	}
+	if len(mock.Invocations) != 2 || mock.Invocations[1].Dir != wantWorkspace {
 		t.Fatalf("invocations = %#v", mock.Invocations)
 	}
 }

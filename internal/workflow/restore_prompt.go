@@ -22,6 +22,10 @@ func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Runtime, dep
 		return nil, func() {}, err
 	}
 	plan.applyConfig(cfg, rt)
+	applyRestoreConfigDefaults(req, cfg)
+	if err := validateRestoreWorkspaceSelection(req); err != nil {
+		return nil, func() {}, err
+	}
 
 	listingReq := *req
 	if strings.TrimSpace(req.Workspace) != "" && restoreWorkspacePrepared(resolvedRestoreWorkspace(req, plan, deps)) {

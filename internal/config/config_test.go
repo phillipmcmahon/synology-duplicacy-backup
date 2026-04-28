@@ -132,6 +132,29 @@ storage = "s3://gateway.example.invalid/bucket/homes"
 	}
 }
 
+func TestParseFile_RestoreWorkspaceSettings(t *testing.T) {
+	values := loadValues(t, `
+label = "homes"
+source_path = "/volume1/homes"
+
+[restore]
+workspace_root = "/volume1/recovery"
+workspace_template = "{label}-{revision}-{target}-{run_timestamp}"
+
+[targets.onsite-usb]
+location = "local"
+storage = "/volume1/backups/homes"
+threads = 4
+`, "onsite-usb")
+
+	if values["RESTORE_WORKSPACE_ROOT"] != "/volume1/recovery" {
+		t.Fatalf("RESTORE_WORKSPACE_ROOT = %q", values["RESTORE_WORKSPACE_ROOT"])
+	}
+	if values["RESTORE_WORKSPACE_TEMPLATE"] != "{label}-{revision}-{target}-{run_timestamp}" {
+		t.Fatalf("RESTORE_WORKSPACE_TEMPLATE = %q", values["RESTORE_WORKSPACE_TEMPLATE"])
+	}
+}
+
 func TestParseFile_ResolveHealthDefaultsAndOverrides(t *testing.T) {
 	p := writeTempConfig(t, `
 label = "homes"
@@ -694,16 +717,21 @@ func TestApply_ValidNumericValues(t *testing.T) {
 func TestApply_StringValues(t *testing.T) {
 	cfg := NewDefaults()
 	vals := map[string]string{
-		"FILTER":      "-e *.tmp",
-		"LOCAL_OWNER": "admin",
-		"LOCAL_GROUP": "staff",
-		"PRUNE":       "-keep 0:365 -keep 30:180",
+		"FILTER":                     "-e *.tmp",
+		"LOCAL_OWNER":                "admin",
+		"LOCAL_GROUP":                "staff",
+		"PRUNE":                      "-keep 0:365 -keep 30:180",
+		"RESTORE_WORKSPACE_ROOT":     "/volume1/recovery",
+		"RESTORE_WORKSPACE_TEMPLATE": "{label}-{target}-{revision}",
 	}
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if cfg.Filter != "-e *.tmp" || cfg.LocalOwner != "admin" || cfg.LocalGroup != "staff" || cfg.Prune != "-keep 0:365 -keep 30:180" {
 		t.Fatalf("cfg after Apply = %+v", cfg)
+	}
+	if cfg.RestoreWorkspaceRoot != "/volume1/recovery" || cfg.RestoreWorkspaceTemplate != "{label}-{target}-{revision}" {
+		t.Fatalf("restore workspace config after Apply = %+v", cfg)
 	}
 }
 

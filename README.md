@@ -273,7 +273,10 @@ Core operating rules:
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
   `source_path` is only live-source and copy-back context. Use
   `--workspace-root` to place derived job folders under an existing
-  operator-managed shared-folder root.
+  operator-managed shared-folder root. Use `--workspace-template` or
+  `[restore].workspace_template` to choose the derived child folder name from
+  `{label}`, `{target}`, `{snapshot_timestamp}`, `{revision}`, and
+  `{run_timestamp}`.
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`
   to continue with the current selection and generate the restore commands,

@@ -79,6 +79,10 @@ func handleRestorePlan(req *RestoreRequest, meta Metadata, rt Runtime, deps Rest
 		return "", err
 	}
 	plan.applyConfig(cfg, rt)
+	applyRestoreConfigDefaults(req, cfg)
+	if err := validateRestoreWorkspaceSelection(req); err != nil {
+		return "", err
+	}
 
 	report := newRestorePlanReport(req, meta, plan, cfg.Storage, deps)
 	report.loadAndApplyState(meta, req.Label, req.Target())
@@ -291,7 +295,10 @@ func runRestoreSelectExecution(ctx *restoreExecutionContext, req *RestoreRequest
 	if err := validateRestoreWorkspaceRoot(req); err != nil {
 		return "", err
 	}
-	commandWorkspace := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
+	commandWorkspace, err := resolvedRestoreSelectWorkspace(req, ctx.plan, revision, deps)
+	if err != nil {
+		return "", err
+	}
 	workspacePrepared := restoreWorkspacePrepared(commandWorkspace)
 	if err := validateRestoreWorkspace(commandWorkspace, ctx.plan.Paths.SnapshotSource); err != nil {
 		return "", err

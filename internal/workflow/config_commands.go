@@ -219,6 +219,12 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	if cfg.Prune != "" {
 		lines = append(lines, SummaryLine{Label: "Prune Policy", Value: cfg.Prune})
 	}
+	if cfg.RestoreWorkspaceRoot != "" {
+		lines = append(lines, SummaryLine{Label: "Restore Workspace Root", Value: cfg.RestoreWorkspaceRoot})
+	}
+	if cfg.RestoreWorkspaceTemplate != "" {
+		lines = append(lines, SummaryLine{Label: "Restore Workspace Template", Value: cfg.RestoreWorkspaceTemplate})
+	}
 
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
 		lines = append(lines,

@@ -44,6 +44,8 @@ Options:
     --target <name>
     --workspace <path>      use this exact drill workspace path
     --workspace-root <path> run/select only; derive under an existing root
+    --workspace-template <template>
+                           run/select only; choose derived workspace child name
     --revision <id>         required for run
     --path <path>           optional snapshot-relative path or pattern for run
     --path-prefix <path>    select only; start the tree picker under a useful subtree
@@ -90,6 +92,8 @@ OPTIONS:
     --workspace <path>     Use this exact drill workspace path
     --workspace-root <path>
                            Run/select only; derive under an existing root; cannot be combined with --workspace
+    --workspace-template <template>
+                           Run/select only; name the derived child folder; cannot be combined with --workspace
     --revision <id>        Required for run
     --path <path>          Optional snapshot-relative path or pattern for run
     --path-prefix <path>   select only; start browsing under a snapshot-relative prefix
@@ -120,8 +124,10 @@ BEHAVIOUR:
       - does not run duplicacy restore or copy data back
     restore run:
       - requires --revision <id>
-      - when --workspace is omitted, derives a predictable workspace from label, target, restore-point timestamp, and revision id
+      - when --workspace is omitted, derives a predictable workspace from a template
       - uses --workspace-root <path> to derive that predictable workspace under an existing operator-chosen parent
+      - uses --workspace-template <template> to choose the derived child folder name
+      - supports {label}, {target}, {snapshot_timestamp}, {revision}, and {run_timestamp}
       - uses --workspace <path> only when you need an exact workspace path
       - creates that workspace and writes .duplicacy/preferences when needed
       - rejects the live source path, source-child workspaces, and non-empty unprepared workspaces
@@ -148,8 +154,9 @@ BEHAVIOUR:
       - for restore actions, shows the generated restore commands and asks for confirmation
       - shows listing progress before the picker and restore progress after confirmation
       - delegates restore actions to restore run, which prepares the workspace when needed
-      - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point, for example <label>-<target>-<restore-point-timestamp>-rev<id>
+      - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point by default, for example <label>-<target>-<restore-point-timestamp>-rev<id>
       - accepts --workspace-root to place that derived workspace under an existing shared-folder root
+      - accepts --workspace-template to choose the derived child folder name
       - never copies data back
 
     expert path:
@@ -179,6 +186,7 @@ SAFETY MODEL:
 EXAMPLES:
     sudo {{script}} restore select --target onsite-usb homes
     sudo {{script}} restore select --target onsite-usb --workspace-root /volume1/restore-drills homes
+    sudo {{script}} restore select --target onsite-usb --workspace-template '{label}-{revision}-{target}-{run_timestamp}' homes
     sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
     {{script}} restore plan --target onsite-usb homes
     {{script}} restore plan --target offsite-storj homes
@@ -186,6 +194,7 @@ EXAMPLES:
     {{script}} restore list-revisions --target offsite-storj --json-summary homes
     sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
     sudo {{script}} restore run --target onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
+    sudo {{script}} restore run --target onsite-usb --revision 2403 --workspace-template '{label}-{revision}-{target}-{run_timestamp}' --path docs/readme.md --yes homes
     sudo {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
     {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,

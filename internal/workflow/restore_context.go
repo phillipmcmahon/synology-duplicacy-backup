@@ -37,6 +37,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 		return nil, err
 	}
 	plan.applyConfig(cfg, rt)
+	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
 		return nil, err
 	}
@@ -78,6 +79,7 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 		return nil, err
 	}
 	plan.applyConfig(cfg, rt)
+	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
 		return nil, err
 	}

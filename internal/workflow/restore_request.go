@@ -15,20 +15,21 @@ const (
 // incremental. Restore handlers should use this type so new restore behaviour
 // does not keep depending on unrelated backup, notify, update, or health flags.
 type RestoreRequest struct {
-	Command       string
-	Label         string
-	TargetName    string
-	ConfigDir     string
-	SecretsDir    string
-	JSONSummary   bool
-	DryRun        bool
-	Workspace     string
-	WorkspaceRoot string
-	Revision      int
-	Path          string
-	PathPrefix    string
-	Limit         int
-	Yes           bool
+	Command           string
+	Label             string
+	TargetName        string
+	ConfigDir         string
+	SecretsDir        string
+	JSONSummary       bool
+	DryRun            bool
+	Workspace         string
+	WorkspaceRoot     string
+	WorkspaceTemplate string
+	Revision          int
+	Path              string
+	PathPrefix        string
+	Limit             int
+	Yes               bool
 }
 
 func NewRestoreRequest(req *Request) RestoreRequest {
@@ -38,20 +39,21 @@ func NewRestoreRequest(req *Request) RestoreRequest {
 		return RestoreRequest{}
 	}
 	return RestoreRequest{
-		Command:       req.RestoreCommand,
-		Label:         req.Source,
-		TargetName:    strings.TrimSpace(req.RequestedTarget),
-		ConfigDir:     req.ConfigDir,
-		SecretsDir:    req.SecretsDir,
-		JSONSummary:   req.JSONSummary,
-		DryRun:        req.DryRun,
-		Workspace:     req.RestoreWorkspace,
-		WorkspaceRoot: req.RestoreWorkspaceRoot,
-		Revision:      req.RestoreRevision,
-		Path:          req.RestorePath,
-		PathPrefix:    req.RestorePathPrefix,
-		Limit:         req.RestoreLimit,
-		Yes:           req.RestoreYes,
+		Command:           req.RestoreCommand,
+		Label:             req.Source,
+		TargetName:        strings.TrimSpace(req.RequestedTarget),
+		ConfigDir:         req.ConfigDir,
+		SecretsDir:        req.SecretsDir,
+		JSONSummary:       req.JSONSummary,
+		DryRun:            req.DryRun,
+		Workspace:         req.RestoreWorkspace,
+		WorkspaceRoot:     req.RestoreWorkspaceRoot,
+		WorkspaceTemplate: req.RestoreWorkspaceTemplate,
+		Revision:          req.RestoreRevision,
+		Path:              req.RestorePath,
+		PathPrefix:        req.RestorePathPrefix,
+		Limit:             req.RestoreLimit,
+		Yes:               req.RestoreYes,
 	}
 }
 

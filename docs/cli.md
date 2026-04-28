@@ -89,10 +89,10 @@ are not supported.
 
 | Command | Description |
 |---|---|
-| `restore select --target <target> [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
+| `restore select --target <target> [--workspace-root <path>] [--workspace-template <template>] [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
 | `restore plan --target <target> <label>` | Print a safe read-only restore drill plan for the selected label and target |
 | `restore list-revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
-| `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] [--workspace-root <path>] [--workspace <path>] [--yes] <label>` | Prepare or reuse a drill workspace, restore only there, and never copy back to the live source |
+| `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] [--workspace-root <path>] [--workspace-template <template>] [--workspace <path>] [--yes] <label>` | Prepare or reuse a drill workspace, restore only there, and never copy back to the live source |
 
 ## Update Command
 
@@ -209,11 +209,13 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   the drill workspace so non-root restores remain inspectable by the operator.
   If `--workspace` is omitted, the workspace is derived from the restore job:
   `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
-  Use `--workspace-root` to choose the parent folder while keeping the derived
-  restore-job folder name. The root must already exist and remains
+  Use `--workspace-root` to choose the parent folder while keeping a derived
+  restore-job folder name. Use `--workspace-template` to choose that child
+  folder name from `{label}`, `{target}`, `{snapshot_timestamp}`,
+  `{revision}`, and `{run_timestamp}`. The root must already exist and remains
   operator-managed, which is the recommended pattern for Synology shared-folder
   visibility. Use `--workspace` only when you want an exact workspace path; it
-  cannot be combined with `--workspace-root`.
+  cannot be combined with `--workspace-root` or `--workspace-template`.
   Use a file path for one file or a Duplicacy pattern such as `docs/*` for a
   subtree. During execution, restore progress is printed to stderr while the
   final report remains on stdout. Successful restores show a compact Duplicacy

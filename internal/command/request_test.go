@@ -373,7 +373,7 @@ func TestParseRequest_RestoreListRevisions(t *testing.T) {
 
 func TestParseRequest_RestoreRun(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace-root", "/restore", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace-root", "/restore", "--workspace-template", "{label}-{target}-{revision}-{run_timestamp}", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -382,6 +382,7 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 		result.Request.RestoreRevision != 2403 ||
 		result.Request.RestorePath != "docs" ||
 		result.Request.RestoreWorkspaceRoot != "/restore" ||
+		result.Request.RestoreWorkspaceTemplate != "{label}-{target}-{revision}-{run_timestamp}" ||
 		!result.Request.DryRun ||
 		!result.Request.RestoreYes ||
 		result.Request.Source != "homes" {
@@ -391,13 +392,14 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 
 func TestParseRequest_RestoreSelect(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace-root", "/restore", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
+	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace-root", "/restore", "--workspace-template", "{label}-{target}-{run_timestamp}", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultRuntime())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if result.Request.RestoreCommand != "select" ||
 		result.Request.Target() != "onsite-usb" ||
 		result.Request.RestoreWorkspaceRoot != "/restore" ||
+		result.Request.RestoreWorkspaceTemplate != "{label}-{target}-{run_timestamp}" ||
 		result.Request.RestorePathPrefix != "phillipmcmahon/code" ||
 		result.Request.ConfigDir != "/cfg" ||
 		result.Request.SecretsDir != "/sec" ||

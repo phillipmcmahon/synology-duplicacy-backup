@@ -44,6 +44,8 @@ Command-specific options:
     --force                Prune: override thresholds; update: reinstall selected release
     --workspace <path>     Use this exact restore drill workspace path
     --workspace-root <path> Restore run/select: derive under existing root
+    --workspace-template <template>
+                           Restore run/select: name derived workspace child
     --revision <id>        Restore run: select backup revision
     --path <path>          Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>   Restore select: start browsing under a snapshot-relative prefix
@@ -154,6 +156,8 @@ COMMAND-SPECIFIC OPTIONS:
     --force                  Prune: override thresholds; update: reinstall selected release
     --workspace <path>       Use this exact restore drill workspace path
     --workspace-root <path>  Restore run/select: derive under existing root
+    --workspace-template <template>
+                              Restore run/select: name derived workspace child
     --revision <id>          Restore run: select backup revision
     --path <path>            Restore run: restore one snapshot-relative path or pattern
     --path-prefix <path>     Restore select: start browsing under a snapshot-relative prefix
@@ -315,10 +319,12 @@ RESTORE PLANNING AND DISCOVERY:
 RESTORE EXECUTION:
     restore run prepares the drill workspace when needed and then executes
     duplicacy restore only inside that workspace. When --workspace is omitted,
-    the workspace is derived from the restore job:
-    /volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>.
-    Use --workspace-root to choose an existing parent root while keeping the
-    derived job folder. Use --workspace only when you need an exact workspace path.
+    the workspace is derived from --workspace-root plus this default template:
+    {label}-{target}-{snapshot_timestamp}-rev{revision}.
+    Use --workspace-root to choose an existing parent root while keeping a
+    derived job folder. Use --workspace-template to choose that child folder
+    name from {label}, {target}, {snapshot_timestamp}, {revision}, and
+    {run_timestamp}. Use --workspace only when you need an exact workspace path.
     source_path is only live-source and copy-back context; restore-only DR
     access does not require it.
     It never restores over the live source path and never copies data back. Use

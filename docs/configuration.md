@@ -53,6 +53,7 @@ The expected layout is:
 - top-level `label`
 - top-level `source_path`
 - optional `[common]`
+- optional `[restore]`
 - optional `[health]`
 - optional `[health.notify]`
 - one or more `[targets.<name>]`
@@ -373,6 +374,31 @@ location = "local"
 storage = "minio://garage@192.168.202.24:3900/garage/homes"
 ```
 
+## Restore Workspace Naming
+
+Restore commands derive a drill workspace when `--workspace` is omitted.
+The default root is `/volume1/restore-drills` and the default execution
+template is:
+
+```text
+{label}-{target}-{snapshot_timestamp}-rev{revision}
+```
+
+You can set operator defaults in the label config:
+
+```toml
+[restore]
+workspace_root = "/volume1/restore-drills"
+workspace_template = "{label}-{revision}-{target}-{run_timestamp}"
+```
+
+`workspace_root` must already exist when restore execution runs. Use it for the
+parent shared-folder location. `workspace_template` controls only the child
+folder name; it cannot contain path separators. Supported variables are
+`{label}`, `{target}`, `{snapshot_timestamp}`, `{revision}`, and
+`{run_timestamp}`. Runtime flags override config defaults:
+`--workspace-root`, `--workspace-template`, or exact `--workspace`.
+
 ## Source Path Rule
 
 `source_path` is the snapshot root for the label when the NAS is expected to
@@ -409,8 +435,10 @@ Restore-only disaster recovery access can omit `source_path`. Restore commands
 only need the label, target, storage value, and any storage secrets to read
 existing Duplicacy data. Restore workspaces are derived from the restore job:
 `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
-Use `--workspace-root` to place those derived job folders under an existing
-operator-managed root, such as a Synology shared folder.
+Use `[restore].workspace_root`, `--workspace-root`, and optionally
+`workspace_template` / `--workspace-template` to place and name those derived
+job folders under an existing operator-managed root, such as a Synology shared
+folder.
 When `source_path` is omitted, restore output marks the live source as
 unavailable and copy-back previews are disabled. Add `source_path` later when
 the live source root has been rebuilt and the NAS is ready for backup

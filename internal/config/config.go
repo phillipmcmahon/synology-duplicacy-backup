@@ -39,6 +39,8 @@ type Config struct {
 	Location                    string
 	SourcePath                  string
 	Storage                     string
+	RestoreWorkspaceRoot        string
+	RestoreWorkspaceTemplate    string
 	Filter                      string
 	LocalOwner                  string
 	LocalGroup                  string
@@ -99,6 +101,11 @@ type tableCommon struct {
 	SafePruneMaxDeletePercent   *int    `toml:"safe_prune_max_delete_percent"`
 	SafePruneMaxDeleteCount     *int    `toml:"safe_prune_max_delete_count"`
 	SafePruneMinTotalForPercent *int    `toml:"safe_prune_min_total_for_percent"`
+}
+
+type tableRestore struct {
+	WorkspaceRoot     *string `toml:"workspace_root"`
+	WorkspaceTemplate *string `toml:"workspace_template"`
 }
 
 type tableLocal struct {
@@ -167,6 +174,7 @@ type File struct {
 	Label      *string                `toml:"label"`
 	SourcePath *string                `toml:"source_path"`
 	Common     *tableCommon           `toml:"common"`
+	Restore    *tableRestore          `toml:"restore"`
 	Targets    map[string]tableTarget `toml:"targets"`
 	Local      *tableLocal            `toml:"local"`
 	Remote     *tableCommon           `toml:"remote"`
@@ -317,7 +325,7 @@ func (f *File) usesSingleTargetLayout() bool {
 	// This deliberately includes top-level label/source_path because the
 	// transitional single-target layout uses them. Call this only after
 	// usesTargetsLayout, because modern multi-target files use them too.
-	return f.Label != nil || f.SourcePath != nil || f.TargetMeta != nil || f.Storage != nil || f.Capture != nil || f.Retention != nil || f.Notify != nil
+	return f.Label != nil || f.SourcePath != nil || f.TargetMeta != nil || f.Storage != nil || f.Capture != nil || f.Retention != nil || f.Restore != nil || f.Notify != nil
 }
 
 func (f *File) resolveTargetsValues(targetName, path string) (map[string]string, error) {
@@ -340,6 +348,7 @@ func (f *File) resolveTargetsValues(targetName, path string) (map[string]string,
 		}
 		mergeCommon(values, f.Common)
 	}
+	mergeRestore(values, f.Restore)
 
 	values["TARGET"] = selected
 	if target.Type != nil {
@@ -459,6 +468,7 @@ func (f *File) resolveTargetValues(targetName, path string) (map[string]string, 
 	values["STORAGE"] = strings.TrimSpace(*f.Storage.Storage)
 	mergeCapture(values, f.Capture)
 	mergeRetention(values, f.Retention)
+	mergeRestore(values, f.Restore)
 	return values, nil
 }
 
@@ -587,6 +597,18 @@ func mergeRetention(dst map[string]string, src *tableRetention) {
 	}
 }
 
+func mergeRestore(dst map[string]string, src *tableRestore) {
+	if src == nil {
+		return
+	}
+	if src.WorkspaceRoot != nil {
+		dst["RESTORE_WORKSPACE_ROOT"] = strings.TrimSpace(*src.WorkspaceRoot)
+	}
+	if src.WorkspaceTemplate != nil {
+		dst["RESTORE_WORKSPACE_TEMPLATE"] = strings.TrimSpace(*src.WorkspaceTemplate)
+	}
+}
+
 func buildKeepPolicy(values []string) string {
 	parts := make([]string, 0, len(values))
 	for _, value := range values {
@@ -635,6 +657,12 @@ func (c *Config) Apply(values map[string]string) error {
 	}
 	if v, ok := values["STORAGE"]; ok {
 		c.Storage = v
+	}
+	if v, ok := values["RESTORE_WORKSPACE_ROOT"]; ok {
+		c.RestoreWorkspaceRoot = v
+	}
+	if v, ok := values["RESTORE_WORKSPACE_TEMPLATE"]; ok {
+		c.RestoreWorkspaceTemplate = v
 	}
 	if v, ok := values["FILTER"]; ok {
 		c.Filter = v
