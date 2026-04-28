@@ -237,17 +237,17 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 		{
 			name: "prune",
 			req:  &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "prune requires sudo; local filesystem repository storage",
+			want: "prune requires sudo: local filesystem repository is root-protected",
 		},
 		{
 			name: "prune dry-run",
 			req:  &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "prune --dry-run requires sudo; local filesystem repository storage",
+			want: "prune --dry-run requires sudo: local filesystem repository is root-protected",
 		},
 		{
 			name: "cleanup storage",
 			req:  &Request{Source: "homes", DoCleanupStore: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
-			want: "cleanup-storage requires sudo; local filesystem repository storage",
+			want: "cleanup-storage requires sudo: local filesystem repository is root-protected",
 		},
 	}
 

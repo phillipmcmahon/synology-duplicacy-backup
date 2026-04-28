@@ -1380,7 +1380,7 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 		"Repository Access",
 		"Requires sudo",
 		"Integrity Check",
-		"local filesystem repository storage is protected by OS filesystem permissions",
+		"local filesystem repository is root-protected",
 	} {
 		if !strings.Contains(stderr, token) {
 			t.Fatalf("stderr missing %q: %q", token, stderr)

@@ -46,14 +46,13 @@ const (
 	ValueWritable       = "Writable"
 )
 
-const localRepositorySudoDetail = "local filesystem repository storage is protected by OS filesystem permissions"
+const localRepositorySudoReason = "local filesystem repository is root-protected"
 
 func LocalRepositoryRequiresSudoMessage(command string) string {
-	message := localRepositorySudoDetail + "; rerun with sudo from the operator account"
 	if command == "" {
-		return ValueRequiresSudo + "; " + message
+		return ValueRequiresSudo + ": " + localRepositorySudoReason
 	}
-	return command + " requires sudo; " + message
+	return command + " requires sudo: " + localRepositorySudoReason
 }
 
 // displayVocabulary maps internal status/check keys and shared semantic values

@@ -370,7 +370,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 			t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
 
 			_, err := restoreHandleCommand(tt.req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
-			if err == nil || !strings.Contains(err.Error(), "requires sudo; local filesystem repository storage") {
+			if err == nil || !strings.Contains(err.Error(), "requires sudo: local filesystem repository is root-protected") {
 				t.Fatalf("restoreHandleCommand() err = %v", err)
 			}
 			if len(mock.Invocations) != 0 {

@@ -17,6 +17,8 @@ coverage floor and package-level baseline.
   named with the selected snapshot, revision, tested commit, and run timestamp
   so automated restore tests are easy to identify, avoid operator restore
   namespaces, and do not reuse prior restore data accidentally.
+- Root-protected local repository sudo guidance now uses the shorter shared
+  wording `requires sudo: local filesystem repository is root-protected`.
 
 ### Fixed
 - Non-root `config validate` for root-protected local filesystem repositories

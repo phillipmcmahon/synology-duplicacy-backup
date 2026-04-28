@@ -234,3 +234,12 @@ func TestDisplayVocabularyExplicitlyMapsSharedConstants(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalRepositoryRequiresSudoMessage(t *testing.T) {
+	if got, want := LocalRepositoryRequiresSudoMessage(""), "Requires sudo: local filesystem repository is root-protected"; got != want {
+		t.Fatalf("LocalRepositoryRequiresSudoMessage(empty) = %q, want %q", got, want)
+	}
+	if got, want := LocalRepositoryRequiresSudoMessage("restore list-revisions"), "restore list-revisions requires sudo: local filesystem repository is root-protected"; got != want {
+		t.Fatalf("LocalRepositoryRequiresSudoMessage(command) = %q, want %q", got, want)
+	}
+}

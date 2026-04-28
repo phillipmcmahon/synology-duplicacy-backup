@@ -187,8 +187,7 @@ Review the `.txt` captures for UI consistency:
   `Writable`, `Present`, `Requires sudo`, `Healthy`, `Degraded`, and
   `Unhealthy`
 - local repository sudo guidance uses the shared phrase:
-  `Requires sudo; local filesystem repository storage is protected by OS
-  filesystem permissions; rerun with sudo from the operator account`
+  `Requires sudo: local filesystem repository is root-protected`
 - timestamped runtime and health output remains framed/log-style, while
   report-style commands remain plain and readable
 - colour semantics are consistent: errors red, warnings yellow, labels cyan,

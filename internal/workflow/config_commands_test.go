@@ -213,7 +213,7 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
 	}
-	if !strings.Contains(OperatorMessage(err), "rerun with sudo from the operator account") {
+	if !strings.Contains(OperatorMessage(err), "Requires sudo: local filesystem repository is root-protected") {
 		t.Fatalf("OperatorMessage(err) = %q", OperatorMessage(err))
 	}
 	report := ConfigCommandOutput(err)
