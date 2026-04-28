@@ -12,8 +12,9 @@ release notes from memory, or generate release artefacts on the macOS host.
   `honnef.co/go/tools/cmd/staticcheck` and the version is pinned in Go module
   metadata so Dependabot can update it.
 - Keep CI smoke jobs for non-root runtime posture, sudo/operator-owned secrets,
-  and migration-helper layout in the release gate. These jobs are Ubuntu-based
-  DSM proxies, not replacements for NAS smoke testing.
+  migration-helper layout, and UI smoke bundle integrity in the release gate.
+  These jobs are Ubuntu-based DSM proxies, not replacements for NAS smoke
+  testing.
 - Use the Go container image declared in
   [`tools/release-validation/Dockerfile`](../tools/release-validation/Dockerfile);
   Dependabot monitors that Dockerfile for image updates.
@@ -93,6 +94,7 @@ Suggested release-prep checklist:
 - [ ] testing baseline refreshed
 - [ ] Linux Go 1.26 validation passed
 - [ ] CI smoke jobs passed on `main`
+- [ ] NAS UI surface smoke capture reviewed for operator-output consistency
 - [ ] project board and status labels reconciled after prep commit
 - [ ] release-prep notes generated
 - [ ] prep commit pushed to `main`
@@ -194,9 +196,25 @@ CI smoke coverage:
   resolution.
 - `scripts/ci-smoke-migration.sh` exercises the runtime profile migration
   helper and checks destination layout, ownership, and modes.
+- `scripts/ci-smoke-ui-surface.sh` validates the UI smoke automation itself by
+  building the Linux `amd64` UI smoke bundle, checking its archive structure,
+  verifying its checksum, and syntax-checking the packaged runner.
 
 These smoke checks gate release builds, but they remain proxy tests. Continue
-to run NAS smoke tests for hardware-specific behavior.
+to run NAS smoke tests for hardware-specific behavior and real operator output.
+
+NAS UI surface smoke coverage:
+
+- Generate the bundle with `scripts/package-ui-surface-smoke.sh`.
+- Run `CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh` on the NAS before tagging
+  operator-facing releases.
+- Include `RUN_RESTORE=1` with a small path such as
+  `RESTORE_PATH='phillipmcmahon/code/*'` when restore output changed.
+- Bring back the generated `ui-surface-captures-<timestamp>.tar.gz` archive
+  and review it with [`ui-surface-smoke.md`](ui-surface-smoke.md).
+- Treat unexpected outcomes, stale wording, missing colour where colour is
+  expected, broken JSON summaries, or managed update/rollback capture failures
+  as release blockers unless explicitly documented in the release issue.
 
 ### 4. Write Release Notes
 

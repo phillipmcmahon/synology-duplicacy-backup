@@ -62,7 +62,7 @@ func (e *Executor) runCleanupStoragePhase() error {
 	stopScanning := e.view.StartStatusActivity("Scanning storage for unreferenced chunks")
 
 	if e.plan.DryRun {
-		e.log.Info("%s", statusLinef("Dry-run preview is simulation-only; repository chunks are not scanned"))
+		e.log.PrintLine("Dry Run", "simulation-only; repository chunks are not scanned")
 		e.log.DryRun("%s", e.plan.ValidateRepoCommand)
 		e.log.DryRun("%s", e.plan.CleanupStorageCommand)
 		stopScanning()

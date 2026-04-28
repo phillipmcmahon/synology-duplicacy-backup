@@ -87,7 +87,7 @@ func (p *loggerRestoreProgress) PrintSelectionStart(req *RestoreRequest, plan *P
 }
 
 func (p *loggerRestoreProgress) printSafetyWarning() {
-	p.log.Warn("  %s : %s", p.log.FormatLabel("Restore safety"), p.log.FormatValue("workspace only; live source will not be modified; copy-back is manual"))
+	p.log.Warn("  %s : %s", p.log.FormatLabel("Restore Safety"), p.log.FormatValue("workspace only; live source will not be modified; copy-back is manual"))
 }
 
 func (p *loggerRestoreProgress) PrintStatus(status string) {

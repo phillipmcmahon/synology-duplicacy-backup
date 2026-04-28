@@ -726,6 +726,14 @@ keys can remain domain-specific for JSON and tests, but display output should
 prefer common labels such as `Config File`, `Source Path`, `Repository Access`,
 and `Integrity Check` whenever commands describe the same operational concept.
 
+The CLI has two intentional output modes. Report-style commands such as
+`config`, `diagnostics`, `restore plan`, and `restore list-revisions` print
+compact plain reports for inspection and copy/paste review. Long-running or
+state-changing commands such as `backup`, `prune`, `cleanup-storage`, and
+`health` print timestamped framed logs so progress, alerts, and final status
+remain visible in terminals, DSM scheduled-task logs, and captured smoke output.
+Both modes must use the same labels, status values, and remediation language.
+
 ## Error Translation
 
 Operator-facing message translation is handled by:

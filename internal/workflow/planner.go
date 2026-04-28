@@ -12,6 +12,7 @@ import (
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -121,7 +122,7 @@ func (p *Planner) validateRepositoryMutationPrivilege(req *RuntimeRequest, cfg *
 	default:
 		return nil
 	}
-	return fmt.Errorf("%s must be run as root for path-based local repository storage; local backup repositories are protected OS resources, while remote/object storage access is governed by credentials", command)
+	return fmt.Errorf("%s", presentation.LocalRepositoryRequiresSudoMessage(command))
 }
 
 func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {

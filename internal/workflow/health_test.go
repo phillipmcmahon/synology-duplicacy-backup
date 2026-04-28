@@ -1380,7 +1380,7 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 		"Repository Access",
 		"Requires sudo",
 		"Integrity Check",
-		"Not run; local repository verification requires sudo",
+		"path-based local repository storage is protected by OS filesystem permissions",
 	} {
 		if !strings.Contains(stderr, token) {
 			t.Fatalf("stderr missing %q: %q", token, stderr)
@@ -1601,6 +1601,7 @@ func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Section: Status") ||
 		!strings.Contains(stderr, "Section: Doctor") ||
+		!strings.Contains(stderr, "Section: Repository") ||
 		!strings.Contains(stderr, "Section: Verify") {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -1781,6 +1782,7 @@ func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Section: Status") ||
 		!strings.Contains(stderr, "Section: Doctor") ||
+		!strings.Contains(stderr, "Section: Repository") ||
 		!strings.Contains(stderr, "Section: Verify") {
 		t.Fatalf("stderr = %q", stderr)
 	}

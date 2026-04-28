@@ -129,12 +129,30 @@ func TestCompileSelectionDirectoryCommandUsesDuplicacySubtreePattern(t *testing.
 	})
 
 	wantPath := "phillipmcmahon/code/*"
-	wantCommand := "sudo 'duplicacy-backup' restore run --target 'onsite-usb' --revision 2403 --workspace '/volume1/restore-drills/homes-onsite-usb' --yes --path 'phillipmcmahon/code/*' 'homes'"
+	wantCommand := "'duplicacy-backup' restore run --target 'onsite-usb' --revision 2403 --workspace '/volume1/restore-drills/homes-onsite-usb' --yes --path 'phillipmcmahon/code/*' 'homes'"
 	if len(preview.RestorePaths) != 1 || preview.RestorePaths[0] != wantPath {
 		t.Fatalf("RestorePaths = %#v, want [%q]", preview.RestorePaths, wantPath)
 	}
 	if len(preview.Commands) != 1 || preview.Commands[0] != wantCommand {
 		t.Fatalf("Commands = %#v, want [%q]", preview.Commands, wantCommand)
+	}
+}
+
+func TestCompileSelectionCommandCanRequireSudo(t *testing.T) {
+	root := BuildTree([]string{"phillipmcmahon/code/readme.md"})
+	ToggleSelection(root.Children[0].Children[0])
+
+	preview := CompileSelection(root, PrimitiveOptions{
+		ScriptName:   "duplicacy-backup",
+		Source:       "homes",
+		Target:       "onsite-usb",
+		Revision:     "2403",
+		Workspace:    "/volume1/restore-drills/homes-onsite-usb",
+		RequiresSudo: true,
+	})
+
+	if len(preview.Commands) != 1 || !strings.HasPrefix(preview.Commands[0], "sudo ") {
+		t.Fatalf("Commands = %#v, want sudo-prefixed restore command", preview.Commands)
 	}
 }
 

@@ -76,6 +76,8 @@ const (
 var ansiRegex = regexp.MustCompile(`\x1B\[[0-9;]*[mK]`)
 var loggerChown = os.Chown
 
+const forceColourEnv = "DUPLICACY_BACKUP_FORCE_COLOUR"
+
 // StripColour removes all ANSI escape sequences from a string.
 func StripColour(s string) string {
 	return ansiRegex.ReplaceAllString(s, "")
@@ -91,9 +93,28 @@ func IsTerminal(f *os.File) bool {
 	return isTerminalFD(f.Fd())
 }
 
+// ColourEnabled reports whether operator-facing output should include ANSI
+// colour. It normally follows TTY detection, but the app-specific environment
+// override lets smoke tests capture colour codes through redirected output.
+func ColourEnabled(f *os.File) bool {
+	return IsTerminal(f) || ForceColourEnabled()
+}
+
+// ForceColourEnabled reports whether colour output has been explicitly forced
+// for non-interactive capture by setting DUPLICACY_BACKUP_FORCE_COLOUR.
+func ForceColourEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(forceColourEnv))) {
+	case "1", "true", "yes", "on", "always", "force":
+		return true
+	default:
+		return false
+	}
+}
+
 // New creates a new Logger instance.
 // enableColour controls whether ANSI colour codes are emitted to stderr.
-// Callers should typically pass IsTerminal(os.Stderr) to auto-detect.
+// Callers should typically pass ColourEnabled(os.Stderr) to auto-detect and
+// honour the explicit smoke-test override.
 func New(logDir, scriptName string, enableColour bool) (*Logger, error) {
 	return newLogger(logDir, scriptName, enableColour, 0, 0, false)
 }
@@ -273,7 +294,7 @@ func (l *Logger) Error(format string, args ...interface{}) {
 // DryRun logs a dry-run message.
 func (l *Logger) DryRun(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	l.PrintLine("Dry run", msg)
+	l.PrintLine("Dry Run", msg)
 }
 
 // FormatLabel returns a formatted label string for config summaries.
@@ -286,7 +307,7 @@ func (l *Logger) FormatLabel(label string) string {
 
 // FormatValue returns a formatted value string for config summaries.
 func (l *Logger) FormatValue(value string) string {
-	if l.enableColour {
+	if l.enableColour && !ansiRegex.MatchString(value) {
 		return fmt.Sprintf("%s%s%s", colourValue, value, colourReset)
 	}
 	return value

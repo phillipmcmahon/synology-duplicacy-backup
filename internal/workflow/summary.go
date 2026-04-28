@@ -33,7 +33,7 @@ func SummaryLines(plan *Plan) []SummaryLine {
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Location", Value: plan.Location},
 		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Source", Value: plan.SnapshotSource},
+		{Label: "Source Path", Value: plan.SnapshotSource},
 	}
 	if plan.DoBackup {
 		lines = append(lines, []SummaryLine{{Label: "Snapshot", Value: plan.RepositoryPath}}...)

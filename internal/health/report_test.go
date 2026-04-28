@@ -166,7 +166,7 @@ func TestHealthFormattingHelpers(t *testing.T) {
 		{"Notification", "Alerts"},
 		{"Source path", "Doctor"},
 		{"Btrfs root", "Doctor"},
-		{"Repository access", "Doctor"},
+		{"Repository access", "Repository"},
 		{"Revision count", "Status"},
 		{"Latest revision", "Status"},
 		{"Backup freshness", "Status"},

@@ -48,7 +48,7 @@ func (u *Updater) RollbackResult(options RollbackOptions) (RollbackResult, error
 }
 
 func (u *Updater) buildRollbackPlan(options RollbackOptions) (*rollbackPlan, error) {
-	layout, err := u.detectManagedLayout()
+	layout, err := u.detectManagedLayoutFor("rollback")
 	if err != nil {
 		return nil, err
 	}

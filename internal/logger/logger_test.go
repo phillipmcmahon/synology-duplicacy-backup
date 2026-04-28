@@ -82,6 +82,27 @@ func TestIsTerminal_DevNull(t *testing.T) {
 	}
 }
 
+func TestColourEnabled_ForceColourOverride(t *testing.T) {
+	f, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatalf("failed to open /dev/null: %v", err)
+	}
+	defer f.Close()
+
+	if ColourEnabled(f) {
+		t.Fatal("ColourEnabled(/dev/null) = true without override, want false")
+	}
+
+	for _, value := range []string{"1", "true", "yes", "on", "always", "force"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(forceColourEnv, value)
+			if !ColourEnabled(f) {
+				t.Fatalf("ColourEnabled(/dev/null) = false with %s=%q, want true", forceColourEnv, value)
+			}
+		})
+	}
+}
+
 // ─── Level.String tests ─────────────────────────────────────────────────────
 
 func TestLevelString(t *testing.T) {
@@ -546,7 +567,7 @@ func TestDryRun(t *testing.T) {
 	log.DryRun("some-command --flag")
 
 	content := readLogFile(t, log)
-	if !strings.Contains(content, "Dry run") || !strings.Contains(content, "some-command --flag") {
+	if !strings.Contains(content, "Dry Run") || !strings.Contains(content, "some-command --flag") {
 		t.Errorf("expected dry-run message, got: %s", content)
 	}
 }
@@ -597,6 +618,18 @@ func TestFormatValue_WithColour(t *testing.T) {
 	}
 	if StripColour(got) != "myvalue" {
 		t.Errorf("stripped FormatValue = %q, want %q", StripColour(got), "myvalue")
+	}
+}
+
+func TestFormatValue_WithExistingColour(t *testing.T) {
+	log := &Logger{enableColour: true}
+	value := log.FormatResult("Failed")
+	got := log.FormatValue(value)
+	if got != value {
+		t.Errorf("FormatValue(coloured value) = %q, want %q", got, value)
+	}
+	if strings.Contains(got, colourValue) {
+		t.Errorf("FormatValue(coloured value) should not add value colour wrapper, got %q", got)
 	}
 }
 

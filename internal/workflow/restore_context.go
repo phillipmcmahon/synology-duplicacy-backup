@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
@@ -123,5 +124,5 @@ func validateRestoreRepositoryPrivilege(req *RestoreRequest, cfg localStoragePol
 	if !localRepositoryRequiresSudoForStorage(cfg, rt) {
 		return nil
 	}
-	return NewRequestError("restore %s requires sudo for path-based local repository storage; local backup repositories are protected OS resources; rerun with sudo from the operator account", req.Command)
+	return NewRequestError("%s", presentation.LocalRepositoryRequiresSudoMessage("restore "+req.Command))
 }

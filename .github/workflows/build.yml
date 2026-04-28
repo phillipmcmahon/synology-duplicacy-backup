@@ -122,9 +122,28 @@ jobs:
         shell: bash
         run: sudo sh scripts/ci-smoke-migration.sh
 
+  smoke-ui-surface:
+    name: Smoke (UI surface package)
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          check-latest: true
+
+      - name: Run smoke
+        shell: bash
+        run: sh scripts/ci-smoke-ui-surface.sh
+
   build:
     name: Build
-    needs: [lint, test, smoke-non-root, smoke-sudo-boundary, smoke-migration]
+    needs: [lint, test, smoke-non-root, smoke-sudo-boundary, smoke-migration, smoke-ui-surface]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -203,7 +203,7 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
 	}
-	if !strings.Contains(OperatorMessage(err), "rerun config validate with sudo from the operator account") {
+	if !strings.Contains(OperatorMessage(err), "rerun with sudo from the operator account") {
 		t.Fatalf("OperatorMessage(err) = %q", OperatorMessage(err))
 	}
 	report := ConfigCommandOutput(err)
@@ -689,7 +689,7 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 			t.Fatalf("explain output missing %q:\n%s", token, explainOut)
 		}
 	}
-	assertFlatLabels(t, explainOut, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
+	assertFlatLabels(t, explainOut, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
 
 	pathsReq := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
 	pathsOut, err := HandleConfigCommand(pathsReq, meta, rt)
@@ -729,7 +729,7 @@ func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing
 			t.Fatalf("output should not include %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t *testing.T) {
@@ -751,7 +751,7 @@ func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t 
 			t.Fatalf("output should not include %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) {
@@ -768,7 +768,7 @@ func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) 
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {
@@ -798,7 +798,7 @@ local_group = %q
 	if !strings.Contains(out, "Filter") || !strings.Contains(out, "-e *.tmp") {
 		t.Fatalf("output missing filter:\n%s", out)
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source", "Storage", "Threads", "Filter", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
+	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Filter", "Prune Policy", "Allow Local Accounts", "Local Owner", "Local Group")
 }
 
 func TestHandleConfigCommand_PathsDuplicacyStorageIncludesSecrets(t *testing.T) {

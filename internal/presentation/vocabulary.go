@@ -1,6 +1,7 @@
 package presentation
 
 const (
+	LabelBackupState       = "Backup State"
 	LabelBackupFreshness   = "Backup Freshness"
 	LabelBtrfsRoot         = "Btrfs Root"
 	LabelBtrfsSource       = "Btrfs Source"
@@ -29,10 +30,22 @@ const (
 	ValueWritable     = "Writable"
 )
 
+const localRepositorySudoDetail = "path-based local repository storage is protected by OS filesystem permissions"
+
+func LocalRepositoryRequiresSudoMessage(command string) string {
+	message := localRepositorySudoDetail + "; rerun with sudo from the operator account"
+	if command == "" {
+		return ValueRequiresSudo + "; " + message
+	}
+	return command + " requires sudo; " + message
+}
+
 // DisplayLabel maps internal status/check keys to the operator-facing label
 // vocabulary used across plain reports and live runtime output.
 func DisplayLabel(name string) string {
 	switch name {
+	case "Backup state":
+		return LabelBackupState
 	case "Backup freshness":
 		return LabelBackupFreshness
 	case "Btrfs root":

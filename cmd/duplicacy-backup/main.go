@@ -67,7 +67,7 @@ func runWithArgs(args []string) int {
 }
 
 func initLogger(meta workflow.Metadata) (*logger.Logger, error) {
-	enableColour := logger.IsTerminal(os.Stderr)
+	enableColour := logger.ColourEnabled(os.Stderr)
 	if meta.HasProfileOwner {
 		return logger.NewWithOwner(meta.LogDir, meta.ScriptName, enableColour, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}

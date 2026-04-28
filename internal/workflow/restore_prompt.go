@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 )
 
@@ -140,11 +142,12 @@ func promptRestoreInspect(ctx *restoreExecutionContext, req *RestoreRequest, met
 		Title:      fmt.Sprintf("Restore inspection for %s/%s", req.Label, req.Target()),
 		PathPrefix: pathPrefix,
 		Primitive: restorepicker.PrimitiveOptions{
-			ScriptName: meta.ScriptName,
-			Source:     req.Label,
-			Target:     req.Target(),
-			Revision:   strconv.Itoa(revision),
-			Workspace:  ctx.workspace,
+			ScriptName:   meta.ScriptName,
+			Source:       req.Label,
+			Target:       req.Target(),
+			Revision:     strconv.Itoa(revision),
+			Workspace:    ctx.workspace,
+			RequiresSudo: duplicacy.NewStorageSpec(ctx.cfg.Storage).IsLocalPath(),
 		},
 	}); err != nil {
 		if errors.Is(err, restorepicker.ErrPickerCancelled) {
@@ -178,13 +181,14 @@ func promptRestorePath(ctx *restoreExecutionContext, req *RestoreRequest, meta M
 		Title:      fmt.Sprintf("Restore selection for %s/%s", req.Label, req.Target()),
 		PathPrefix: pathPrefix,
 		Primitive: restorepicker.PrimitiveOptions{
-			ScriptName: meta.ScriptName,
-			Source:     req.Label,
-			Target:     req.Target(),
-			Revision:   strconv.Itoa(revision),
-			Workspace:  ctx.workspace,
-			RootPath:   rootPath,
-			RootIsDir:  rootIsDir,
+			ScriptName:   meta.ScriptName,
+			Source:       req.Label,
+			Target:       req.Target(),
+			Revision:     strconv.Itoa(revision),
+			Workspace:    ctx.workspace,
+			RootPath:     rootPath,
+			RootIsDir:    rootIsDir,
+			RequiresSudo: duplicacy.NewStorageSpec(ctx.cfg.Storage).IsLocalPath(),
 		},
 	})
 	if err != nil {
@@ -276,7 +280,15 @@ func promptRestoreLine(reader restoreLineReader, prompt string, deps RestoreDeps
 	if err != nil && strings.TrimSpace(answer) == "" {
 		return "", fmt.Errorf("failed to read restore selection: %w", err)
 	}
+	if !restorePromptOutputIsTerminal(deps.PromptOutput) {
+		fmt.Fprintln(deps.PromptOutput)
+	}
 	return strings.TrimSpace(answer), nil
+}
+
+func restorePromptOutputIsTerminal(output any) bool {
+	file, ok := output.(*os.File)
+	return ok && logger.IsTerminal(file)
 }
 
 func restoreListFilesError(err error, output string, revision int) error {
@@ -322,9 +334,12 @@ func restoreAnswerCancels(answer string) bool {
 	}
 }
 
-func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int, restorePath string, workspace string) string {
-	args := []string{
-		"sudo",
+func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int, restorePath string, workspace string, requiresSudo bool) string {
+	args := []string{}
+	if requiresSudo {
+		args = append(args, "sudo")
+	}
+	args = append(args,
 		shellQuote(scriptName),
 		"restore",
 		"run",
@@ -335,7 +350,7 @@ func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int
 		"--workspace",
 		shellQuote(workspace),
 		"--yes",
-	}
+	)
 	if restorePath != "" {
 		args = append(args, "--path", shellQuote(restorePath))
 	}
@@ -344,11 +359,11 @@ func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int
 	return strings.Join(args, " ")
 }
 
-func buildRestoreRunCommands(scriptName string, req *RestoreRequest, revision int, restorePaths []string, workspace string) []string {
+func buildRestoreRunCommands(scriptName string, req *RestoreRequest, revision int, restorePaths []string, workspace string, requiresSudo bool) []string {
 	restorePaths = normaliseRestoreSelection(restorePaths)
 	commands := make([]string, 0, len(restorePaths))
 	for _, restorePath := range restorePaths {
-		commands = append(commands, buildRestoreRunCommand(scriptName, req, revision, restorePath, workspace))
+		commands = append(commands, buildRestoreRunCommand(scriptName, req, revision, restorePath, workspace, requiresSudo))
 	}
 	return commands
 }

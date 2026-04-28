@@ -205,8 +205,10 @@ func SectionForCheck(name string) string {
 	switch name {
 	case "Notification":
 		return "Alerts"
-	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Repository access", "Last doctor run", "Root config profile":
+	case "Source path", "Btrfs", "Btrfs root", "Btrfs source", "Last doctor run", "Root config profile":
 		return "Doctor"
+	case "Repository access":
+		return "Repository"
 	case "Revision count", "Latest revision", "Backup freshness":
 		return "Status"
 	case "Revisions checked", "Revisions passed", "Revisions failed", "Integrity check", "Last verify run":

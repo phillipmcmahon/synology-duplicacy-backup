@@ -237,7 +237,7 @@ func newRestoreSelectReport(req *RestoreRequest, meta Metadata, plan *Plan, stor
 		WorkspacePrepared: workspacePrepared,
 		Revision:          revision,
 		RestorePaths:      normaliseRestoreSelection(restorePaths),
-		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace),
+		RestoreCommands:   buildRestoreRunCommands(meta.ScriptName, req, revision, restorePaths, workspace, duplicacy.NewStorageSpec(storage).IsLocalPath()),
 		Guide:             "docs/restore-drills.md",
 	}
 }

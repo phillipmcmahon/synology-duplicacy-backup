@@ -370,7 +370,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 			t.Cleanup(func() { newRestoreCommandRunner = oldRunner })
 
 			_, err := restoreHandleCommand(tt.req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), tt.rt)
-			if err == nil || !strings.Contains(err.Error(), "requires sudo for path-based local repository storage") {
+			if err == nil || !strings.Contains(err.Error(), "requires sudo; path-based local repository storage") {
 				t.Fatalf("restoreHandleCommand() err = %v", err)
 			}
 			if len(mock.Invocations) != 0 {
@@ -410,7 +410,7 @@ storage = "/backups/homes"
 		"Source Path",
 		"Not configured (restore-only access is allowed; copy-back context unavailable)",
 		"/volume1/restore-drills/homes-onsite-usb-20260424-070000-rev2403",
-		"Dry run",
+		"Dry Run",
 	} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)

@@ -21,16 +21,16 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 
 	failureContext := command.ParseFailureContext(args)
 	if !failureContext.JSONSummary {
-		fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+		writeDirectError("%s", workflow.OperatorMessage(err))
 		var requestErr *workflow.RequestError
 		if errors.As(err, &requestErr) && requestErr.ShowUsage {
-			fmt.Fprintln(os.Stderr)
+			_, _ = os.Stderr.WriteString("\n")
 			fmt.Print(command.UsageText(meta, rt))
 		}
 		return nil, 1
 	}
 
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+	writeDirectError("%s", workflow.OperatorMessage(err))
 	completedAt := rt.Now()
 	switch failureContext.Kind {
 	case command.FailureRequestHealth:

@@ -403,6 +403,20 @@ func TestWriteCommandFailurePreservesMultilineOperatorDiagnostics(t *testing.T) 
 	}
 }
 
+func TestWriteCommandFailureHonoursForcedColour(t *testing.T) {
+	t.Setenv("DUPLICACY_BACKUP_FORCE_COLOUR", "1")
+
+	_, stderr := captureOutput(t, func() {
+		code := writeCommandFailure("", workflow.NewRequestError("restore failed"))
+		if code != exitCodeGeneralFailure {
+			t.Fatalf("code = %d, want %d", code, exitCodeGeneralFailure)
+		}
+	})
+	if !strings.Contains(stderr, "\x1b[1;31m[ERRO] restore failed\x1b[0m") {
+		t.Fatalf("stderr = %q, want coloured direct error", stderr)
+	}
+}
+
 func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 	meta := workflow.DefaultMetadata("duplicacy-backup", "test", "now", t.TempDir())
 	rt := workflow.DefaultRuntime()

@@ -171,8 +171,8 @@ ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_SECRETS_DIR  Override secrets directory (--secrets-dir takes precedence)
 
 SAFE PRUNE THRESHOLDS:
-    Max delete percent       : {{safe_prune_max_delete_percent}}% (default {{safe_prune_max_delete_percent}}%)
-    Max delete count         : {{safe_prune_max_delete_count}} (default {{safe_prune_max_delete_count}})
+    Max Delete Percent       : {{safe_prune_max_delete_percent}}% (default {{safe_prune_max_delete_percent}}%)
+    Max Delete Count         : {{safe_prune_max_delete_count}} (default {{safe_prune_max_delete_count}})
     Min revisions for % check: {{safe_prune_min_total_for_percent}} (default {{safe_prune_min_total_for_percent}})
 
 CONFIG FILE LOCATION:
@@ -265,6 +265,15 @@ COMMAND MODEL:
     Runtime operations are first-class commands. Use "backup --target ...",
     "prune --target ...", or "cleanup-storage --target ..."; old top-level
     operation flags are not supported.
+
+OUTPUT MODEL:
+    Report-style commands such as config, diagnostics, restore plan, and
+    restore list-revisions print compact plain reports. Long-running or
+    state-changing commands such as backup, prune, cleanup-storage, and health
+    print timestamped framed logs so progress, alerts, and final status remain
+    visible in terminals, scheduled-task logs, and captured smoke outputs.
+    Both modes use the same operator vocabulary for shared concepts such as
+    Config File, Source Path, Repository Access, Requires sudo, and Valid.
 
 PRIVILEGE MODEL:
     Run commands as the operator user by default. Root is required for backup,

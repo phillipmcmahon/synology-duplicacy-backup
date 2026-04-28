@@ -52,7 +52,7 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Phase: Prune", "Dry run", "duplicacy list -files", "Prune phase completed (dry-run)"} {
+		for _, token := range []string{"Phase: Prune", "Dry Run", "duplicacy list -files", "Prune phase completed (dry-run)"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
@@ -183,7 +183,7 @@ func TestCleanupHelpers(t *testing.T) {
 			t.Fatalf("snapshotTarget should still exist in dry-run: %v", err)
 		}
 		output := readSingleLogFile(t, logDir)
-		if !strings.Contains(output, "Snapshot") || !strings.Contains(output, "Dry run") {
+		if !strings.Contains(output, "Snapshot") || !strings.Contains(output, "Dry Run") {
 			t.Fatalf("output = %q", output)
 		}
 	})
@@ -243,7 +243,7 @@ func TestCleanupHelpers(t *testing.T) {
 		executor.log.Close()
 
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Work Dir", "Dry run", "rm -rf " + workRoot} {
+		for _, token := range []string{"Work Dir", "Dry Run", "rm -rf " + workRoot} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
@@ -280,7 +280,7 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Dry run", "btrfs subvolume snapshot", "write JSON preferences", "write filters", "Filter", "Directory"} {
+		for _, token := range []string{"Dry Run", "btrfs subvolume snapshot", "write JSON preferences", "write filters", "Filter", "Directory"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}
@@ -339,7 +339,7 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 		}
 		executor.log.Close()
 		output := readSingleLogFile(t, logDir)
-		for _, token := range []string{"Dry run", "duplicacy backup -stats -threads 4", "Backup phase completed (dry-run)"} {
+		for _, token := range []string{"Dry Run", "duplicacy backup -stats -threads 4", "Backup phase completed (dry-run)"} {
 			if !strings.Contains(output, token) {
 				t.Fatalf("output missing %q:\n%s", token, output)
 			}

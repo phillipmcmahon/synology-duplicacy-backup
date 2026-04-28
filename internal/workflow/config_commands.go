@@ -115,9 +115,9 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	if sourceAccessible && destinationErr == nil {
 		switch {
 		case localRepositoryRequiresSudo(cfg, planner.rt):
-			repoStatus = "Requires sudo"
-			repoFailureMessage = "Local repository validation requires sudo for path-based storage"
-			repoHint = "rerun config validate with sudo from the operator account"
+			repoStatus = presentation.ValueRequiresSudo
+			repoFailureMessage = presentation.LocalRepositoryRequiresSudoMessage("")
+			repoHint = presentation.LocalRepositoryRequiresSudoMessage("")
 		case secretsChecked && secretsErr == nil:
 			repoStatus, repoHint, repoErr = validateConfigRepository(plan, cfg, planner.runner, sec)
 		}
@@ -202,7 +202,7 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 		{Label: "Target", Value: plan.TargetName()},
 		{Label: "Location", Value: cfg.Location},
 		{Label: "Config File", Value: plan.ConfigFile},
-		{Label: "Source", Value: plan.SnapshotSource},
+		{Label: "Source Path", Value: plan.SnapshotSource},
 	}
 	lines = append(lines, SummaryLine{Label: "Storage", Value: plan.BackupTarget})
 
@@ -265,7 +265,7 @@ func formatConfigOutput(title string, lines []SummaryLine) string {
 }
 
 func formatConfigValidationOutput(title string, resolved, validation []SummaryLine, result string) string {
-	enableColour := logger.IsTerminal(os.Stdout)
+	enableColour := logger.ColourEnabled(os.Stdout)
 	return presentation.FormatValidationReport(title, resolved, validation, result, enableColour)
 }
 

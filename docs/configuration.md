@@ -475,8 +475,8 @@ They only need a matching secrets file if a notifying target uses
 
 | Threshold | Default | Description |
 |---|---|---|
-| Max delete count | 25 | Maximum revisions a prune may delete |
-| Max delete percent | 10% | Maximum percentage of revisions a prune may delete |
+| Max Delete Count | 25 | Maximum revisions a prune may delete |
+| Max Delete Percent | 10% | Maximum percentage of revisions a prune may delete |
 | Min total for % check | 20 | Percentage threshold only applies at or above this total revision count |
 
 Use `prune --force` to override threshold enforcement.

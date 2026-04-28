@@ -165,14 +165,14 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 		defer log.Close()
 		output, err := workflow.HandleRestoreCommandWithLogger(req, meta, rt, log)
 		if errors.Is(err, workflow.ErrRestoreCancelled) {
-			fmt.Fprintln(os.Stderr, "[INFO] Restore cancelled by operator")
+			writeDirectInfo("Restore cancelled by operator")
 			return 0
 		}
 		if errors.Is(err, workflow.ErrRestoreInterrupted) {
 			if output != "" {
 				fmt.Print(output)
 			}
-			fmt.Fprintln(os.Stderr, "[WARN] Restore interrupted by operator; drill workspace was retained")
+			writeDirectWarn("Restore interrupted by operator; drill workspace was retained")
 			return exitCodeGeneralFailure
 		}
 		if err != nil {
@@ -184,14 +184,14 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 
 	output, err := handleRestoreCommand(req, meta, rt)
 	if errors.Is(err, workflow.ErrRestoreCancelled) {
-		fmt.Fprintln(os.Stderr, "[INFO] Restore cancelled by operator")
+		writeDirectInfo("Restore cancelled by operator")
 		return 0
 	}
 	if errors.Is(err, workflow.ErrRestoreInterrupted) {
 		if output != "" {
 			fmt.Print(output)
 		}
-		fmt.Fprintln(os.Stderr, "[WARN] Restore interrupted by operator; drill workspace was retained")
+		writeDirectWarn("Restore interrupted by operator; drill workspace was retained")
 		return exitCodeGeneralFailure
 	}
 	if err != nil {
@@ -223,26 +223,26 @@ func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	updateStatus := updateStatusForWorkflow(result.Status)
 	if err != nil {
 		if notifyErr := workflow.MaybeSendUpdateFailureNotification(&updateReq, meta, rt, updateStatus, err); notifyErr != nil {
-			fmt.Fprintf(os.Stderr, "[WARN] Failed to send update failure notification: %s\n", workflow.OperatorMessage(notifyErr))
+			writeDirectWarn("Failed to send update failure notification: %s", workflow.OperatorMessage(notifyErr))
 		}
 		return writeCommandFailure("", err)
 	}
 	fmt.Print(result.Output)
 	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(&updateReq, meta, rt, updateStatus); notifyErr != nil {
-		fmt.Fprintf(os.Stderr, "[WARN] Failed to send update notification: %s\n", workflow.OperatorMessage(notifyErr))
+		writeDirectWarn("Failed to send update notification: %s", workflow.OperatorMessage(notifyErr))
 	}
 	return 0
 }
 
 func writeUpdatePrivilegeFailure() int {
 	message := "update install must be run as root; re-run with sudo or use --check-only to inspect the update plan"
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	writeDirectError("%s", message)
 	return exitCodeGeneralFailure
 }
 
 func writeRollbackPrivilegeFailure() int {
 	message := "rollback activation must be run as root; re-run with sudo or use --check-only to inspect rollback candidates"
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", message)
+	writeDirectError("%s", message)
 	return exitCodeGeneralFailure
 }
 
@@ -291,7 +291,7 @@ func writeCommandFailure(report string, err error) int {
 	if report != "" {
 		fmt.Print(report)
 	}
-	fmt.Fprintf(os.Stderr, "[ERRO] %s\n", workflow.OperatorMessage(err))
+	writeDirectError("%s", workflow.OperatorMessage(err))
 	return exitCodeGeneralFailure
 }
 
@@ -316,11 +316,11 @@ func writeHealthJSONSummary(w io.Writer, report *workflow.HealthReport, code int
 }
 
 func writeJSONSummaryFailure(err error) {
-	fmt.Fprintf(os.Stderr, "[ERRO] Failed to write JSON summary: %v\n", err)
+	writeDirectError("Failed to write JSON summary: %v", err)
 }
 
 func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Runtime, err error) int {
-	fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
+	writeDirectError("Failed to initialise logger: %v", err)
 	if req.JSONSummary {
 		report := workflow.NewFailureHealthReport(req, req.Command, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
 		_ = workflow.WriteHealthReport(os.Stdout, report)
@@ -329,7 +329,7 @@ func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Runtime, 
 }
 
 func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime, err error) int {
-	fmt.Fprintf(os.Stderr, "[ERRO] Failed to initialise logger: %v\n", err)
+	writeDirectError("Failed to initialise logger: %v", err)
 	if req.JSONSummary {
 		now := rt.Now()
 		emitJSONFailureSummary(os.Stdout, req, nil, now, now, fmt.Sprintf("Failed to initialise logger: %v", err))

@@ -128,6 +128,16 @@ campaign-style run id rather than a fix-specific one. The issue or metadata can
 describe the exact fix being validated; the folder name should help an operator
 identify the active validation campaign quickly.
 
+For release-candidate UI consistency testing, use the dedicated UI surface
+bundle wrapper instead of hand-copying an ad-hoc runner:
+
+```bash
+sh ./scripts/package-ui-surface-smoke.sh
+```
+
+See [`ui-surface-smoke.md`](ui-surface-smoke.md) for the NAS execution and
+review process.
+
 ```bash
 RUN_ID="v8-nonroot-smoke-$(date -u '+%Y%m%d%H%M%S')"
 

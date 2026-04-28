@@ -94,6 +94,10 @@ func (u *Updater) install(planned *plan) (string, error) {
 // PATH, that command resolves through the managed symlink, and the symlink
 // resolves to the versioned binary that is currently running.
 func (u *Updater) detectManagedLayout() (*managedLayout, error) {
+	return u.detectManagedLayoutFor("update")
+}
+
+func (u *Updater) detectManagedLayoutFor(operation string) (*managedLayout, error) {
 	executablePath, err := u.Runtime.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine current executable path: %w", err)
@@ -104,7 +108,7 @@ func (u *Updater) detectManagedLayout() (*managedLayout, error) {
 	}
 	stablePath := executablePath
 	if filepath.Base(stablePath) != u.ScriptName {
-		commandPath, err := u.stableCommandPath(resolvedPath)
+		commandPath, err := u.stableCommandPathFor(operation, resolvedPath)
 		if err != nil {
 			return nil, err
 		}
@@ -122,12 +126,16 @@ func (u *Updater) detectManagedLayout() (*managedLayout, error) {
 }
 
 func (u *Updater) stableCommandPath(resolvedExecutable string) (string, error) {
+	return u.stableCommandPathFor("update", resolvedExecutable)
+}
+
+func (u *Updater) stableCommandPathFor(operation, resolvedExecutable string) (string, error) {
 	if u.Runtime.CommandPath == nil {
-		return "", fmt.Errorf("update requires the managed stable command path %q; current executable is %s", u.ScriptName, resolvedExecutable)
+		return "", fmt.Errorf("%s requires the managed stable command path %q; current executable is %s", operation, u.ScriptName, resolvedExecutable)
 	}
 	commandPath := u.Runtime.CommandPath()
 	if commandPath == "" || filepath.Base(commandPath) != u.ScriptName {
-		return "", fmt.Errorf("update requires the managed stable command path %q; current executable is %s", u.ScriptName, resolvedExecutable)
+		return "", fmt.Errorf("%s requires the managed stable command path %q; current executable is %s", operation, u.ScriptName, resolvedExecutable)
 	}
 	if !filepath.IsAbs(commandPath) {
 		if !strings.ContainsAny(commandPath, `/\`) {

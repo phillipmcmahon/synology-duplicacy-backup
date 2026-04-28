@@ -7,13 +7,14 @@ import (
 )
 
 type PrimitiveOptions struct {
-	ScriptName string
-	Source     string
-	Target     string
-	Revision   string
-	Workspace  string
-	RootPath   string
-	RootIsDir  bool
+	ScriptName   string
+	Source       string
+	Target       string
+	Revision     string
+	Workspace    string
+	RootPath     string
+	RootIsDir    bool
+	RequiresSudo bool
 }
 
 type PrimitivePreview struct {
@@ -149,8 +150,11 @@ func uniqueSortedStrings(values []string) []string {
 }
 
 func buildPrimitiveCommand(opts PrimitiveOptions, restorePath string) string {
-	args := []string{
-		"sudo",
+	args := []string{}
+	if opts.RequiresSudo {
+		args = append(args, "sudo")
+	}
+	args = append(args,
 		shellQuote(opts.ScriptName),
 		"restore",
 		"run",
@@ -161,7 +165,7 @@ func buildPrimitiveCommand(opts PrimitiveOptions, restorePath string) string {
 		"--workspace",
 		shellQuote(opts.Workspace),
 		"--yes",
-	}
+	)
 	if strings.TrimSpace(restorePath) != "" {
 		args = append(args, "--path", shellQuote(restorePath))
 	}

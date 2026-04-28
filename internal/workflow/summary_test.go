@@ -134,7 +134,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Storage"] || !labels["Force Prune"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
-	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source", "Snapshot", "Storage", "Force Prune"}
+	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source Path", "Snapshot", "Storage", "Force Prune"}
 	got := make([]string, 0, len(lines))
 	for _, line := range lines {
 		got = append(got, line.Label)

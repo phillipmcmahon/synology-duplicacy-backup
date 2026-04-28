@@ -9,6 +9,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
@@ -113,6 +114,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		}
 	}
 
+	if req.Command == "doctor" {
+		h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
+	}
+
 	stopValidating := h.presenter.StartStatusActivity("Validating repository access")
 	if localRepositoryRequiresSudo(cfg, h.rt) {
 		stopValidating()
@@ -130,14 +135,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		stopValidating()
 		report.AddCheck("Repository access", "pass", "Validated")
 	}
-
-	if req.Command == "doctor" {
-		h.evaluateHealthRecency(report, cfg.Health, "doctor", "Last doctor run")
-	}
 }
 
 func localRepositoryHealthSudoMessage() string {
-	return "Requires sudo; rerun this health command with sudo from the operator account"
+	return presentation.LocalRepositoryRequiresSudoMessage("")
 }
 
 type btrfsReadinessReport struct {
@@ -173,7 +174,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		report.AddDisplayCheck("Revisions checked", "fail", "0")
 		report.AddDisplayCheck("Revisions passed", "pass", "0")
 		report.AddDisplayCheck("Revisions failed", "pass", "0")
-		report.AddCheck("Integrity check", "fail", "Not run; local repository verification requires sudo")
+		report.AddCheck("Integrity check", "fail", presentation.LocalRepositoryRequiresSudoMessage("verification"))
 		h.populateHealthRecencyTimestamp(report, "verify")
 		return
 	}

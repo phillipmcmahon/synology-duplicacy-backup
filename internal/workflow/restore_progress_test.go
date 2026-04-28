@@ -35,11 +35,11 @@ func TestRestoreProgressSafetyWarningAlignment(t *testing.T) {
 		)
 	})
 
-	want := "  Restore safety       : workspace only; live source will not be modified; copy-back is manual"
+	want := "  Restore Safety       : workspace only; live source will not be modified; copy-back is manual"
 	if !strings.Contains(output, want) {
 		t.Fatalf("restore safety warning alignment mismatch\nwant substring: %q\noutput:\n%s", want, output)
 	}
-	if strings.Contains(output, "  Restore safety      :") {
+	if strings.Contains(output, "  Restore Safety      :") {
 		t.Fatalf("restore safety warning used the old short alignment\noutput:\n%s", output)
 	}
 }

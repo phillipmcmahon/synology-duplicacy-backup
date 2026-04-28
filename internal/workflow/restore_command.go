@@ -126,7 +126,7 @@ func handleRestoreRun(req *RestoreRequest, meta Metadata, rt Runtime, deps Resto
 func executeRestoreRun(req *RestoreRequest, rt Runtime, deps RestoreDeps, ctx *restoreRunContext, inputs restoreRunInputs) (string, error) {
 	report := newRestoreRunReport(req, ctx.plan, ctx.storage, inputs.Workspace, inputs.Revision, inputs.RestorePath, inputs.DryRun)
 	if inputs.DryRun {
-		report.Result = "Dry run"
+		report.Result = "Dry Run"
 		report.Output = "workspace preparation and restore command were not executed"
 		return formatRestoreRun(report), nil
 	}
