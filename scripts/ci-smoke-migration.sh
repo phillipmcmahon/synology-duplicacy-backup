@@ -8,6 +8,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
 LEGACY_CONFIG_DIR="${LEGACY_CONFIG_DIR:-/usr/local/lib/duplicacy-backup/.config}"
 LEGACY_SECRETS_DIR="${LEGACY_SECRETS_DIR:-/root/.secrets}"
+export LEGACY_CONFIG_DIR LEGACY_SECRETS_DIR
 
 ci_require_root
 ci_create_operator_user "$OPERATOR_USER"

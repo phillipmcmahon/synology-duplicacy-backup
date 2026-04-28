@@ -216,6 +216,13 @@ func newRuntimeMigrationFixture(t *testing.T) runtimeMigrationFixture {
 	return fixture
 }
 
+func runtimeMigrationEnv(fixture runtimeMigrationFixture) []string {
+	return append(os.Environ(),
+		"LEGACY_CONFIG_DIR="+fixture.legacyConfig,
+		"LEGACY_SECRETS_DIR="+fixture.legacySecrets,
+	)
+}
+
 func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testing.T) {
 	fixture := newRuntimeMigrationFixture(t)
 	wantModTime := time.Date(2026, 4, 20, 12, 30, 0, 0, time.UTC)
@@ -233,9 +240,8 @@ func TestRuntimeProfileMigrationScript_CopiesTomlAndSecuresPermissions(t *testin
 	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
 		"--target-home", fixture.targetHome,
-		"--legacy-config-dir", fixture.legacyConfig,
-		"--legacy-secrets-dir", fixture.legacySecrets,
 	)
+	cmd.Env = runtimeMigrationEnv(fixture)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("migration script failed: %v\n%s", err, output)
@@ -301,10 +307,9 @@ func TestRuntimeProfileMigrationScript_PreflightsDestinationCollisionsBeforeMove
 	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
 		"--target-home", fixture.targetHome,
-		"--legacy-config-dir", fixture.legacyConfig,
-		"--legacy-secrets-dir", fixture.legacySecrets,
 		"--move",
 	)
+	cmd.Env = runtimeMigrationEnv(fixture)
 	output, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("migration script unexpectedly succeeded:\n%s", output)
@@ -341,10 +346,9 @@ func TestRuntimeProfileMigrationScript_MoveRemovesLegacyFiles(t *testing.T) {
 	cmd := exec.Command("sh", fixture.scriptPath,
 		"--target-user", currentUsername(t),
 		"--target-home", fixture.targetHome,
-		"--legacy-config-dir", fixture.legacyConfig,
-		"--legacy-secrets-dir", fixture.legacySecrets,
 		"--move",
 	)
+	cmd.Env = runtimeMigrationEnv(fixture)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("migration script failed: %v\n%s", err, output)

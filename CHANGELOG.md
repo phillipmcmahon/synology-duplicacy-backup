@@ -17,6 +17,9 @@ coverage floor and package-level baseline.
   target config keys from the active config model, docs, examples, and tests.
   Local filesystem repository access is now governed only by the root-protected
   repository policy and the OS permissions of the configured storage path.
+- Removed migration-helper CLI flags for overriding legacy source directories;
+  the helper now presents one operator-facing migration path from the standard
+  root-era locations into the target user's runtime profile.
 
 ## [v9.2.0] - 2026-04-28
 

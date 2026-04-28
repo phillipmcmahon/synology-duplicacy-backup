@@ -2,8 +2,8 @@
 
 set -eu
 
-LEGACY_CONFIG_DIR="/usr/local/lib/duplicacy-backup/.config"
-LEGACY_SECRETS_DIR="/root/.secrets"
+LEGACY_CONFIG_DIR="${LEGACY_CONFIG_DIR:-/usr/local/lib/duplicacy-backup/.config}"
+LEGACY_SECRETS_DIR="${LEGACY_SECRETS_DIR:-/root/.secrets}"
 TARGET_USER=""
 TARGET_HOME=""
 CONFIG_DIR=""
@@ -37,11 +37,6 @@ Options:
                              required when running from a direct root shell
   --target-home <path>       Home directory for the target user
                              default: inferred from passwd or HOME
-  --legacy-config-dir <path> Legacy config directory
-                             default: /usr/local/lib/duplicacy-backup/.config
-  --legacy-secrets-dir <path>
-                             Legacy secrets directory
-                             default: /root/.secrets
   --config-dir <path>        Destination config directory
                              default: <target-home>/.config/duplicacy-backup
   --secrets-dir <path>       Destination secrets directory
@@ -246,16 +241,6 @@ while [ "$#" -gt 0 ]; do
         --target-home)
             [ "$#" -ge 2 ] || fail "--target-home requires a value"
             TARGET_HOME="$2"
-            shift 2
-            ;;
-        --legacy-config-dir)
-            [ "$#" -ge 2 ] || fail "--legacy-config-dir requires a value"
-            LEGACY_CONFIG_DIR="$2"
-            shift 2
-            ;;
-        --legacy-secrets-dir)
-            [ "$#" -ge 2 ] || fail "--legacy-secrets-dir requires a value"
-            LEGACY_SECRETS_DIR="$2"
             shift 2
             ;;
         --config-dir)
