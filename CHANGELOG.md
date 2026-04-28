@@ -12,6 +12,11 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Fixed
+- Diagnostics now reports root-protected local filesystem repository paths with
+  the shared `Requires sudo: local filesystem repository is root-protected`
+  wording instead of raw permission-denied path errors.
+
 ### Removed
 - Removed the retired `allow_local_accounts`, `local_owner`, and `local_group`
   target config keys from the active config model, docs, examples, and tests.

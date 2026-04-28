@@ -50,6 +50,30 @@ func TestHandleDiagnosticsCommand_LocalTargetIncludesStateAndPermissions(t *test
 	}
 }
 
+func TestHandleDiagnosticsCommand_LocalRootProtectedRepositoryUsesPolicyWording(t *testing.T) {
+	configDir := t.TempDir()
+	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", t.TempDir(), t.TempDir(), 4, ""))
+
+	rt := testRuntime()
+	rt.Geteuid = func() int { return 1000 }
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	out, err := HandleDiagnosticsCommand(req, DefaultMetadata("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
+	if err != nil {
+		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
+	}
+	for _, want := range []string{
+		"Storage Path",
+		"Requires sudo: local filesystem repository is root-protected",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(strings.ToLower(out), "permission denied") || strings.Contains(out, "EACCES") {
+		t.Fatalf("diagnostics leaked raw permission error:\n%s", out)
+	}
+}
+
 func TestHandleDiagnosticsCommand_RemoteSecretsAreRedacted(t *testing.T) {
 	configDir := t.TempDir()
 	secretsDir := t.TempDir()

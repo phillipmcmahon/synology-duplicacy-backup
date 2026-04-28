@@ -56,7 +56,7 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 	}
 	plan.applyConfig(cfg, rt)
 
-	report := newDiagnosticsReport(&diagnosticsReq, meta, plan)
+	report := newDiagnosticsReport(&diagnosticsReq, meta, plan, cfg, rt)
 	if diagnosticsReq.JSONSummary {
 		body, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
@@ -67,7 +67,7 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 	return formatDiagnosticsReport(report), nil
 }
 
-func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan) *DiagnosticsReport {
+func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan, cfg localStoragePolicy, rt Runtime) *DiagnosticsReport {
 	storage := duplicacy.NewStorageSpec(plan.Paths.BackupTarget)
 	report := &DiagnosticsReport{
 		Label:         req.Label,
@@ -91,7 +91,7 @@ func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan) *D
 		},
 	}
 	if storage.IsLocalPath() {
-		report.Paths = append(report.Paths, pathSummary("Storage Path", plan.Paths.BackupTarget))
+		report.Paths = append(report.Paths, storagePathSummary(plan.Paths.BackupTarget, cfg, rt))
 	} else {
 		report.Paths = append(report.Paths, DiagnosticsPathSummary{
 			Name:   "Storage Path",
@@ -102,6 +102,17 @@ func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan) *D
 	report.applySecretsStatus(storage)
 	report.applyState(meta, req.Label, req.Target())
 	return report
+}
+
+func storagePathSummary(path string, cfg localStoragePolicy, rt Runtime) DiagnosticsPathSummary {
+	if localRepositoryRequiresSudoForStorage(cfg, rt) {
+		return DiagnosticsPathSummary{
+			Name:   "Storage Path",
+			Path:   path,
+			Status: presentation.LocalRepositoryRequiresSudoMessage(""),
+		}
+	}
+	return pathSummary("Storage Path", path)
 }
 
 func (r *DiagnosticsReport) applySecretsStatus(storage duplicacy.StorageSpec) {
