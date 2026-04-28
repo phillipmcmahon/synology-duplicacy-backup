@@ -137,6 +137,10 @@ Review `summary.tsv` first:
 
 Review the `.txt` captures for UI consistency:
 
+- canonical labels and values are defined in
+  [`internal/presentation/vocabulary.go`](../internal/presentation/vocabulary.go);
+  identity mappings there are intentional and should be reviewed like any
+  other vocabulary entry
 - shared labels use the same display form, such as `Config File`,
   `Source Path`, `Repository Access`, `Storage Access`, and `Dry Run`
 - repeated values use the same vocabulary, such as `Valid`, `Validated`,

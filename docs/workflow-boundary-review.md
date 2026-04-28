@@ -143,6 +143,14 @@ internal APIs freely.
 
 Reopen package splitting when at least one of these is true:
 
+- Treat `substantial new behaviour` as a rough tripwire: one new
+  command-family capability, three or more new production files, or about
+  400+ lines of orchestration in the same family.
+- Treat `starts reaching into` as two or more new cross-family helper calls,
+  or use of another family's prefixed files instead of shared primitives.
+- Treat `small shared core` as fewer than about eight exported primitives at
+  first extraction; if the candidate needs `Plan`, planner, presenters, and
+  handlers together, the split is too broad.
 - A command family needs substantial new behaviour and would otherwise add many
   more files to `internal/workflow`.
 - Restore, health, update, or runtime code starts reaching into another command
