@@ -12,6 +12,25 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.1.5] - 2026-04-28
+
+### Added
+- **Plan section ownership is now guarded in validation**: local pre-push
+  validation and GitHub lint now fail if the old flat `Plan.<field>` shape is
+  reintroduced, preserving the section-owned `Plan` architecture from `#255`.
+
+### Changed
+- Release and Linux validation documentation now explicitly list the Plan
+  section-boundary guard as part of the standard validation gate.
+- Workflow boundary review guidance now has quantified revisit tripwires for
+  substantial new behaviour, cross-family reach-in, and shared-core size.
+- UI surface smoke review guidance now links directly to the presentation
+  vocabulary source of truth, including intentional identity mappings.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Project board audit**: `scripts/project-board-audit.sh`
+
 ## [v9.1.4] - 2026-04-28
 
 ### Added
