@@ -149,6 +149,15 @@ assert_last_capture_contains() {
     fi
 }
 
+assert_last_capture_not_contains() {
+    unexpected="$1"
+    if grep -F -- "$unexpected" "$output_file" >/dev/null; then
+        echo "Expected latest capture not to contain: $unexpected" >&2
+        echo "Capture file: $output_file" >&2
+        unexpected_count=$((unexpected_count + 1))
+    fi
+}
+
 extract_first_revision() {
     file="$1"
     awk -F: '
@@ -303,6 +312,11 @@ run_capture "config_paths_remote" any "$BIN" config paths --target "$TARGET_REMO
 run_capture "config_validate_remote" any "$BIN" config validate --target "$TARGET_REMOTE" "$LABEL"
 run_capture "config_validate_object" any "$BIN" config validate --target "$TARGET_OBJECT" "$LABEL"
 run_capture "config_validate_local_operator_requires_sudo" fail "$BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_contains "Storage Access"
+assert_last_capture_contains "Repository Access"
+assert_last_capture_contains "Requires sudo"
+assert_last_capture_contains "local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "config_validate_local_sudo" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
 run_capture "config_validate_remote_verbose" any "$BIN" config validate --target "$TARGET_REMOTE" --verbose "$LABEL"
 run_capture "config_validate_local_sudo_verbose" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" --verbose "$LABEL"
@@ -321,8 +335,17 @@ run_capture "health_status_object" any "$BIN" health status --target "$TARGET_OB
 run_capture "health_doctor_object" any "$BIN" health doctor --target "$TARGET_OBJECT" "$LABEL"
 run_capture "health_verify_object" any "$BIN" health verify --target "$TARGET_OBJECT" "$LABEL"
 run_capture "health_status_local_operator_requires_sudo" fail "$BIN" health status --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_contains "Repository Access"
+assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "health_doctor_local_operator_requires_sudo" fail "$BIN" health doctor --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_contains "Repository Access"
+assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "health_verify_local_operator_requires_sudo" fail "$BIN" health verify --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_contains "Repository Access"
+assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "health_status_local_sudo" any sudo -n "$BIN" health status --target "$TARGET_LOCAL" "$LABEL"
 run_capture "health_doctor_local_sudo" any sudo -n "$BIN" health doctor --target "$TARGET_LOCAL" "$LABEL"
 run_capture "health_verify_local_sudo" any sudo -n "$BIN" health verify --target "$TARGET_LOCAL" "$LABEL"
@@ -339,6 +362,8 @@ run_capture "restore_plan_object" any "$BIN" restore plan --target "$TARGET_OBJE
 run_capture "restore_list_revisions_object" any "$BIN" restore list-revisions --target "$TARGET_OBJECT" --limit 5 "$LABEL"
 run_capture "restore_plan_local_operator" any "$BIN" restore plan --target "$TARGET_LOCAL" "$LABEL"
 run_capture "restore_list_revisions_local_operator_requires_sudo" fail "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
+assert_last_capture_contains "restore list-revisions requires sudo: local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "restore_list_revisions_local_sudo" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
 run_capture "restore_list_revisions_remote_json_summary" any "$BIN" restore list-revisions --target "$TARGET_REMOTE" --limit 5 --json-summary "$LABEL"
 run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
@@ -399,6 +424,8 @@ run_capture "backup_dry_run_local_sudo_verbose_json_summary" any sudo -n "$BIN" 
 run_capture "prune_dry_run_remote_operator" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run "$LABEL"
 run_capture "prune_dry_run_object_operator" any "$BIN" prune --target "$TARGET_OBJECT" --dry-run "$LABEL"
 run_capture "prune_dry_run_local_operator_requires_sudo" fail "$BIN" prune --target "$TARGET_LOCAL" --dry-run "$LABEL"
+assert_last_capture_contains "prune --dry-run requires sudo: local filesystem repository is root-protected"
+assert_last_capture_not_contains "permission denied"
 run_capture "prune_dry_run_local_sudo" any sudo -n "$BIN" prune --target "$TARGET_LOCAL" --dry-run "$LABEL"
 run_capture "prune_dry_run_remote_operator_verbose" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run --verbose "$LABEL"
 run_capture "prune_dry_run_remote_operator_json_summary" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"

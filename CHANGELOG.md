@@ -19,12 +19,18 @@ coverage floor and package-level baseline.
   namespaces, and do not reuse prior restore data accidentally.
 - Root-protected local repository sudo guidance now uses the shorter shared
   wording `requires sudo: local filesystem repository is root-protected`.
+- UI surface smoke checks now assert the shared local repository sudo wording
+  and reject raw `permission denied` leakage for root-protected local
+  filesystem repositories.
 
 ### Fixed
 - Non-root `config validate` for root-protected local filesystem repositories
   now reports the sudo policy boundary before probing storage, avoiding raw
   permission-denied storage errors for the expected locked-down repository
   layout.
+- GitHub non-root smoke testing now flips the local repository fixture to
+  `root:root`/`0700` before local repository access checks, matching the
+  locked-down NAS posture for local filesystem backup storage.
 
 ## [v9.1.6] - 2026-04-28
 

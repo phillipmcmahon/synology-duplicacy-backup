@@ -36,5 +36,8 @@ assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "build_smoke_restore_
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "restore_run_optional\" pass"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_contains \"-ignore-owner\""
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_contains \"-smoke-\""
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_not_contains"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "local filesystem repository is root-protected"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "permission denied"
 
 echo "ui-surface-smoke script tests passed"

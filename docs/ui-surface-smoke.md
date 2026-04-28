@@ -43,6 +43,14 @@ test. That CI job:
   the smoke instructions
 - verifies the bundle checksum and rejects macOS metadata files
 
+GitHub Actions also runs `scripts/ci-smoke-non-root.sh` against a btrfs
+loopback fixture. That fixture deliberately changes the path-based local
+repository to `root:root`/`0700` before the non-root checks so the CI run
+exercises the same locked-down local filesystem posture used on the NAS. The
+script asserts that config, health, restore, and prune surfaces report
+`requires sudo: local filesystem repository is root-protected` and do not leak
+raw `permission denied` storage errors.
+
 CI deliberately does **not** run the full command capture matrix because that
 requires the real NAS profile, configured repositories, sudo policy, and restore
 workspace. Treat CI as proof that the automation is packaged and runnable; treat
@@ -187,7 +195,12 @@ Review the `.txt` captures for UI consistency:
   `Writable`, `Present`, `Requires sudo`, `Healthy`, `Degraded`, and
   `Unhealthy`
 - local repository sudo guidance uses the shared phrase:
-  `Requires sudo: local filesystem repository is root-protected`
+  `Requires sudo: local filesystem repository is root-protected`, or the
+  command-prefixed form such as
+  `restore list-revisions requires sudo: local filesystem repository is
+  root-protected`
+- root-protected local repository captures do not fall through to raw
+  `permission denied` storage errors
 - timestamped runtime and health output remains framed/log-style, while
   report-style commands remain plain and readable
 - colour semantics are consistent: errors red, warnings yellow, labels cyan,
