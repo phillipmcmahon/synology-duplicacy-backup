@@ -25,6 +25,7 @@ clear path without reading internals first.
 | Need | Start here |
 |---|---|
 | Prepare or verify a release | [Release playbook](release-playbook.md) |
+| Understand the site-specific NAS release mirror | [Release mirror](release-mirror.md) |
 | Reproduce the Linux validation and packaging environment | [Linux environment](linux-environment.md) |
 | Capture and review UI surface output | [UI surface smoke testing](ui-surface-smoke.md) |
 | Understand the high-level design | [Architecture](architecture.md) |

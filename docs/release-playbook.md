@@ -32,11 +32,10 @@ release notes from memory, or generate release artefacts on the macOS host.
   workflow depends on that setting for the release attestations verified by
   `gh release verify` and `gh release verify-asset`.
 - Do not build local release tarballs as part of the normal release flow.
-- After the GitHub release is live, download the published release artefacts
-  plus the GitHub-generated source archives and mirror them to
-  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/latest/<tag>/`.
-  Older release directories are kept under
-  `homestorage:/volume1/homes/phillipmcmahon/code/duplicacy-backup/archive/<tag>/`.
+- After the GitHub release is live, run the standard finalization script so
+  the published release is mirrored, verified, and tied back to the release
+  issue. The current site-specific mirror target is documented in
+  [release-mirror.md](release-mirror.md).
 
 ## Release Tracking Conventions
 
@@ -335,11 +334,7 @@ After the release exists and the GitHub Actions asset set is complete:
 - download the GitHub-generated source archives:
   - `Source code (zip)`
   - `Source code (tar.gz)`
-- create the destination directory:
-  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/latest/<tag>/`
-- move older release mirror directories under:
-  - `/volume1/homes/phillipmcmahon/code/duplicacy-backup/archive/<tag>/`
-- mirror the full artefact set to homestorage
+- mirror the full artefact set to the configured NAS release mirror
 - run the full release verifier
 - paste the generated closure summary into the release issue before closing it
 - reconcile the release-prep issue, shipped implementation stories, and project
@@ -357,8 +352,9 @@ This is the standard release closure gate. It runs
 `scripts/mirror-release-assets.sh`, then `scripts/verify-release.sh`, then
 `scripts/project-board-audit.sh`, then prints a concise release-issue comment
 that includes the GitHub release URL, NAS mirror path, verification result, and
-attestation result. `--issue` is required so the release cannot be finalized as
-an untracked side quest.
+attestation result. The default mirror target is documented in
+[release-mirror.md](release-mirror.md). `--issue` is required so the release
+cannot be finalized as an untracked side quest.
 
 Board consistency sweep:
 
@@ -395,10 +391,10 @@ sh ./scripts/mirror-release-assets.sh --tag vX.Y.Z
 ```
 
 The script downloads the published release assets plus the two GitHub source
-archives into a local staging directory, creates `latest/` and `archive/` if
-needed, archives older release directories, creates the remote latest release
-directory, and mirrors the files with a `tar`-over-SSH transfer
-(`tar -cf - . | ssh ...`).
+archives into a local staging directory, creates the mirror's `latest/` and
+`archive/` directories if needed, archives older release directories, creates
+the remote latest release directory, and mirrors the files with a
+`tar`-over-SSH transfer (`tar -cf - . | ssh ...`).
 This avoids the filename
 and wildcard edge cases we saw from plain `scp` when copying files such as
 `Source code (zip)` to Synology.
@@ -415,7 +411,7 @@ sh ./scripts/verify-release.sh --tag vX.Y.Z
 The script verifies the published GitHub release, required release-note
 headings, expected packaged assets, GitHub release attestations, individual
 asset attestations, local-versus-remote tag commit alignment, and the mirrored
-artefact set under `homestorage` `latest/<tag>`.
+artefact set under the configured NAS release mirror.
 
 Before declaring the release fully complete, run the release doctor:
 

@@ -45,115 +45,25 @@ behaviour, or make the operator model easier to reason about. When a surface
 changes, update the help text, docs, smoke tests, release notes, and operator
 transition guidance so operators can see the new contract plainly.
 
-## Request
+## Command Boundaries
 
-`internal/command` owns CLI intent and help/usage generation.
+`internal/command` owns CLI parsing and help text. It produces one broad
+parser request, then dispatch projects that broad shape into command-specific
+requests before execution. Workflow handlers should work from those narrow
+request types rather than passing the parser envelope deeper into the system.
 
-It is responsible for:
+Runtime operations are the exception that need the full planning path:
 
-- parsing flags and the source label
-- handling `--help` and `--version`
-- deriving requested runtime commands
-- validating command-specific modifiers
-- validating the backup label
+```text
+RuntimeRequest -> Plan -> Executor
+```
 
-`internal/notify` owns notification payload types, provider delivery, and
-notify-test reporting.
+The `Plan` stores runtime data in explicit sections for request intent,
+resolved config, derived paths, and display strings. Planning validates and
+derives; execution mutates. That separation is the key runtime boundary.
 
-`internal/health` owns health report modelling, health-specific terminal
-presentation, and JSON health report serialization.
-
-`internal/presentation` owns shared operator-facing text formatting and the
-runtime presenter used by workflow execution.
-
-The parser `Request` remains the dispatch envelope between `internal/command`
-and `internal/workflow`. It describes the raw CLI intent before workflow code
-has resolved config, secrets, paths, or state.
-
-Workflow handlers should not pass that broad shape deeper into command logic.
-The boundary pattern is:
-
-- project the parsed request into a command-specific request type
-- validate and execute against that narrow type
-- use `ConfigPlanRequest` when a command only needs label, target, config dir,
-  and secrets dir resolution
-- use `RuntimeRequest` only for backup, prune, and cleanup-storage
-
-This keeps restore, update, rollback, notify, diagnostics, config, health, and
-runtime concerns separated even though they share one command-line parser.
-
-## Plan
-
-For runtime operations, `internal/workflow/planner.go` turns a
-`RuntimeRequest` into a validated `Plan`.
-
-The `Plan` stores runtime data in composed sections:
-
-- `PlanRequest` carries the resolved operator intent and mode flags
-- `PlanConfig` carries values resolved from the selected label/target config
-- `PlanPaths` carries derived filesystem and config/secrets paths
-- `PlanDisplay` carries operator-facing command and summary strings
-
-It is responsible for:
-
-- root and binary dependency checks
-- path derivation
-- config loading and validation
-- secrets loading and validation
-- target-model resolution:
-  - `storage = "..."`
-  - `location = local | remote`
-- backup-target derivation
-- backup-mode btrfs validation
-- execution-ready derived values such as:
-  - operation mode
-  - mode display
-  - summary lines
-  - dry-run and mode flags
-  - prune/filter display values
-  - ownership and threshold values
-  - execution-ready command strings and cleanup inputs
-
-The important design rule is that planning does not mutate operational state.
-It can inspect the environment and run validations, but it does not acquire
-locks, create work directories, create snapshots, or change permissions.
-
-The section structs are the canonical storage shape. `Plan.Sections()` returns
-a defensive read-side projection for reports and tests. Call sites should use
-explicit `plan.Request`, `plan.Config`, `plan.Paths`, and `plan.Display`
-access so runtime intent, configuration, filesystem paths, and display strings
-remain visibly separate.
-
-Duplicacy storage semantics live in `internal/duplicacy.StorageSpec`. The
-planner uses that domain helper to decide whether storage keys should be
-loaded.
-
-Notification destinations use the same pattern at a smaller scale:
-`internal/notify` owns provider lookup, destination construction, and delivery
-dispatch for webhook and ntfy. New providers should be added there first, then
-surfaced through config and command parsing.
-
-## Execute
-
-`internal/workflow/executor.go` owns side effects.
-
-It is responsible for:
-
-- signal handling
-- log cleanup
-- lock acquisition and release
-- runtime sequencing
-- Duplicacy working-directory setup
-- backup, prune, and storage cleanup execution
-- final cleanup and result output
-
-This keeps operator-facing runtime behaviour in one place and makes phase order
-easy to follow.
-
-`Executor` now delegates presentation work to a small presenter, cleanup to
-focused workflow helpers, and prune preview policy to dedicated workflow code.
-It relies on the plan for execution decisions rather than repeatedly reaching
-back into raw request/config data.
+For the detailed request, plan, execute, presentation, and error-translation
+walkthrough, use [how-it-works.md](how-it-works.md).
 
 ## Restore Subsystem
 

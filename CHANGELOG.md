@@ -30,6 +30,9 @@ coverage floor and package-level baseline.
   guidance.
 - Trimmed duplicated notification and health JSON detail from the operations
   guide so configuration policy remains the source of truth.
+- Slimmed the architecture overview to avoid duplicating the detailed
+  how-it-works walkthrough, and split site-specific release mirror details out
+  of the release playbook.
 
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,

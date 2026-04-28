@@ -108,34 +108,17 @@ For the focused trust-model reference, including `--attestations required`,
 `--attestations auto`, GitHub CLI auth expectations, and trust boundaries, see
 [Update Trust Model](update-trust-model.md).
 
-Unattended update failures can use the same notification providers as the rest
-of the tool, but the config is global rather than label-specific. Put update
-notification settings in `$HOME/.config/duplicacy-backup/duplicacy-backup.toml`:
-
-```toml
-[update.notify]
-notify_on = ["failed"]
-interactive = false
-
-[update.notify.ntfy]
-url = "https://ntfy.sh"
-topic = "duplicacy-updates"
-```
-
-Test that route without running a real update:
-
-```bash
-/usr/local/bin/duplicacy-backup notify test update --provider ntfy
-```
-
-Update notification failures are reported as warnings. They should not mask the
-primary update result; use Synology scheduled-task output as the fallback signal
-if the notification route itself is unavailable.
+Update notification policy is configured globally in
+`$HOME/.config/duplicacy-backup/duplicacy-backup.toml`; see
+[Configuration and secrets](configuration.md#update-notifications).
 
 Config and secrets stay in their existing directories during upgrades, so you
 do not need to copy TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
 when needed, one matching secrets file.
+In normal operation, storage keys are needed only when the selected backend requires them;
+see [Configuration and secrets](configuration.md#secrets) for the target-scoped
+secrets model.
 
 Use `update --force` only when you intentionally want to reinstall the selected
 release, for example after repairing a managed install. It still follows normal
@@ -152,20 +135,6 @@ Update network calls are bounded. If GitHub release metadata lookup or package
 download stalls, the command reports which phase timed out instead of waiting
 indefinitely.
 
-Under the current target model, every backup target delegates storage to
-Duplicacy; storage keys are needed only when the selected backend requires them.
-Path-based storage targets only need a secrets file if a notifying target uses
-authenticated webhook or `ntfy` delivery.
-S3-compatible storage uses `s3_id` and `s3_secret` under
-`[targets.<name>.keys]`; native `storj://` storage uses `storj_key` and
-`storj_passphrase`.
-
-To install a new binary without switching immediately:
-
-```bash
-sudo ./install.sh --no-activate
-```
-
 The rollback command is preferred for normal managed installs. If the command
 itself is unavailable during an emergency, the manual fallback is:
 
@@ -177,56 +146,28 @@ sudo ln -sfn <older-binary-name> current
 
 ## Restore Drills
 
-The wrapper can now execute restores into a separate drill workspace. It still
-does not copy anything back to live source paths. Use
-[`restore-drills.md`](restore-drills.md) to practise recovery safely before any
-manual copy-back.
+Restore is important enough to have its own operator guide. Start with
+[`restore-drills.md`](restore-drills.md) for routine restore practice on an
+existing NAS, or [`new-nas-restore.md`](new-nas-restore.md) when rebuilding a
+replacement NAS.
 
-For most live operator restores, start with `restore select`. The lower-level
-restore commands remain available as the expert and scriptable path.
-
-Use `restore select` for the guided operator flow:
-
-```bash
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-```
-
-Use `restore plan` to print the resolved context and suggested Duplicacy
-commands without creating the workspace or running a restore:
+The operational rule is simple: restore into a drill workspace first, inspect
+the result, and copy back manually only after review. For most live operator
+restores, start with:
 
 ```bash
-duplicacy-backup restore plan --target onsite-usb homes
+duplicacy-backup restore select --target offsite-storj homes
 ```
 
-List revisions, then restore into a drill workspace:
+Use `sudo` for restore commands only when the selected target is a
+root-protected local filesystem repository, such as an onsite USB repository.
+Object storage and remote mounted filesystem repositories normally restore as
+the operator user.
 
-```bash
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
-```
-
-At a high level:
-
-- on an existing NAS, use `config explain`, `config validate`, and
-  `health status` to confirm the label, target, storage value, and repository
-  health
-- on a replacement NAS where `source_path` is not configured yet, use
-  `config explain` and `restore list-revisions` to prove restore access
-- use `restore select` first when you want the operator-focused guided flow
-- use `restore plan`, `restore list-revisions`, and `restore run`
-  when you want fully explicit step-by-step control
-- in the picker, move with the arrow keys, expand with `Right`, collapse with
-  `Left`, toggle files or subtrees with `Space`, then press `g`
-- use `q` at restore-select prompts or inside the picker to cancel before
-  execution; during an active restore, `Ctrl-C` cancels Duplicacy, keeps the
-  drill workspace, does not delete restored files, and reports progress
-- restore a full revision or selected paths into the drill workspace only
-- watch stderr for restore progress while the final restore report is written
-  to stdout
-- expect successful restore reports to show Duplicacy totals, not every
-  downloaded chunk or file
-- inspect the restored data before any deliberate copy-back step
+For scriptable restore primitives such as
+`restore plan --target onsite-usb homes` and
+`restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes`,
+use [Restore drills](restore-drills.md).
 
 ### Runtime locations after install
 
@@ -270,90 +211,43 @@ visible in the command itself.
 
 ## Synology Task Scheduler
 
-For the recommended workflow model, naming convention, and a worked scheduling
-example across multiple labels and targets, see
+Scheduling has its own focused guide:
 [`workflow-scheduling.md`](workflow-scheduling.md).
 
-1. Open **Control Panel > Task Scheduler**
-2. Create a **Triggered Task > User-defined script**
-3. Set the schedule
-4. Run the task as the operator user
-5. Prefix only root-required commands with `sudo -n`
-6. Use a command such as:
+The short version is:
+
+- run scheduled tasks as the operator user
+- prefix only root-required commands with `sudo -n`
+- keep backup, prune, health, and diagnostics as separate tasks
+- avoid routine `cleanup-storage`
+- never schedule `prune --force` as a normal recurring task
+
+Example scheduled backup:
 
 ```bash
 sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
 ```
 
-Recommended scheduled pattern:
-
-- keep backup, prune, health, and diagnostics as separate tasks
-- use repeat scheduling for frequent onsite backups where it helps
-- avoid routine `cleanup-storage`
-- do not schedule `prune --force` as a normal recurring task
-
-Example: scheduled backup for label `homes` on target `offsite-storj`
+Example scheduled health check for an object or remote mounted filesystem
+repository:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+/usr/local/bin/duplicacy-backup health verify --json-summary --target offsite-storj homes
 ```
 
-Example: scheduled prune for label `homes` on target `offsite-storj`
-
-```bash
-/usr/local/bin/duplicacy-backup prune --target offsite-storj homes
-```
-
-Example: scheduled health summary for label `homes` on target `onsite-usb`
+Example health summary for a root-protected local filesystem repository:
 
 ```bash
 sudo -n /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
-```
-
-Example: scheduled JSON integrity verification for label `homes` on target `onsite-usb`
-
-```bash
 sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
 ```
 
-Use `sudo -n` for local filesystem repositories because backup metadata is
+Use `sudo -n` for local filesystem repositories because repository metadata is
 root-protected. Object repositories and remote mounted filesystem repositories
-can run health checks as the operator user without `sudo`.
-
-Health JSON output is meant for automation rather than terminal reading. Use
-`health verify --json-summary` when a scheduler or monitor needs structured
-status, revision, and remediation fields; use the terminal output for operator
-review. The complete command surface is documented in [CLI reference](cli.md).
-
-`--target <name>` selects one named target from the label config. Runtime,
-`config`, `diagnostics`, `health`, restore commands, and label-scoped
-`notify test` commands require an explicit target. Global update and rollback
-commands, plus `notify test update`, do not.
-Targets define both `storage` and `location`. The configured `storage` value is
-passed directly through to Duplicacy. Use `location = "local"` or
-`location = "remote"` to describe where the target lives operationally, and add
-`[targets.<name>.keys]` only when the selected Duplicacy backend needs runtime
-keys.
-
-Notification policy, target-scoped notification secrets, and noise-control
-rules are owned by [Configuration and secrets](configuration.md#notifications).
-A good low-cost baseline is Synology scheduled-task email for raw job failures
-plus native `ntfy` delivery for richer degraded, unhealthy, and selected
-runtime-failure events.
-
-Health commands are read-only and do not prompt for confirmation. They are
-designed to be run separately from backup jobs so schedulers and external
-monitoring can check freshness and environment health without mutating backup
-state.
-
-As an operator guideline, prefer separate scheduled tasks for backup, prune,
-health, and diagnostics rather than chaining everything together into one
-recurring job.
-
-Treat `cleanup-storage` and `prune --force` as explicit operator actions
-rather than routine scheduled work. `prune --dry-run` still reads repository
-metadata, so use `sudo -n` for local filesystem repositories. By contrast,
-`cleanup-storage --dry-run` is simulation-only and does not scan chunks.
+can run health checks as the operator user when credentials or mount
+permissions allow access. For sudoers templates, cadence slots, task naming,
+and multi-label examples, use
+[`workflow-scheduling.md`](workflow-scheduling.md).
 
 ## Release Verification
 

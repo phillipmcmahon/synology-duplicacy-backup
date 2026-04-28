@@ -313,6 +313,7 @@ Maintainer and release docs:
 
 - [Linux validation and packaging environment](docs/linux-environment.md)
 - [Release playbook](docs/release-playbook.md)
+- [Release mirror](docs/release-mirror.md)
 - [Architecture](docs/architecture.md)
 - [How it works internally](docs/how-it-works.md)
 - [Contributing](CONTRIBUTING.md)
