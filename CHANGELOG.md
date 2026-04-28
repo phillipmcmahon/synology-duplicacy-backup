@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v9.2.0] - 2026-04-28
+
 ### Changed
 - Restore drill workspace names can now be configured with
   `--workspace-template` or `[restore].workspace_template`, using `{label}`,
