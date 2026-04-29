@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 

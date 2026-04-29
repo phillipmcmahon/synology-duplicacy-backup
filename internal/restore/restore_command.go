@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import (
 	"context"
@@ -9,16 +9,6 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 )
-
-// ErrRestoreCancelled means the operator deliberately exited before restore
-// execution, for example by typing q or answering no. It is a clean exit and
-// dispatch maps it to exit code 0.
-var ErrRestoreCancelled = errors.New("restore cancelled")
-
-// ErrRestoreInterrupted means an active restore process was interrupted after
-// execution started. Dispatch maps it to exit code 1 because the drill
-// workspace may contain a partial restore that needs inspection.
-var ErrRestoreInterrupted = errors.New("restore interrupted")
 
 type restoreSelectIntent string
 
@@ -73,12 +63,12 @@ func handleRestoreCommand(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 
 func handleRestorePlan(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (string, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.PlanRequest())
-	cfg, err := planner.loadConfig(plan)
+	plan := planner.DeriveConfigPlan(req.PlanRequest())
+	cfg, err := planner.LoadConfig(plan)
 	if err != nil {
 		return "", err
 	}
-	plan.applyConfig(cfg, rt)
+	plan.ApplyConfig(cfg, rt)
 	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
 		return "", err

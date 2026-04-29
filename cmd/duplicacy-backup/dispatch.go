@@ -10,6 +10,7 @@ import (
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -156,14 +157,14 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 }
 
 func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
-	restoreReq := workflow.NewRestoreRequest(req)
+	restoreReq := restore.NewRestoreRequest(req)
 	if restoreReq.UsesProgress() {
 		log, err := initLogger(meta)
 		if err != nil {
 			return writeRestoreLoggerFailure(err)
 		}
 		defer log.Close()
-		output, err := workflow.HandleRestoreCommandWithLogger(req, meta, rt, log)
+		output, err := restore.HandleRestoreCommandWithLogger(req, meta, rt, log)
 		if errors.Is(err, workflow.ErrRestoreCancelled) {
 			writeDirectInfo("Restore cancelled by operator")
 			return 0

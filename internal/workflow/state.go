@@ -31,6 +31,12 @@ func stateFilePath(meta Metadata, label string, target string) string {
 	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, target))
 }
 
+// StateFilePath returns the profile state file path for report-only command
+// subsystems.
+func StateFilePath(meta Metadata, label string, target string) string {
+	return stateFilePath(meta, label, target)
+}
+
 func loadRunState(meta Metadata, label, target string) (*RunState, error) {
 	path := stateFilePath(meta, label, target)
 	body, err := os.ReadFile(path)
@@ -48,6 +54,11 @@ func loadRunState(meta Metadata, label, target string) (*RunState, error) {
 		state.Target = target
 	}
 	return &state, nil
+}
+
+// LoadRunState reads prior run state for report-only command subsystems.
+func LoadRunState(meta Metadata, label, target string) (*RunState, error) {
+	return loadRunState(meta, label, target)
 }
 
 func saveRunState(meta Metadata, label, target string, state *RunState) error {

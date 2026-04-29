@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import (
 	"errors"
@@ -130,7 +130,7 @@ func newRestorePlanReport(req *RestoreRequest, meta Metadata, plan *Plan, storag
 		Storage:           storage,
 		SecretsFile:       "Not required for this storage backend",
 		SecretsRequired:   secretsRequired,
-		StateFile:         stateFilePath(meta, req.Label, req.Target()),
+		StateFile:         StateFilePath(meta, req.Label, req.Target()),
 		StateStatus:       "Not found",
 		SnapshotID:        duplicacy.DefaultSnapshotID,
 		Workspace:         workspace,
@@ -243,7 +243,7 @@ func newRestoreSelectReport(req *RestoreRequest, meta Metadata, plan *Plan, stor
 }
 
 func (r *restorePlanReport) loadAndApplyState(meta Metadata, label, target string) {
-	state, err := loadRunState(meta, label, target)
+	state, err := LoadRunState(meta, label, target)
 	r.applyState(state, err)
 }
 

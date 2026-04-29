@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -31,12 +31,12 @@ type restoreRunContext struct {
 
 func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.PlanRequest())
-	cfg, err := planner.loadConfig(plan)
+	plan := planner.DeriveConfigPlan(req.PlanRequest())
+	cfg, err := planner.LoadConfig(plan)
 	if err != nil {
 		return nil, err
 	}
-	plan.applyConfig(cfg, rt)
+	plan.ApplyConfig(cfg, rt)
 	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
 	var sec *secrets.Secrets
 	if storageSpec.NeedsSecrets() {
-		sec, err = planner.loadSecrets(plan)
+		sec, err = planner.LoadSecrets(plan)
 		if err != nil {
 			return nil, err
 		}
@@ -73,12 +73,12 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 
 func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.PlanRequest())
-	cfg, err := planner.loadConfig(plan)
+	plan := planner.DeriveConfigPlan(req.PlanRequest())
+	cfg, err := planner.LoadConfig(plan)
 	if err != nil {
 		return nil, err
 	}
-	plan.applyConfig(cfg, rt)
+	plan.ApplyConfig(cfg, rt)
 	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreRepositoryPrivilege(req, cfg, rt); err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 	storageSpec := duplicacy.NewStorageSpec(cfg.Storage)
 	var sec *secrets.Secrets
 	if storageSpec.NeedsSecrets() {
-		sec, err = planner.loadSecrets(plan)
+		sec, err = planner.LoadSecrets(plan)
 		if err != nil {
 			return nil, err
 		}

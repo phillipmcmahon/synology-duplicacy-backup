@@ -134,6 +134,12 @@ func (p *Planner) derivePlan(req ConfigPlanRequest) *Plan {
 	})
 }
 
+// DeriveConfigPlan exposes the config-only planning seam used by command
+// subsystems that live outside internal/workflow.
+func (p *Planner) DeriveConfigPlan(req ConfigPlanRequest) *Plan {
+	return p.derivePlan(req)
+}
+
 func (p *Planner) deriveRuntimePlan(req *RuntimeRequest) *Plan {
 	return p.derivePlanFromInput(planDerivationInput{
 		label:               req.Label,
@@ -227,6 +233,11 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 
 func (p *Planner) loadConfig(plan *Plan) (*config.Config, error) {
 	return p.loadConfigWithOptions(plan, loadConfigOptions{validateThresholds: true, validateSemantics: true})
+}
+
+// LoadConfig resolves and validates the config for an already-derived plan.
+func (p *Planner) LoadConfig(plan *Plan) (*config.Config, error) {
+	return p.loadConfig(plan)
 }
 
 func (p *Planner) loadConfigForValidation(plan *Plan) (*config.Config, error) {
@@ -325,6 +336,12 @@ func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
 	p.Config.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
 }
 
+// ApplyConfig projects resolved configuration values onto the orchestration
+// plan after config validation has completed.
+func (p *Plan) ApplyConfig(cfg *config.Config, rt Runtime) {
+	p.applyConfig(cfg, rt)
+}
+
 func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 	if !plan.Request.DoBackup {
 		return nil
@@ -408,4 +425,10 @@ func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
 		return nil, err
 	}
 	return sec, nil
+}
+
+// LoadSecrets resolves and validates the secret file for an already-derived
+// plan.
+func (p *Planner) LoadSecrets(plan *Plan) (*secrets.Secrets, error) {
+	return p.loadSecrets(plan)
 }

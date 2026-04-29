@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import (
 	"fmt"
@@ -412,6 +412,6 @@ func restoreWorkspaceProfileOwnership(meta Metadata, workspace string) error {
 		if err != nil {
 			return fmt.Errorf("restore workspace ownership walk failed at %s: %w", path, err)
 		}
-		return chownProfilePath(meta, path)
+		return ChownProfilePath(meta, path)
 	})
 }

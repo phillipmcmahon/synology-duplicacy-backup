@@ -24,9 +24,10 @@ flowchart TD
     CLI["cmd/duplicacy-backup<br/>argv, DSM guard, root/profile guard"]
     Command["internal/command<br/>parse argv and render help"]
     Dispatch["dispatchRequest<br/>route by command family"]
-    Workflow["internal/workflow<br/>orchestrate plans, policy, reports"]
+    Workflow["internal/workflow<br/>runtime plans, policy, reports"]
+    Restore["internal/restore<br/>restore plans, selection, workspace safety"]
     Runtime["Runtime path<br/>RuntimeRequest -> Plan -> Executor"]
-    CommandHandlers["Command handlers<br/>config, diagnostics, health, notify, restore, update, rollback"]
+    CommandHandlers["Command handlers<br/>config, diagnostics, health, notify, update, rollback"]
     Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, health, notify, update"]
     Presentation["internal/presentation + logger<br/>operator-facing text and colour"]
     External["External tools/storage<br/>btrfs, duplicacy, repositories"]
@@ -34,8 +35,11 @@ flowchart TD
     CLI --> Command
     Command --> Dispatch
     Dispatch --> Workflow
+    Dispatch --> Restore
     Workflow --> Runtime
     Workflow --> CommandHandlers
+    Restore --> Domains
+    Restore --> Presentation
     Runtime --> Domains
     CommandHandlers --> Domains
     Runtime --> External
@@ -92,20 +96,26 @@ walkthrough, use [how-it-works.md](how-it-works.md).
 
 ## Restore Subsystem
 
-Restore is a first-class subsystem, not a single command handler. The workflow
-package keeps the restore contract close to the other command orchestration,
-while the tree picker lives in its own package.
+Restore is a first-class subsystem, not a single workflow file. It now lives in
+`internal/restore` so restore-specific prompts, workspace safety, reports, and
+interactive selection can evolve behind a focused package boundary.
+
+The package still bridges to workflow planning types for `Metadata`, `Runtime`,
+`Plan`, and profile-owned state paths. That is intentional for this stage: the
+next command-registry and typed-request work removes more of the broad command
+envelope before we decide whether those shared primitives should move into a
+dedicated core package.
 
 | File or package | Responsibility |
 |---|---|
-| `internal/workflow/restore_command.go` | Top-level restore command orchestration and handoff to restore primitives |
-| `internal/workflow/restore_context.go` | Shared resolved restore state such as config, storage, secrets, and plan context |
-| `internal/workflow/restore_deps.go` | Dependency injection seam for clocks, runners, prompts, picker, and workspace defaults |
-| `internal/workflow/restore_workspace.go` | Workspace resolution, derived workspace naming, and safety validation |
-| `internal/workflow/restore_prompt.go` | Revision-first text prompts, confirmation, and cancellation handling |
-| `internal/workflow/restore_parse.go` | Duplicacy revision and path parsing helpers |
-| `internal/workflow/restore_format.go` | Operator-facing restore plan and report formatting |
-| `internal/workflow/restore_reports.go` | Preview and result report models |
+| `internal/restore/restore_command.go` | Top-level restore command orchestration and handoff to restore primitives |
+| `internal/restore/restore_context.go` | Shared resolved restore state such as config, storage, secrets, and plan context |
+| `internal/restore/restore_deps.go` | Dependency injection seam for clocks, runners, prompts, picker, and workspace defaults |
+| `internal/restore/restore_workspace.go` | Workspace resolution, derived workspace naming, and safety validation |
+| `internal/restore/restore_prompt.go` | Revision-first text prompts, confirmation, and cancellation handling |
+| `internal/restore/restore_parse.go` | Duplicacy revision and path parsing helpers |
+| `internal/restore/restore_format.go` | Operator-facing restore plan and report formatting |
+| `internal/restore/restore_reports.go` | Preview and result report models |
 | `internal/restorepicker` | Interactive tree picker built on tview/tcell; compiles selections back to explicit restore primitives |
 
 The guardrail is that `restore select` remains a convenience layer. It must
@@ -124,6 +134,7 @@ The codebase now has:
 - a notify package in `internal/notify`
 - an update package in `internal/update`
 - a presentation package in `internal/presentation`
+- a restore command package in `internal/restore`
 - one orchestration package in `internal/workflow`
 - focused domain packages for config, secrets, btrfs, duplicacy, locking,
   permissions, logging, and process execution
@@ -181,6 +192,7 @@ One architecture pressure point is worth keeping visible:
 | `internal/health` | Health reports, health JSON output, and health presentation |
 | `internal/notify` | Notification payloads, provider delivery, and notify-test reports |
 | `internal/presentation` | Shared output formatting and runtime presentation helpers |
+| `internal/restore` | Restore planning, revision listing, workspace safety, guided selection, and restore reports |
 | `internal/update` | Self-update planning, package verification, installer execution, and managed rollback activation |
 | `internal/workflow` | Planning, execution, diagnostics, and summary composition |
 | `internal/btrfs` | Btrfs validation and snapshot management |

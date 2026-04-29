@@ -16,6 +16,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
@@ -93,7 +94,7 @@ func withTestGlobals(t *testing.T, fn func()) {
 	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
 	handleConfigCommand = workflow.HandleConfigCommand
 	handleDiagnosticsCommand = workflow.HandleDiagnosticsCommand
-	handleRestoreCommand = workflow.HandleRestoreCommand
+	handleRestoreCommand = restore.HandleRestoreCommand
 	handleRollbackCommand = oldHandleRollbackCommand
 	handleUpdateCommand = oldHandleUpdateCommand
 	maybeSendPreRunFailureNotification = workflow.MaybeSendPreRunFailureNotification

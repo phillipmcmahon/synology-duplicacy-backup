@@ -1,4 +1,4 @@
-package workflow
+package restore
 
 import (
 	"bufio"
@@ -16,12 +16,12 @@ import (
 
 func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
 	planner := NewConfigPlanner(meta, rt)
-	plan := planner.derivePlan(req.PlanRequest())
-	cfg, err := planner.loadConfig(plan)
+	plan := planner.DeriveConfigPlan(req.PlanRequest())
+	cfg, err := planner.LoadConfig(plan)
 	if err != nil {
 		return nil, func() {}, err
 	}
-	plan.applyConfig(cfg, rt)
+	plan.ApplyConfig(cfg, rt)
 	applyRestoreConfigDefaults(req, cfg)
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
 		return nil, func() {}, err
