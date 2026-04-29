@@ -145,7 +145,7 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 		}
 	}
 
-	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Requires sudo", "Limited", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
+	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Requires sudo", "Limited", "Present", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
 	for _, value := range valueCases {
 		if got := ColourizeValidationValue(value, false); got != value {
 			t.Fatalf("ColourizeValidationValue(%q, false) = %q", value, got)

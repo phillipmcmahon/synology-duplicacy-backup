@@ -235,6 +235,11 @@ Review the `.txt` captures for UI consistency:
   report-style commands remain plain and readable
 - colour semantics are consistent: errors red, warnings yellow, labels cyan,
   successful semantic results green
+- when `CAPTURE_COLOUR=1`, the runner enforces colour semantics for config
+  validation captures: success values such as `Present`, `Valid`, `Resolved`,
+  `Writable`, and `Passed` must be green; warning values such as
+  `Requires sudo` must be yellow; failure values such as `Invalid (...)` and
+  `Failed` must be red
 - `--json-summary` captures end with valid JSON even when stderr logs are
   present earlier in the combined capture
 - restore success shows the compact Duplicacy summary, not the full raw file or

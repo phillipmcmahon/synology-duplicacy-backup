@@ -36,10 +36,11 @@ func ColourizeValidationValue(value string, enableColour bool) string {
 	case value == "Limited":
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
 	case value == ValueValid,
-		value == "Readable",
+		value == ValuePresent,
+		value == ValueReadable,
 		value == ValueWritable,
-		value == "Resolved",
-		value == "Parsed",
+		value == ValueResolved,
+		value == ValueParsed,
 		value == "Full":
 		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
 	default:

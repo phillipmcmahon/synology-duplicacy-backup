@@ -99,6 +99,10 @@ Additional v9.1.0 validation:
 
 Additional v9.0.0 validation:
 
+- UI surface smoke validation now enforces colour semantics when
+  `CAPTURE_COLOUR=1`: successful validation values must be green, warning
+  values must be yellow, and failure values must be red. This turns colour
+  consistency from a visual review step into an automated release-smoke check.
 - Release validation covers the removal of the former filesystem-permission
   utility command: local filesystem repository ownership and permissioning are
   now an OS and operator policy boundary, not an application command surface.

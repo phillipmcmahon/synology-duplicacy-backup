@@ -847,6 +847,7 @@ func TestColourizeConfigValidationValue(t *testing.T) {
 		want  string
 	}{
 		{"Valid", "\033["},
+		{"Present", "\033["},
 		{"Resolved", "\033["},
 		{"Not checked", "\033["},
 		{"Invalid (boom)", "\033["},

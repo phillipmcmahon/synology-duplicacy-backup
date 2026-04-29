@@ -170,6 +170,107 @@ assert_last_capture_not_matches() {
     fi
 }
 
+ansi_colour_code() {
+    case "$1" in
+        green) printf '\033[1;32m' ;;
+        yellow) printf '\033[1;33m' ;;
+        red) printf '\033[1;31m' ;;
+        *) return 1 ;;
+    esac
+}
+
+capture_has_semantic_value() {
+    value="$1"
+    esc="$(printf '\033')"
+    awk -v esc="$esc" -v value="$value" '
+        {
+            line = $0
+            gsub(esc "\\[[0-9;]*m", "", line)
+            if (line !~ /:/) {
+                next
+            }
+            sub(/^[^:]*:[[:space:]]*/, "", line)
+            if (line == value ||
+                index(line, value " ") == 1 ||
+                index(line, value ";") == 1 ||
+                index(line, value ":") == 1 ||
+                index(line, value " (") == 1) {
+                found = 1
+            }
+        }
+        END { exit found ? 0 : 1 }
+    ' "$output_file"
+}
+
+capture_has_semantic_value_prefix() {
+    value_prefix="$1"
+    esc="$(printf '\033')"
+    awk -v esc="$esc" -v value_prefix="$value_prefix" '
+        {
+            line = $0
+            gsub(esc "\\[[0-9;]*m", "", line)
+            if (line !~ /:/) {
+                next
+            }
+            sub(/^[^:]*:[[:space:]]*/, "", line)
+            if (index(line, value_prefix) == 1) {
+                found = 1
+            }
+        }
+        END { exit found ? 0 : 1 }
+    ' "$output_file"
+}
+
+assert_last_capture_value_colour() {
+    value="$1"
+    colour="$2"
+
+    [ "${CAPTURE_COLOUR:-0}" = "1" ] || return 0
+    capture_has_semantic_value "$value" || return 0
+
+    colour_code="$(ansi_colour_code "$colour")"
+    reset_code="$(printf '\033[0m')"
+    if ! grep -F -- "$colour_code$value$reset_code" "$output_file" >/dev/null; then
+        echo "Expected latest capture value '$value' to be ${colour}" >&2
+        echo "Capture file: $output_file" >&2
+        unexpected_count=$((unexpected_count + 1))
+    fi
+}
+
+assert_last_capture_value_colour_prefix() {
+    value_prefix="$1"
+    colour="$2"
+
+    [ "${CAPTURE_COLOUR:-0}" = "1" ] || return 0
+    capture_has_semantic_value_prefix "$value_prefix" || return 0
+
+    colour_code="$(ansi_colour_code "$colour")"
+    if ! grep -F -- "$colour_code$value_prefix" "$output_file" >/dev/null; then
+        echo "Expected latest capture value prefix '$value_prefix' to be ${colour}" >&2
+        echo "Capture file: $output_file" >&2
+        unexpected_count=$((unexpected_count + 1))
+    fi
+}
+
+assert_last_capture_validation_success_colours() {
+    assert_last_capture_value_colour "Present" green
+    assert_last_capture_value_colour "Valid" green
+    assert_last_capture_value_colour "Resolved" green
+    assert_last_capture_value_colour "Writable" green
+    assert_last_capture_value_colour "Passed" green
+}
+
+assert_last_capture_validation_warning_colours() {
+    assert_last_capture_value_colour "Requires sudo" yellow
+    assert_last_capture_value_colour "Not checked" yellow
+    assert_last_capture_value_colour "Not initialized" yellow
+}
+
+assert_last_capture_validation_failure_colours() {
+    assert_last_capture_value_colour "Failed" red
+    assert_last_capture_value_colour_prefix "Invalid (" red
+}
+
 extract_first_revision() {
     file="$1"
     awk -F: '
@@ -402,16 +503,23 @@ run_capture "config_explain_object" any "$BIN" config explain --target "$TARGET_
 run_capture "config_explain_local" any "$BIN" config explain --target "$TARGET_LOCAL" "$LABEL"
 run_capture "config_paths_remote" any "$BIN" config paths --target "$TARGET_REMOTE" "$LABEL"
 run_capture "config_validate_remote" any "$BIN" config validate --target "$TARGET_REMOTE" "$LABEL"
+assert_last_capture_validation_success_colours
 run_capture "config_validate_object" any "$BIN" config validate --target "$TARGET_OBJECT" "$LABEL"
+assert_last_capture_validation_success_colours
 run_capture "config_validate_local_operator_requires_sudo" fail "$BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
 assert_last_capture_contains "Storage Access"
 assert_last_capture_contains "Repository Access"
 assert_last_capture_contains "Requires sudo"
 assert_last_capture_contains "local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
+assert_last_capture_validation_warning_colours
+assert_last_capture_validation_failure_colours
 run_capture "config_validate_local_sudo" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_validation_success_colours
 run_capture "config_validate_remote_verbose" any "$BIN" config validate --target "$TARGET_REMOTE" --verbose "$LABEL"
+assert_last_capture_validation_success_colours
 run_capture "config_validate_local_sudo_verbose" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" --verbose "$LABEL"
+assert_last_capture_validation_success_colours
 
 run_capture "diagnostics_remote" any "$BIN" diagnostics --target "$TARGET_REMOTE" "$LABEL"
 run_capture "diagnostics_object" any "$BIN" diagnostics --target "$TARGET_OBJECT" "$LABEL"
