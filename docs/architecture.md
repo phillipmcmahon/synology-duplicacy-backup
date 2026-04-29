@@ -25,11 +25,12 @@ flowchart TD
     Command["internal/command<br/>command registry, parse argv, render help"]
     Dispatch["dispatchRequest<br/>route by command family"]
     Core["internal/workflowcore<br/>neutral request, env, metadata, plan, state"]
-    Workflow["internal/workflow<br/>runtime plans, policy, reports"]
+    Workflow["internal/workflow<br/>runtime plans, policy, state mutation"]
     Restore["internal/restore<br/>restore plans, selection, workspace safety"]
+    Health["internal/health<br/>status, doctor, verify reports"]
     RuntimeFlow["Runtime command path<br/>RuntimeRequest -> Plan -> Executor"]
-    CommandHandlers["Command handlers<br/>config, diagnostics, health, notify, update, rollback"]
-    Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, health, notify, update"]
+    CommandHandlers["Other command handlers<br/>config, diagnostics, notify, update, rollback"]
+    Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, notify, update"]
     Presentation["internal/presentation + logger<br/>operator-facing text and colour"]
     External["External tools/storage<br/>btrfs, duplicacy, repositories"]
 
@@ -39,18 +40,22 @@ flowchart TD
     Dispatch --> Core
     Dispatch --> Workflow
     Dispatch --> Restore
+    Dispatch --> Health
     Workflow --> Core
     Restore --> Core
+    Health --> Core
+    Health --> Workflow
     Workflow --> RuntimeFlow
     Workflow --> CommandHandlers
     Restore --> Domains
     Restore --> Presentation
+    Health --> Presentation
     RuntimeFlow --> Domains
     CommandHandlers --> Domains
     RuntimeFlow --> External
+    Health --> External
     CommandHandlers --> External
     Workflow --> Presentation
-    Domains --> Workflow
 ```
 
 ```text
@@ -81,11 +86,11 @@ transition guidance so operators can see the new contract plainly.
 
 ## Command Boundaries
 
-`internal/command` owns CLI parsing and help text. It produces one broad
-parser request for now, using a command registry as the source of truth for
-public command names, parser coverage, help coverage, DSM policy, and
-profile/root policy. Dispatch then projects that broad shape into
-command-specific requests before execution.
+`internal/command` owns CLI parsing and help text. Its parser and help files are
+split by command family around a shared source/target flag parser, and the
+command registry is the source of truth for public command names, parser
+coverage, help coverage, DSM policy, and profile/root policy. Dispatch then
+projects the parsed envelope into command-specific requests before execution.
 
 The registry is the first step of the command-router cleanup. It deliberately
 keeps behaviour stable while giving every public command one auditable metadata
@@ -189,6 +194,12 @@ It should own:
 - execution sequencing
 - workflow policy decisions that span multiple domains
 - final operator-facing message translation
+
+The command entrypoint no longer has broad package-level test seams for locks:
+lock creation is routed through `Env`. The remaining package-level seam in
+`cmd/duplicacy-backup` is DSM platform detection, which is deliberately local
+to the binary entrypoint because it guards command startup before workflow
+dispatch.
 
 It should not be the default home for new provider logic, parser logic,
 formatting logic, or health-specific semantics just because those features

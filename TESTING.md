@@ -442,7 +442,7 @@ These tests use the same seams as production:
 
 - `geteuid`
 - `lookPath`
-- `newLock`
+- `Env.NewLock` / `Env.NewSourceLock`
 - temporary `logDir`
 
 The goal is to validate real top-level behaviour without duplicating all

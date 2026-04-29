@@ -189,6 +189,7 @@ This package owns health-specific report modelling and presentation.
 
 It owns:
 
+- health command orchestration
 - health JSON report shaping
 - health report status/failure semantics
 - verify result reconciliation for failed or missing revision integrity results
@@ -261,7 +262,10 @@ The request phase lives in:
 
 - [`internal/command/registry.go`](../internal/command/registry.go)
 - [`internal/command/request.go`](../internal/command/request.go)
+- [`internal/command/request_runtime.go`](../internal/command/request_runtime.go)
+- [`internal/command/request_restore.go`](../internal/command/request_restore.go)
 - [`internal/command/usage.go`](../internal/command/usage.go)
+- [`internal/command/usage_restore.go`](../internal/command/usage_restore.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
 
 The job of the request phase is to answer:
@@ -932,12 +936,15 @@ If you want to change a specific behaviour, start here:
 ### CLI behaviour
 
 - [`internal/command/request.go`](../internal/command/request.go)
+- [`internal/command/request_<family>.go`](../internal/command/request_runtime.go)
 - [`internal/command/usage.go`](../internal/command/usage.go)
+- [`internal/command/usage_<family>.go`](../internal/command/usage_restore.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
 
 `internal/command/request.go` keeps source-label commands on a shared parser
-path. Command-specific flags are handled as small extras around common target,
-config, secrets, dry-run, verbose, and JSON-summary flags.
+path. Command-specific parser and help files live beside it as
+`request_<family>.go` and `usage_<family>.go`, with small extras around common
+target, config, secrets, dry-run, verbose, and JSON-summary flags.
 
 ### Path derivation and execution contract
 
@@ -983,14 +990,15 @@ config, secrets, dry-run, verbose, and JSON-summary flags.
 If you have been away from the codebase and need to re-orient quickly, this is the reading order I would recommend:
 
 1. [`cmd/duplicacy-backup/main.go`](../cmd/duplicacy-backup/main.go)
-2. [`internal/command/request.go`](../internal/command/request.go)
-3. [`internal/command/usage.go`](../internal/command/usage.go)
-4. [`internal/workflow/request.go`](../internal/workflow/request.go)
-5. [`internal/workflow/planner.go`](../internal/workflow/planner.go)
-6. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
-7. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
-8. [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
-9. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
+2. [`internal/command/registry.go`](../internal/command/registry.go)
+3. [`internal/command/request.go`](../internal/command/request.go)
+4. [`internal/command/usage.go`](../internal/command/usage.go)
+5. [`internal/workflow/request.go`](../internal/workflow/request.go)
+6. [`internal/workflow/planner.go`](../internal/workflow/planner.go)
+7. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
+8. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
+9. [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
+10. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
 
 That path usually gives the clearest mental model with the least jumping around.
 

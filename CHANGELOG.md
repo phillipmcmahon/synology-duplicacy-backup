@@ -23,6 +23,9 @@ coverage floor and package-level baseline.
 - Health command orchestration now lives with health reports and presentation in
   `internal/health`, leaving `internal/workflow` as the shared planning/state
   bridge rather than the owner of health-specific behaviour.
+- Command parsing/help files are now split by command family, restore command
+  tests are split by plan/run/select responsibilities, and the architecture docs
+  now reflect the extracted restore/health subsystem boundaries.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.
