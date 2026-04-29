@@ -73,8 +73,8 @@ func newIPv4TestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	return server
 }
 
-func newHealthRuntime(now time.Time, tempDir string) Runtime {
-	rt := DefaultRuntime()
+func newHealthRuntime(now time.Time, tempDir string) Env {
+	rt := DefaultEnv()
 	rt.Geteuid = func() int { return 0 }
 	rt.LookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	rt.Now = func() time.Time { return now }

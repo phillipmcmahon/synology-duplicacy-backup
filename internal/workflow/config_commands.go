@@ -21,7 +21,7 @@ var newConfigCommandRunner = func() execpkg.Runner {
 	return runner
 }
 
-func HandleConfigCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+func HandleConfigCommand(req *Request, meta Metadata, rt Env) (string, error) {
 	planner := NewPlanner(meta, rt, nil, newConfigCommandRunner())
 	configReq := NewConfigRequest(req)
 

@@ -21,12 +21,12 @@ type localStoragePolicy interface {
 // should stop before probing them through Duplicacy. Path-based remote mounts
 // are not blocked here because their access is governed by the mount
 // credentials and permissions.
-func localRepositoryRequiresSudo(cfg *config.Config, rt Runtime) bool {
+func localRepositoryRequiresSudo(cfg *config.Config, rt Env) bool {
 	return localRepositoryRequiresSudoForStorage(cfg, rt)
 }
 
-func localRepositoryRequiresSudoForStorage(cfg localStoragePolicy, rt Runtime) bool {
-	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && runtimeEUID(rt) != 0
+func localRepositoryRequiresSudoForStorage(cfg localStoragePolicy, rt Env) bool {
+	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && envEUID(rt) != 0
 }
 
 func restoreStorageRequiresSudo(plan *Plan, storage string) bool {

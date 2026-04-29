@@ -22,7 +22,7 @@ type restoreInterruptTracker struct {
 	started bool
 }
 
-func newRestoreInterruptContext(rt Runtime, progress RestoreProgress, workspace string) (context.Context, func(), *restoreInterruptTracker) {
+func newRestoreInterruptContext(rt Env, progress RestoreProgress, workspace string) (context.Context, func(), *restoreInterruptTracker) {
 	ctx, cancel := context.WithCancel(context.Background())
 	tracker := &restoreInterruptTracker{
 		info: restoreInterruptInfo{Workspace: workspace},

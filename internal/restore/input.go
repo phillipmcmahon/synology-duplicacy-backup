@@ -9,7 +9,7 @@ type restoreLineReader interface {
 	ReadString(delim byte) (string, error)
 }
 
-func runtimeStdinReader(rt Runtime) (*bufio.Reader, bool) {
+func runtimeStdinReader(rt Env) (*bufio.Reader, bool) {
 	if rt.StdinIsTTY == nil || !rt.StdinIsTTY() {
 		return nil, false
 	}

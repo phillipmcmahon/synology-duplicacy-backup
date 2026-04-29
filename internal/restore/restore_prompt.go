@@ -14,7 +14,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 )
 
-func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
+func newRestoreSelectContext(req *RestoreRequest, meta Metadata, rt Env, deps RestoreDeps) (*restoreExecutionContext, func(), error) {
 	planner := NewConfigPlanner(meta, rt)
 	plan := planner.DeriveConfigPlan(req.PlanRequest())
 	cfg, err := planner.LoadConfig(plan)

@@ -24,10 +24,10 @@ const (
 	locationRemote = "remote"
 )
 
-// Runtime provides the environment-facing functions used by request parsing,
+// Env provides the environment-facing functions used by request parsing,
 // planning, and execution. Tests can replace individual functions without
 // needing to stub whole packages.
-type Runtime struct {
+type Env struct {
 	// Geteuid reports the effective user id used for root/sudo policy checks.
 	Geteuid func() int
 	// LookPath resolves required external binaries such as duplicacy and btrfs.
@@ -66,8 +66,8 @@ type UserProfileDirs struct {
 	LockDir    string
 }
 
-func DefaultRuntime() Runtime {
-	return Runtime{
+func DefaultEnv() Env {
+	return Env{
 		Geteuid:       os.Geteuid,
 		LookPath:      exec.LookPath,
 		NewLock:       lock.New,
@@ -105,7 +105,7 @@ type Metadata struct {
 
 // MetadataForLogDir returns metadata rooted around an explicit log directory.
 //
-// Production entry points should use DefaultMetadataForRuntime so defaults
+// Production entry points should use DefaultMetadataForEnv so defaults
 // follow the invoking user's runtime profile. Tests use this helper when
 // they need deterministic sibling state and lock roots.
 func MetadataForLogDir(scriptName, version, buildTime, logDir string) Metadata {
@@ -124,7 +124,7 @@ func MetadataForLogDir(scriptName, version, buildTime, logDir string) Metadata {
 	}
 }
 
-func DefaultMetadataForRuntime(scriptName, version, buildTime string, rt Runtime) Metadata {
+func DefaultMetadataForEnv(scriptName, version, buildTime string, rt Env) Metadata {
 	dirs := DefaultUserProfileDirs(rt)
 	meta := Metadata{
 		ScriptName: scriptName,
@@ -181,22 +181,22 @@ func ValidateTargetName(target string) error {
 	return nil
 }
 
-func ResolveDir(rt Runtime, flagValue, envVar, defaultDir string) string {
+func ResolveDir(rt Env, flagValue, envVar, defaultDir string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	if v := runtimeEnv(rt, envVar); v != "" {
+	if v := envValue(rt, envVar); v != "" {
 		return v
 	}
 	return defaultDir
 }
 
-func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
-	configRoot := runtimeEnv(rt, "XDG_CONFIG_HOME")
+func DefaultUserProfileDirs(rt Env) UserProfileDirs {
+	configRoot := envValue(rt, "XDG_CONFIG_HOME")
 	if configRoot == "" {
 		configRoot = filepath.Join(userHomeDir(rt), ".config")
 	}
-	stateRoot := runtimeEnv(rt, "XDG_STATE_HOME")
+	stateRoot := envValue(rt, "XDG_STATE_HOME")
 	if stateRoot == "" {
 		stateRoot = filepath.Join(userHomeDir(rt), ".local", "state")
 	}
@@ -211,11 +211,11 @@ func DefaultUserProfileDirs(rt Runtime) UserProfileDirs {
 	}
 }
 
-func userHomeDir(rt Runtime) string {
+func userHomeDir(rt Env) string {
 	if home := sudoOperatorHomeDir(rt); home != "" {
 		return home
 	}
-	if home := runtimeEnv(rt, "HOME"); home != "" {
+	if home := envValue(rt, "HOME"); home != "" {
 		return home
 	}
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
@@ -224,8 +224,8 @@ func userHomeDir(rt Runtime) string {
 	return "."
 }
 
-func sudoOperatorHomeDir(rt Runtime) string {
-	if runtimeEUID(rt) != 0 {
+func sudoOperatorHomeDir(rt Env) string {
+	if envEUID(rt) != 0 {
 		return ""
 	}
 	sudoUser, ok := sudoOperatorUser(rt)
@@ -243,40 +243,40 @@ func sudoOperatorHomeDir(rt Runtime) string {
 	return u.HomeDir
 }
 
-func sudoOperatorUser(rt Runtime) (string, bool) {
-	sudoUser := strings.TrimSpace(runtimeEnv(rt, "SUDO_USER"))
+func sudoOperatorUser(rt Env) (string, bool) {
+	sudoUser := strings.TrimSpace(envValue(rt, "SUDO_USER"))
 	if sudoUser == "" || sudoUser == "root" {
 		return "", false
 	}
-	if _, err := strconv.ParseUint(strings.TrimSpace(runtimeEnv(rt, "SUDO_UID")), 10, 32); err != nil {
+	if _, err := strconv.ParseUint(strings.TrimSpace(envValue(rt, "SUDO_UID")), 10, 32); err != nil {
 		return "", false
 	}
 	return sudoUser, true
 }
 
-func HasSudoOperator(rt Runtime) bool {
-	if runtimeEUID(rt) != 0 {
+func HasSudoOperator(rt Env) bool {
+	if envEUID(rt) != 0 {
 		return false
 	}
 	_, ok := sudoOperatorUser(rt)
 	return ok
 }
 
-func sudoOperatorIDs(rt Runtime) (int, int, bool) {
-	if runtimeEUID(rt) != 0 {
+func sudoOperatorIDs(rt Env) (int, int, bool) {
+	if envEUID(rt) != 0 {
 		return 0, 0, false
 	}
 	sudoUser, ok := sudoOperatorUser(rt)
 	if !ok {
 		return 0, 0, false
 	}
-	uid64, err := strconv.ParseUint(strings.TrimSpace(runtimeEnv(rt, "SUDO_UID")), 10, 32)
+	uid64, err := strconv.ParseUint(strings.TrimSpace(envValue(rt, "SUDO_UID")), 10, 32)
 	if err != nil {
 		// Incomplete or malformed sudo metadata is intentionally fail-closed:
 		// profile files remain root-owned rather than guessing an operator.
 		return 0, 0, false
 	}
-	gidValue := strings.TrimSpace(runtimeEnv(rt, "SUDO_GID"))
+	gidValue := strings.TrimSpace(envValue(rt, "SUDO_GID"))
 	if gidValue == "" {
 		lookup := rt.UserLookup
 		if lookup == nil {
@@ -296,32 +296,32 @@ func sudoOperatorIDs(rt Runtime) (int, int, bool) {
 	return int(uid64), int(gid64), true
 }
 
-func RuntimeEUID(rt Runtime) int {
-	return runtimeEUID(rt)
+func EnvEUID(rt Env) int {
+	return envEUID(rt)
 }
 
-func runtimeEUID(rt Runtime) int {
+func envEUID(rt Env) int {
 	if rt.Geteuid == nil {
 		return os.Geteuid()
 	}
 	return rt.Geteuid()
 }
 
-func EffectiveConfigDir(rt Runtime) string {
-	if v := runtimeEnv(rt, "DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
+func EffectiveConfigDir(rt Env) string {
+	if v := envValue(rt, "DUPLICACY_BACKUP_CONFIG_DIR"); v != "" {
 		return v
 	}
 	return DefaultUserProfileDirs(rt).ConfigDir
 }
 
-func EffectiveSecretsDir(rt Runtime) string {
-	if v := runtimeEnv(rt, "DUPLICACY_BACKUP_SECRETS_DIR"); v != "" {
+func EffectiveSecretsDir(rt Env) string {
+	if v := envValue(rt, "DUPLICACY_BACKUP_SECRETS_DIR"); v != "" {
 		return v
 	}
 	return DefaultUserProfileDirs(rt).SecretsDir
 }
 
-func runtimeEnv(rt Runtime, name string) string {
+func envValue(rt Env, name string) string {
 	if rt.Getenv == nil {
 		return os.Getenv(name)
 	}

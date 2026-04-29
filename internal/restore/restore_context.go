@@ -29,7 +29,7 @@ type restoreRunContext struct {
 	meta      Metadata
 }
 
-func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps RestoreDeps) (*restoreRunContext, error) {
+func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Env, deps RestoreDeps) (*restoreRunContext, error) {
 	planner := NewConfigPlanner(meta, rt)
 	plan := planner.DeriveConfigPlan(req.PlanRequest())
 	cfg, err := planner.LoadConfig(plan)
@@ -71,7 +71,7 @@ func newRestoreRunContext(req *RestoreRequest, meta Metadata, rt Runtime, deps R
 	}, nil
 }
 
-func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
+func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Env, allowTemporary bool, deps RestoreDeps) (*restoreExecutionContext, error) {
 	planner := NewConfigPlanner(meta, rt)
 	plan := planner.DeriveConfigPlan(req.PlanRequest())
 	cfg, err := planner.LoadConfig(plan)
@@ -119,7 +119,7 @@ func newRestoreExecutionContext(req *RestoreRequest, meta Metadata, rt Runtime, 
 	}, nil
 }
 
-func validateRestoreRepositoryPrivilege(req *RestoreRequest, cfg localStoragePolicy, rt Runtime) error {
+func validateRestoreRepositoryPrivilege(req *RestoreRequest, cfg localStoragePolicy, rt Env) error {
 	if req == nil || req.Command == RestoreCommandPlan {
 		return nil
 	}

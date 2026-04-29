@@ -42,7 +42,7 @@ type loggerRestoreProgress struct {
 // Restore plan/list-revisions/inspection are read-only formatter paths, so
 // their operation labels are emitted by restore_format.go instead of the
 // runtime presenter.
-func NewRestoreProgress(meta Metadata, rt Runtime, log *logger.Logger) RestoreProgress {
+func NewRestoreProgress(meta Metadata, rt Env, log *logger.Logger) RestoreProgress {
 	if log == nil {
 		return noopRestoreProgress{}
 	}

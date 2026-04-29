@@ -14,7 +14,7 @@ type ParseResult struct {
 	Handled bool
 }
 
-func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
 	}
@@ -33,7 +33,7 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	return nil, workflow.NewUsageRequestError("unknown command %s", args[0])
 }
 
-func parseRuntimeCommandRequest(command string, args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseRuntimeCommandRequest(command string, args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if result := parseHelpRequest(args, UsageText(meta, rt), FullUsageText(meta, rt)); result != nil {
 		return result, nil
 	}
@@ -59,7 +59,7 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 	return &ParseResult{Request: req}, nil
 }
 
-func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if result := parseHelpRequest(args, DiagnosticsUsageText(meta, rt), FullDiagnosticsUsageText(meta, rt)); result != nil {
 		return result, nil
 	}
@@ -75,7 +75,7 @@ func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.
 	return &ParseResult{Request: req}, nil
 }
 
-func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
 		return nil, workflow.NewUsageRequestError("health command required")
 	}
@@ -102,7 +102,7 @@ func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 	return &ParseResult{Request: req}, nil
 }
 
-func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: ConfigUsageText(meta, rt)}, nil
 	}
@@ -129,7 +129,7 @@ func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 	return &ParseResult{Request: req}, nil
 }
 
-func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: NotifyUsageText(meta, rt)}, nil
 	}
@@ -167,7 +167,7 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Runti
 	return &ParseResult{Request: req}, nil
 }
 
-func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: RestoreUsageText(meta, rt)}, nil
 	}
@@ -204,7 +204,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Runt
 	return &ParseResult{Request: req}, nil
 }
 
-func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if result := parseHelpRequest(args, RollbackUsageText(meta, rt), FullRollbackUsageText(meta, rt)); result != nil {
 		return result, nil
 	}
@@ -216,7 +216,7 @@ func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Run
 	return &ParseResult{Request: req}, nil
 }
 
-func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if result := parseHelpRequest(args, UpdateUsageText(meta, rt), FullUpdateUsageText(meta, rt)); result != nil {
 		return result, nil
 	}
@@ -596,7 +596,7 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 	return req, nil
 }
 
-func parseTopLevelMetaRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) *ParseResult {
+func parseTopLevelMetaRequest(args []string, meta workflow.Metadata, rt workflow.Env) *ParseResult {
 	for _, arg := range args {
 		switch arg {
 		case "--help":

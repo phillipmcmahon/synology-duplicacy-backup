@@ -13,16 +13,16 @@ import (
 
 const updateNotifyScope = "update notification config"
 
-func UpdateNotifyConfigPath(configDirFlag string, rt Runtime) string {
+func UpdateNotifyConfigPath(configDirFlag string, rt Env) string {
 	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", EffectiveConfigDir(rt))
 	return filepath.Join(configDir, config.DefaultAppConfigFile)
 }
 
-func LoadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNotifyConfig, string, bool, error) {
+func LoadUpdateNotifyConfig(configDirFlag string, rt Env) (config.HealthNotifyConfig, string, bool, error) {
 	return loadUpdateNotifyConfig(configDirFlag, rt)
 }
 
-func loadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNotifyConfig, string, bool, error) {
+func loadUpdateNotifyConfig(configDirFlag string, rt Env) (config.HealthNotifyConfig, string, bool, error) {
 	configDir := ResolveDir(rt, configDirFlag, "DUPLICACY_BACKUP_CONFIG_DIR", EffectiveConfigDir(rt))
 	path := filepath.Join(configDir, config.DefaultAppConfigFile)
 	appCfg, err := config.LoadAppConfig(path)
@@ -35,7 +35,7 @@ func loadUpdateNotifyConfig(configDirFlag string, rt Runtime) (config.HealthNoti
 	return appCfg.Update.Notify, path, true, nil
 }
 
-func MaybeSendUpdateFailureNotification(req *UpdateRequest, meta Metadata, rt Runtime, updateStatus UpdateStatus, updateErr error) error {
+func MaybeSendUpdateFailureNotification(req *UpdateRequest, meta Metadata, rt Env, updateStatus UpdateStatus, updateErr error) error {
 	if updateErr == nil {
 		return nil
 	}
@@ -51,7 +51,7 @@ func MaybeSendUpdateFailureNotification(req *UpdateRequest, meta Metadata, rt Ru
 	})
 }
 
-func MaybeSendUpdateSuccessNotification(req *UpdateRequest, meta Metadata, rt Runtime, updateStatus UpdateStatus) error {
+func MaybeSendUpdateSuccessNotification(req *UpdateRequest, meta Metadata, rt Env, updateStatus UpdateStatus) error {
 	status, event, summary := classifyUpdateSuccessStatus(updateStatus)
 	if status == "" {
 		return nil
@@ -64,7 +64,7 @@ func MaybeSendUpdateSuccessNotification(req *UpdateRequest, meta Metadata, rt Ru
 	})
 }
 
-func BuildUpdateTestNotificationPayload(req *NotifyRequest, meta Metadata, rt Runtime) *notify.Payload {
+func BuildUpdateTestNotificationPayload(req *NotifyRequest, meta Metadata, rt Env) *notify.Payload {
 	event := strings.TrimSpace(string(req.Event))
 	if event == "" {
 		event = string(notify.EventUpdateInstallFailed)
@@ -88,7 +88,7 @@ func BuildUpdateTestNotificationPayload(req *NotifyRequest, meta Metadata, rt Ru
 	)
 }
 
-func maybeSendUpdateNotification(req *UpdateRequest, rt Runtime, status, event, severity, summary string, details map[string]any) error {
+func maybeSendUpdateNotification(req *UpdateRequest, rt Env, status, event, severity, summary string, details map[string]any) error {
 	configDirFlag := ""
 	if req != nil {
 		configDirFlag = req.ConfigDir
@@ -114,7 +114,7 @@ func updateForce(req *UpdateRequest) bool {
 	return req != nil && req.Force
 }
 
-func shouldSendUpdateNotification(rt Runtime, cfg config.HealthNotifyConfig, status string) bool {
+func shouldSendUpdateNotification(rt Env, cfg config.HealthNotifyConfig, status string) bool {
 	if !notify.HasDestination(cfg) {
 		return false
 	}

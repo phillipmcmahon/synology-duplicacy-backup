@@ -30,7 +30,7 @@ var (
 	restoreProgress                    = defaultRestoreDeps().Progress
 )
 
-func restoreHandleCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+func restoreHandleCommand(req *Request, meta Metadata, rt Env) (string, error) {
 	restoreReq := NewRestoreRequest(req)
 	return handleRestoreCommand(&restoreReq, meta, rt, RestoreDeps{
 		NewRunner:            newRestoreCommandRunner,
@@ -43,7 +43,7 @@ func restoreHandleCommand(req *Request, meta Metadata, rt Runtime) (string, erro
 	})
 }
 
-func restoreSelectRuntime(t *testing.T, input string) Runtime {
+func restoreSelectRuntime(t *testing.T, input string) Env {
 	t.Helper()
 	rt := testRuntime()
 	tempDir := t.TempDir()
@@ -64,7 +64,7 @@ func restoreSelectRuntime(t *testing.T, input string) Runtime {
 	return rt
 }
 
-func nonRootRestoreRuntime() Runtime {
+func nonRootRestoreRuntime() Env {
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
 	return rt
@@ -385,7 +385,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 	tests := []struct {
 		name string
 		req  *Request
-		rt   Runtime
+		rt   Env
 	}{
 		{
 			name: "list revisions",
@@ -400,7 +400,7 @@ func TestHandleRestoreCommand_LocalRepositoryRequiresSudoForMetadataCommands(t *
 		{
 			name: "select",
 			req:  &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"},
-			rt: func() Runtime {
+			rt: func() Env {
 				rt := restoreSelectRuntime(t, "1\n")
 				rt.Geteuid = func() int { return 1000 }
 				return rt
@@ -542,7 +542,7 @@ func TestHandleRestoreCommand_RunSudoOperatorRepairsWorkspaceOwnership(t *testin
 			return ""
 		}
 	}
-	meta := DefaultMetadataForRuntime("duplicacy-backup", "1.0.0", "now", rt)
+	meta := DefaultMetadataForEnv("duplicacy-backup", "1.0.0", "now", rt)
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365"))
 
 	type chownCall struct {

@@ -43,13 +43,13 @@ The main split blockers are not file names. They are shared workflow contracts:
 
 | Shared item | Why it blocks package movement |
 |---|---|
-| `Runtime` | Every command family uses the same OS/process/time/env seams for tests and DSM behaviour. |
+| `Env` | Every command family uses the same OS/process/time/env seams for tests and DSM behaviour. |
 | `Metadata` | Carries runtime paths, owner metadata, binary identity, root volume, and log/lock paths. |
-| `Plan` | Now section-owned by `Request`, `Config`, `Paths`, and `Display`, but still shared by runtime, config, health, diagnostics, restore, reporting, and notification code. |
+| `Plan` | Now section-owned by `Request`, `Config`, and `Paths`, but still shared by runtime, config, health, diagnostics, restore, reporting, and notification code. |
 | Request projections | `ConfigPlanRequest`, `RuntimeRequest`, `RestoreRequest`, `HealthRequest`, `NotifyRequest`, update/rollback requests provide the command-family boundary. |
 | Error helpers | `RequestError`, `MessageError`, and `OperatorMessage` keep command surfaces consistent. |
 | Privilege policy | Direct-root rejection and sudo-required local repository checks span config, health, restore, prune, and cleanup-storage. |
-| Presentation/logging | Runtime presenter and health/restore output share vocabulary and operator-facing conventions. |
+| Presentation/logging | Runtime command presenter and health/restore output share vocabulary and operator-facing conventions. |
 
 `Plan` section ownership removes the worst ambiguity, but moving a command
 family before the remaining ownership questions are resolved would still either
@@ -62,13 +62,13 @@ After `#255`, the smallest plausible shared core is:
 
 | Candidate core item | Decision |
 |---|---|
-| `Runtime` | Core candidate. It is a genuine cross-command DSM/test seam. |
+| `Env` | Core candidate. It is a genuine cross-command DSM/test seam. |
 | `Metadata` | Core candidate. It carries runtime paths, app identity, root volume, and profile ownership. |
 | `RequestError`, `MessageError`, `OperatorMessage` | Core candidate only if subpackages emit operator-facing errors directly. |
 | Local repository privilege predicates | Core candidate only if restore/config/health/runtime all move out; otherwise keep in workflow to avoid policy drift. |
 | `Plan` | Not a first core move. Keep in workflow until a real subpackage proves it needs the whole runtime plan contract. |
 | `ConfigPlanRequest` | Not a first core move. It is a planner input, and moving it too early would pull planner ownership into core. |
-| Runtime presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
+| Runtime command presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
 
 The first extraction candidate is still restore. A restore split would need one
 of two shapes:
@@ -101,7 +101,7 @@ filename discipline rather than by Go import boundaries.
 
 ### Option B: Extract `internal/workflow/core`
 
-Move `Runtime`, `Metadata`, `Plan`, request errors, privilege policy, and common
+Move `Env`, `Metadata`, `Plan`, request errors, privilege policy, and common
 helpers into a shared core package, then move command families into
 subpackages.
 
@@ -116,7 +116,7 @@ to a small core rather than sideways to workflow internals.
 
 Restore is the best candidate because it is already cohesive and has a clear
 external UI. It is not ready to move until the shared strategy for `Plan`,
-`Runtime`, `Metadata`, restore progress, request errors, and local repository
+`Env`, `Metadata`, restore progress, request errors, and local repository
 privilege policy is explicit.
 
 ## Decision
@@ -155,7 +155,7 @@ Reopen package splitting when at least one of these is true:
   more files to `internal/workflow`.
 - Restore, health, update, or runtime code starts reaching into another command
   family's files instead of shared primitives.
-- `Runtime`, `Metadata`, request errors, and privilege policy have a small,
+- `Env`, `Metadata`, request errors, and privilege policy have a small,
   clearly named home that is not just a dumping ground.
 - Restore planning/reporting helpers can move without also moving config
   resolution, privilege policy, runtime profile handling, and live progress

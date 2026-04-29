@@ -34,7 +34,7 @@ func restoreUsage(meta workflow.Metadata) string {
 	return strings.ReplaceAll(restoreUsageLine, "{{script}}", meta.ScriptName)
 }
 
-func RestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func RestoreUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{restore_usage}}
 
 Restore commands:
@@ -80,7 +80,7 @@ Use --help-full for the detailed restore reference.
 	)
 }
 
-func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullRestoreUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{restore_usage}}
 

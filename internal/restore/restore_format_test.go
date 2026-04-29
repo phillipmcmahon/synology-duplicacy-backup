@@ -33,7 +33,7 @@ func TestMarshalRestoreJSONAndShellQuote(t *testing.T) {
 func TestConfirmRestoreRun(t *testing.T) {
 	report := &restoreRunReport{Revision: 8, Workspace: "/volume1/restore-drills/homes-onsite-usb-20260425-130000-rev8"}
 
-	if ok, err := confirmRestoreRun(Runtime{StdinIsTTY: func() bool { return false }}, report); err == nil || ok {
+	if ok, err := confirmRestoreRun(Env{StdinIsTTY: func() bool { return false }}, report); err == nil || ok {
 		t.Fatalf("non-interactive confirm = %t, %v", ok, err)
 	}
 
@@ -49,7 +49,7 @@ func TestConfirmRestoreRun(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			stdin := restoreTempStdin(t, tc.input)
-			rt := Runtime{
+			rt := Env{
 				Stdin:      func() *os.File { return stdin },
 				StdinIsTTY: func() bool { return true },
 			}

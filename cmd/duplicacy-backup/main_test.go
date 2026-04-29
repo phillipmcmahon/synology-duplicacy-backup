@@ -71,11 +71,8 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 func withTestGlobals(t *testing.T, fn func()) {
 	t.Helper()
 	oldLogDir := logDir
-	oldGeteuid := geteuid
-	oldLookPath := lookPath
+	oldDefaultEnv := defaultEnv
 	oldIsSynologyDSM := isSynologyDSM
-	oldNewLock := newLock
-	oldNewSourceLock := newSourceLock
 	oldHandleConfigCommand := handleConfigCommand
 	oldHandleDiagnosticsCommand := handleDiagnosticsCommand
 	oldHandleRestoreCommand := handleRestoreCommand
@@ -84,14 +81,18 @@ func withTestGlobals(t *testing.T, fn func()) {
 	oldMaybeSendPreRunFailureNotification := maybeSendPreRunFailureNotification
 
 	logDir = t.TempDir()
-	geteuid = func() int { return 0 }
 	t.Setenv("SUDO_USER", "operator")
 	t.Setenv("SUDO_UID", "1000")
-	lookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	isSynologyDSM = func() bool { return true }
 	lockParent := t.TempDir()
-	newLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
-	newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
+	defaultEnv = func() workflow.Env {
+		rt := workflow.DefaultEnv()
+		rt.Geteuid = func() int { return 0 }
+		rt.LookPath = func(string) (string, error) { return "/usr/bin/true", nil }
+		rt.NewLock = func(_, label string) *lock.Lock { return lock.New(lockParent, label) }
+		rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(lockParent, label) }
+		return rt
+	}
 	handleConfigCommand = workflow.HandleConfigCommand
 	handleDiagnosticsCommand = workflow.HandleDiagnosticsCommand
 	handleRestoreCommand = restore.HandleRestoreCommand
@@ -101,11 +102,8 @@ func withTestGlobals(t *testing.T, fn func()) {
 
 	t.Cleanup(func() {
 		logDir = oldLogDir
-		geteuid = oldGeteuid
-		lookPath = oldLookPath
+		defaultEnv = oldDefaultEnv
 		isSynologyDSM = oldIsSynologyDSM
-		newLock = oldNewLock
-		newSourceLock = oldNewSourceLock
 		handleConfigCommand = oldHandleConfigCommand
 		handleDiagnosticsCommand = oldHandleDiagnosticsCommand
 		handleRestoreCommand = oldHandleRestoreCommand
@@ -115,6 +113,19 @@ func withTestGlobals(t *testing.T, fn func()) {
 	})
 
 	fn()
+}
+
+func overrideTestEnv(t *testing.T, mutate func(*workflow.Env)) {
+	t.Helper()
+	oldDefaultEnv := defaultEnv
+	defaultEnv = func() workflow.Env {
+		rt := oldDefaultEnv()
+		mutate(&rt)
+		return rt
+	}
+	t.Cleanup(func() {
+		defaultEnv = oldDefaultEnv
+	})
 }
 
 func writeConfig(t *testing.T, dir, label, body string) string {
@@ -292,7 +303,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 
 func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	cases := []struct {
 		name       string
@@ -310,7 +321,7 @@ func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			withTestGlobals(t, func() {
-				handleRestoreCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+				handleRestoreCommand = func(*workflow.Request, workflow.Metadata, workflow.Env) (string, error) {
 					return tc.output, tc.err
 				}
 				stdout, stderr := captureOutput(t, func() {
@@ -376,7 +387,7 @@ func TestWriteCommandFailureHonoursForcedColour(t *testing.T) {
 
 func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	withTestGlobals(t, func() {
 		rt.Geteuid = func() int { return 1000 }
@@ -393,7 +404,7 @@ func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 
 	withTestGlobals(t, func() {
 		rt.Geteuid = func() int { return 0 }
-		handleRollbackCommand = func(*workflow.RollbackRequest, workflow.Metadata, workflow.Runtime) (update.RollbackResult, error) {
+		handleRollbackCommand = func(*workflow.RollbackRequest, workflow.Metadata, workflow.Env) (update.RollbackResult, error) {
 			return update.RollbackResult{Output: "Rollback\n  Result               : Ready to rollback\n"}, nil
 		}
 		stdout, stderr := captureOutput(t, func() {
@@ -410,7 +421,7 @@ func TestRunRollbackRequestPrivilegeAndSuccess(t *testing.T) {
 
 func TestRunHealthNonRootReachesRealDependencyFailure(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 	rt.Geteuid = func() int { return 1000 }
 	rt.Now = func() time.Time { return time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC) }
 
@@ -447,11 +458,11 @@ func TestUpdateAndRollbackOptionAdapters(t *testing.T) {
 
 func TestRunUpdateRequestFailureNotificationWarning(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 	rt.Geteuid = func() int { return 0 }
 
 	withTestGlobals(t, func() {
-		handleUpdateCommand = func(*workflow.UpdateRequest, workflow.Metadata, workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(*workflow.UpdateRequest, workflow.Metadata, workflow.Env) (update.Result, error) {
 			return update.Result{Status: update.StatusFailed}, errors.New("install failed")
 		}
 		_, stderr := captureOutput(t, func() {
@@ -679,7 +690,7 @@ func TestRunWithArgs_UpdateHelpFullReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			if req.Command != "update" || !req.CheckOnly || !req.Force || req.Keep != 2 {
 				t.Fatalf("req = %+v", req)
 			}
@@ -702,7 +713,7 @@ func TestRunWithArgs_UpdateCheckOnlyReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_DiagnosticsDispatchReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		handleDiagnosticsCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		handleDiagnosticsCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			if req.DiagnosticsCommand != "diagnostics" || req.Target() != "onsite-usb" || req.Source != "homes" || !req.JSONSummary {
 				t.Fatalf("req = %+v", req)
 			}
@@ -725,8 +736,8 @@ func TestRunWithArgs_DiagnosticsDispatchReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_RollbackCheckOnlyNonRootReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Env) (update.RollbackResult, error) {
 			if req.Command != "rollback" || !req.CheckOnly {
 				t.Fatalf("req = %+v", req)
 			}
@@ -749,9 +760,9 @@ func TestRunWithArgs_RollbackCheckOnlyNonRootReturnsZero(t *testing.T) {
 
 func TestRunWithArgs_RollbackActivationNonRootFailsBeforeHandler(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
 		called := false
-		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+		handleRollbackCommand = func(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Env) (update.RollbackResult, error) {
 			called = true
 			return update.RollbackResult{}, nil
 		}
@@ -776,9 +787,9 @@ func TestRunWithArgs_RollbackActivationNonRootFailsBeforeHandler(t *testing.T) {
 
 func TestRunWithArgs_UpdateInstallNonRootFailsBeforeHandler(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
 		called := false
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			called = true
 			return update.Result{}, nil
 		}
@@ -807,8 +818,8 @@ func TestRunWithArgs_UpdateInstallNonRootFailsBeforeHandler(t *testing.T) {
 
 func TestRunWithArgs_UpdateCheckOnlyNonRootReturnsZero(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			if !req.CheckOnly {
 				t.Fatalf("CheckOnly = false")
 			}
@@ -840,7 +851,7 @@ func TestRunWithArgs_UpdateFailureSendsConfiguredNotification(t *testing.T) {
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
@@ -867,7 +878,7 @@ func TestRunWithArgs_UpdateFailureNotificationFailureDoesNotMaskUpdateError(t *t
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "failed")
 
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			return update.Result{Status: update.StatusFailed}, fmt.Errorf("update install failed: exit status 1")
 		}
 
@@ -892,7 +903,7 @@ func TestRunWithArgs_UpdateSuccessNotificationFailureDoesNotFailCommand(t *testi
 		defer server.Close()
 		writeUpdateNotifyAppConfig(t, configDir, server.URL, "succeeded")
 
-		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+		handleUpdateCommand = func(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 			return update.Result{
 				Output: "Update\n  Human text changed   : yes\n",
 				Status: update.StatusInstalled,
@@ -939,7 +950,7 @@ func TestRunWithArgs_HealthStatusLoggerInitFailureJSONReturnsTwo(t *testing.T) {
 
 func TestRunWithArgs_HealthStatusNonRootJSONFailure(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"health", "status", "--target", "onsite-usb", "--json-summary", "homes"}); code != 2 {
 				t.Fatalf("runWithArgs(health status non-root) = %d", code)
@@ -1028,7 +1039,7 @@ func TestRunWithArgs_OperationalCommandRequiresSynologyDSM(t *testing.T) {
 	withTestGlobals(t, func() {
 		isSynologyDSM = func() bool { return false }
 		called := false
-		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Env) (string, error) {
 			called = true
 			return "", nil
 		}
@@ -1055,7 +1066,7 @@ func TestRunWithArgs_DirectRootConfigRequiresExplicitRuntimeProfile(t *testing.T
 		t.Setenv("SUDO_USER", "")
 		t.Setenv("SUDO_UID", "")
 		called := false
-		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Runtime) (string, error) {
+		handleConfigCommand = func(*workflow.Request, workflow.Metadata, workflow.Env) (string, error) {
 			called = true
 			return "config ok\n", nil
 		}
@@ -1224,7 +1235,7 @@ func TestRunWithArgs_DirectRootAllowsExplicitRuntimeProfile(t *testing.T) {
 		t.Setenv("SUDO_UID", "")
 		t.Setenv("XDG_STATE_HOME", t.TempDir())
 		logDir = ""
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			if req.ConfigDir == "" || req.SecretsDir == "" {
 				t.Fatalf("expected explicit profile request, got %+v", req)
 			}
@@ -1313,7 +1324,7 @@ func TestRunWithArgs_ExtraPositionalArgsReturnOne(t *testing.T) {
 
 func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(non-root) = %d", code)
@@ -1330,7 +1341,7 @@ func TestRunWithArgs_NonRootReturnsOne(t *testing.T) {
 
 func TestRunWithArgs_NonRootPruneJSONReachesConfigFailure(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
 		stdout, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"prune", "--target", "onsite-usb", "--json-summary", "homes"}); code != 1 {
 				t.Fatalf("runWithArgs(non-root prune json) = %d", code)
@@ -1350,8 +1361,8 @@ func TestRunWithArgs_NonRootPruneJSONReachesConfigFailure(t *testing.T) {
 
 func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			return "Config validation succeeded for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Writable\n    Repository Access  : Valid\n  Result               : Passed\n", nil
 		}
 		stdout, stderr := captureOutput(t, func() {
@@ -1378,8 +1389,8 @@ func TestRunWithArgs_ConfigValidateReturnsZeroWithoutRoot(t *testing.T) {
 
 func TestRunWithArgs_ConfigValidateVerboseReturnsZeroWithoutRoot(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			if !req.Verbose {
 				t.Fatalf("expected verbose request, got %+v", req)
 			}
@@ -1424,8 +1435,8 @@ func TestRunWithArgs_ConfigValidateMissingTargetDoesNotRequireLogger(t *testing.
 
 func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/onsite-usb",
 				Output:  "Config validation failed for homes/onsite-usb\n  Section: Resolved\n    Label              : homes\n    Target             : onsite-usb\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Invalid (source_path does not exist: /volume1/homes/nested)\n    Btrfs Source       : Not checked\n    Required Settings  : Valid\n    Storage Access     : Writable\n    Repository Access  : Not checked\n  Result               : Failed\n",
@@ -1452,8 +1463,8 @@ func TestRunWithArgs_ConfigValidateFailurePrintsReportAndReturnsOne(t *testing.T
 
 func TestRunWithArgs_ConfigValidatePermissionDeniedReportsAccessIssue(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			return "", apperrors.NewConfigError(
 				"open",
 				fmt.Errorf("cannot open config file /home/operator/.config/duplicacy-backup/homes-backup.toml: %w", os.ErrPermission),
@@ -1479,8 +1490,8 @@ func TestRunWithArgs_ConfigValidatePermissionDeniedReportsAccessIssue(t *testing
 
 func TestRunWithArgs_ConfigValidateUninitializedRepositoryPrintsHint(t *testing.T) {
 	withTestGlobals(t, func() {
-		geteuid = func() int { return 1000 }
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		overrideTestEnv(t, func(rt *workflow.Env) { rt.Geteuid = func() int { return 1000 } })
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/offsite-storj; initialize the repository before running backups",
 				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Resolved\n    Secrets            : Valid\n    Repository Access  : Not initialized\n  Result               : Failed\n",
@@ -1503,7 +1514,7 @@ func TestRunWithArgs_ConfigValidateUninitializedRepositoryPrintsHint(t *testing.
 func TestRunWithArgs_ConfigValidateInaccessibleRepositoryDoesNotPrintInitHint(t *testing.T) {
 	withTestGlobals(t, func() {
 		oldHandle := handleConfigCommand
-		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) (string, error) {
+		handleConfigCommand = func(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) (string, error) {
 			return "", &workflow.ConfigCommandError{
 				Message: "Config validation failed for homes/offsite-storj",
 				Output:  "Config validation failed for homes/offsite-storj\n  Section: Resolved\n    Label              : homes\n    Target             : offsite-storj\n    Config File        : /tmp/homes-backup.toml\n  Section: Validation\n    Config             : Valid\n    Source Path Access : Readable\n    Btrfs Source       : Valid\n    Required Settings  : Valid\n    Health Thresholds  : Valid\n    Storage Access     : Resolved\n    Secrets            : Valid\n    Repository Access  : Invalid (Repository is not ready)\n  Result               : Failed\n",
@@ -1675,8 +1686,10 @@ func TestRunWithArgs_LockAcquisitionFailureReturnsOne(t *testing.T) {
 		if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
 			t.Fatalf("WriteFile() error = %v", err)
 		}
-		newLock = func(_, label string) *lock.Lock { return lock.New(blocker, label) }
-		newSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(blocker, label) }
+		overrideTestEnv(t, func(rt *workflow.Env) {
+			rt.NewLock = func(_, label string) *lock.Lock { return lock.New(blocker, label) }
+			rt.NewSourceLock = func(_, label string) *lock.Lock { return lock.NewSource(blocker, label) }
+		})
 
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"prune", "--target", "onsite-usb", "--dry-run", "--config-dir", configDir, "homes"}); code != 1 {
@@ -1804,17 +1817,19 @@ func TestRunWithArgs_PreRunBackupFailureSendsNotificationWhenConfigured(t *testi
 		}, "\n"))
 
 		captured := make(chan *workflow.RuntimeRequest, 1)
-		maybeSendPreRunFailureNotification = func(rt workflow.Runtime, interactive bool, plan *workflow.Plan, req *workflow.RuntimeRequest, startedAt, completedAt time.Time, err error) error {
+		maybeSendPreRunFailureNotification = func(rt workflow.Env, interactive bool, plan *workflow.Plan, req *workflow.RuntimeRequest, startedAt, completedAt time.Time, err error) error {
 			captured <- req
 			return nil
 		}
 
-		lookPath = func(name string) (string, error) {
-			if name == "duplicacy" {
-				return "", fmt.Errorf("not found")
+		overrideTestEnv(t, func(rt *workflow.Env) {
+			rt.LookPath = func(name string) (string, error) {
+				if name == "duplicacy" {
+					return "", fmt.Errorf("not found")
+				}
+				return "/usr/bin/true", nil
 			}
-			return "/usr/bin/true", nil
-		}
+		})
 
 		_, stderr := captureOutput(t, func() {
 			if code := runWithArgs([]string{"backup", "--target", "onsite-usb", "--config-dir", configDir, "homes"}); code != 1 {
@@ -2062,7 +2077,7 @@ func TestWriteHealthJSONSummaryFailureOnlyUpgradesHealthySuccess(t *testing.T) {
 
 func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
 	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	stdout, stderr := captureOutput(t, func() {
 		result, code := buildRequest([]string{"health", "verify", "--json-summary", "--target", "offsite-storj"}, meta, rt)
@@ -2083,7 +2098,7 @@ func TestBuildRequest_JSONSummaryHealthFailureInfersRequest(t *testing.T) {
 
 func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	stdout, stderr := captureOutput(t, func() {
 		result, code := buildRequest([]string{"notify", "test", "--json-summary", "--target", "offsite-storj"}, meta, rt)
@@ -2107,7 +2122,7 @@ func TestBuildRequest_JSONSummaryNotifyFailureInfersRequest(t *testing.T) {
 
 func TestBuildRequest_JSONSummaryNotifyUpdateFailureInfersScope(t *testing.T) {
 	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, t.TempDir())
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	stdout, stderr := captureOutput(t, func() {
 		result, code := buildRequest([]string{"notify", "test", "update", "--json-summary", "--event", "unknown"}, meta, rt)
@@ -2204,7 +2219,7 @@ func TestBuildRequest_JSONSummaryParseFailureDoesNotRequireLogger(t *testing.T) 
 	}
 
 	meta := workflow.MetadataForLogDir(scriptName, version, buildTime, logFilePath)
-	rt := workflow.DefaultRuntime()
+	rt := workflow.DefaultEnv()
 
 	stdout, stderr := captureOutput(t, func() {
 		result, code := buildRequest([]string{"--json-summary", "--nope"}, meta, rt)

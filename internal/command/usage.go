@@ -9,7 +9,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func UsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
        {{script}} backup [OPTIONS] <source>
        {{script}} prune [OPTIONS] <source>
@@ -81,14 +81,14 @@ func scriptTemplate(meta workflow.Metadata, template string, replacements ...str
 	return strings.NewReplacer(pairs...).Replace(template)
 }
 
-func defaultSecretsDirDisplay(rt workflow.Runtime) string {
+func defaultSecretsDirDisplay(rt workflow.Env) string {
 	if rt.Getenv("DUPLICACY_BACKUP_SECRETS_DIR") != "" {
 		return workflow.EffectiveSecretsDir(rt)
 	}
 	return "$HOME/.config/duplicacy-backup/secrets"
 }
 
-func FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
        {{script}} backup [OPTIONS] <source>
@@ -394,7 +394,7 @@ EXAMPLES:
 	)
 }
 
-func ConfigUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func ConfigUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
 
 Config commands:
@@ -420,7 +420,7 @@ Use --help-full for the detailed config reference.
 	)
 }
 
-func DiagnosticsUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func DiagnosticsUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
 
 Diagnostics options:
@@ -441,7 +441,7 @@ Use --help-full for the detailed diagnostics reference.
 	)
 }
 
-func FullDiagnosticsUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullDiagnosticsUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
 
@@ -483,7 +483,7 @@ EXAMPLES:
 	)
 }
 
-func NotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func NotifyUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
 
 Notify commands:
@@ -515,7 +515,7 @@ Use --help-full for the detailed notify reference.
 	)
 }
 
-func FullNotifyUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullNotifyUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
 
 NOTIFY COMMANDS:
@@ -570,7 +570,7 @@ EXAMPLES:
 	)
 }
 
-func UpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func UpdateUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} update [OPTIONS]
 
 Update options:
@@ -597,7 +597,7 @@ Use --help-full for the detailed update reference.
 	)
 }
 
-func RollbackUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func RollbackUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} rollback [OPTIONS]
 
 Rollback options:
@@ -616,7 +616,7 @@ Use --help-full for the detailed rollback reference.
 `)
 }
 
-func FullRollbackUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullRollbackUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	return scriptTemplate(meta, `Usage: {{script}} rollback [OPTIONS]
 
 ROLLBACK BEHAVIOUR:
@@ -652,7 +652,7 @@ EXAMPLES:
 `)
 }
 
-func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullUpdateUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{script}} update [OPTIONS]
 
@@ -731,7 +731,7 @@ EXAMPLES:
 	)
 }
 
-func FullConfigUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func FullConfigUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
 	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
 

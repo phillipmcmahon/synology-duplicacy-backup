@@ -17,8 +17,8 @@ const (
 	locationRemote = "remote"
 )
 
-func testRuntime() Runtime {
-	rt := DefaultRuntime()
+func testRuntime() Env {
+	rt := DefaultEnv()
 	rt.Geteuid = func() int { return 0 }
 	rt.LookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	rt.Now = func() time.Time { return time.Date(2026, 4, 9, 18, 0, 0, 0, time.UTC) }

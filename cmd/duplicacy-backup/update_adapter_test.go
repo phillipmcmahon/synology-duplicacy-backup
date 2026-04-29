@@ -64,7 +64,7 @@ func TestHandleUpdateRequestUsesWorkflowRuntime(t *testing.T) {
 	_, err := handleUpdateRequest(
 		&workflow.UpdateRequest{Command: "update", CheckOnly: true, Keep: update.DefaultKeep},
 		workflow.Metadata{ScriptName: "duplicacy-backup", Version: "v4.1.8"},
-		workflow.Runtime{
+		workflow.Env{
 			Stdin:        func() *os.File { return os.Stdin },
 			StdinIsTTY:   func() bool { return false },
 			Executable:   func() (string, error) { return "/tmp/custom-binary", nil },

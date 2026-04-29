@@ -18,19 +18,19 @@ import (
 
 type Planner struct {
 	meta   Metadata
-	rt     Runtime
+	rt     Env
 	log    *logger.Logger
 	runner execpkg.Runner
 }
 
-func NewPlanner(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner) *Planner {
+func NewPlanner(meta Metadata, rt Env, log *logger.Logger, runner execpkg.Runner) *Planner {
 	return &Planner{meta: meta, rt: rt, log: log, runner: runner}
 }
 
 // NewConfigPlanner creates a planner for config-only command paths. Callers
 // must only use methods that derive plans or load configuration; runtime probes
 // and execution paths require NewPlanner with a logger and command runner.
-func NewConfigPlanner(meta Metadata, rt Runtime) *Planner {
+func NewConfigPlanner(meta Metadata, rt Env) *Planner {
 	return NewPlanner(meta, rt, nil, nil)
 }
 
@@ -307,7 +307,7 @@ func (p *Plan) applyConfigIdentity(cfg *config.Config) {
 	p.Config.Notify = cfg.Health.Notify
 }
 
-func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
+func (p *Plan) applyConfig(cfg *config.Config, rt Env) {
 	if p == nil || cfg == nil {
 		return
 	}
@@ -333,7 +333,7 @@ func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
 
 // ApplyConfig projects resolved configuration values onto the orchestration
 // plan after config validation has completed.
-func (p *Plan) ApplyConfig(cfg *config.Config, rt Runtime) {
+func (p *Plan) ApplyConfig(cfg *config.Config, rt Env) {
 	p.applyConfig(cfg, rt)
 }
 

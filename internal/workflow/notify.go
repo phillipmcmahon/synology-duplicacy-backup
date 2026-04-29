@@ -9,7 +9,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 )
 
-func shouldSendConfiguredNotification(rt Runtime, interactive bool, cfg config.HealthNotifyConfig, sendFor string) bool {
+func shouldSendConfiguredNotification(rt Env, interactive bool, cfg config.HealthNotifyConfig, sendFor string) bool {
 	if !notify.HasDestination(cfg) {
 		return false
 	}
@@ -22,7 +22,7 @@ func shouldSendConfiguredNotification(rt Runtime, interactive bool, cfg config.H
 	return containsString(cfg.SendFor, sendFor)
 }
 
-func buildTestNotificationPayload(rt Runtime, label, target, location string, req *NotifyRequest) *notify.Payload {
+func buildTestNotificationPayload(rt Env, label, target, location string, req *NotifyRequest) *notify.Payload {
 	return notify.BuildTestPayload(
 		rt.Now(),
 		rt.Getpid(),
@@ -35,7 +35,7 @@ func buildTestNotificationPayload(rt Runtime, label, target, location string, re
 	)
 }
 
-func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, err error, visibleRunStarted bool, preview *duplicacy.PrunePreview) *notify.Payload {
+func buildRuntimeNotificationPayload(rt Env, plan *Plan, report *RunReport, err error, visibleRunStarted bool, preview *duplicacy.PrunePreview) *notify.Payload {
 	if plan == nil || report == nil || err == nil {
 		return nil
 	}
@@ -99,7 +99,7 @@ func buildRuntimeNotificationPayload(rt Runtime, plan *Plan, report *RunReport, 
 	}
 }
 
-func buildHealthNotificationPayload(rt Runtime, report *HealthReport) *notify.Payload {
+func buildHealthNotificationPayload(rt Env, report *HealthReport) *notify.Payload {
 	if report == nil {
 		return nil
 	}

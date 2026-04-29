@@ -11,7 +11,7 @@ type Plan = workflow.Plan
 type PlanConfig = workflow.PlanConfig
 type PlanPaths = workflow.PlanPaths
 type Request = workflow.Request
-type Runtime = workflow.Runtime
+type Env = workflow.Env
 type RunState = workflow.RunState
 type SummaryLine = workflow.SummaryLine
 
@@ -20,8 +20,8 @@ var ErrRestoreInterrupted = workflow.ErrRestoreInterrupted
 
 var NewConfigPlanner = workflow.NewConfigPlanner
 var NewRequestError = workflow.NewRequestError
-var DefaultRuntime = workflow.DefaultRuntime
-var DefaultMetadataForRuntime = workflow.DefaultMetadataForRuntime
+var DefaultEnv = workflow.DefaultEnv
+var DefaultMetadataForEnv = workflow.DefaultMetadataForEnv
 var LoadRunState = workflow.LoadRunState
 var MetadataForLogDir = workflow.MetadataForLogDir
 var NewMessageError = workflow.NewMessageError

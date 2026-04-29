@@ -95,17 +95,17 @@ func TestRuntimeUserProfileDefaultsTolerateZeroRuntime(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("XDG_STATE_HOME", "")
 
-	dirs := DefaultUserProfileDirs(Runtime{})
+	dirs := DefaultUserProfileDirs(Env{})
 	if dirs.ConfigDir == "" || dirs.SecretsDir == "" || dirs.LogDir == "" || dirs.StateDir == "" || dirs.LockDir == "" {
-		t.Fatalf("DefaultUserProfileDirs(Runtime{}) = %#v", dirs)
+		t.Fatalf("DefaultUserProfileDirs(Env{}) = %#v", dirs)
 	}
-	if got := ResolveDir(Runtime{}, "", "DUPLICACY_BACKUP_CONFIG_DIR", "/fallback"); got != "/fallback" {
-		t.Fatalf("ResolveDir(Runtime{}) = %q, want /fallback", got)
+	if got := ResolveDir(Env{}, "", "DUPLICACY_BACKUP_CONFIG_DIR", "/fallback"); got != "/fallback" {
+		t.Fatalf("ResolveDir(Env{}) = %q, want /fallback", got)
 	}
 }
 
 func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
-	rt := Runtime{
+	rt := Env{
 		Geteuid: func() int { return 0 },
 		Getenv: func(key string) string {
 			switch key {
@@ -143,14 +143,14 @@ func TestRuntimeUserProfileDefaultsUseSudoOperatorHome(t *testing.T) {
 		t.Fatalf("StateDir = %q", dirs.StateDir)
 	}
 
-	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	meta := DefaultMetadataForEnv("duplicacy-backup", "9.1.0", "now", rt)
 	if !meta.HasProfileOwner || meta.ProfileOwnerUID != 1026 || meta.ProfileOwnerGID != 100 {
 		t.Fatalf("profile owner = %t %d:%d, want true 1026:100", meta.HasProfileOwner, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}
 }
 
-func TestDefaultMetadataForRuntimeUsesLookupGIDWhenSudoGIDMissing(t *testing.T) {
-	rt := Runtime{
+func TestDefaultMetadataForEnvUsesLookupGIDWhenSudoGIDMissing(t *testing.T) {
+	rt := Env{
 		Geteuid: func() int { return 0 },
 		Getenv: func(key string) string {
 			switch key {
@@ -172,7 +172,7 @@ func TestDefaultMetadataForRuntimeUsesLookupGIDWhenSudoGIDMissing(t *testing.T) 
 		},
 	}
 
-	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	meta := DefaultMetadataForEnv("duplicacy-backup", "9.1.0", "now", rt)
 	if !meta.HasProfileOwner || meta.ProfileOwnerUID != 1026 || meta.ProfileOwnerGID != 100 {
 		t.Fatalf("profile owner = %t %d:%d, want true 1026:100", meta.HasProfileOwner, meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}
@@ -207,7 +207,7 @@ func TestRuntimeUserProfileDefaultsIncompleteSudoMetadataUsesRootHome(t *testing
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rt := Runtime{
+			rt := Env{
 				Geteuid: func() int { return 0 },
 				Getenv: func(key string) string {
 					return tc.env[key]
@@ -230,7 +230,7 @@ func TestRuntimeUserProfileDefaultsIncompleteSudoMetadataUsesRootHome(t *testing
 }
 
 func TestRuntimeUserProfileDefaultsDirectRootUsesRootHome(t *testing.T) {
-	rt := Runtime{
+	rt := Env{
 		Geteuid: func() int { return 0 },
 		Getenv: func(key string) string {
 			if key == "HOME" {
@@ -252,7 +252,7 @@ func TestRuntimeUserProfileDefaultsDirectRootUsesRootHome(t *testing.T) {
 		t.Fatalf("SecretsDir = %q", dirs.SecretsDir)
 	}
 
-	meta := DefaultMetadataForRuntime("duplicacy-backup", "9.1.0", "now", rt)
+	meta := DefaultMetadataForEnv("duplicacy-backup", "9.1.0", "now", rt)
 	if meta.HasProfileOwner {
 		t.Fatalf("direct root profile owner = %d:%d, want unset", meta.ProfileOwnerUID, meta.ProfileOwnerGID)
 	}

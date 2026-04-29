@@ -26,7 +26,7 @@ flowchart TD
     Dispatch["dispatchRequest<br/>route by command family"]
     Workflow["internal/workflow<br/>runtime plans, policy, reports"]
     Restore["internal/restore<br/>restore plans, selection, workspace safety"]
-    Runtime["Runtime path<br/>RuntimeRequest -> Plan -> Executor"]
+    RuntimeFlow["Runtime command path<br/>RuntimeRequest -> Plan -> Executor"]
     CommandHandlers["Command handlers<br/>config, diagnostics, health, notify, update, rollback"]
     Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, health, notify, update"]
     Presentation["internal/presentation + logger<br/>operator-facing text and colour"]
@@ -36,13 +36,13 @@ flowchart TD
     Command --> Dispatch
     Dispatch --> Workflow
     Dispatch --> Restore
-    Workflow --> Runtime
+    Workflow --> RuntimeFlow
     Workflow --> CommandHandlers
     Restore --> Domains
     Restore --> Presentation
-    Runtime --> Domains
+    RuntimeFlow --> Domains
     CommandHandlers --> Domains
-    Runtime --> External
+    RuntimeFlow --> External
     CommandHandlers --> External
     Workflow --> Presentation
     Domains --> Workflow
@@ -111,7 +111,7 @@ Restore is a first-class subsystem, not a single workflow file. It now lives in
 `internal/restore` so restore-specific prompts, workspace safety, reports, and
 interactive selection can evolve behind a focused package boundary.
 
-The package still bridges to workflow planning types for `Metadata`, `Runtime`,
+The package still bridges to workflow planning types for `Metadata`, `Env`,
 `Plan`, and profile-owned state paths. That is intentional for this stage: the
 next command-registry and typed-request work removes more of the broad command
 envelope before we decide whether those shared primitives should move into a

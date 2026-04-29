@@ -20,7 +20,7 @@ This is the longer walkthrough.
 - [Architecture Overview](#architecture-overview)
 - [Main Packages](#main-packages)
 - [Request Phase](#request-phase)
-- [Runtime and Metadata Seams](#runtime-and-metadata-seams)
+- [Environment and Metadata Seams](#environment-and-metadata-seams)
 - [Label-Target Model](#label-target-model)
 - [Plan Phase](#plan-phase)
 - [Execute Phase](#execute-phase)
@@ -392,11 +392,11 @@ It does not:
 
 That keeps the CLI boundary predictable and easy to test.
 
-## Runtime and Metadata Seams
+## Environment and Metadata Seams
 
-The runtime abstraction lives in:
+The environment abstraction lives in:
 
-- [`internal/workflow/runtime.go`](../internal/workflow/runtime.go)
+- [`internal/workflow/env.go`](../internal/workflow/env.go)
 
 It provides injectable functions for:
 

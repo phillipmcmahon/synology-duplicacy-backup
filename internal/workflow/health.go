@@ -21,7 +21,7 @@ type HealthReport = healthpkg.Report
 
 type HealthRunner struct {
 	meta      Metadata
-	rt        Runtime
+	rt        Env
 	log       *logger.Logger
 	runner    execpkg.Runner
 	presenter *healthpkg.Presenter
@@ -36,7 +36,7 @@ const (
 	verifyActionRunBackup         = "run_backup"
 )
 
-func NewHealthRunner(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner) *HealthRunner {
+func NewHealthRunner(meta Metadata, rt Env, log *logger.Logger, runner execpkg.Runner) *HealthRunner {
 	return &HealthRunner{
 		meta:      meta,
 		rt:        rt,

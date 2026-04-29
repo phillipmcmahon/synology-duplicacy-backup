@@ -9,7 +9,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func handleUpdateRequest(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Runtime) (update.Result, error) {
+func handleUpdateRequest(req *workflow.UpdateRequest, meta workflow.Metadata, rt workflow.Env) (update.Result, error) {
 	updater := update.New(meta.ScriptName, meta.Version, update.Runtime{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
@@ -26,7 +26,7 @@ func handleUpdateRequest(req *workflow.UpdateRequest, meta workflow.Metadata, rt
 	return updater.RunResult(updateOptionsFromRequest(req))
 }
 
-func handleRollbackRequest(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Runtime) (update.RollbackResult, error) {
+func handleRollbackRequest(req *workflow.RollbackRequest, meta workflow.Metadata, rt workflow.Env) (update.RollbackResult, error) {
 	updater := update.New(meta.ScriptName, meta.Version, update.Runtime{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,

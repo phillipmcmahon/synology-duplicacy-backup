@@ -19,7 +19,7 @@ func marshalRestoreJSON(value interface{}) (string, error) {
 	return string(data) + "\n", nil
 }
 
-func confirmRestoreRun(rt Runtime, report *restoreRunReport) (bool, error) {
+func confirmRestoreRun(rt Env, report *restoreRunReport) (bool, error) {
 	reader, interactive := runtimeStdinReader(rt)
 	if !interactive {
 		return false, NewRequestError("restore run requires --yes when not running interactively")

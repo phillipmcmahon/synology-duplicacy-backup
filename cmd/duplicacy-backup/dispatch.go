@@ -21,7 +21,7 @@ const (
 	exitCodeHealthUnhealthy = 2
 )
 
-func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	if command.RequiresDSMForRequest(req) {
 		if err := requireSynologyDSM(); err != nil {
 			return writeCommandFailure("", err)
@@ -43,8 +43,8 @@ type directRootProfilePolicy struct {
 
 const directRootProfileErrorLead = "direct root execution is ambiguous for"
 
-func validateRootExecution(req *workflow.Request, rt workflow.Runtime) error {
-	if workflow.RuntimeEUID(rt) != 0 || workflow.HasSudoOperator(rt) {
+func validateRootExecution(req *workflow.Request, rt workflow.Env) error {
+	if workflow.EnvEUID(rt) != 0 || workflow.HasSudoOperator(rt) {
 		return nil
 	}
 	policy := directRootProfilePolicyForRequest(req)
@@ -72,7 +72,7 @@ func directRootProfilePolicyForRequest(req *workflow.Request) directRootProfileP
 	}
 }
 
-func hasExplicitDirectRootProfile(req *workflow.Request, rt workflow.Runtime, policy directRootProfilePolicy) bool {
+func hasExplicitDirectRootProfile(req *workflow.Request, rt workflow.Env, policy directRootProfilePolicy) bool {
 	if req == nil || req.ConfigDir == "" {
 		return false
 	}
@@ -99,7 +99,7 @@ func directRootProfileError(policy directRootProfilePolicy) error {
 	)
 }
 
-func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	output, err := handleConfigCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure(workflow.ConfigCommandOutput(err), err)
@@ -108,7 +108,7 @@ func runConfigRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	return 0
 }
 
-func runDiagnosticsRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runDiagnosticsRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	output, err := handleDiagnosticsCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure("", err)
@@ -117,7 +117,7 @@ func runDiagnosticsRequest(req *workflow.Request, meta workflow.Metadata, rt wor
 	return 0
 }
 
-func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	output, err := handleNotifyCommand(req, meta, rt)
 	if err != nil {
 		return writeCommandFailure(notify.CommandOutput(err), err)
@@ -126,7 +126,7 @@ func runNotifyRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	return 0
 }
 
-func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	restoreReq := restore.NewRestoreRequest(req)
 	if restoreReq.UsesProgress() {
 		log, err := initLogger(meta)
@@ -172,7 +172,7 @@ func runRestoreRequest(req *workflow.Request, meta workflow.Metadata, rt workflo
 	return 0
 }
 
-func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	rollbackReq := workflow.NewRollbackRequest(req)
 	if !rollbackReq.CheckOnly && rt.Geteuid() != 0 {
 		return writeRollbackPrivilegeFailure()
@@ -185,7 +185,7 @@ func runRollbackRequest(req *workflow.Request, meta workflow.Metadata, rt workfl
 	return 0
 }
 
-func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	updateReq := workflow.NewUpdateRequest(req)
 	if !updateReq.CheckOnly && rt.Geteuid() != 0 {
 		return writeUpdatePrivilegeFailure()
@@ -217,7 +217,7 @@ func writeRollbackPrivilegeFailure() int {
 	return exitCodeGeneralFailure
 }
 
-func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	healthReq := workflow.NewHealthRequest(req)
 	log, err := initLogger(meta)
 	if err != nil {
@@ -234,7 +234,7 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	return code
 }
 
-func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
+func runRuntimeRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
 	runtimeReq := workflow.NewRuntimeRequest(req)
 	log, err := initLogger(meta)
 	if err != nil {
@@ -290,7 +290,7 @@ func writeJSONSummaryFailure(err error) {
 	writeDirectError("Failed to write JSON summary: %v", err)
 }
 
-func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Runtime, err error) int {
+func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Env, err error) int {
 	writeDirectError("Failed to initialise logger: %v", err)
 	if req.JSONSummary {
 		report := workflow.NewFailureHealthReport(req, req.Command, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
@@ -299,7 +299,7 @@ func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Runtime, 
 	return exitCodeHealthUnhealthy
 }
 
-func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Runtime, err error) int {
+func writeRuntimeLoggerFailure(req *workflow.RuntimeRequest, rt workflow.Env, err error) int {
 	writeDirectError("Failed to initialise logger: %v", err)
 	if req.JSONSummary {
 		now := rt.Now()
@@ -312,7 +312,7 @@ func writeRestoreLoggerFailure(err error) int {
 	return writeCommandFailure("", fmt.Errorf("failed to initialise restore progress logger: %w", err))
 }
 
-func handlePlannerFailure(req *workflow.RuntimeRequest, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time, err error) int {
+func handlePlannerFailure(req *workflow.RuntimeRequest, failurePlan *workflow.Plan, meta workflow.Metadata, rt workflow.Env, log *logger.Logger, startedAt time.Time, err error) int {
 	presenter := workflow.NewPresenter(meta, rt, log, false)
 	if failurePlan != nil {
 		presenter.PrintPreRunFailurePlan(failurePlan)

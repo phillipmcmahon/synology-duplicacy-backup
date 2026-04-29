@@ -47,7 +47,7 @@ type DiagnosticsPathSummary struct {
 	Status string `json:"status"`
 }
 
-func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Env) (string, error) {
 	diagnosticsReq := NewDiagnosticsRequest(req)
 	planner := NewConfigPlanner(meta, rt)
 	plan := planner.derivePlan(diagnosticsReq.PlanRequest())
@@ -68,7 +68,7 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Runtime) (string, 
 	return formatDiagnosticsReport(report), nil
 }
 
-func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan, cfg localStoragePolicy, rt Runtime) *DiagnosticsReport {
+func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan, cfg localStoragePolicy, rt Env) *DiagnosticsReport {
 	storage := duplicacy.NewStorageSpec(plan.Paths.BackupTarget)
 	report := &DiagnosticsReport{
 		Label:         req.Label,
@@ -105,7 +105,7 @@ func newDiagnosticsReport(req *DiagnosticsRequest, meta Metadata, plan *Plan, cf
 	return report
 }
 
-func storagePathSummary(path string, cfg localStoragePolicy, rt Runtime) DiagnosticsPathSummary {
+func storagePathSummary(path string, cfg localStoragePolicy, rt Env) DiagnosticsPathSummary {
 	if localRepositoryRequiresSudoForStorage(cfg, rt) {
 		return DiagnosticsPathSummary{
 			Name:   "Storage Path",

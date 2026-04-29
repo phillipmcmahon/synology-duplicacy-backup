@@ -12,7 +12,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func buildRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*command.ParseResult, int) {
+func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*command.ParseResult, int) {
 	startedAt := rt.Now()
 	result, err := command.ParseRequest(args, meta, rt)
 	if err == nil {

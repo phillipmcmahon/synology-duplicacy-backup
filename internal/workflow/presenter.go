@@ -12,7 +12,7 @@ type Presenter struct {
 	runtime *presentation.RuntimePresenter
 }
 
-func NewPresenter(_ Metadata, rt Runtime, log *logger.Logger, verbose bool) *Presenter {
+func NewPresenter(_ Metadata, rt Env, log *logger.Logger, verbose bool) *Presenter {
 	return &Presenter{runtime: presentation.NewRuntimePresenter(rt.Now, log, verbose)}
 }
 

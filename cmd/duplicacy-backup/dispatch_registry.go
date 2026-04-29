@@ -5,7 +5,7 @@ import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 type dispatchSpec struct {
 	name    string
 	matches func(*workflow.Request) bool
-	handle  func(*workflow.Request, workflow.Metadata, workflow.Runtime) int
+	handle  func(*workflow.Request, workflow.Metadata, workflow.Env) int
 }
 
 var dispatchRegistry = []dispatchSpec{

@@ -18,7 +18,7 @@ var backupRevisionExtractPattern = regexp.MustCompile(`(?i)revision\s+(\d+)\s+co
 
 type Executor struct {
 	meta   Metadata
-	rt     Runtime
+	rt     Env
 	log    *logger.Logger
 	runner execpkg.Runner
 	plan   *Plan
@@ -39,7 +39,7 @@ type Executor struct {
 	visibleRunStarted  bool
 }
 
-func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
+func NewExecutor(meta Metadata, rt Env, log *logger.Logger, runner execpkg.Runner, plan *Plan) *Executor {
 	startedAt := rt.Now()
 	targetLockKey := targetRepositoryLockKey(plan.Config.BackupLabel, plan.TargetName())
 	sourceLock := rt.NewLock(meta.LockParent, "source-"+plan.Config.BackupLabel)

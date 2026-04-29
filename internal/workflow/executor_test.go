@@ -358,7 +358,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		input := newTempInputFile(t, "y\n")
 		executor := &Executor{
 			log:  log,
-			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			rt:   Env{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
 			plan: &Plan{Request: PlanRequest{ForcePrune: true}},
 		}
 
@@ -376,7 +376,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		input := newTempInputFile(t, "n\n")
 		executor := &Executor{
 			log:  log,
-			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			rt:   Env{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
 			plan: &Plan{Request: PlanRequest{DoCleanupStore: true}},
 		}
 
@@ -398,7 +398,7 @@ func TestExecutorConfirmSafetyRails(t *testing.T) {
 		}
 		executor := &Executor{
 			log:  log,
-			rt:   Runtime{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
+			rt:   Env{Stdin: func() *os.File { return input }, StdinIsTTY: func() bool { return true }},
 			plan: &Plan{Request: PlanRequest{ForcePrune: true}},
 		}
 

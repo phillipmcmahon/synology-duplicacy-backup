@@ -19,7 +19,7 @@ func TestRestoreProgressSafetyWarningAlignment(t *testing.T) {
 
 		progress := NewRestoreProgress(
 			Metadata{},
-			Runtime{Now: func() time.Time { return time.Unix(0, 0).UTC() }},
+			Env{Now: func() time.Time { return time.Unix(0, 0).UTC() }},
 			log,
 		)
 
@@ -54,7 +54,7 @@ func TestRestoreProgressInterruptedExplainsWorkspaceAndCleanup(t *testing.T) {
 
 		progress := NewRestoreProgress(
 			Metadata{},
-			Runtime{Now: func() time.Time { return time.Unix(0, 0).UTC() }},
+			Env{Now: func() time.Time { return time.Unix(0, 0).UTC() }},
 			log,
 		)
 
@@ -91,7 +91,7 @@ func TestRestoreProgressSelectionStartStatusActivityAndCompletion(t *testing.T) 
 
 		progress := NewRestoreProgress(
 			Metadata{},
-			Runtime{Now: func() time.Time { return time.Date(2026, 4, 25, 16, 0, 0, 0, time.UTC) }},
+			Env{Now: func() time.Time { return time.Date(2026, 4, 25, 16, 0, 0, 0, time.UTC) }},
 			log,
 		)
 
@@ -170,7 +170,7 @@ func TestRestoreInterruptTrackerClampsCurrentProgressAndMarksUnstartedInterrupt(
 }
 
 func TestRestoreProgressNoopIsSafe(t *testing.T) {
-	progress := NewRestoreProgress(Metadata{}, Runtime{}, nil)
+	progress := NewRestoreProgress(Metadata{}, Env{}, nil)
 	progress.PrintRunStart(nil, nil, restoreRunInputs{}, time.Time{})
 	progress.PrintSelectionStart(nil, nil, 0, "", 0, time.Time{})
 	progress.PrintStatus("status")

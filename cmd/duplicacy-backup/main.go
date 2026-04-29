@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	osexec "os/exec"
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
@@ -18,10 +17,7 @@ var (
 )
 
 var cliArgs = func() []string { return os.Args[1:] }
-var geteuid = os.Geteuid
-var lookPath = osexec.LookPath
-var newLock = lock.New
-var newSourceLock = lock.NewSource
+var defaultEnv = workflow.DefaultEnv
 var handleConfigCommand = workflow.HandleConfigCommand
 var handleDiagnosticsCommand = workflow.HandleDiagnosticsCommand
 var handleNotifyCommand = workflow.HandleNotifyCommand
@@ -45,16 +41,12 @@ func run() int {
 }
 
 func runWithArgs(args []string) int {
-	rt := workflow.DefaultRuntime()
-	rt.Geteuid = geteuid
-	rt.LookPath = lookPath
-	rt.NewLock = newLock
-	rt.NewSourceLock = newSourceLock
-	meta := workflow.DefaultMetadataForRuntime(scriptName, version, buildTime, rt)
+	rt := defaultEnv()
+	meta := workflow.DefaultMetadataForEnv(scriptName, version, buildTime, rt)
 	if logDir != "" {
 		meta.LogDir = logDir
 	}
-	rt = runtimeWithProfileOwner(rt, meta)
+	rt = envWithProfileOwner(rt, meta)
 
 	result, code := buildRequest(args, meta, rt)
 	if code != 0 {
@@ -75,7 +67,7 @@ func initLogger(meta workflow.Metadata) (*logger.Logger, error) {
 	return logger.New(meta.LogDir, meta.ScriptName, enableColour)
 }
 
-func runtimeWithProfileOwner(rt workflow.Runtime, meta workflow.Metadata) workflow.Runtime {
+func envWithProfileOwner(rt workflow.Env, meta workflow.Metadata) workflow.Env {
 	if !meta.HasProfileOwner {
 		return rt
 	}
@@ -88,6 +80,6 @@ func runtimeWithProfileOwner(rt workflow.Runtime, meta workflow.Metadata) workfl
 	return rt
 }
 
-func printFailureCompletion(meta workflow.Metadata, rt workflow.Runtime, log *logger.Logger, startedAt time.Time) {
+func printFailureCompletion(meta workflow.Metadata, rt workflow.Env, log *logger.Logger, startedAt time.Time) {
 	workflow.NewPresenter(meta, rt, log, false).PrintCompletion(1, startedAt)
 }

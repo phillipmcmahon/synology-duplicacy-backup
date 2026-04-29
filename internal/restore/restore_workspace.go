@@ -27,7 +27,7 @@ func resolvedRestoreWorkspace(req *RestoreRequest, plan *Plan, deps RestoreDeps)
 	return filepath.Clean(strings.TrimSpace(workspace))
 }
 
-func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
+func resolvedRestoreRunWorkspace(req *RestoreRequest, rt Env, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (string, error) {
 	// Defence in depth: restore run normally enters through handleRestoreCommand,
 	// but select-action handoffs also resolve a run workspace directly.
 	if err := validateRestoreWorkspaceSelection(req); err != nil {
@@ -309,7 +309,7 @@ func ensureRestoreWorkspaceReady(workspace string) error {
 	return nil
 }
 
-func restoreWorkspaceForRead(req *RestoreRequest, plan *Plan, rt Runtime, allowTemporary bool, deps RestoreDeps) (string, string, func(), error) {
+func restoreWorkspaceForRead(req *RestoreRequest, plan *Plan, rt Env, allowTemporary bool, deps RestoreDeps) (string, string, func(), error) {
 	if strings.TrimSpace(req.Workspace) != "" {
 		workspace := resolvedRestoreWorkspace(req, plan, deps)
 		if err := validateRestoreWorkspace(workspace, plan.Paths.SnapshotSource); err != nil {
@@ -330,7 +330,7 @@ func restoreWorkspaceForRead(req *RestoreRequest, plan *Plan, rt Runtime, allowT
 	return workspace, "temporary", cleanup, nil
 }
 
-func temporaryRestoreWorkspace(plan *Plan, rt Runtime) (string, func(), error) {
+func temporaryRestoreWorkspace(plan *Plan, rt Env) (string, func(), error) {
 	base := rt.TempDir
 	tempParent := os.TempDir()
 	if base != nil && strings.TrimSpace(base()) != "" {
@@ -347,7 +347,7 @@ func temporaryRestoreWorkspace(plan *Plan, rt Runtime) (string, func(), error) {
 	return workspace, func() { _ = os.RemoveAll(workspace) }, nil
 }
 
-func findRestoreRevision(req *RestoreRequest, rt Runtime, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (duplicacy.RevisionInfo, error) {
+func findRestoreRevision(req *RestoreRequest, rt Env, plan *Plan, storage string, sec *secrets.Secrets, deps RestoreDeps) (duplicacy.RevisionInfo, error) {
 	workspace, cleanup, err := temporaryRestoreWorkspace(plan, rt)
 	if err != nil {
 		return duplicacy.RevisionInfo{}, err

@@ -7,7 +7,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 )
 
-func HandleNotifyCommand(req *Request, meta Metadata, rt Runtime) (string, error) {
+func HandleNotifyCommand(req *Request, meta Metadata, rt Env) (string, error) {
 	planner := NewPlanner(meta, rt, nil, newConfigCommandRunner())
 	notifyReq := NewNotifyRequest(req)
 
@@ -82,7 +82,7 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 	return notify.FormatTestOutput(report, req.JSONSummary), nil
 }
 
-func handleUpdateNotifyTest(req *NotifyRequest, meta Metadata, rt Runtime) (string, error) {
+func handleUpdateNotifyTest(req *NotifyRequest, meta Metadata, rt Env) (string, error) {
 	cfg, configPath, ok, err := loadUpdateNotifyConfig(req.ConfigDir, rt)
 	if err != nil {
 		return "", err

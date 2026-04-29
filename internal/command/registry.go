@@ -31,19 +31,19 @@ type CommandSpec struct {
 
 	ProfilePolicy ProfilePolicy
 
-	parse     func(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error)
-	usage     func(meta workflow.Metadata, rt workflow.Runtime) string
-	fullUsage func(meta workflow.Metadata, rt workflow.Runtime) string
+	parse     func(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error)
+	usage     func(meta workflow.Metadata, rt workflow.Env) string
+	fullUsage func(meta workflow.Metadata, rt workflow.Env) string
 }
 
-func (s CommandSpec) UsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func (s CommandSpec) UsageText(meta workflow.Metadata, rt workflow.Env) string {
 	if s.usage == nil {
 		return ""
 	}
 	return s.usage(meta, rt)
 }
 
-func (s CommandSpec) FullUsageText(meta workflow.Metadata, rt workflow.Runtime) string {
+func (s CommandSpec) FullUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	if s.fullUsage == nil {
 		return ""
 	}
@@ -64,7 +64,7 @@ var commandRegistry = map[string]CommandSpec{
 		Family:        CommandFamilyRuntime,
 		RequiresDSM:   true,
 		ProfilePolicy: ProfilePolicy{UsesProfile: true, RequiresSecrets: true},
-		parse: func(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+		parse: func(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 			return parseRuntimeCommandRequest("backup", args, meta, rt)
 		},
 		usage:     UsageText,
@@ -75,7 +75,7 @@ var commandRegistry = map[string]CommandSpec{
 		Family:        CommandFamilyRuntime,
 		RequiresDSM:   true,
 		ProfilePolicy: ProfilePolicy{UsesProfile: true, RequiresSecrets: true},
-		parse: func(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+		parse: func(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 			return parseRuntimeCommandRequest("cleanup-storage", args, meta, rt)
 		},
 		usage:     UsageText,
@@ -125,7 +125,7 @@ var commandRegistry = map[string]CommandSpec{
 		Family:        CommandFamilyRuntime,
 		RequiresDSM:   true,
 		ProfilePolicy: ProfilePolicy{UsesProfile: true, RequiresSecrets: true},
-		parse: func(args []string, meta workflow.Metadata, rt workflow.Runtime) (*ParseResult, error) {
+		parse: func(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 			return parseRuntimeCommandRequest("prune", args, meta, rt)
 		},
 		usage:     UsageText,
