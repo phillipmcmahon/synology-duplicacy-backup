@@ -8,6 +8,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
@@ -27,7 +28,7 @@ func (h *HealthRunner) runStatusChecks(report *Report, req *HealthRequest, cfg *
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureListingFailed)
 		}
-		report.AddCheck("Latest revision", "fail", workflow.OperatorMessage(err))
+		report.AddCheck("Latest revision", "fail", operator.Message(err))
 		return nil
 	}
 	report.RevisionCount = len(revisions)
@@ -106,10 +107,10 @@ func (h *HealthRunner) runDoctorChecks(report *Report, req *HealthRequest, cfg *
 			report.AddCheck("Btrfs", "pass", "Yes")
 		default:
 			if readiness.RootErr != nil {
-				report.AddCheck("Btrfs root", "fail", workflow.OperatorMessage(readiness.RootErr))
+				report.AddCheck("Btrfs root", "fail", operator.Message(readiness.RootErr))
 			}
 			if readiness.SourceErr != nil {
-				report.AddCheck("Btrfs source", "fail", workflow.OperatorMessage(readiness.SourceErr))
+				report.AddCheck("Btrfs source", "fail", operator.Message(readiness.SourceErr))
 			}
 		}
 	}
@@ -130,7 +131,7 @@ func (h *HealthRunner) runDoctorChecks(report *Report, req *HealthRequest, cfg *
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
 		}
-		report.AddCheck("Repository access", "fail", workflow.OperatorMessage(err))
+		report.AddCheck("Repository access", "fail", operator.Message(err))
 	} else {
 		stopValidating()
 		report.AddCheck("Repository access", "pass", "Validated")

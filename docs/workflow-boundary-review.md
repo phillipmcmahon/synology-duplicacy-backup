@@ -82,14 +82,18 @@ After `#255` and the first `#286` slice, the deliberately small shared core is
 - Defer `internal/workflow` -> `internal/runtime` until the package identity has
   fully settled around runtime-only planning/execution responsibilities.
 
-The first extraction candidate remains restore. The current shape is a hybrid:
-restore imports neutral primitives from `internal/workflowcore`, and keeps a
-narrow bridge to workflow for config planning and final operator-message
-translation. Health follows the same pattern: health command orchestration now
-lives in `internal/health`, while workflow still owns shared config planning,
-state mutation, and final operator-message translation. Those bridges are
-intentionally visible so future typed-command and package-boundary work can
-shrink them instead of hiding them.
+Restore and health command orchestration now live in focused packages. Restore
+imports neutral primitives from `internal/workflowcore`, uses `internal/operator`
+for operator-message wording, and keeps a narrow bridge to workflow for config
+planning. Health follows the same pattern for command orchestration and
+operator-message wording, while still relying on workflow for shared config
+planning, state mutation, and local-repository privilege policy.
+
+The `internal/workflow` -> `internal/runtime` rename is therefore not ready.
+Config, diagnostics, notify, update/rollback glue, state mutation, and shared
+policy remain in workflow. Either extract those pieces into focused packages or
+explicitly decide that workflow remains an orchestration package; only rename it
+when the remaining package is genuinely runtime planning/execution/state.
 
 The core package must stay bounded. It should own shared data and environment
 seams, not command orchestration, live progress output, privilege policy, or

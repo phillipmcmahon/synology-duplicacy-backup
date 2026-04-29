@@ -117,9 +117,12 @@ resolved config, and derived paths. Planning validates and derives; execution
 mutates; presentation helpers render operator-facing command text lazily from
 the plan data. That separation is the key runtime boundary.
 
-Earmarked, but deliberately deferred: `internal/workflow` may eventually be
-renamed to `internal/runtime` if the remaining package ownership becomes
-runtime-specific enough to justify the churn.
+The `internal/workflow` -> `internal/runtime` rename is not ready yet. The
+package still owns shared config planning, diagnostics/config/notify handlers,
+update notification glue, state mutation, and privilege policy alongside the
+runtime plan/executor. Renaming now would hide that orchestration role under a
+runtime-only name. Revisit the rename only after those non-runtime pieces are
+extracted or deliberately documented as runtime-owned.
 
 Also earmarked: typed commands may eventually own `Run(meta, env) int` directly.
 That should wait until a new command is being added, when the extra interface

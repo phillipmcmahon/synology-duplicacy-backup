@@ -11,6 +11,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -91,7 +92,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*Report, int) {
 	cfg, plan, sec, err := h.prepare(req)
 	if err != nil {
 		h.presenter.PrintHeader(report)
-		report.AddCheck("Environment", "fail", workflow.OperatorMessage(err))
+		report.AddCheck("Environment", "fail", operator.Message(err))
 		report.Finalize()
 		h.maybeSendEarlyNotification(req, report)
 		h.presenter.PrintReport(report)
@@ -114,7 +115,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*Report, int) {
 
 	lockStatus, lockErr := lock.InspectTarget(h.meta.LockParent, req.Label, req.Target())
 	if lockErr != nil {
-		report.AddCheck("Lock", "warn", workflow.OperatorMessage(lockErr))
+		report.AddCheck("Lock", "warn", operator.Message(lockErr))
 	} else {
 		switch {
 		case lockStatus.Active:
@@ -128,7 +129,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*Report, int) {
 
 	dup, dupErr := h.prepareDuplicacySetup(plan, sec)
 	if dupErr != nil {
-		report.AddCheck("Duplicacy setup", "fail", workflow.OperatorMessage(dupErr))
+		report.AddCheck("Duplicacy setup", "fail", operator.Message(dupErr))
 		report.Finalize()
 		h.maybeSendEarlyNotification(req, report)
 		h.presenter.PrintReport(report)
@@ -157,7 +158,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*Report, int) {
 	if h.shouldSendNotification(req, cfg.Health, report.Status) {
 		if payload := buildHealthNotificationPayload(h.rt, report); payload != nil {
 			if err := notify.SendConfigured(cfg.Health.Notify, plan.Paths.SecretsFile, report.Target, payload); err != nil {
-				report.AddCheck("Notification", "warn", workflow.OperatorMessage(err))
+				report.AddCheck("Notification", "warn", operator.Message(err))
 			} else {
 				report.NotificationSent = true
 				report.AddCheck("Notification", "pass", "Delivered")

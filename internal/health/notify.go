@@ -5,6 +5,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -34,7 +35,7 @@ func (h *HealthRunner) maybeSendEarlyNotification(req *HealthRequest, report *Re
 		return
 	}
 	if err := notify.SendConfigured(cfg.Notify, secretsFile, report.Target, payload); err != nil {
-		report.AddCheck("Notification", "warn", workflow.OperatorMessage(err))
+		report.AddCheck("Notification", "warn", operator.Message(err))
 		return
 	}
 	report.NotificationSent = true

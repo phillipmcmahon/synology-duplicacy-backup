@@ -10,6 +10,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
@@ -22,7 +23,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*comm
 
 	failureContext := command.ParseFailureContext(args)
 	if !failureContext.JSONSummary {
-		writeDirectError("%s", workflow.OperatorMessage(err))
+		writeDirectError("%s", operator.Message(err))
 		var requestErr *workflow.RequestError
 		if errors.As(err, &requestErr) && requestErr.ShowUsage {
 			_, _ = os.Stderr.WriteString("\n")
@@ -31,13 +32,13 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*comm
 		return nil, 1
 	}
 
-	writeDirectError("%s", workflow.OperatorMessage(err))
+	writeDirectError("%s", operator.Message(err))
 	completedAt := rt.Now()
 	switch failureContext.Kind {
 	case command.FailureRequestHealth:
 		req := failureContext.Request
 		healthReq := healthpkg.NewHealthRequest(req)
-		_ = healthpkg.WriteHealthReport(os.Stdout, healthpkg.NewFailureHealthReport(&healthReq, healthReq.Command, workflow.OperatorMessage(err), completedAt))
+		_ = healthpkg.WriteHealthReport(os.Stdout, healthpkg.NewFailureHealthReport(&healthReq, healthReq.Command, operator.Message(err), completedAt))
 	case command.FailureRequestNotify:
 		req := failureContext.Request
 		commandName := req.NotifyCommand
@@ -58,7 +59,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*comm
 		}
 		message := req.NotifyMessage
 		if message == "" {
-			message = workflow.OperatorMessage(err)
+			message = operator.Message(err)
 		}
 		_ = notify.WriteTestReport(os.Stdout, notify.NewFailureTestReport(notify.TestReportInput{
 			Command:  commandName,
@@ -72,7 +73,7 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*comm
 			DryRun:   req.DryRun,
 		}))
 	default:
-		emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, workflow.OperatorMessage(err))
+		emitJSONFailureSummary(os.Stdout, nil, nil, startedAt, completedAt, operator.Message(err))
 	}
 	return nil, 1
 }

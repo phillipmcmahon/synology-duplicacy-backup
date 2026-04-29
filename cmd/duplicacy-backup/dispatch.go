@@ -12,6 +12,7 @@ import (
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
@@ -223,13 +224,13 @@ func runUpdateRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	updateStatus := updateStatusForWorkflow(result.Status)
 	if err != nil {
 		if notifyErr := workflow.MaybeSendUpdateFailureNotification(&updateReq, meta, rt, updateStatus, err); notifyErr != nil {
-			writeDirectWarn("Failed to send update failure notification: %s", workflow.OperatorMessage(notifyErr))
+			writeDirectWarn("Failed to send update failure notification: %s", operator.Message(notifyErr))
 		}
 		return writeCommandFailure("", err)
 	}
 	fmt.Print(result.Output)
 	if notifyErr := workflow.MaybeSendUpdateSuccessNotification(&updateReq, meta, rt, updateStatus); notifyErr != nil {
-		writeDirectWarn("Failed to send update notification: %s", workflow.OperatorMessage(notifyErr))
+		writeDirectWarn("Failed to send update notification: %s", operator.Message(notifyErr))
 	}
 	return 0
 }
@@ -291,7 +292,7 @@ func writeCommandFailure(report string, err error) int {
 	if report != "" {
 		fmt.Print(report)
 	}
-	writeDirectError("%s", workflow.OperatorMessage(err))
+	writeDirectError("%s", operator.Message(err))
 	return exitCodeGeneralFailure
 }
 
@@ -348,15 +349,15 @@ func handlePlannerFailure(req *workflow.RuntimeRequest, failurePlan *workflow.Pl
 	} else {
 		presenter.PrintPreRunFailureContext(req)
 	}
-	log.Error("%s", workflow.OperatorMessage(err))
+	log.Error("%s", operator.Message(err))
 	if failurePlan != nil {
 		if notifyErr := maybeSendPreRunFailureNotification(rt, log.Interactive(), failurePlan, req, startedAt, rt.Now(), err); notifyErr != nil {
-			log.Warn("%s", workflow.OperatorMessage(notifyErr))
+			log.Warn("%s", operator.Message(notifyErr))
 		}
 	}
 	printFailureCompletion(meta, rt, log, startedAt)
 	if req.JSONSummary {
-		emitJSONFailureSummary(os.Stdout, req, failurePlan, startedAt, rt.Now(), workflow.OperatorMessage(err))
+		emitJSONFailureSummary(os.Stdout, req, failurePlan, startedAt, rt.Now(), operator.Message(err))
 	}
 	log.Close()
 	return exitCodeGeneralFailure

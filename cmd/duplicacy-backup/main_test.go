@@ -17,6 +17,7 @@ import (
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
@@ -356,7 +357,7 @@ func TestWriteRestoreLoggerFailureWrapsLoggerError(t *testing.T) {
 
 func TestWriteCommandFailurePreservesMultilineOperatorDiagnostics(t *testing.T) {
 	_, stderr := captureOutput(t, func() {
-		code := writeCommandFailure("", workflow.NewMessageError("backup/restore-list-files: failed to list files for revision 10\nDuplicacy command: duplicacy list -files -r 10\nDuplicacy diagnostics:\nFailed to load snapshot: permission denied"))
+		code := writeCommandFailure("", operator.NewMessageError("backup/restore-list-files: failed to list files for revision 10\nDuplicacy command: duplicacy list -files -r 10\nDuplicacy diagnostics:\nFailed to load snapshot: permission denied"))
 		if code != exitCodeGeneralFailure {
 			t.Fatalf("code = %d, want %d", code, exitCodeGeneralFailure)
 		}

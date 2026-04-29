@@ -5,6 +5,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
@@ -12,7 +13,7 @@ import (
 
 func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secrets.Secrets, error) {
 	if _, err := h.rt.LookPath("duplicacy"); err != nil {
-		return nil, nil, nil, workflow.NewMessageError("required command 'duplicacy' not found")
+		return nil, nil, nil, operator.NewMessageError("required command 'duplicacy' not found")
 	}
 
 	planner := workflow.NewPlanner(h.meta, h.rt, h.log, h.runner)
