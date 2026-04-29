@@ -79,7 +79,7 @@ run_capture() {
     if [ "${CAPTURE_COLOUR:-0}" = "1" ]; then
         if [ "${1:-}" = "sudo" ] && [ "${2:-}" = "-n" ]; then
             shift 2
-            sudo -n env DUPLICACY_BACKUP_FORCE_COLOUR=1 "$@" >> "$output_file" 2>&1
+            sudo -n DUPLICACY_BACKUP_FORCE_COLOUR=1 "$@" >> "$output_file" 2>&1
         else
             DUPLICACY_BACKUP_FORCE_COLOUR=1 "$@" >> "$output_file" 2>&1
         fi
@@ -128,7 +128,7 @@ run_restore_capture() {
 	shift 2
 
 	if [ "${ACTIVE_RESTORE_USE_SUDO:-$RESTORE_USE_SUDO}" = "1" ]; then
-		run_capture "$name" "$expectation" sudo -n "$BIN" "$@"
+		run_capture "$name" "$expectation" sudo -n "$SMOKE_SUDO_BIN" "$@"
 	else
 		run_capture "$name" "$expectation" "$BIN" "$@"
 	fi
@@ -337,6 +337,40 @@ target_uses_sudo() {
 	[ "$RESTORE_USE_SUDO" = "1" ]
 }
 
+validate_smoke_sudo_bin() {
+	if [ ! -x "$SMOKE_SUDO_BIN" ]; then
+		cat >&2 <<EOF
+UI smoke sudo binary is not installed or executable: $SMOKE_SUDO_BIN
+
+Install the current bundle binary before running sudo-required captures:
+  sudo install -d -o root -g root -m 0755 "$(dirname -- "$SMOKE_SUDO_BIN")"
+  sudo install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
+
+Then allow only this stable smoke binary in sudoers for passwordless smoke tests.
+EOF
+		exit 1
+	fi
+
+	if command -v cmp >/dev/null 2>&1 && ! cmp -s "$BIN" "$SMOKE_SUDO_BIN"; then
+		cat >&2 <<EOF
+UI smoke sudo binary does not match the current bundle binary: $SMOKE_SUDO_BIN
+
+Refresh it before running sudo-required captures:
+  sudo install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
+EOF
+		exit 1
+	fi
+
+	if ! sudo -n "$SMOKE_SUDO_BIN" --version >/dev/null 2>&1; then
+		cat >&2 <<EOF
+UI smoke sudo policy does not allow passwordless execution of: $SMOKE_SUDO_BIN
+
+Add a narrow sudoers rule for the operator account, then rerun the smoke suite.
+EOF
+		exit 1
+	fi
+}
+
 read_build_commit() {
 	file="$BUNDLE_ROOT/metadata/build.json"
 	[ -f "$file" ] || return 1
@@ -483,6 +517,9 @@ RESTORE_PATH="${RESTORE_PATH:-}"
 RESTORE_REVISION_LOOKUP_LIMIT="${RESTORE_REVISION_LOOKUP_LIMIT:-200}"
 RESTORE_USE_SUDO="${RESTORE_USE_SUDO:-0}"
 RESTORE_USE_SUDO_TARGETS="${RESTORE_USE_SUDO_TARGETS:-}"
+SMOKE_SUDO_BIN="${SMOKE_SUDO_BIN:-/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke}"
+
+validate_smoke_sudo_bin
 
 if MANAGED_BIN_RESOLVED="$(resolve_managed_bin)"; then
     managed_status="$MANAGED_BIN_RESOLVED"
@@ -508,6 +545,7 @@ unexpected_count=0
     printf 'Local target\t%s\n' "$TARGET_LOCAL"
     printf 'Workspace root\t%s\n' "$WORKSPACE_ROOT"
     printf 'Managed binary\t%s\n' "$managed_status"
+	printf 'Smoke sudo binary\t%s\n' "$SMOKE_SUDO_BIN"
     printf 'Capture colour\t%s\n' "$CAPTURE_COLOUR"
 	printf 'Restore sudo\t%s\n' "$RESTORE_USE_SUDO"
 	printf 'Restore targets\t%s\n' "$RESTORE_TARGETS"
@@ -524,6 +562,7 @@ UI surface smoke capture
   Object target : $TARGET_OBJECT
   Local target  : $TARGET_LOCAL
   Managed binary: $managed_status
+  Smoke sudo bin: $SMOKE_SUDO_BIN
   Capture colour: $CAPTURE_COLOUR
   Restore sudo  : $RESTORE_USE_SUDO
   Restore targets: $RESTORE_TARGETS
@@ -552,11 +591,11 @@ assert_last_capture_contains "local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
 assert_last_capture_validation_warning_colours
 assert_last_capture_validation_failure_colours
-run_capture "config_validate_local_sudo" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
+run_capture "config_validate_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" config validate --target "$TARGET_LOCAL" "$LABEL"
 assert_last_capture_validation_success_colours
 run_capture "config_validate_remote_verbose" any "$BIN" config validate --target "$TARGET_REMOTE" --verbose "$LABEL"
 assert_last_capture_validation_success_colours
-run_capture "config_validate_local_sudo_verbose" any sudo -n "$BIN" config validate --target "$TARGET_LOCAL" --verbose "$LABEL"
+run_capture "config_validate_local_sudo_verbose" any sudo -n "$SMOKE_SUDO_BIN" config validate --target "$TARGET_LOCAL" --verbose "$LABEL"
 assert_last_capture_validation_success_colours
 
 run_capture "diagnostics_remote" any "$BIN" diagnostics --target "$TARGET_REMOTE" "$LABEL"
@@ -568,13 +607,13 @@ assert_last_capture_contains "Storage Path"
 assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
 assert_last_capture_report_semantic_colours
-run_capture "diagnostics_local_sudo" any sudo -n "$BIN" diagnostics --target "$TARGET_LOCAL" "$LABEL"
+run_capture "diagnostics_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" diagnostics --target "$TARGET_LOCAL" "$LABEL"
 assert_last_capture_report_semantic_colours
 run_capture "diagnostics_remote_json_summary" any "$BIN" diagnostics --target "$TARGET_REMOTE" --json-summary "$LABEL"
 run_capture "diagnostics_local_operator_json_summary" any "$BIN" diagnostics --target "$TARGET_LOCAL" --json-summary "$LABEL"
 assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
-run_capture "diagnostics_local_sudo_json_summary" any sudo -n "$BIN" diagnostics --target "$TARGET_LOCAL" --json-summary "$LABEL"
+run_capture "diagnostics_local_sudo_json_summary" any sudo -n "$SMOKE_SUDO_BIN" diagnostics --target "$TARGET_LOCAL" --json-summary "$LABEL"
 
 run_capture "health_status_remote" any "$BIN" health status --target "$TARGET_REMOTE" "$LABEL"
 run_capture "health_doctor_remote" any "$BIN" health doctor --target "$TARGET_REMOTE" "$LABEL"
@@ -594,15 +633,15 @@ run_capture "health_verify_local_operator_requires_sudo" fail "$BIN" health veri
 assert_last_capture_contains "Repository Access"
 assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
-run_capture "health_status_local_sudo" any sudo -n "$BIN" health status --target "$TARGET_LOCAL" "$LABEL"
-run_capture "health_doctor_local_sudo" any sudo -n "$BIN" health doctor --target "$TARGET_LOCAL" "$LABEL"
-run_capture "health_verify_local_sudo" any sudo -n "$BIN" health verify --target "$TARGET_LOCAL" "$LABEL"
+run_capture "health_status_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" health status --target "$TARGET_LOCAL" "$LABEL"
+run_capture "health_doctor_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" health doctor --target "$TARGET_LOCAL" "$LABEL"
+run_capture "health_verify_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" health verify --target "$TARGET_LOCAL" "$LABEL"
 run_capture "health_status_remote_json_summary" any "$BIN" health status --target "$TARGET_REMOTE" --json-summary "$LABEL"
 run_capture "health_doctor_remote_verbose" any "$BIN" health doctor --target "$TARGET_REMOTE" --verbose "$LABEL"
 run_capture "health_doctor_remote_verbose_json_summary" any "$BIN" health doctor --target "$TARGET_REMOTE" --verbose --json-summary "$LABEL"
-run_capture "health_status_local_sudo_json_summary" any sudo -n "$BIN" health status --target "$TARGET_LOCAL" --json-summary "$LABEL"
-run_capture "health_doctor_local_sudo_verbose" any sudo -n "$BIN" health doctor --target "$TARGET_LOCAL" --verbose "$LABEL"
-run_capture "health_doctor_local_sudo_verbose_json_summary" any sudo -n "$BIN" health doctor --target "$TARGET_LOCAL" --verbose --json-summary "$LABEL"
+run_capture "health_status_local_sudo_json_summary" any sudo -n "$SMOKE_SUDO_BIN" health status --target "$TARGET_LOCAL" --json-summary "$LABEL"
+run_capture "health_doctor_local_sudo_verbose" any sudo -n "$SMOKE_SUDO_BIN" health doctor --target "$TARGET_LOCAL" --verbose "$LABEL"
+run_capture "health_doctor_local_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" health doctor --target "$TARGET_LOCAL" --verbose --json-summary "$LABEL"
 
 run_capture "restore_plan_remote" any "$BIN" restore plan --target "$TARGET_REMOTE" "$LABEL"
 assert_last_capture_report_semantic_colours
@@ -617,10 +656,10 @@ assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_local_operator_requires_sudo" fail "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
 assert_last_capture_contains "restore list-revisions requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
-run_capture "restore_list_revisions_local_sudo" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
+run_capture "restore_list_revisions_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
 assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_remote_json_summary" any "$BIN" restore list-revisions --target "$TARGET_REMOTE" --limit 5 --json-summary "$LABEL"
-run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
+run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$SMOKE_SUDO_BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
 
 if [ "$RUN_RESTORE" = "1" ]; then
 	if [ -n "$RESTORE_PATH" ]; then
@@ -666,34 +705,34 @@ else
 fi
 skip_capture "restore_select_interactive" "Interactive TUI; run manually with tee as described in instructions/smoke-test.md"
 
-run_capture "backup_dry_run_remote_sudo" any sudo -n "$BIN" backup --target "$TARGET_REMOTE" --dry-run "$LABEL"
-run_capture "backup_dry_run_object_sudo" any sudo -n "$BIN" backup --target "$TARGET_OBJECT" --dry-run "$LABEL"
-run_capture "backup_dry_run_local_sudo" any sudo -n "$BIN" backup --target "$TARGET_LOCAL" --dry-run "$LABEL"
-run_capture "backup_dry_run_remote_sudo_verbose" any sudo -n "$BIN" backup --target "$TARGET_REMOTE" --dry-run --verbose "$LABEL"
-run_capture "backup_dry_run_remote_sudo_json_summary" any sudo -n "$BIN" backup --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"
-run_capture "backup_dry_run_remote_sudo_verbose_json_summary" any sudo -n "$BIN" backup --target "$TARGET_REMOTE" --dry-run --verbose --json-summary "$LABEL"
-run_capture "backup_dry_run_object_sudo_verbose_json_summary" any sudo -n "$BIN" backup --target "$TARGET_OBJECT" --dry-run --verbose --json-summary "$LABEL"
-run_capture "backup_dry_run_local_sudo_verbose_json_summary" any sudo -n "$BIN" backup --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
+run_capture "backup_dry_run_remote_sudo" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_REMOTE" --dry-run "$LABEL"
+run_capture "backup_dry_run_object_sudo" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_OBJECT" --dry-run "$LABEL"
+run_capture "backup_dry_run_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_LOCAL" --dry-run "$LABEL"
+run_capture "backup_dry_run_remote_sudo_verbose" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_REMOTE" --dry-run --verbose "$LABEL"
+run_capture "backup_dry_run_remote_sudo_json_summary" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"
+run_capture "backup_dry_run_remote_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_REMOTE" --dry-run --verbose --json-summary "$LABEL"
+run_capture "backup_dry_run_object_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_OBJECT" --dry-run --verbose --json-summary "$LABEL"
+run_capture "backup_dry_run_local_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" backup --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
 
 run_capture "prune_dry_run_remote_operator" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run "$LABEL"
 run_capture "prune_dry_run_object_operator" any "$BIN" prune --target "$TARGET_OBJECT" --dry-run "$LABEL"
 run_capture "prune_dry_run_local_operator_requires_sudo" fail "$BIN" prune --target "$TARGET_LOCAL" --dry-run "$LABEL"
 assert_last_capture_contains "prune --dry-run requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
-run_capture "prune_dry_run_local_sudo" any sudo -n "$BIN" prune --target "$TARGET_LOCAL" --dry-run "$LABEL"
+run_capture "prune_dry_run_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" prune --target "$TARGET_LOCAL" --dry-run "$LABEL"
 run_capture "prune_dry_run_remote_operator_verbose" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run --verbose "$LABEL"
 run_capture "prune_dry_run_remote_operator_json_summary" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"
 run_capture "prune_dry_run_remote_operator_verbose_json_summary" any "$BIN" prune --target "$TARGET_REMOTE" --dry-run --verbose --json-summary "$LABEL"
-run_capture "prune_dry_run_local_sudo_verbose_json_summary" any sudo -n "$BIN" prune --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
+run_capture "prune_dry_run_local_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" prune --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
 
 run_capture "cleanup_storage_dry_run_remote_operator" any "$BIN" cleanup-storage --target "$TARGET_REMOTE" --dry-run "$LABEL"
 run_capture "cleanup_storage_dry_run_object_operator" any "$BIN" cleanup-storage --target "$TARGET_OBJECT" --dry-run "$LABEL"
 run_capture "cleanup_storage_dry_run_local_operator" any "$BIN" cleanup-storage --target "$TARGET_LOCAL" --dry-run "$LABEL"
-run_capture "cleanup_storage_dry_run_local_sudo" any sudo -n "$BIN" cleanup-storage --target "$TARGET_LOCAL" --dry-run "$LABEL"
+run_capture "cleanup_storage_dry_run_local_sudo" any sudo -n "$SMOKE_SUDO_BIN" cleanup-storage --target "$TARGET_LOCAL" --dry-run "$LABEL"
 run_capture "cleanup_storage_dry_run_remote_operator_verbose" any "$BIN" cleanup-storage --target "$TARGET_REMOTE" --dry-run --verbose "$LABEL"
 run_capture "cleanup_storage_dry_run_remote_operator_json_summary" any "$BIN" cleanup-storage --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"
 run_capture "cleanup_storage_dry_run_remote_operator_verbose_json_summary" any "$BIN" cleanup-storage --target "$TARGET_REMOTE" --dry-run --verbose --json-summary "$LABEL"
-run_capture "cleanup_storage_dry_run_local_sudo_verbose_json_summary" any sudo -n "$BIN" cleanup-storage --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
+run_capture "cleanup_storage_dry_run_local_sudo_verbose_json_summary" any sudo -n "$SMOKE_SUDO_BIN" cleanup-storage --target "$TARGET_LOCAL" --dry-run --verbose --json-summary "$LABEL"
 
 run_capture "notify_test_backup_remote_dry_run" any "$BIN" notify test --target "$TARGET_REMOTE" --dry-run "$LABEL"
 run_capture "notify_test_backup_remote_dry_run_json_summary" any "$BIN" notify test --target "$TARGET_REMOTE" --dry-run --json-summary "$LABEL"

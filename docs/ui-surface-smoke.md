@@ -71,6 +71,7 @@ export TARGET_OBJECT="${TARGET_OBJECT:-onsite-garage}"
 export TARGET_LOCAL="${TARGET_LOCAL:-onsite-usb}"
 export WORKSPACE_ROOT="${WORKSPACE_ROOT:-/volume1/restore-drills}"
 export MANAGED_BIN="${MANAGED_BIN:-/usr/local/bin/duplicacy-backup}"
+export SMOKE_SUDO_BIN="${SMOKE_SUDO_BIN:-/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke}"
 
 ./run-ui-surface-smoke.sh
 ```
@@ -84,9 +85,49 @@ The runner automatically:
   deliberately want plain output
 - injects `DUPLICACY_BACKUP_FORCE_COLOUR=1` for colour captures
 - passes the colour override through `sudo -n` for root-required captures
+  using the stable smoke binary path in `SMOKE_SUDO_BIN`
 - resolves managed update/rollback checks through `MANAGED_BIN`,
   `/usr/local/bin/duplicacy-backup`, or `PATH`
 - exits non-zero if a command marked `pass`/`fail` has an unexpected outcome
+
+## Sudo Policy for Smoke Runs
+
+The bundle binary path changes for every smoke package, so sudo-required smoke
+commands do not run that unpacked path directly. Instead, install the current
+bundle binary to a stable, root-owned smoke path before running the suite:
+
+```sh
+. ./setup-env.sh
+
+sudo install -d -o root -g root -m 0755 "$(dirname -- "$SMOKE_SUDO_BIN")"
+sudo install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
+```
+
+Then allow the operator account to run only that stable smoke binary without a
+password. Replace `<operator>` with the NAS account running the smoke suite.
+`SETENV` is intentionally limited to this command so colour captures can pass
+`DUPLICACY_BACKUP_FORCE_COLOUR=1` through sudo without allowing arbitrary root
+commands:
+
+```sh
+sudo tee /etc/sudoers.d/duplicacy-backup-smoke >/dev/null <<'EOF'
+<operator> ALL=(root) NOPASSWD: SETENV: /usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke
+EOF
+sudo chmod 0440 /etc/sudoers.d/duplicacy-backup-smoke
+sudo visudo -cf /etc/sudoers.d/duplicacy-backup-smoke
+```
+
+Keep the smoke binary root-owned. Do not grant passwordless sudo to arbitrary
+bundle paths under the operator home directory, because those paths are
+operator-writable and would make the sudo rule too broad.
+
+The runner fails before capturing commands if `SMOKE_SUDO_BIN` is missing, does
+not match the unpacked bundle binary, or cannot be executed with `sudo -n`.
+You can check the sudo rule before running the full suite:
+
+```sh
+sudo -n DUPLICACY_BACKUP_FORCE_COLOUR=1 "$SMOKE_SUDO_BIN" --version
+```
 
 ## Optional Restore Run
 
@@ -190,12 +231,12 @@ mkdir -p captures/manual
 CAPTURE_COLOUR=1 "$BIN" restore select --target "$TARGET_REMOTE" "$LABEL" \
   2>&1 | tee captures/manual/restore_select_remote.txt
 
-CAPTURE_COLOUR=1 sudo -n "$BIN" restore select --target "$TARGET_LOCAL" "$LABEL" \
+CAPTURE_COLOUR=1 sudo -n "$SMOKE_SUDO_BIN" restore select --target "$TARGET_LOCAL" "$LABEL" \
   2>&1 | tee captures/manual/restore_select_local_sudo.txt
 ```
 
 Only run the local target command when the local repository is intentionally
-root-protected and sudoers allows the application without a password.
+root-protected and sudoers allows the stable smoke binary without a password.
 
 ## Optional Notification Checks
 

@@ -42,6 +42,8 @@ assert_executable "$BUNDLE_DIR/run-ui-surface-smoke.sh"
 
 sh -n "$BUNDLE_DIR/setup-env.sh"
 sh -n "$BUNDLE_DIR/run-ui-surface-smoke.sh"
+grep -F 'SMOKE_SUDO_BIN="${SMOKE_SUDO_BIN:-/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke}"' "$BUNDLE_DIR/setup-env.sh" >/dev/null ||
+    fail "UI smoke setup does not export the stable sudo smoke binary path"
 grep -F 'CAPTURE_COLOUR="${CAPTURE_COLOUR:-1}"' "$BUNDLE_DIR/run-ui-surface-smoke.sh" >/dev/null ||
     fail "UI smoke runner does not default colour capture on"
 
