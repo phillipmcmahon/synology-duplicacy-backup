@@ -117,9 +117,13 @@ resolved config, and derived paths. Planning validates and derives; execution
 mutates; presentation helpers render operator-facing command text lazily from
 the plan data. That separation is the key runtime boundary.
 
-After typed command routing lands, `internal/workflow` may be renamed to
-`internal/runtime` if the remaining package ownership is runtime-specific
-enough to justify the churn.
+Earmarked, but deliberately deferred: `internal/workflow` may eventually be
+renamed to `internal/runtime` if the remaining package ownership becomes
+runtime-specific enough to justify the churn.
+
+Also earmarked: typed commands may eventually own `Run(meta, env) int` directly.
+That should wait until a new command is being added, when the extra interface
+will simplify real work rather than just reshuffle existing handlers.
 
 For the detailed request, plan, execute, presentation, and error-translation
 walkthrough, use [how-it-works.md](how-it-works.md).

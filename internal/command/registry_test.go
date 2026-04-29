@@ -53,7 +53,7 @@ func TestPublicCommandSpecsCoverCommandSurface(t *testing.T) {
 	}
 }
 
-func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
+func TestLookupCoversCommandSurfacePolicy(t *testing.T) {
 	type policyCase struct {
 		name           string
 		req            *workflowcore.Request
@@ -118,12 +118,22 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			commandName, policy := ProfilePolicyForRequest(tc.req)
-			if commandName != tc.command || policy.UsesProfile != tc.usesProfile || policy.RequiresSecrets != tc.requiresSecret {
-				t.Fatalf("policy = %q %+v, want command=%q usesProfile=%v requiresSecrets=%v", commandName, policy, tc.command, tc.usesProfile, tc.requiresSecret)
+			cmd, ok := Lookup(tc.req)
+			if tc.command == "" {
+				if ok {
+					t.Fatalf("Lookup(%s) matched %+v, want no match", tc.name, cmd)
+				}
+				return
 			}
-			if tc.command != "" && !RequiresDSMForRequest(tc.req) {
-				t.Fatalf("RequiresDSMForRequest(%s) = false, want true", tc.name)
+			if !ok {
+				t.Fatalf("Lookup(%s) did not match registry", tc.name)
+			}
+			policy := cmd.ProfilePolicy()
+			if cmd.DisplayName() != tc.command || policy.UsesProfile != tc.usesProfile || policy.RequiresSecrets != tc.requiresSecret {
+				t.Fatalf("policy = %q %+v, want command=%q usesProfile=%v requiresSecrets=%v", cmd.DisplayName(), policy, tc.command, tc.usesProfile, tc.requiresSecret)
+			}
+			if !cmd.RequiresDSM() {
+				t.Fatalf("RequiresDSM(%s) = false, want true", tc.name)
 			}
 		})
 	}

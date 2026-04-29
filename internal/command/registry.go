@@ -55,20 +55,16 @@ type parsedCommand struct {
 	request     *workflowcore.Request
 }
 
-func newParsedCommand(spec CommandSpec, req *workflowcore.Request) Command {
-	displayName, _, ok := commandSpecForRequest(req)
-	if !ok {
-		displayName = spec.Name
-	}
+func newParsedCommand(spec CommandSpec, displayName string, req *workflowcore.Request) Command {
 	return parsedCommand{spec: spec, displayName: displayName, request: req}
 }
 
-func CommandForRequest(req *workflowcore.Request) (Command, bool) {
-	_, spec, ok := commandSpecForRequest(req)
+func Lookup(req *workflowcore.Request) (Command, bool) {
+	displayName, spec, ok := commandSpecForRequest(req)
 	if !ok {
 		return nil, false
 	}
-	return newParsedCommand(spec, req), true
+	return newParsedCommand(spec, displayName, req), true
 }
 
 func (c parsedCommand) Name() string                 { return c.spec.Name }
@@ -221,22 +217,6 @@ func commandSpec(name string) (CommandSpec, bool) {
 	return spec, ok
 }
 
-func ProfilePolicyForRequest(req *workflowcore.Request) (string, ProfilePolicy) {
-	displayName, spec, ok := commandSpecForRequest(req)
-	if !ok {
-		return displayName, ProfilePolicy{}
-	}
-	return displayName, spec.ProfilePolicy
-}
-
-func RequiresDSMForRequest(req *workflowcore.Request) bool {
-	_, spec, ok := commandSpecForRequest(req)
-	if !ok {
-		return true
-	}
-	return spec.RequiresDSM
-}
-
 func commandSpecForRequest(req *workflowcore.Request) (string, CommandSpec, bool) {
 	if req == nil {
 		return "", CommandSpec{}, false
@@ -274,4 +254,12 @@ func requestSpec(commandName string, displayName string) (string, CommandSpec, b
 		return displayName, CommandSpec{}, false
 	}
 	return displayName, spec, true
+}
+
+func commandDisplayName(req *workflowcore.Request, fallback string) string {
+	displayName, _, ok := commandSpecForRequest(req)
+	if !ok {
+		return fallback
+	}
+	return displayName
 }

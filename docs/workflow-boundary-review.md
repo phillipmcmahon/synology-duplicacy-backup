@@ -71,6 +71,14 @@ After `#255` and the first `#286` slice, the deliberately small shared core is
 | `RunState` and read-only state paths | Moved to `internal/workflowcore` for report-only subsystems. State mutation remains in workflow. |
 | `Plan` and `ConfigPlanRequest` | Moved to `internal/workflowcore` because restore needs the read-side plan contract. Runtime planning and execution still live in workflow. |
 | `MessageError`, `OperatorMessage` | Moved to `internal/operator`; `internal/workflow` only keeps compatibility aliases while older runtime files are gradually narrowed. |
+
+## Earmarked Follow-Ups
+
+- Defer a typed `Run(meta, env) int` command interface until a new command is
+  being added. The registry already owns command metadata and dispatch family;
+  the extra runner interface should pay for itself through new command work.
+- Defer `internal/workflow` -> `internal/runtime` until the package identity has
+  fully settled around runtime-only planning/execution responsibilities.
 | Local repository privilege predicates | Core candidate only if restore/config/health/runtime all move out; otherwise keep in workflow to avoid policy drift. |
 | Runtime command presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
 

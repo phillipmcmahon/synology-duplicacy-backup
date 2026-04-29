@@ -25,15 +25,11 @@ const (
 
 func dispatchCommand(cmd command.Command, meta workflow.Metadata, rt workflow.Env) int {
 	if cmd == nil {
-		return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", ""))
+		return writeCommandFailure("", workflowcore.NewRequestError("no dispatch handler registered for command %q", ""))
 	}
 	req := cmd.Request()
 	if req == nil {
-		commandName := ""
-		if cmd != nil {
-			commandName = cmd.Name()
-		}
-		return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", commandName))
+		return writeCommandFailure("", workflowcore.NewRequestError("no dispatch handler registered for command %q", cmd.Name()))
 	}
 	if cmd.RequiresDSM() {
 		if err := requireSynologyDSM(); err != nil {
@@ -65,7 +61,7 @@ func dispatchCommand(cmd command.Command, meta workflow.Metadata, rt workflow.En
 			return runUpdateRequest(req, meta, rt)
 		}
 	}
-	return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", cmd.Name()))
+	return writeCommandFailure("", workflowcore.NewRequestError("no dispatch handler registered for command %q", cmd.Name()))
 }
 
 type directRootProfilePolicy struct {
@@ -124,7 +120,7 @@ func directRootProfileError(policy directRootProfilePolicy) error {
 	if policy.RequiresSecrets {
 		profileFlags += " and --secrets-dir"
 	}
-	return workflow.NewRequestError(
+	return workflowcore.NewRequestError(
 		"%s %s; run as the operator user, or for root-required operations run with sudo from that operator account. Expert direct-root use must pass explicit %s and set XDG_STATE_HOME so config, secrets, logs, state, and locks do not fall back to /root",
 		directRootProfileErrorLead,
 		policy.Command,

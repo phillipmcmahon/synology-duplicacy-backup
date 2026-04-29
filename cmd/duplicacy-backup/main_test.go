@@ -20,6 +20,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 type errWriter struct{}
@@ -317,7 +318,7 @@ func TestRunRestoreRequestNonProgressOutcomes(t *testing.T) {
 		{name: "success", output: "restore plan\n", wantCode: 0, wantStdout: "restore plan\n"},
 		{name: "cancelled", err: workflow.ErrRestoreCancelled, wantCode: 0, wantStderr: "Restore cancelled by operator"},
 		{name: "interrupted", output: "partial report\n", err: workflow.ErrRestoreInterrupted, wantCode: exitCodeGeneralFailure, wantStdout: "partial report\n", wantStderr: "Restore interrupted by operator"},
-		{name: "failed", output: "failure report\n", err: workflow.NewRequestError("restore failed"), wantCode: exitCodeGeneralFailure, wantStdout: "failure report\n", wantStderr: "[ERRO] restore failed"},
+		{name: "failed", output: "failure report\n", err: workflowcore.NewRequestError("restore failed"), wantCode: exitCodeGeneralFailure, wantStdout: "failure report\n", wantStderr: "[ERRO] restore failed"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -376,7 +377,7 @@ func TestWriteCommandFailureHonoursForcedColour(t *testing.T) {
 	t.Setenv("DUPLICACY_BACKUP_FORCE_COLOUR", "1")
 
 	_, stderr := captureOutput(t, func() {
-		code := writeCommandFailure("", workflow.NewRequestError("restore failed"))
+		code := writeCommandFailure("", workflowcore.NewRequestError("restore failed"))
 		if code != exitCodeGeneralFailure {
 			t.Fatalf("code = %d, want %d", code, exitCodeGeneralFailure)
 		}
@@ -1162,7 +1163,7 @@ func TestDirectRootProfilePolicyForCommandCoversCommandSurface(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, _ := command.CommandForRequest(tc.req)
+			cmd, _ := command.Lookup(tc.req)
 			got := directRootProfilePolicyForCommand(cmd)
 			if got.Command != tc.command || got.UsesProfile != tc.usesProfile || got.RequiresSecrets != tc.requiresSecret {
 				t.Fatalf("policy = %+v, want command=%q usesProfile=%v requiresSecrets=%v", got, tc.command, tc.usesProfile, tc.requiresSecret)
@@ -1193,9 +1194,9 @@ func TestCommandRegistryDrivesDispatchFamilies(t *testing.T) {
 	seen := make(map[string]bool)
 	for _, tc := range cases {
 		t.Run(tc.command, func(t *testing.T) {
-			cmd, ok := command.CommandForRequest(tc.req)
+			cmd, ok := command.Lookup(tc.req)
 			if !ok {
-				t.Fatalf("CommandForRequest(%s) did not match registry", tc.command)
+				t.Fatalf("Lookup(%s) did not match registry", tc.command)
 			}
 			if got := dispatchFamilyName(cmd); got != tc.want {
 				t.Fatalf("dispatch family = %q, want %q", got, tc.want)
@@ -1210,7 +1211,7 @@ func TestCommandRegistryDrivesDispatchFamilies(t *testing.T) {
 		}
 	}
 
-	if cmd, ok := command.CommandForRequest(&workflow.Request{}); ok {
+	if cmd, ok := command.Lookup(&workflow.Request{}); ok {
 		t.Fatalf("empty request matched command %+v", cmd)
 	}
 }

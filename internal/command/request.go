@@ -25,7 +25,7 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*Pars
 		if err != nil || result == nil || result.Handled || result.Request == nil {
 			return result, err
 		}
-		result.Command = newParsedCommand(spec, result.Request)
+		result.Command = newParsedCommand(spec, commandDisplayName(result.Request, spec.Name), result.Request)
 		return result, nil
 	}
 
