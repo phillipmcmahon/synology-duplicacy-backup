@@ -59,7 +59,7 @@ coverage floor and package-level baseline.
 ### Coverage snapshot
 - overall coverage: `87.4%`
 - `cmd/duplicacy-backup`: `86.0%`
-- `internal/workflow`: `85.6%`
+- `internal/workflow`: `85.5%`
 - `internal/duplicacy`: `89.7%`
 - `internal/exec`: `95.2%`
 - `internal/secrets`: `93.1%`
