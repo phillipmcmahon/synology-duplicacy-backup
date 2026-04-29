@@ -37,6 +37,9 @@ coverage floor and package-level baseline.
 - Runtime rename readiness now documents why `internal/workflow` remains an
   orchestration package for now, and command/health code uses
   `internal/operator` directly for operator-facing messages.
+- Operator and maintainer documentation now reflects the latest package
+  ownership boundaries, restore/operator message handling, and colour-capture
+  environment variable surface.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.

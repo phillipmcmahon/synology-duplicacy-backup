@@ -173,6 +173,7 @@ COMMAND-SPECIFIC OPTIONS:
 ENVIRONMENT VARIABLES:
     DUPLICACY_BACKUP_CONFIG_DIR   Override config directory (--config-dir takes precedence)
     DUPLICACY_BACKUP_SECRETS_DIR  Override secrets directory (--secrets-dir takes precedence)
+    DUPLICACY_BACKUP_FORCE_COLOUR Force ANSI colour output when set to 1
 
 SAFE PRUNE THRESHOLDS:
     Max Delete Percent       : {{safe_prune_max_delete_percent}}% (default {{safe_prune_max_delete_percent}}%)

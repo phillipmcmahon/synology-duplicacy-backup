@@ -141,9 +141,8 @@ Neutral shared primitives such as `Request`, `Metadata`, `Env`, `Plan`,
 `RunState`, and profile state paths now live in `internal/workflowcore`. The
 restore package imports those primitives from the core package rather than from
 the workflow orchestrator. A deliberately narrow bridge to `internal/workflow`
-still remains for orchestration helpers such as config planning and final
-operator-message translation; that bridge should shrink as typed command
-requests and package boundaries continue to mature.
+still remains for config planning; operator-facing message translation now
+comes directly from `internal/operator`.
 
 | File or package | Responsibility |
 |---|---|
@@ -275,11 +274,11 @@ of process arguments.
 
 ## Output Ownership
 
-Operator-facing output is still owned by the top-level execution layer.
-Domain packages return data or structured errors; they do not print their own
-status messages.
+Operator-facing output is coordinated by the top-level execution layer and the
+focused command packages. Domain packages return data or structured errors;
+they do not print their own status messages.
 
-The workflow layer also owns final error translation. Internal packages can
-return rich typed errors while the workflow decides the final operator-facing
-message. That keeps message formatting consistent and avoids spreading
-user-facing tone across multiple packages.
+`internal/operator` owns final error wording. Command handlers and workflow
+orchestration use that package when they need to turn internal errors into
+operator-facing text. That keeps message formatting consistent and avoids
+spreading user-facing tone across multiple packages.

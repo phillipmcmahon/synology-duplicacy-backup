@@ -178,7 +178,6 @@ It owns:
 - runtime/environment seams
 - plan building
 - runtime execution
-- operator-facing message translation
 - workflow-specific execution sequencing and policy
 
 This package is now the heart of the application.

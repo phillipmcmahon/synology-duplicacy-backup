@@ -31,6 +31,7 @@ storage = "s3://s3.example.com/my-backup-bucket/homes"
 Secure it:
 
 ```sh
+mkdir -p "$HOME/.config/duplicacy-backup"
 chmod 700 "$HOME/.config/duplicacy-backup"
 chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 ```
@@ -48,6 +49,7 @@ s3_secret = "replace-with-secret-key"
 Secure it:
 
 ```sh
+mkdir -p "$HOME/.config/duplicacy-backup/secrets"
 chmod 700 "$HOME/.config/duplicacy-backup/secrets"
 chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ```

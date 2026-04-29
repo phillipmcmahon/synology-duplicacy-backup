@@ -70,7 +70,7 @@ After `#255` and the first `#286` slice, the deliberately small shared core is
 | `Request` and `RequestError` | Moved to `internal/workflowcore` while typed command requests continue to evolve. |
 | `RunState` and read-only state paths | Moved to `internal/workflowcore` for report-only subsystems. State mutation remains in workflow. |
 | `Plan` and `ConfigPlanRequest` | Moved to `internal/workflowcore` because restore needs the read-side plan contract. Runtime planning and execution still live in workflow. |
-| `MessageError`, `OperatorMessage` | Moved to `internal/operator`; `internal/workflow` only keeps compatibility aliases while older runtime files are gradually narrowed. |
+| `MessageError`, `OperatorMessage` | Moved to `internal/operator`; `internal/workflow` only keeps package-local compatibility aliases for remaining internal callers. |
 | Local repository privilege predicates | Core candidate only if restore/config/health/runtime all move out; otherwise keep in workflow to avoid policy drift. |
 | Runtime command presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
 
