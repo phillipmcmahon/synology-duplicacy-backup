@@ -22,8 +22,9 @@ release notes from memory, or generate release artefacts on the macOS host.
   Dependabot monitors that Dockerfile for image updates.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Validation`, and `Coverage`.
-- Keep `CHANGELOG.md` as the repo-rooted, offline-greppable mirror of the
-  operator-facing GitHub release story.
+- Keep `CHANGELOG.md` as the repo-rooted mirror for `Unreleased` and the
+  current major release line. Historical major-version notes stay
+  offline-greppable under [`docs/changelog/`](changelog/README.md).
 - If one or more release attempts were superseded, fold their user-facing
   changes into the successful release notes so nothing important disappears.
 - Let the tag-triggered GitHub Actions workflow build and publish the release
@@ -82,7 +83,8 @@ Recommended project support:
   new contract and operator transition path rather than preserving
   compatibility shims.
 - Review `CHANGELOG.md` and fold superseded release-attempt notes into the next
-  real release entry if needed.
+  real release entry if needed. Do not add new release entries to historical
+  changelog files unless intentionally archiving an older major line.
 - Create or update the release-prep issue and move it to `In Progress`.
 - Update repo docs that describe the shipped behaviour:
   - `README.md`
