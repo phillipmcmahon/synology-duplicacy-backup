@@ -72,7 +72,7 @@ func (e *Executor) cleanupSnapshot() {
 			e.log.PrintLine("Snapshot", e.plan.Paths.SnapshotTarget)
 		}
 		if e.plan.Request.DryRun {
-			e.log.DryRun("%s", e.plan.Display.SnapshotDeleteCommand)
+			e.log.DryRun("%s", e.cmds.SnapshotDelete())
 		} else if delErr := btrfs.DeleteSnapshot(e.runner, e.plan.Paths.SnapshotTarget, false); delErr != nil {
 			e.log.Warn("%s", statusLinef("Failed to delete subvolume %s: %v", e.plan.Paths.SnapshotTarget, delErr))
 		} else if e.plan.Request.Verbose {
@@ -105,7 +105,7 @@ func (e *Executor) cleanupWorkRoot() {
 		e.log.PrintLine("Work Dir", workRoot)
 	}
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.WorkDirRemoveCommand)
+		e.log.DryRun("%s", e.cmds.WorkDirRemove(workRoot))
 		return
 	}
 

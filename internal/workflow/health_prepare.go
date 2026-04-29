@@ -28,7 +28,6 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 	plan.Paths.BackupTarget = cfg.Storage
 	plan.Paths.SnapshotSource = cfg.SourcePath
 	plan.Paths.RepositoryPath = cfg.SourcePath
-	plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.Request.OperationMode = "Health " + presentation.Title(req.Command)
 	plan.Config.LogRetentionDays = cfg.LogRetentionDays
 	plan.Config.Filter = cfg.Filter

@@ -23,6 +23,7 @@ type Executor struct {
 	runner execpkg.Runner
 	plan   *Plan
 	view   *Presenter
+	cmds   RuntimeCommandPresenter
 
 	sourceLock         *lock.Lock
 	targetLock         *lock.Lock
@@ -52,6 +53,7 @@ func NewExecutor(meta Metadata, rt Runtime, log *logger.Logger, runner execpkg.R
 		runner:     runner,
 		plan:       plan,
 		view:       NewPresenter(meta, rt, log, plan.Request.Verbose),
+		cmds:       NewRuntimeCommandPresenter(plan),
 		sourceLock: sourceLock,
 		targetLock: rt.NewLock(meta.LockParent, targetLockKey),
 		startedAt:  startedAt,
@@ -204,7 +206,7 @@ func (e *Executor) prepareDuplicacySetup() error {
 	if e.plan.Request.NeedsSnapshot {
 		if err := e.withSourceLock(func() error {
 			if e.plan.Request.DryRun {
-				e.log.DryRun("%s", e.plan.Display.SnapshotCreateCommand)
+				e.log.DryRun("%s", e.cmds.SnapshotCreate())
 				return nil
 			}
 			if err := btrfs.CreateSnapshot(e.runner, e.plan.Paths.SnapshotSource, e.plan.Paths.SnapshotTarget, false); err != nil {
@@ -222,14 +224,14 @@ func (e *Executor) prepareDuplicacySetup() error {
 		return err
 	}
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.WorkDirCreateCommand)
+		e.log.DryRun("%s", e.cmds.WorkDirCreate())
 	}
 
 	if err := dup.WritePreferences(e.plan.Secrets); err != nil {
 		return err
 	}
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.PreferencesWriteCommand)
+		e.log.DryRun("%s", e.cmds.PreferencesWrite())
 	}
 
 	if e.plan.Request.DoBackup && e.plan.Config.Filter != "" {
@@ -237,7 +239,7 @@ func (e *Executor) prepareDuplicacySetup() error {
 			return err
 		}
 		if e.plan.Request.DryRun {
-			e.log.DryRun("%s", e.plan.Display.FiltersWriteCommand)
+			e.log.DryRun("%s", e.cmds.FiltersWrite())
 		}
 		if e.plan.Request.Verbose {
 			for _, line := range e.plan.Config.FilterLines {
@@ -250,8 +252,8 @@ func (e *Executor) prepareDuplicacySetup() error {
 		return err
 	}
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.WorkDirDirPermsCommand)
-		e.log.DryRun("%s", e.plan.Display.WorkDirFilePermsCommand)
+		e.log.DryRun("%s", e.cmds.WorkDirDirPerms())
+		e.log.DryRun("%s", e.cmds.WorkDirFilePerms())
 	}
 
 	if e.plan.Request.Verbose {
@@ -266,7 +268,7 @@ func (e *Executor) runBackupPhase() error {
 	stopBackup := e.view.StartStatusActivity("Backing up snapshot")
 
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.BackupCommand)
+		e.log.DryRun("%s", e.cmds.Backup())
 		stopBackup()
 		e.log.Info("%s", statusLinef("Backup phase completed (dry-run)"))
 		return nil

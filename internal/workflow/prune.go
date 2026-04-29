@@ -12,7 +12,7 @@ func (e *Executor) runPrunePhase() error {
 	stopInspecting := e.view.StartStatusActivity("Inspecting repository revisions")
 
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.ValidateRepoCommand)
+		e.log.DryRun("%s", e.cmds.ValidateRepo())
 	} else {
 		if err := e.dup.ValidateRepo(); err != nil {
 			stopInspecting()
@@ -24,7 +24,7 @@ func (e *Executor) runPrunePhase() error {
 	}
 
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.PrunePreviewCommand)
+		e.log.DryRun("%s", e.cmds.PrunePreview())
 	}
 	preview, err := e.dup.SafePrunePreview(e.plan.Config.PruneArgs, e.plan.Config.SafePruneMinTotalForPercent)
 	stopInspecting()
@@ -39,7 +39,7 @@ func (e *Executor) runPrunePhase() error {
 	}
 
 	if e.plan.Request.DryRun {
-		e.log.DryRun("%s", e.plan.Display.PolicyPruneCommand)
+		e.log.DryRun("%s", e.cmds.PolicyPrune())
 		e.log.Info("%s", statusLinef("Prune phase completed (dry-run)"))
 	} else {
 		stopApplying := e.view.StartStatusActivity("Applying retention policy")
@@ -63,8 +63,8 @@ func (e *Executor) runCleanupStoragePhase() error {
 
 	if e.plan.Request.DryRun {
 		e.log.PrintLine("Dry Run", "simulation-only; repository chunks are not scanned")
-		e.log.DryRun("%s", e.plan.Display.ValidateRepoCommand)
-		e.log.DryRun("%s", e.plan.Display.CleanupStorageCommand)
+		e.log.DryRun("%s", e.cmds.ValidateRepo())
+		e.log.DryRun("%s", e.cmds.CleanupStorage())
 		stopScanning()
 		e.log.Info("%s", statusLinef("Storage cleanup phase completed (dry-run)"))
 		return nil

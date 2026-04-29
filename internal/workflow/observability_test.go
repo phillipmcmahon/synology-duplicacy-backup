@@ -21,7 +21,6 @@ func TestObservabilityHelpers(t *testing.T) {
 			Target:      "onsite-usb",
 			Location:    locationLocal,
 		},
-		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
 	}
 	report := NewRunReport(plan, start)
 	if report.Label != "homes" || report.Operation != "Backup" || report.Mode != "onsite-usb" || report.Location != locationLocal || !report.DryRun {
@@ -73,9 +72,8 @@ func TestObservabilityHelpers(t *testing.T) {
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
 	plan := &Plan{
-		Config:  PlanConfig{Location: locationRemote},
-		Paths:   PlanPaths{WorkRoot: "/tmp/work"},
-		Display: PlanDisplay{ModeDisplay: "offsite-storj"},
+		Config: PlanConfig{Target: "offsite-storj", Location: locationRemote},
+		Paths:  PlanPaths{WorkRoot: "/tmp/work"},
 	}
 	if !plan.IsRemoteLocation() {
 		t.Fatal("IsRemoteLocation() = false, want true")
@@ -108,7 +106,6 @@ func TestPlanSectionsExposeFocusedViews(t *testing.T) {
 			BackupTarget: "/backups/homes",
 			WorkRoot:     "/tmp/work",
 		},
-		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
 	}
 	sections := plan.Sections()
 
@@ -120,8 +117,5 @@ func TestPlanSectionsExposeFocusedViews(t *testing.T) {
 	}
 	if sections.Paths.BackupTarget != "/backups/homes" || sections.Paths.WorkRoot != "/tmp/work" {
 		t.Fatalf("paths section = %+v", sections.Paths)
-	}
-	if sections.Display.ModeDisplay != "onsite-usb" {
-		t.Fatalf("display section = %+v", sections.Display)
 	}
 }

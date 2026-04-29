@@ -173,7 +173,6 @@ func TestExecutorRun_BackupCommandFailureStillPrintsFailureFooter(t *testing.T) 
 			RepositoryPath: "/volume1/homes-snap",
 			BackupTarget:   "/backups/homes",
 		},
-		Display: PlanDisplay{ModeDisplay: "Local"},
 	}
 	runner := execpkg.NewMockRunner(execpkg.MockResult{
 		Stdout: "Repository set to /volume1/homes-snap\n",
@@ -215,7 +214,6 @@ func TestExecutorStartVisibleRunResetsOverallStartTime(t *testing.T) {
 	plan := &Plan{
 		Request: PlanRequest{OperationMode: "Storage cleanup"},
 		Config:  PlanConfig{BackupLabel: "homes"},
-		Display: PlanDisplay{ModeDisplay: "Local"},
 	}
 
 	executor := &Executor{
@@ -438,7 +436,6 @@ func TestExecutorRun_SafetyPromptCancellationFailsCleanly(t *testing.T) {
 			Location:         locationLocal,
 			LogRetentionDays: 30,
 		},
-		Display: PlanDisplay{ModeDisplay: "Local"},
 	})
 
 	if code := executor.Run(); code != 1 {
@@ -498,16 +495,6 @@ func TestExecutorRun_PruneOnlyStillPreparesDuplicacySetup(t *testing.T) {
 			RepositoryPath: "/volume1/homes",
 			BackupTarget:   "/backups/homes",
 		},
-		Display: PlanDisplay{
-			ModeDisplay:             "Local",
-			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			ValidateRepoCommand:     "duplicacy list -files",
-			PrunePreviewCommand:     "duplicacy prune -dry-run",
-			PolicyPruneCommand:      "duplicacy prune",
-		},
 	}
 
 	executor := NewExecutor(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", logDir), rt, log, execpkg.NewMockRunner(), plan)
@@ -561,7 +548,6 @@ func TestExecutorRun_LockAcquireFailure(t *testing.T) {
 			Location:         locationLocal,
 			LogRetentionDays: 30,
 		},
-		Display: PlanDisplay{ModeDisplay: "Local"},
 	})
 	if code := executor.Run(); code != 1 {
 		t.Fatalf("Run() = %d, want 1", code)
@@ -621,20 +607,6 @@ func TestExecutorRun_AllOperationsDryRun(t *testing.T) {
 			BackupTarget:   "/backups/homes",
 			SnapshotSource: "/volume1/homes",
 			SnapshotTarget: "/volume1/homes-snap",
-		},
-		Display: PlanDisplay{
-			ModeDisplay:             "Local",
-			SnapshotCreateCommand:   "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
-			WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-			PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-			WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-			WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			WorkDirRemoveCommand:    "rm -rf " + workRoot,
-			BackupCommand:           "duplicacy backup -stats -threads 4",
-			ValidateRepoCommand:     "duplicacy list -files",
-			PrunePreviewCommand:     "duplicacy prune -dry-run",
-			PolicyPruneCommand:      "duplicacy prune",
-			CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
 		},
 	}
 

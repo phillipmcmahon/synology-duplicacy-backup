@@ -38,7 +38,6 @@ func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 			SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
 			SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
 		},
-		Display: PlanDisplay{ModeDisplay: "offsite-storj"},
 	}
 
 	lines := SummaryLines(plan)
@@ -93,7 +92,6 @@ func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testin
 			SecretsDir:     "/home/operator/.config/duplicacy-backup/secrets",
 			SecretsFile:    "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml",
 		},
-		Display: PlanDisplay{ModeDisplay: "onsite-rustfs"},
 	}
 
 	lines := SummaryLines(plan)
@@ -135,7 +133,6 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 			ConfigFile:     "/config/homes-backup.toml",
 			WorkRoot:       "/tmp/work",
 		},
-		Display: PlanDisplay{ModeDisplay: "onsite-usb"},
 	}
 
 	lines := SummaryLines(plan)

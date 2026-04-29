@@ -67,12 +67,6 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	if plan.Config.PruneArgsDisplay != "" {
 		t.Fatalf("PruneArgsDisplay = %q, want empty", plan.Config.PruneArgsDisplay)
 	}
-	if plan.Display.BackupCommand != "duplicacy backup -stats -threads 4" {
-		t.Fatalf("BackupCommand = %q", plan.Display.BackupCommand)
-	}
-	if plan.Display.SnapshotCreateCommand == "" || plan.Display.WorkDirCreateCommand == "" {
-		t.Fatalf("expected execution-ready commands, got %+v", plan)
-	}
 	if len(plan.Summary) == 0 {
 		t.Fatal("expected summary lines to be precomputed")
 	}

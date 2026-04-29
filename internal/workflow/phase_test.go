@@ -48,11 +48,6 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
 			},
-			Display: PlanDisplay{
-				ValidateRepoCommand: "duplicacy list -files",
-				PrunePreviewCommand: "duplicacy prune -dry-run",
-				PolicyPruneCommand:  "duplicacy prune",
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.runPrunePhase(); err != nil {
@@ -84,11 +79,6 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
-			},
-			Display: PlanDisplay{
-				ValidateRepoCommand: "duplicacy list -files",
-				PrunePreviewCommand: "duplicacy prune -keep 0:365 -dry-run",
-				PolicyPruneCommand:  "duplicacy prune -keep 0:365",
 			},
 		}
 		var revisionLines strings.Builder
@@ -125,10 +115,6 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
 			},
-			Display: PlanDisplay{
-				ValidateRepoCommand:   "duplicacy list -files",
-				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.runCleanupStoragePhase(); err != nil {
@@ -151,10 +137,6 @@ func TestPruneAndCleanupStoragePhases(t *testing.T) {
 				DuplicacyRoot:  filepath.Join(t.TempDir(), "duplicacy"),
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
-			},
-			Display: PlanDisplay{
-				ValidateRepoCommand:   "duplicacy list -files",
-				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
 			},
 		}
 		runner := execpkg.NewMockRunner(
@@ -204,9 +186,6 @@ func TestCleanupHelpers(t *testing.T) {
 			Paths: PlanPaths{
 				SnapshotTarget: snapshotTarget,
 			},
-			Display: PlanDisplay{
-				SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		executor.cleanupSnapshot()
@@ -237,10 +216,6 @@ func TestCleanupHelpers(t *testing.T) {
 			Paths: PlanPaths{
 				SnapshotTarget: snapshotTarget,
 				WorkRoot:       workRoot,
-			},
-			Display: PlanDisplay{
-				SnapshotDeleteCommand: "btrfs subvolume delete " + snapshotTarget,
-				WorkDirRemoveCommand:  "rm -rf " + workRoot,
 			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner(execpkg.MockResult{}))
@@ -278,9 +253,6 @@ func TestCleanupHelpers(t *testing.T) {
 			Paths: PlanPaths{
 				WorkRoot: workRoot,
 			},
-			Display: PlanDisplay{
-				WorkDirRemoveCommand: "rm -rf " + workRoot,
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		executor.cleanupWorkRoot()
@@ -317,14 +289,6 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 				SnapshotSource: "/volume1/homes",
 				SnapshotTarget: "/volume1/homes-snap",
 			},
-			Display: PlanDisplay{
-				SnapshotCreateCommand:   "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
-				WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-				PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-				FiltersWriteCommand:     "write filters to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "filters"),
-				WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-				WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.prepareDuplicacySetup(); err != nil {
@@ -353,9 +317,6 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 				BackupTarget:   "/backups/homes",
 				SnapshotSource: "/volume1/homes",
 				SnapshotTarget: "/volume1/homes-snap",
-			},
-			Display: PlanDisplay{
-				SnapshotCreateCommand: "btrfs subvolume snapshot -r /volume1/homes /volume1/homes-snap",
 			},
 		}
 		runner := execpkg.NewMockRunner(execpkg.MockResult{})
@@ -387,7 +348,6 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 				RepositoryPath: "/volume1/homes-snap",
 				BackupTarget:   "/backups/homes",
 			},
-			Display: PlanDisplay{BackupCommand: "duplicacy backup -stats -threads 4"},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		executor.dup = duplicacy.NewSetup(workRoot, plan.Paths.RepositoryPath, plan.Paths.BackupTarget, true, execpkg.NewMockRunner())
@@ -458,16 +418,6 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
 			},
-			Display: PlanDisplay{
-				ModeDisplay:             "Local",
-				WorkDirCreateCommand:    "mkdir -p " + filepath.Join(workRoot, "duplicacy", ".duplicacy"),
-				PreferencesWriteCommand: "write JSON preferences to " + filepath.Join(workRoot, "duplicacy", ".duplicacy", "preferences"),
-				WorkDirDirPermsCommand:  "find " + filepath.Join(workRoot, "duplicacy") + " -type d -exec chmod 770 {} +",
-				WorkDirFilePermsCommand: "find " + filepath.Join(workRoot, "duplicacy") + " -type f -exec chmod 660 {} +",
-				ValidateRepoCommand:     "duplicacy list -files",
-				CleanupStorageCommand:   "duplicacy prune -exhaustive -exclusive",
-				WorkDirRemoveCommand:    "rm -rf " + workRoot,
-			},
 		}
 		executor, logDir := newPhaseExecutor(t, plan, execpkg.NewMockRunner())
 		if err := executor.execute(); err != nil {
@@ -494,10 +444,6 @@ func TestPrepareDuplicacySetupAndRunBackup(t *testing.T) {
 				DuplicacyRoot:  filepath.Join(workRoot, "duplicacy"),
 				RepositoryPath: "/volume1/homes",
 				BackupTarget:   "/backups/homes",
-			},
-			Display: PlanDisplay{
-				ValidateRepoCommand:   "duplicacy list -files",
-				CleanupStorageCommand: "duplicacy prune -exhaustive -exclusive",
 			},
 		}
 		runner := execpkg.NewMockRunner(execpkg.MockResult{Err: errors.New("repo not ready")})

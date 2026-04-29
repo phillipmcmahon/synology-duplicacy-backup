@@ -3,7 +3,7 @@ package workflow
 import "testing"
 
 func TestPlanSectionsAndFallbacks(t *testing.T) {
-	if got := (*Plan)(nil).Sections(); got.Request.OperationMode != "" || got.Config.Target != "" || got.Paths.WorkRoot != "" || got.Display.BackupCommand != "" {
+	if got := (*Plan)(nil).Sections(); got.Request.OperationMode != "" || got.Config.Target != "" || got.Paths.WorkRoot != "" {
 		t.Fatalf("nil Sections() = %#v", got)
 	}
 	if (*Plan)(nil).TargetName() != "" {
@@ -39,13 +39,6 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 			DuplicacyRoot: "/tmp/work/duplicacy",
 			BackupTarget:  "/backups/homes",
 		},
-		Display: PlanDisplay{
-			SnapshotCreateCommand: "btrfs subvolume snapshot",
-			BackupCommand:         "duplicacy backup",
-			CleanupStorageCommand: "duplicacy prune -exclusive",
-			WorkDirRemoveCommand:  "rm -rf /tmp/work",
-			ModeDisplay:           "local",
-		},
 	}
 
 	sections := plan.Sections()
@@ -62,10 +55,6 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 	if sections.Paths.WorkRoot != "/tmp/work" || sections.Paths.DuplicacyRoot != "/tmp/work/duplicacy" || sections.Paths.BackupTarget != "/backups/homes" {
 		t.Fatalf("paths section = %#v", sections.Paths)
 	}
-	if sections.Display.BackupCommand != "duplicacy backup" || sections.Display.CleanupStorageCommand == "" {
-		t.Fatalf("display section = %#v", sections.Display)
-	}
-
 	sections.Config.FilterLines[0] = "mutated"
 	sections.Config.PruneArgs[0] = "mutated"
 	if plan.Config.FilterLines[0] == "mutated" || plan.Config.PruneArgs[0] == "mutated" {

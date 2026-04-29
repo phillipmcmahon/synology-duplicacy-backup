@@ -192,7 +192,6 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	}
 	plan.Config.Target = cfg.Target
 	plan.Config.Location = cfg.Location
-	plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
 	plan.Paths.SnapshotSource = cfg.SourcePath
 	plan.Paths.BackupTarget = cfg.Storage
 	plan.Config.Threads = cfg.Threads
@@ -238,7 +237,6 @@ func handleConfigPaths(req *ConfigRequest, meta Metadata, planner *Planner) stri
 	if cfg, err := planner.loadConfig(plan); err == nil {
 		plan.Config.Target = cfg.Target
 		plan.Config.Location = cfg.Location
-		plan.Display.ModeDisplay = modeDisplay(plan.TargetName())
 		plan.Paths.SnapshotSource = cfg.SourcePath
 		plan.Paths.BackupTarget = cfg.Storage
 	}

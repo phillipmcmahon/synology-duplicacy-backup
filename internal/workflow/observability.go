@@ -46,7 +46,7 @@ func NewRunReport(plan *Plan, startedAt time.Time) *RunReport {
 	report.Operation = plan.Request.OperationMode
 	report.Mode = plan.TargetName()
 	if report.Mode == "" {
-		report.Mode = plan.Display.ModeDisplay
+		report.Mode = modeDisplay(plan.TargetName())
 	}
 	report.Location = plan.Config.Location
 	report.DryRun = plan.Request.DryRun
@@ -95,7 +95,7 @@ func NewFailureRunReport(req *RuntimeRequest, plan *Plan, startedAt time.Time, c
 		if report.Mode == "" {
 			report.Mode = plan.TargetName()
 			if report.Mode == "" {
-				report.Mode = plan.Display.ModeDisplay
+				report.Mode = modeDisplay(plan.TargetName())
 			}
 		}
 		report.Location = plan.Config.Location

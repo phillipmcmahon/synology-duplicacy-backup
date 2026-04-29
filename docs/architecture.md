@@ -98,8 +98,9 @@ RuntimeRequest -> Plan -> Executor
 ```
 
 The `Plan` stores runtime data in explicit sections for request intent,
-resolved config, derived paths, and display strings. Planning validates and
-derives; execution mutates. That separation is the key runtime boundary.
+resolved config, and derived paths. Planning validates and derives; execution
+mutates; presentation helpers render operator-facing command text lazily from
+the plan data. That separation is the key runtime boundary.
 
 For the detailed request, plan, execute, presentation, and error-translation
 walkthrough, use [how-it-works.md](how-it-works.md).

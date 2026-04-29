@@ -497,10 +497,10 @@ Planning is allowed to:
 - derive paths
 - derive operation mode text
 - derive summary lines
-- derive execution-ready command strings
 
 Planning is not allowed to:
 
+- format operator-facing dry-run command strings
 - create directories
 - acquire locks
 - create snapshots
@@ -519,8 +519,7 @@ That is an important design rule.
 3. `loadConfig(plan)`
 4. `plan.applyConfig(cfg, runtime)`
 5. `loadSecrets(plan)` when the selected storage value needs secrets
-6. `populateCommands(plan)`
-7. `SummaryLines(plan)`
+6. `SummaryLines(plan)`
 
 ### `validateEnvironment`
 
@@ -541,7 +540,6 @@ This creates the first concrete runtime shape:
 - repository path
 - config path
 - secrets path
-- mode display
 - whether Duplicacy setup and snapshots are needed
 
 This is where abstract user intent becomes machine-specific paths.
@@ -623,41 +621,18 @@ only call `loadSecrets` when that backend requires runtime keys. That is a
 deliberate consequence of the model: the Duplicacy storage value drives
 credential requirements, not deployment location.
 
-### `populateCommands`
-
-This step is one of the most important recent improvements.
-
-The plan now carries many execution-ready command descriptions, such as:
-
-- snapshot create/delete
-- work-dir creation/removal
-- preferences write
-- filter write
-- work-dir permission fixes
-- backup command
-- repo validation
-- prune preview
-- policy prune
-- storage cleanup
-These strings are used for:
-
-- dry-run output
-- tests
-- keeping executor logic focused on sequencing instead of reconstructing command descriptions
-
 ### What the `Plan` now represents
 
 The `Plan` is no longer just “resolved config plus some flags.”
 
-It is the execution contract.
+It is the runtime data contract.
 
 It stores those concerns in explicit named sections so future changes can be
 discussed in the right shape:
 
 - `PlanRequest` for mode decisions and resolved operator intent
-- `PlanConfig` for label, target, health notify, ownership, prune, and threshold values
+- `PlanConfig` for label, target, health notify, prune, and threshold values
 - `PlanPaths` for resolved filesystem, config, secrets, snapshot, and storage paths
-- `PlanDisplay` for operator-facing command descriptions
 
 Together, those sections contain:
 
@@ -665,7 +640,13 @@ Together, those sections contain:
 - summary-ready values
 - cleanup-relevant paths
 
-The more complete the plan is, the less the executor has to know about request parsing or config internals.
+Dry-run command text is not stored in the plan. The runtime command presenter
+formats that text lazily from `PlanRequest`, `PlanConfig`, and `PlanPaths` at
+the execution edge. That keeps planning data-only while still keeping executor
+logic focused on sequencing instead of string assembly.
+
+The more complete the data plan is, the less the executor has to know about
+request parsing or config internals.
 
 ## Execute Phase
 

@@ -13,7 +13,6 @@ type Plan struct {
 	Request PlanRequest
 	Config  PlanConfig
 	Paths   PlanPaths
-	Display PlanDisplay
 
 	Summary []SummaryLine
 }
@@ -67,28 +66,10 @@ type PlanPaths struct {
 	SecretsFile    string
 }
 
-type PlanDisplay struct {
-	ModeDisplay             string
-	SnapshotCreateCommand   string
-	SnapshotDeleteCommand   string
-	WorkDirCreateCommand    string
-	PreferencesWriteCommand string
-	FiltersWriteCommand     string
-	WorkDirDirPermsCommand  string
-	WorkDirFilePermsCommand string
-	BackupCommand           string
-	ValidateRepoCommand     string
-	PrunePreviewCommand     string
-	PolicyPruneCommand      string
-	CleanupStorageCommand   string
-	WorkDirRemoveCommand    string
-}
-
 type PlanSections struct {
 	Request PlanRequest
 	Config  PlanConfig
 	Paths   PlanPaths
-	Display PlanDisplay
 }
 
 func (p *Plan) Sections() PlanSections {
@@ -102,7 +83,6 @@ func (p *Plan) Sections() PlanSections {
 		Request: p.Request,
 		Config:  config,
 		Paths:   p.Paths,
-		Display: p.Display,
 	}
 }
 
@@ -111,7 +91,10 @@ func (p *Plan) IsRemoteLocation() bool {
 }
 
 func (p *Plan) ModeLabel() string {
-	return p.Display.ModeDisplay
+	if p == nil {
+		return ""
+	}
+	return modeDisplay(p.TargetName())
 }
 
 func (p *Plan) WorkDir() string {

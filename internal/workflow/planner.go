@@ -61,7 +61,6 @@ func (p *Planner) Build(req *RuntimeRequest) (*Plan, error) {
 		plan.Secrets = sec
 	}
 
-	p.populateCommands(plan)
 	plan.Summary = SummaryLines(plan)
 
 	return plan, nil
@@ -225,9 +224,6 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 			SecretsDir:     secretsDir,
 			SecretsFile:    secrets.GetSecretsFilePath(secretsDir, backupLabel),
 		},
-		Display: PlanDisplay{
-			ModeDisplay: modeDisplay(target),
-		},
 	}
 }
 
@@ -309,7 +305,6 @@ func (p *Plan) applyConfigIdentity(cfg *config.Config) {
 	p.Config.Target = cfg.Target
 	p.Config.Location = cfg.Location
 	p.Config.Notify = cfg.Health.Notify
-	p.Display.ModeDisplay = modeDisplay(cfg.Target)
 }
 
 func (p *Plan) applyConfig(cfg *config.Config, rt Runtime) {
@@ -355,28 +350,6 @@ func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 	}
 
 	return nil
-}
-
-func (p *Planner) populateCommands(plan *Plan) {
-	plan.Display.SnapshotCreateCommand = fmt.Sprintf("btrfs subvolume snapshot -r %s %s", plan.Paths.SnapshotSource, plan.Paths.SnapshotTarget)
-	plan.Display.SnapshotDeleteCommand = fmt.Sprintf("btrfs subvolume delete %s", plan.Paths.SnapshotTarget)
-	plan.Display.WorkDirCreateCommand = fmt.Sprintf("mkdir -p %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy"))
-	plan.Display.PreferencesWriteCommand = fmt.Sprintf("write JSON preferences to %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy", "preferences"))
-	plan.Display.FiltersWriteCommand = fmt.Sprintf("write filters to %s", filepath.Join(plan.Paths.DuplicacyRoot, ".duplicacy", "filters"))
-	plan.Display.WorkDirDirPermsCommand = fmt.Sprintf("find %s -type d -exec chmod 770 {} +", plan.Paths.DuplicacyRoot)
-	plan.Display.WorkDirFilePermsCommand = fmt.Sprintf("find %s -type f -exec chmod 660 {} +", plan.Paths.DuplicacyRoot)
-	plan.Display.BackupCommand = fmt.Sprintf("duplicacy backup -stats -threads %d", plan.Config.Threads)
-	plan.Display.ValidateRepoCommand = "duplicacy list -files"
-	plan.Display.PrunePreviewCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s -dry-run", plan.Config.PruneArgsDisplay))
-	if plan.Display.PrunePreviewCommand == "duplicacy prune  -dry-run" {
-		plan.Display.PrunePreviewCommand = "duplicacy prune -dry-run"
-	}
-	plan.Display.PolicyPruneCommand = strings.TrimSpace(fmt.Sprintf("duplicacy prune %s", plan.Config.PruneArgsDisplay))
-	if plan.Display.PolicyPruneCommand == "duplicacy prune" || plan.Display.PolicyPruneCommand == "duplicacy prune " {
-		plan.Display.PolicyPruneCommand = "duplicacy prune"
-	}
-	plan.Display.CleanupStorageCommand = "duplicacy prune -exhaustive -exclusive"
-	plan.Display.WorkDirRemoveCommand = fmt.Sprintf("rm -rf %s", plan.Paths.WorkRoot)
 }
 
 func splitNonEmptyLines(value string) []string {

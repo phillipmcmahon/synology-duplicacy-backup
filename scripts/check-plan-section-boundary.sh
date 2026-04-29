@@ -5,10 +5,11 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 
 # Source of truth: internal/workflow/plan.go.
-# Keep this list aligned with the PlanRequest, PlanConfig, PlanPaths, and
-# PlanDisplay section fields. The guard intentionally rejects the old flat
-# Plan field shape so callers use plan.Request.*, plan.Config.*, plan.Paths.*,
-# or plan.Display.* instead.
+# Keep this list aligned with the PlanRequest, PlanConfig, and PlanPaths
+# section fields. It also includes removed PlanDisplay command-string fields so
+# callers cannot reintroduce planner-owned presentation strings. The guard
+# intentionally rejects the old flat Plan field shape so callers use
+# plan.Request.*, plan.Config.*, or plan.Paths.* instead.
 FIELDS='Threads|Target|Location|BackupLabel|Filter|FilterLines|PruneOptions|PruneArgs|PruneArgsDisplay|LogRetentionDays|SafePruneMaxDeletePercent|SafePruneMaxDeleteCount|SafePruneMinTotalForPercent|RunTimestamp|SnapshotSource|SnapshotTarget|RepositoryPath|WorkRoot|DuplicacyRoot|BackupTarget|ConfigDir|ConfigFile|SecretsDir|SecretsFile|ModeDisplay|SnapshotCreateCommand|SnapshotDeleteCommand|WorkDirCreateCommand|PreferencesWriteCommand|FiltersWriteCommand|WorkDirDirPermsCommand|WorkDirFilePermsCommand|BackupCommand|ValidateRepoCommand|PrunePreviewCommand|PolicyPruneCommand|CleanupStorageCommand|WorkDirRemoveCommand|DoBackup|DoPrune|DoCleanupStore|ForcePrune|DryRun|Verbose|JSONSummary|NeedsDuplicacySetup|NeedsSnapshot|DefaultNotice|OperationMode'
 DIRECT_PATTERN="(^|[^[:alnum:]_])(plan|p)\\.(${FIELDS})([^[:alnum:]_]|$)"
 DOC_PATTERN="Plan\\.(${FIELDS})([^[:alnum:]_]|$)"
@@ -27,14 +28,14 @@ find . -type f \( -name '*.go' -o -name '*.md' -o -name '*.sh' \) \
 
 if [ -s "$direct_hits" ]; then
     echo "Plan section boundary check failed: possible direct flat-field access on a Plan value." >&2
-    echo "Use plan.Request.*, plan.Config.*, plan.Paths.*, or plan.Display.* instead." >&2
+    echo "Use plan.Request.*, plan.Config.*, or plan.Paths.* instead." >&2
     cat "$direct_hits" >&2
     failures=1
 fi
 
 if [ -s "$doc_hits" ]; then
     echo "Plan section boundary check failed: literal Plan.<old-field> references remain." >&2
-    echo "Update docs, comments, or scripts to the section-owned Plan shape." >&2
+    echo "Update docs, comments, or scripts to the section-owned data-only Plan shape." >&2
     cat "$doc_hits" >&2
     failures=1
 fi
