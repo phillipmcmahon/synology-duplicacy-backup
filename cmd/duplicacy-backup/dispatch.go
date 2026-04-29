@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
@@ -21,31 +22,17 @@ const (
 )
 
 func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Runtime) int {
-	if err := requireSynologyDSM(); err != nil {
-		return writeCommandFailure("", err)
+	if command.RequiresDSMForRequest(req) {
+		if err := requireSynologyDSM(); err != nil {
+			return writeCommandFailure("", err)
+		}
 	}
 	if err := validateRootExecution(req, rt); err != nil {
 		return writeCommandFailure("", err)
 	}
 
-	switch {
-	case req.ConfigCommand != "":
-		return runConfigRequest(req, meta, rt)
-	case req.DiagnosticsCommand != "":
-		return runDiagnosticsRequest(req, meta, rt)
-	case req.NotifyCommand != "":
-		return runNotifyRequest(req, meta, rt)
-	case req.RestoreCommand != "":
-		return runRestoreRequest(req, meta, rt)
-	case req.RollbackCommand != "":
-		return runRollbackRequest(req, meta, rt)
-	case req.UpdateCommand != "":
-		return runUpdateRequest(req, meta, rt)
-	case req.HealthCommand != "":
-		return runHealthRequest(req, meta, rt)
-	default:
-		return runRuntimeRequest(req, meta, rt)
-	}
+	spec := dispatchSpecForRequest(req)
+	return spec.handle(req, meta, rt)
 }
 
 type directRootProfilePolicy struct {
@@ -74,31 +61,14 @@ func directRootProfilePolicyForRequest(req *workflow.Request) directRootProfileP
 	if req == nil {
 		return directRootProfilePolicy{}
 	}
-	switch {
-	case req.ConfigCommand != "":
-		return directRootProfilePolicy{Command: "config " + req.ConfigCommand, UsesProfile: true, RequiresSecrets: true}
-	case req.DiagnosticsCommand != "":
-		return directRootProfilePolicy{Command: "diagnostics", UsesProfile: true, RequiresSecrets: true}
-	case req.HealthCommand != "":
-		return directRootProfilePolicy{Command: "health " + req.HealthCommand, UsesProfile: true, RequiresSecrets: true}
-	case req.NotifyCommand != "":
-		command := "notify " + req.NotifyCommand
-		if req.NotifyScope == "update" {
-			command += " update"
-		}
-		return directRootProfilePolicy{Command: command, UsesProfile: true, RequiresSecrets: true}
-	case req.RestoreCommand != "":
-		return directRootProfilePolicy{Command: "restore " + req.RestoreCommand, UsesProfile: true, RequiresSecrets: true}
-	case req.UpdateCommand != "":
-		return directRootProfilePolicy{Command: "update", UsesProfile: true}
-	case req.DoBackup:
-		return directRootProfilePolicy{Command: "backup", UsesProfile: true, RequiresSecrets: true}
-	case req.DoPrune:
-		return directRootProfilePolicy{Command: "prune", UsesProfile: true, RequiresSecrets: true}
-	case req.DoCleanupStore:
-		return directRootProfilePolicy{Command: "cleanup-storage", UsesProfile: true, RequiresSecrets: true}
-	default:
+	commandName, policy := command.ProfilePolicyForRequest(req)
+	if !policy.UsesProfile {
 		return directRootProfilePolicy{}
+	}
+	return directRootProfilePolicy{
+		Command:         commandName,
+		UsesProfile:     policy.UsesProfile,
+		RequiresSecrets: policy.RequiresSecrets,
 	}
 }
 

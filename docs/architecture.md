@@ -22,7 +22,7 @@ continue into the `RuntimeRequest -> Plan -> Execute` path.
 ```mermaid
 flowchart TD
     CLI["cmd/duplicacy-backup<br/>argv, DSM guard, root/profile guard"]
-    Command["internal/command<br/>parse argv and render help"]
+    Command["internal/command<br/>command registry, parse argv, render help"]
     Dispatch["dispatchRequest<br/>route by command family"]
     Workflow["internal/workflow<br/>runtime plans, policy, reports"]
     Restore["internal/restore<br/>restore plans, selection, workspace safety"]
@@ -77,9 +77,19 @@ transition guidance so operators can see the new contract plainly.
 ## Command Boundaries
 
 `internal/command` owns CLI parsing and help text. It produces one broad
-parser request, then dispatch projects that broad shape into command-specific
-requests before execution. Workflow handlers should work from those narrow
-request types rather than passing the parser envelope deeper into the system.
+parser request for now, using a command registry as the source of truth for
+public command names, parser coverage, help coverage, DSM policy, and
+profile/root policy. Dispatch then projects that broad shape into
+command-specific requests before execution.
+
+The registry is the first step of the command-router cleanup. It deliberately
+keeps behaviour stable while giving every public command one auditable metadata
+entry. The next slice can replace the broad parser envelope with typed command
+requests without also having to rediscover parser, help, and privilege policy
+coverage.
+
+Workflow handlers should work from narrow request types rather than passing the
+parser envelope deeper into the system.
 
 Runtime operations are the exception that need the full planning path:
 

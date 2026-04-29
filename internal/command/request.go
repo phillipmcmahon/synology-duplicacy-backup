@@ -18,30 +18,9 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Runtime) (*
 	if len(args) == 0 {
 		return &ParseResult{Handled: true, Output: UsageText(meta, rt)}, nil
 	}
-	switch args[0] {
-	case "backup", "prune", "cleanup-storage":
-		return parseRuntimeCommandRequest(args[0], args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "config" {
-		return parseConfigRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "diagnostics" {
-		return parseDiagnosticsRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "health" {
-		return parseHealthRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "notify" {
-		return parseNotifyRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "restore" {
-		return parseRestoreRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "rollback" {
-		return parseRollbackRequest(args[1:], meta, rt)
-	}
-	if len(args) > 0 && args[0] == "update" {
-		return parseUpdateRequest(args[1:], meta, rt)
+
+	if spec, ok := commandSpec(args[0]); ok {
+		return spec.parse(args[1:], meta, rt)
 	}
 
 	if result := parseTopLevelMetaRequest(args, meta, rt); result != nil {

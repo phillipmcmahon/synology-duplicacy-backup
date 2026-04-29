@@ -1158,6 +1158,43 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	}
 }
 
+func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
+	type dispatchCase struct {
+		command string
+		req     *workflow.Request
+		want    string
+	}
+	cases := []dispatchCase{
+		{command: "backup", req: &workflow.Request{DoBackup: true}, want: "runtime"},
+		{command: "prune", req: &workflow.Request{DoPrune: true}, want: "runtime"},
+		{command: "cleanup-storage", req: &workflow.Request{DoCleanupStore: true}, want: "runtime"},
+		{command: "config", req: &workflow.Request{ConfigCommand: "validate"}, want: "config"},
+		{command: "diagnostics", req: &workflow.Request{DiagnosticsCommand: "diagnostics"}, want: "diagnostics"},
+		{command: "health", req: &workflow.Request{HealthCommand: "status"}, want: "health"},
+		{command: "notify", req: &workflow.Request{NotifyCommand: "test"}, want: "notify"},
+		{command: "restore", req: &workflow.Request{RestoreCommand: "plan"}, want: "restore"},
+		{command: "rollback", req: &workflow.Request{RollbackCommand: "rollback"}, want: "rollback"},
+		{command: "update", req: &workflow.Request{UpdateCommand: "update"}, want: "update"},
+	}
+
+	seen := make(map[string]bool)
+	for _, tc := range cases {
+		t.Run(tc.command, func(t *testing.T) {
+			spec := dispatchSpecForRequest(tc.req)
+			if spec.name != tc.want || spec.handle == nil {
+				t.Fatalf("dispatchSpecForRequest(%s) = %q handle nil=%t, want %q", tc.command, spec.name, spec.handle == nil, tc.want)
+			}
+			seen[tc.command] = true
+		})
+	}
+
+	for _, spec := range command.PublicCommandSpecs() {
+		if !seen[spec.Name] {
+			t.Fatalf("public command %s has no dispatch coverage test", spec.Name)
+		}
+	}
+}
+
 func TestRunWithArgs_DirectRootBackupRequiresSudoOperator(t *testing.T) {
 	withTestGlobals(t, func() {
 		t.Setenv("SUDO_USER", "")

@@ -258,6 +258,7 @@ These packages do focused work and should stay relatively narrow:
 
 The request phase lives in:
 
+- [`internal/command/registry.go`](../internal/command/registry.go)
 - [`internal/command/request.go`](../internal/command/request.go)
 - [`internal/command/usage.go`](../internal/command/usage.go)
 - [`internal/workflow/request.go`](../internal/workflow/request.go)
@@ -304,6 +305,19 @@ the same sudo boundary as real prune. `cleanup-storage --dry-run` is different:
 it is simulation-only and prints the commands without scanning chunks.
 
 Those are still request-level concepts because they describe intent, not machine state.
+
+### Command registry
+
+`internal/command` keeps one command registry for the public CLI surface. Each
+entry records the command family, parser, help coverage, DSM requirement, and
+profile/root policy. `ParseRequest` uses that registry for top-level command
+routing, and dispatch uses the same profile policy metadata when rejecting
+ambiguous direct-root profile execution.
+
+This is intentionally transitional: the current parser still returns the broad
+`workflow.Request` envelope, but the command inventory and privilege metadata
+now have one home. Typed command requests can replace the envelope without
+creating another parallel dispatch table.
 
 ### What happens in `ParseRequest`
 
