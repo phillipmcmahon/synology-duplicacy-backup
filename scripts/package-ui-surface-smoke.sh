@@ -233,6 +233,8 @@ bundle_dir="$ROOT/build/test-packages/release/$RUN_ID/${RUN_ID}_bundle"
 cp "$ROOT/scripts/ui-surface-smoke-runner.sh" "$bundle_dir/run-ui-surface-smoke.sh"
 chmod 755 "$bundle_dir/run-ui-surface-smoke.sh"
 
+# The extracted bundle binary path is part of the documented sudoers
+# Cmnd_Alias glob; keep this setup-env shape in sync with docs/ui-surface-smoke.md.
 quoted_default_run_restore="$(shell_quote "$DEFAULT_RUN_RESTORE")"
 quoted_default_restore_target="$(shell_quote "$DEFAULT_RESTORE_TARGET")"
 quoted_default_restore_targets="$(shell_quote "$DEFAULT_RESTORE_TARGETS")"

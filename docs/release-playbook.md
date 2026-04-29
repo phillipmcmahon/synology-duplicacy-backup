@@ -245,6 +245,10 @@ NAS UI surface smoke coverage:
 - Treat unexpected outcomes, stale wording, missing colour where colour is
   expected, broken JSON summaries, or managed update/rollback capture failures
   as release blockers unless explicitly documented in the release issue.
+- The NAS smoke sudo policy trusts the CI-produced bundle and the documented
+  extraction layout. Only use the passwordless smoke install rule for trusted
+  release validation accounts, and treat unexpected bundle paths as a release
+  process failure rather than broadening the sudoers glob.
 
 ### 4. Write Release Notes
 

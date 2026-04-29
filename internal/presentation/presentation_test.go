@@ -154,6 +154,15 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 			t.Fatalf("ColourizeValidationValue(%q, false) = %q", value, got)
 		}
 	}
+	for _, value := range []string{"Not required", "Custom"} {
+		got := ColourizeValidationValue(value, true)
+		if got != value {
+			t.Fatalf("ColourizeValidationValue(%q, true) = %q, want neutral uncoloured value", value, got)
+		}
+		if stripped := logger.StripColour(got); stripped != value {
+			t.Fatalf("StripColour(ColourizeValidationValue(%q, true)) = %q, want %q", value, stripped, value)
+		}
+	}
 	for _, value := range []string{"Passed", "Failed", "Skipped"} {
 		if got := ColourizeValidationResult(value, false); got != value {
 			t.Fatalf("ColourizeValidationResult(%q, false) = %q", value, got)
