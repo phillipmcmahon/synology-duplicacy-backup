@@ -93,25 +93,33 @@ The runner automatically:
 ## Sudo Policy for Smoke Runs
 
 The bundle binary path changes for every smoke package, so sudo-required smoke
-commands do not run that unpacked path directly. Instead, install the current
-bundle binary to a stable, root-owned smoke path before running the suite:
+commands do not run that unpacked path directly. Instead, the runner refreshes
+the current bundle binary into a stable, root-owned smoke path before running
+the suite:
 
 ```sh
 . ./setup-env.sh
 
-sudo install -d -o root -g root -m 0755 "$(dirname -- "$SMOKE_SUDO_BIN")"
-sudo install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
+sudo -n install -d -o root -g root -m 0755 "$(dirname -- "$SMOKE_SUDO_BIN")"
+sudo -n install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
 ```
 
-Then allow the operator account to run only that stable smoke binary without a
-password. Replace `<operator>` with the NAS account running the smoke suite.
-`SETENV` is intentionally limited to this command so colour captures can pass
+Allow the operator account to refresh and run only that stable smoke binary
+without a password. Replace `<operator>` with the NAS account running the smoke
+suite, including the `/var/services/homes/<operator>/...` path. `SETENV` is
+intentionally limited to the smoke binary execution so colour captures can pass
 `DUPLICACY_BACKUP_FORCE_COLOUR=1` through sudo without allowing arbitrary root
 commands:
 
 ```sh
 sudo tee /etc/sudoers.d/duplicacy-backup-smoke >/dev/null <<'EOF'
-<operator> ALL=(root) NOPASSWD: SETENV: /usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke
+Cmnd_Alias DUPLICACY_BACKUP_SMOKE_INSTALL = \
+    /usr/bin/install -d -o root -g root -m 0755 /usr/local/lib/duplicacy-backup/smoke, \
+    /usr/bin/install -o root -g root -m 0755 /var/services/homes/<operator>/exclude/testing/*/*_bundle/extracted/duplicacy-backup_*_linux_amd64/duplicacy-backup_*_linux_amd64 /usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke
+Cmnd_Alias DUPLICACY_BACKUP_SMOKE = /usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke *
+
+<operator> ALL=(root) NOPASSWD: DUPLICACY_BACKUP_SMOKE_INSTALL
+<operator> ALL=(root) NOPASSWD: SETENV: DUPLICACY_BACKUP_SMOKE
 EOF
 sudo chmod 0440 /etc/sudoers.d/duplicacy-backup-smoke
 sudo visudo -cf /etc/sudoers.d/duplicacy-backup-smoke
@@ -119,11 +127,14 @@ sudo visudo -cf /etc/sudoers.d/duplicacy-backup-smoke
 
 Keep the smoke binary root-owned. Do not grant passwordless sudo to arbitrary
 bundle paths under the operator home directory, because those paths are
-operator-writable and would make the sudo rule too broad.
+operator-writable and would make the sudo rule too broad. The install rule is
+still high-trust: it allows the smoke operator to replace the fixed smoke binary
+with a bundle build from the testing area, then execute that binary as root.
+Use it only for trusted release validation accounts.
 
-The runner fails before capturing commands if `SMOKE_SUDO_BIN` is missing, does
-not match the unpacked bundle binary, or cannot be executed with `sudo -n`.
-You can check the sudo rule before running the full suite:
+The runner fails before capturing commands if it cannot refresh
+`SMOKE_SUDO_BIN` or cannot execute it with `sudo -n`. You can check the sudo
+rule before running the full suite:
 
 ```sh
 sudo -n DUPLICACY_BACKUP_FORCE_COLOUR=1 "$SMOKE_SUDO_BIN" --version

@@ -38,6 +38,8 @@ assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "RESTORE_USE_SUDO_TAR
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "SMOKE_SUDO_BIN"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "validate_smoke_sudo_bin"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "sudo -n install -d"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "sudo -n install -o root -g root -m 0755"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" 'sudo -n "$SMOKE_SUDO_BIN"'
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "run_restore_capture"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "RESTORE_REVISION is auto-selected when omitted"
@@ -69,6 +71,8 @@ assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "local filesystem rep
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "permission denied|EACCES"
 assert_contains "$ROOT/scripts/package-ui-surface-smoke.sh" "SMOKE_SUDO_BIN"
 assert_contains "$ROOT/docs/ui-surface-smoke.md" "Sudo Policy for Smoke Runs"
-assert_contains "$ROOT/docs/ui-surface-smoke.md" "NOPASSWD: SETENV: /usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke"
+assert_contains "$ROOT/docs/ui-surface-smoke.md" "DUPLICACY_BACKUP_SMOKE_INSTALL"
+assert_contains "$ROOT/docs/ui-surface-smoke.md" "/var/services/homes/<operator>/exclude/testing"
+assert_contains "$ROOT/docs/ui-surface-smoke.md" "NOPASSWD: SETENV: DUPLICACY_BACKUP_SMOKE"
 
 echo "ui-surface-smoke script tests passed"

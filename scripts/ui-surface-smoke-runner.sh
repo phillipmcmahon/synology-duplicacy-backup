@@ -338,6 +338,22 @@ target_uses_sudo() {
 }
 
 validate_smoke_sudo_bin() {
+	if [ ! -x "$SMOKE_SUDO_BIN" ] || { command -v cmp >/dev/null 2>&1 && ! cmp -s "$BIN" "$SMOKE_SUDO_BIN"; }; then
+		smoke_sudo_dir="$(dirname -- "$SMOKE_SUDO_BIN")"
+		if ! sudo -n install -d -o root -g root -m 0755 "$smoke_sudo_dir" >/dev/null 2>&1 ||
+			! sudo -n install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN" >/dev/null 2>&1; then
+			cat >&2 <<EOF
+UI smoke sudo binary could not be refreshed: $SMOKE_SUDO_BIN
+
+Allow the runner to install the current bundle binary into the stable smoke path,
+or install it manually before running sudo-required captures:
+  sudo install -d -o root -g root -m 0755 "$smoke_sudo_dir"
+  sudo install -o root -g root -m 0755 "$BIN" "$SMOKE_SUDO_BIN"
+EOF
+			exit 1
+		fi
+	fi
+
 	if [ ! -x "$SMOKE_SUDO_BIN" ]; then
 		cat >&2 <<EOF
 UI smoke sudo binary is not installed or executable: $SMOKE_SUDO_BIN
