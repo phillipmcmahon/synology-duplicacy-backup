@@ -1107,18 +1107,18 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	cases := []policyCase{
 		{name: "nil request", req: nil},
 		{name: "empty request", req: &workflow.Request{}},
-		{name: "backup", req: &workflow.Request{DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
-		{name: "prune", req: &workflow.Request{DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
-		{name: "cleanup-storage", req: &workflow.Request{DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
-		{name: "diagnostics", req: &workflow.Request{DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
-		{name: "update", req: &workflow.Request{UpdateCommand: "update"}, command: "update", usesProfile: true},
-		{name: "rollback", req: &workflow.Request{RollbackCommand: "rollback"}, command: "", usesProfile: false},
+		{name: "backup", req: &workflow.Request{Command: "backup", DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
+		{name: "prune", req: &workflow.Request{Command: "prune", DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
+		{name: "cleanup-storage", req: &workflow.Request{Command: "cleanup-storage", DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
+		{name: "diagnostics", req: &workflow.Request{Command: "diagnostics", DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
+		{name: "update", req: &workflow.Request{Command: "update", UpdateCommand: "update"}, command: "update", usesProfile: true},
+		{name: "rollback", req: &workflow.Request{Command: "rollback", RollbackCommand: "rollback"}, command: "", usesProfile: false},
 	}
 
 	for _, command := range []string{"validate", "explain", "paths"} {
 		cases = append(cases, policyCase{
 			name:           "config " + command,
-			req:            &workflow.Request{ConfigCommand: command},
+			req:            &workflow.Request{Command: "config", ConfigCommand: command},
 			command:        "config " + command,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -1127,7 +1127,7 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, command := range []string{"status", "doctor", "verify"} {
 		cases = append(cases, policyCase{
 			name:           "health " + command,
-			req:            &workflow.Request{HealthCommand: command},
+			req:            &workflow.Request{Command: "health", HealthCommand: command},
 			command:        "health " + command,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -1136,7 +1136,7 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, command := range []string{"plan", "list-revisions", "run", "select"} {
 		cases = append(cases, policyCase{
 			name:           "restore " + command,
-			req:            &workflow.Request{RestoreCommand: command},
+			req:            &workflow.Request{Command: "restore", RestoreCommand: command},
 			command:        "restore " + command,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -1145,14 +1145,14 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	cases = append(cases,
 		policyCase{
 			name:           "notify test label",
-			req:            &workflow.Request{NotifyCommand: "test"},
+			req:            &workflow.Request{Command: "notify", NotifyCommand: "test"},
 			command:        "notify test",
 			usesProfile:    true,
 			requiresSecret: true,
 		},
 		policyCase{
 			name:           "notify test update",
-			req:            &workflow.Request{NotifyCommand: "test", NotifyScope: "update"},
+			req:            &workflow.Request{Command: "notify", NotifyCommand: "test", NotifyScope: "update"},
 			command:        "notify test update",
 			usesProfile:    true,
 			requiresSecret: true,
@@ -1176,24 +1176,24 @@ func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
 		want    string
 	}
 	cases := []dispatchCase{
-		{command: "backup", req: &workflow.Request{DoBackup: true}, want: "runtime"},
-		{command: "prune", req: &workflow.Request{DoPrune: true}, want: "runtime"},
-		{command: "cleanup-storage", req: &workflow.Request{DoCleanupStore: true}, want: "runtime"},
-		{command: "config", req: &workflow.Request{ConfigCommand: "validate"}, want: "config"},
-		{command: "diagnostics", req: &workflow.Request{DiagnosticsCommand: "diagnostics"}, want: "diagnostics"},
-		{command: "health", req: &workflow.Request{HealthCommand: "status"}, want: "health"},
-		{command: "notify", req: &workflow.Request{NotifyCommand: "test"}, want: "notify"},
-		{command: "restore", req: &workflow.Request{RestoreCommand: "plan"}, want: "restore"},
-		{command: "rollback", req: &workflow.Request{RollbackCommand: "rollback"}, want: "rollback"},
-		{command: "update", req: &workflow.Request{UpdateCommand: "update"}, want: "update"},
+		{command: "backup", req: &workflow.Request{Command: "backup", DoBackup: true}, want: "runtime"},
+		{command: "prune", req: &workflow.Request{Command: "prune", DoPrune: true}, want: "runtime"},
+		{command: "cleanup-storage", req: &workflow.Request{Command: "cleanup-storage", DoCleanupStore: true}, want: "runtime"},
+		{command: "config", req: &workflow.Request{Command: "config", ConfigCommand: "validate"}, want: "config"},
+		{command: "diagnostics", req: &workflow.Request{Command: "diagnostics", DiagnosticsCommand: "diagnostics"}, want: "diagnostics"},
+		{command: "health", req: &workflow.Request{Command: "health", HealthCommand: "status"}, want: "health"},
+		{command: "notify", req: &workflow.Request{Command: "notify", NotifyCommand: "test"}, want: "notify"},
+		{command: "restore", req: &workflow.Request{Command: "restore", RestoreCommand: "plan"}, want: "restore"},
+		{command: "rollback", req: &workflow.Request{Command: "rollback", RollbackCommand: "rollback"}, want: "rollback"},
+		{command: "update", req: &workflow.Request{Command: "update", UpdateCommand: "update"}, want: "update"},
 	}
 
 	seen := make(map[string]bool)
 	for _, tc := range cases {
 		t.Run(tc.command, func(t *testing.T) {
-			spec := dispatchSpecForRequest(tc.req)
-			if spec.name != tc.want || spec.handle == nil {
-				t.Fatalf("dispatchSpecForRequest(%s) = %q handle nil=%t, want %q", tc.command, spec.name, spec.handle == nil, tc.want)
+			spec, ok := dispatchSpecForRequest(tc.req)
+			if !ok || spec.name != tc.want || spec.handle == nil {
+				t.Fatalf("dispatchSpecForRequest(%s) = %q ok=%v handle nil=%t, want %q", tc.command, spec.name, ok, spec.handle == nil, tc.want)
 			}
 			seen[tc.command] = true
 		})
@@ -1203,6 +1203,10 @@ func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
 		if !seen[spec.Name] {
 			t.Fatalf("public command %s has no dispatch coverage test", spec.Name)
 		}
+	}
+
+	if spec, ok := dispatchSpecForRequest(&workflow.Request{}); ok {
+		t.Fatalf("empty request matched dispatch spec %+v", spec)
 	}
 }
 

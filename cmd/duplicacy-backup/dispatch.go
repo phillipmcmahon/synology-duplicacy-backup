@@ -22,6 +22,14 @@ const (
 )
 
 func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
+	spec, ok := dispatchSpecForRequest(req)
+	if !ok {
+		commandName := ""
+		if req != nil {
+			commandName = req.Command
+		}
+		return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", commandName))
+	}
 	if command.RequiresDSMForRequest(req) {
 		if err := requireSynologyDSM(); err != nil {
 			return writeCommandFailure("", err)
@@ -31,7 +39,6 @@ func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.
 		return writeCommandFailure("", err)
 	}
 
-	spec := dispatchSpecForRequest(req)
 	return spec.handle(req, meta, rt)
 }
 

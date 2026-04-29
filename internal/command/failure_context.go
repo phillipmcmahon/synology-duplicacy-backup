@@ -46,7 +46,7 @@ func WantsJSONSummary(args []string) bool {
 }
 
 func parseHealthFailureRequest(args []string) *workflow.Request {
-	req := &workflow.Request{}
+	req := &workflow.Request{Command: "health"}
 	if len(args) > 0 && !isOption(args[0]) {
 		req.HealthCommand = args[0]
 		args = args[1:]
@@ -73,7 +73,7 @@ func parseHealthFailureRequest(args []string) *workflow.Request {
 }
 
 func parseNotifyFailureRequest(args []string) *workflow.Request {
-	req := &workflow.Request{NotifyProvider: "all", NotifySeverity: "warning"}
+	req := &workflow.Request{Command: "notify", NotifyProvider: "all", NotifySeverity: "warning"}
 	if len(args) > 0 && !isOption(args[0]) {
 		req.NotifyCommand = args[0]
 		args = args[1:]

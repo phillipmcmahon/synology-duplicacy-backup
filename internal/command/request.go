@@ -43,10 +43,13 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 	}
 	switch command {
 	case "backup":
+		req.Command = "backup"
 		req.DoBackup = true
 	case "prune":
+		req.Command = "prune"
 		req.DoPrune = true
 	case "cleanup-storage":
+		req.Command = "cleanup-storage"
 		req.DoCleanupStore = true
 	default:
 		return nil, workflow.NewUsageRequestError("unknown command %s", command)
@@ -67,6 +70,7 @@ func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "diagnostics"
 	req.DiagnosticsCommand = "diagnostics"
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
@@ -94,6 +98,7 @@ func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "health"
 	req.HealthCommand = action
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
@@ -121,6 +126,7 @@ func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "config"
 	req.ConfigCommand = action
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
@@ -148,6 +154,7 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "notify"
 	req.NotifyCommand = action
 	if action == "test" && req.Source == "update" {
 		req.Source = ""
@@ -186,6 +193,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env)
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "restore"
 	req.RestoreCommand = action
 	switch action {
 	case "run":
@@ -212,6 +220,7 @@ func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Env
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "rollback"
 	req.RollbackCommand = "rollback"
 	return &ParseResult{Request: req}, nil
 }
@@ -225,6 +234,7 @@ func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	if err != nil {
 		return nil, err
 	}
+	req.Command = "update"
 	req.UpdateCommand = "update"
 	return &ParseResult{Request: req}, nil
 }

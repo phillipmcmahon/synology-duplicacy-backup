@@ -22,6 +22,7 @@ func NewUsageRequestError(format string, args ...interface{}) *RequestError {
 }
 
 type Request struct {
+	Command                  string
 	ConfigCommand            string
 	DiagnosticsCommand       string
 	HealthCommand            string

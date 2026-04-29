@@ -197,41 +197,31 @@ func commandSpecForRequest(req *workflow.Request) (string, CommandSpec, bool) {
 	if req == nil {
 		return "", CommandSpec{}, false
 	}
-	if req.ConfigCommand != "" {
-		return requestSpec("config", "config "+req.ConfigCommand)
-	}
-	if req.DiagnosticsCommand != "" {
-		return requestSpec("diagnostics", "diagnostics")
-	}
-	if req.HealthCommand != "" {
-		return requestSpec("health", "health "+req.HealthCommand)
-	}
-	if req.NotifyCommand != "" {
-		command := "notify " + req.NotifyCommand
-		if req.NotifyScope == "update" {
-			command += " update"
+	displayName := req.Command
+	switch req.Command {
+	case "":
+		return "", CommandSpec{}, false
+	case "config":
+		if req.ConfigCommand != "" {
+			displayName = "config " + req.ConfigCommand
 		}
-		return requestSpec("notify", command)
+	case "health":
+		if req.HealthCommand != "" {
+			displayName = "health " + req.HealthCommand
+		}
+	case "notify":
+		if req.NotifyCommand != "" {
+			displayName = "notify " + req.NotifyCommand
+		}
+		if req.NotifyScope == "update" {
+			displayName += " update"
+		}
+	case "restore":
+		if req.RestoreCommand != "" {
+			displayName = "restore " + req.RestoreCommand
+		}
 	}
-	if req.RestoreCommand != "" {
-		return requestSpec("restore", "restore "+req.RestoreCommand)
-	}
-	if req.RollbackCommand != "" {
-		return requestSpec("rollback", "rollback")
-	}
-	if req.UpdateCommand != "" {
-		return requestSpec("update", "update")
-	}
-	if req.DoBackup {
-		return requestSpec("backup", "backup")
-	}
-	if req.DoPrune {
-		return requestSpec("prune", "prune")
-	}
-	if req.DoCleanupStore {
-		return requestSpec("cleanup-storage", "cleanup-storage")
-	}
-	return "", CommandSpec{}, false
+	return requestSpec(req.Command, displayName)
 }
 
 func requestSpec(commandName string, displayName string) (string, CommandSpec, bool) {

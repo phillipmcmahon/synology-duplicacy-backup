@@ -197,6 +197,39 @@ func TestUsageTextTemplatesAreFullyResolved(t *testing.T) {
 	}
 }
 
+func TestParseRequest_SetsCommandDiscriminator(t *testing.T) {
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	rt := workflow.DefaultEnv()
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "backup", args: []string{"backup", "--target", "onsite-usb", "homes"}, want: "backup"},
+		{name: "cleanup-storage", args: []string{"cleanup-storage", "--target", "onsite-usb", "homes"}, want: "cleanup-storage"},
+		{name: "config", args: []string{"config", "validate", "--target", "onsite-usb", "homes"}, want: "config"},
+		{name: "diagnostics", args: []string{"diagnostics", "--target", "onsite-usb", "homes"}, want: "diagnostics"},
+		{name: "health", args: []string{"health", "status", "--target", "onsite-usb", "homes"}, want: "health"},
+		{name: "notify", args: []string{"notify", "test", "--target", "onsite-usb", "homes"}, want: "notify"},
+		{name: "prune", args: []string{"prune", "--target", "onsite-usb", "homes"}, want: "prune"},
+		{name: "restore", args: []string{"restore", "plan", "--target", "onsite-usb", "homes"}, want: "restore"},
+		{name: "rollback", args: []string{"rollback", "--check-only"}, want: "rollback"},
+		{name: "update", args: []string{"update", "--check-only"}, want: "update"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseRequest(tc.args, meta, rt)
+			if err != nil {
+				t.Fatalf("ParseRequest() error = %v", err)
+			}
+			if result.Request.Command != tc.want {
+				t.Fatalf("Request.Command = %q, want %q", result.Request.Command, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseRequest_ConfigValidate(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	result, err := ParseRequest([]string{"config", "validate", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())

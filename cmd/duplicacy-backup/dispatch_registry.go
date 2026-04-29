@@ -3,59 +3,27 @@ package main
 import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 
 type dispatchSpec struct {
-	name    string
-	matches func(*workflow.Request) bool
-	handle  func(*workflow.Request, workflow.Metadata, workflow.Env) int
+	name   string
+	handle func(*workflow.Request, workflow.Metadata, workflow.Env) int
 }
 
-var dispatchRegistry = []dispatchSpec{
-	{
-		name:    "config",
-		matches: func(req *workflow.Request) bool { return req != nil && req.ConfigCommand != "" },
-		handle:  runConfigRequest,
-	},
-	{
-		name:    "diagnostics",
-		matches: func(req *workflow.Request) bool { return req != nil && req.DiagnosticsCommand != "" },
-		handle:  runDiagnosticsRequest,
-	},
-	{
-		name:    "notify",
-		matches: func(req *workflow.Request) bool { return req != nil && req.NotifyCommand != "" },
-		handle:  runNotifyRequest,
-	},
-	{
-		name:    "restore",
-		matches: func(req *workflow.Request) bool { return req != nil && req.RestoreCommand != "" },
-		handle:  runRestoreRequest,
-	},
-	{
-		name:    "rollback",
-		matches: func(req *workflow.Request) bool { return req != nil && req.RollbackCommand != "" },
-		handle:  runRollbackRequest,
-	},
-	{
-		name:    "update",
-		matches: func(req *workflow.Request) bool { return req != nil && req.UpdateCommand != "" },
-		handle:  runUpdateRequest,
-	},
-	{
-		name:    "health",
-		matches: func(req *workflow.Request) bool { return req != nil && req.HealthCommand != "" },
-		handle:  runHealthRequest,
-	},
-	{
-		name:    "runtime",
-		matches: func(*workflow.Request) bool { return true },
-		handle:  runRuntimeRequest,
-	},
+var dispatchRegistry = map[string]dispatchSpec{
+	"backup":          {name: "runtime", handle: runRuntimeRequest},
+	"cleanup-storage": {name: "runtime", handle: runRuntimeRequest},
+	"config":          {name: "config", handle: runConfigRequest},
+	"diagnostics":     {name: "diagnostics", handle: runDiagnosticsRequest},
+	"health":          {name: "health", handle: runHealthRequest},
+	"notify":          {name: "notify", handle: runNotifyRequest},
+	"prune":           {name: "runtime", handle: runRuntimeRequest},
+	"restore":         {name: "restore", handle: runRestoreRequest},
+	"rollback":        {name: "rollback", handle: runRollbackRequest},
+	"update":          {name: "update", handle: runUpdateRequest},
 }
 
-func dispatchSpecForRequest(req *workflow.Request) dispatchSpec {
-	for _, spec := range dispatchRegistry {
-		if spec.matches(req) {
-			return spec
-		}
+func dispatchSpecForRequest(req *workflow.Request) (dispatchSpec, bool) {
+	if req == nil || req.Command == "" {
+		return dispatchSpec{}, false
 	}
-	return dispatchSpec{name: "runtime", handle: runRuntimeRequest}
+	spec, ok := dispatchRegistry[req.Command]
+	return spec, ok
 }

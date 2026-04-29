@@ -13,9 +13,16 @@ coverage floor and package-level baseline.
 ## [Unreleased]
 
 ### Changed
+- Command parsing now records a single canonical command discriminator on the
+  request envelope, and dispatch/policy lookup use that discriminator instead
+  of independently probing command-family fields.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.
+
+### Fixed
+- Empty or malformed internal requests no longer fall through to the runtime
+  backup/prune dispatcher; missing dispatch coverage now fails explicitly.
 
 ## [v10.0.2] - 2026-04-29
 

@@ -63,18 +63,18 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	cases := []policyCase{
 		{name: "nil request", req: nil},
 		{name: "empty request", req: &workflow.Request{}},
-		{name: "backup", req: &workflow.Request{DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
-		{name: "prune", req: &workflow.Request{DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
-		{name: "cleanup-storage", req: &workflow.Request{DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
-		{name: "diagnostics", req: &workflow.Request{DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
-		{name: "update", req: &workflow.Request{UpdateCommand: "update"}, command: "update", usesProfile: true},
-		{name: "rollback", req: &workflow.Request{RollbackCommand: "rollback"}, command: "rollback"},
+		{name: "backup", req: &workflow.Request{Command: "backup", DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
+		{name: "prune", req: &workflow.Request{Command: "prune", DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
+		{name: "cleanup-storage", req: &workflow.Request{Command: "cleanup-storage", DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
+		{name: "diagnostics", req: &workflow.Request{Command: "diagnostics", DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
+		{name: "update", req: &workflow.Request{Command: "update", UpdateCommand: "update"}, command: "update", usesProfile: true},
+		{name: "rollback", req: &workflow.Request{Command: "rollback", RollbackCommand: "rollback"}, command: "rollback"},
 	}
 
 	for _, subcommand := range []string{"validate", "explain", "paths"} {
 		cases = append(cases, policyCase{
 			name:           "config " + subcommand,
-			req:            &workflow.Request{ConfigCommand: subcommand},
+			req:            &workflow.Request{Command: "config", ConfigCommand: subcommand},
 			command:        "config " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -83,7 +83,7 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, subcommand := range []string{"status", "doctor", "verify"} {
 		cases = append(cases, policyCase{
 			name:           "health " + subcommand,
-			req:            &workflow.Request{HealthCommand: subcommand},
+			req:            &workflow.Request{Command: "health", HealthCommand: subcommand},
 			command:        "health " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -92,7 +92,7 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, subcommand := range []string{"plan", "list-revisions", "run", "select"} {
 		cases = append(cases, policyCase{
 			name:           "restore " + subcommand,
-			req:            &workflow.Request{RestoreCommand: subcommand},
+			req:            &workflow.Request{Command: "restore", RestoreCommand: subcommand},
 			command:        "restore " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -101,14 +101,14 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	cases = append(cases,
 		policyCase{
 			name:           "notify test label",
-			req:            &workflow.Request{NotifyCommand: "test"},
+			req:            &workflow.Request{Command: "notify", NotifyCommand: "test"},
 			command:        "notify test",
 			usesProfile:    true,
 			requiresSecret: true,
 		},
 		policyCase{
 			name:           "notify test update",
-			req:            &workflow.Request{NotifyCommand: "test", NotifyScope: "update"},
+			req:            &workflow.Request{Command: "notify", NotifyCommand: "test", NotifyScope: "update"},
 			command:        "notify test update",
 			usesProfile:    true,
 			requiresSecret: true,
@@ -121,7 +121,7 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 			if commandName != tc.command || policy.UsesProfile != tc.usesProfile || policy.RequiresSecrets != tc.requiresSecret {
 				t.Fatalf("policy = %q %+v, want command=%q usesProfile=%v requiresSecrets=%v", commandName, policy, tc.command, tc.usesProfile, tc.requiresSecret)
 			}
-			if tc.req != nil && !RequiresDSMForRequest(tc.req) {
+			if tc.command != "" && !RequiresDSMForRequest(tc.req) {
 				t.Fatalf("RequiresDSMForRequest(%s) = false, want true", tc.name)
 			}
 		})
