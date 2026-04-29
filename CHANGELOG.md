@@ -16,6 +16,10 @@ coverage floor and package-level baseline.
 - Command parsing now records a single canonical command discriminator on the
   request envelope, and dispatch/policy lookup use that discriminator instead
   of independently probing command-family fields.
+- Neutral workflow primitives now live in `internal/workflowcore`, giving
+  extracted subsystems a shared request, environment, metadata, plan, and
+  read-only state home without importing those data types from the workflow
+  orchestrator.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.

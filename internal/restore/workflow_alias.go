@@ -1,30 +1,34 @@
 package restore
 
-import workflow "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+import (
+	workflow "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
+)
 
 // These aliases are the deliberately small bridge left after extracting
-// restore from workflow. Stage 3 removes more of this coupling by replacing the
-// broad command envelope with typed command requests and a command registry.
-type ConfigPlanRequest = workflow.ConfigPlanRequest
-type Metadata = workflow.Metadata
-type Plan = workflow.Plan
-type PlanConfig = workflow.PlanConfig
-type PlanPaths = workflow.PlanPaths
-type Request = workflow.Request
-type Env = workflow.Env
-type RunState = workflow.RunState
-type SummaryLine = workflow.SummaryLine
+// restore from workflow. Neutral request, plan, environment, and state
+// primitives now come from workflowcore; only orchestration helpers remain on
+// the workflow side of this bridge.
+type ConfigPlanRequest = workflowcore.ConfigPlanRequest
+type Metadata = workflowcore.Metadata
+type Plan = workflowcore.Plan
+type PlanConfig = workflowcore.PlanConfig
+type PlanPaths = workflowcore.PlanPaths
+type Request = workflowcore.Request
+type Env = workflowcore.Env
+type RunState = workflowcore.RunState
+type SummaryLine = workflowcore.SummaryLine
 
-var ErrRestoreCancelled = workflow.ErrRestoreCancelled
-var ErrRestoreInterrupted = workflow.ErrRestoreInterrupted
+var ErrRestoreCancelled = workflowcore.ErrRestoreCancelled
+var ErrRestoreInterrupted = workflowcore.ErrRestoreInterrupted
 
 var NewConfigPlanner = workflow.NewConfigPlanner
-var NewRequestError = workflow.NewRequestError
-var DefaultEnv = workflow.DefaultEnv
-var DefaultMetadataForEnv = workflow.DefaultMetadataForEnv
-var LoadRunState = workflow.LoadRunState
-var MetadataForLogDir = workflow.MetadataForLogDir
+var NewRequestError = workflowcore.NewRequestError
+var DefaultEnv = workflowcore.DefaultEnv
+var DefaultMetadataForEnv = workflowcore.DefaultMetadataForEnv
+var LoadRunState = workflowcore.LoadRunState
+var MetadataForLogDir = workflowcore.MetadataForLogDir
 var NewMessageError = workflow.NewMessageError
 var OperatorMessage = workflow.OperatorMessage
-var SignalSet = workflow.SignalSet
-var StateFilePath = workflow.StateFilePath
+var SignalSet = workflowcore.SignalSet
+var StateFilePath = workflowcore.StateFilePath

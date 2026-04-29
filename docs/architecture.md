@@ -24,6 +24,7 @@ flowchart TD
     CLI["cmd/duplicacy-backup<br/>argv, DSM guard, root/profile guard"]
     Command["internal/command<br/>command registry, parse argv, render help"]
     Dispatch["dispatchRequest<br/>route by command family"]
+    Core["internal/workflowcore<br/>neutral request, env, metadata, plan, state"]
     Workflow["internal/workflow<br/>runtime plans, policy, reports"]
     Restore["internal/restore<br/>restore plans, selection, workspace safety"]
     RuntimeFlow["Runtime command path<br/>RuntimeRequest -> Plan -> Executor"]
@@ -33,9 +34,13 @@ flowchart TD
     External["External tools/storage<br/>btrfs, duplicacy, repositories"]
 
     CLI --> Command
+    Command --> Core
     Command --> Dispatch
+    Dispatch --> Core
     Dispatch --> Workflow
     Dispatch --> Restore
+    Workflow --> Core
+    Restore --> Core
     Workflow --> RuntimeFlow
     Workflow --> CommandHandlers
     Restore --> Domains
@@ -107,15 +112,17 @@ walkthrough, use [how-it-works.md](how-it-works.md).
 
 ## Restore Subsystem
 
-Restore is a first-class subsystem, not a single workflow file. It now lives in
+Restore is a first-class subsystem, not a single workflow file. It lives in
 `internal/restore` so restore-specific prompts, workspace safety, reports, and
 interactive selection can evolve behind a focused package boundary.
 
-The package still bridges to workflow planning types for `Metadata`, `Env`,
-`Plan`, and profile-owned state paths. That is intentional for this stage: the
-next command-registry and typed-request work removes more of the broad command
-envelope before we decide whether those shared primitives should move into a
-dedicated core package.
+Neutral shared primitives such as `Request`, `Metadata`, `Env`, `Plan`,
+`RunState`, and profile state paths now live in `internal/workflowcore`. The
+restore package imports those primitives from the core package rather than from
+the workflow orchestrator. A deliberately narrow bridge to `internal/workflow`
+still remains for orchestration helpers such as config planning and final
+operator-message translation; that bridge should shrink as typed command
+requests and package boundaries continue to mature.
 
 | File or package | Responsibility |
 |---|---|
@@ -146,6 +153,7 @@ The codebase now has:
 - an update package in `internal/update`
 - a presentation package in `internal/presentation`
 - a restore command package in `internal/restore`
+- a neutral shared primitive package in `internal/workflowcore`
 - one orchestration package in `internal/workflow`
 - focused domain packages for config, secrets, btrfs, duplicacy, locking,
   permissions, logging, and process execution

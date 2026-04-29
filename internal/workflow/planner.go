@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
@@ -45,7 +44,7 @@ func (p *Planner) Build(req *RuntimeRequest) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	plan.applyConfig(cfg, p.rt)
+	plan.ApplyConfig(cfg, p.rt)
 	if err := p.validateRepositoryMutationPrivilege(req, cfg); err != nil {
 		return nil, err
 	}
@@ -272,7 +271,7 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	if cfg.Target == "" {
 		cfg.Target = plan.TargetName()
 	}
-	plan.applyConfigIdentity(cfg)
+	plan.ApplyConfigIdentity(cfg)
 	plan.Paths.SecretsFile = secrets.GetSecretsFilePath(plan.Paths.SecretsDir, plan.Config.BackupLabel)
 
 	if err := cfg.ValidateRequired(plan.Request.DoBackup, plan.Request.DoPrune); err != nil {
@@ -298,45 +297,6 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	return cfg, nil
 }
 
-func (p *Plan) applyConfigIdentity(cfg *config.Config) {
-	if p == nil || cfg == nil {
-		return
-	}
-	p.Config.Target = cfg.Target
-	p.Config.Location = cfg.Location
-	p.Config.Notify = cfg.Health.Notify
-}
-
-func (p *Plan) applyConfig(cfg *config.Config, rt Env) {
-	if p == nil || cfg == nil {
-		return
-	}
-	p.applyConfigIdentity(cfg)
-	p.Paths.SnapshotSource = cfg.SourcePath
-	p.Paths.SnapshotTarget = filepath.Join(rootVolumeForSource(cfg.SourcePath), fmt.Sprintf("%s-%s-%s-%d", p.Config.BackupLabel, p.TargetName(), p.Paths.RunTimestamp, rt.Getpid()))
-	p.Paths.RepositoryPath = cfg.SourcePath
-	if p.Request.DoBackup {
-		p.Paths.RepositoryPath = p.Paths.SnapshotTarget
-	}
-	p.Paths.BackupTarget = cfg.Storage
-	p.Config.Threads = cfg.Threads
-	p.Config.Filter = cfg.Filter
-	p.Config.FilterLines = splitNonEmptyLines(cfg.Filter)
-	p.Config.PruneOptions = cfg.Prune
-	p.Config.PruneArgs = append([]string(nil), cfg.PruneArgs...)
-	p.Config.PruneArgsDisplay = strings.Join(cfg.PruneArgs, " ")
-	p.Config.LogRetentionDays = cfg.LogRetentionDays
-	p.Config.SafePruneMaxDeletePercent = cfg.SafePruneMaxDeletePercent
-	p.Config.SafePruneMaxDeleteCount = cfg.SafePruneMaxDeleteCount
-	p.Config.SafePruneMinTotalForPercent = cfg.SafePruneMinTotalForPercent
-}
-
-// ApplyConfig projects resolved configuration values onto the orchestration
-// plan after config validation has completed.
-func (p *Plan) ApplyConfig(cfg *config.Config, rt Env) {
-	p.applyConfig(cfg, rt)
-}
-
 func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 	if !plan.Request.DoBackup {
 		return nil
@@ -350,43 +310,6 @@ func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 	}
 
 	return nil
-}
-
-func splitNonEmptyLines(value string) []string {
-	if value == "" {
-		return nil
-	}
-	lines := strings.Split(value, "\n")
-	result := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if line != "" {
-			result = append(result, line)
-		}
-	}
-	return result
-}
-
-func modeDisplay(targetName string) string {
-	if targetName != "" {
-		return targetName
-	}
-	return "not supplied"
-}
-
-func rootVolumeForSource(sourcePath string) string {
-	clean := filepath.Clean(sourcePath)
-	if clean == "." || clean == "/" {
-		return clean
-	}
-	if !filepath.IsAbs(clean) {
-		return clean
-	}
-	trimmed := strings.TrimPrefix(clean, string(filepath.Separator))
-	parts := strings.Split(trimmed, string(filepath.Separator))
-	if len(parts) == 0 || parts[0] == "" {
-		return string(filepath.Separator)
-	}
-	return string(filepath.Separator) + parts[0]
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {

@@ -58,35 +58,29 @@ old package under a different name.
 
 ## Post-Plan Core Boundary Pass
 
-After `#255`, the smallest plausible shared core is:
+After `#255` and the first `#286` slice, the deliberately small shared core is
+`internal/workflowcore`.
 
 | Candidate core item | Decision |
 |---|---|
-| `Env` | Core candidate. It is a genuine cross-command DSM/test seam. |
-| `Metadata` | Core candidate. It carries runtime paths, app identity, root volume, and profile ownership. |
-| `RequestError`, `MessageError`, `OperatorMessage` | Core candidate only if subpackages emit operator-facing errors directly. |
+| `Env` | Moved to `internal/workflowcore`. It is a genuine cross-command DSM/test seam. |
+| `Metadata` | Moved to `internal/workflowcore`. It carries runtime paths, app identity, root volume, and profile ownership. |
+| `Request` and `RequestError` | Moved to `internal/workflowcore` while typed command requests continue to evolve. |
+| `RunState` and read-only state paths | Moved to `internal/workflowcore` for report-only subsystems. State mutation remains in workflow. |
+| `Plan` and `ConfigPlanRequest` | Moved to `internal/workflowcore` because restore needs the read-side plan contract. Runtime planning and execution still live in workflow. |
+| `MessageError`, `OperatorMessage` | Still in workflow. They depend on workflow-owned final wording and should not move until final presentation ownership is clearer. |
 | Local repository privilege predicates | Core candidate only if restore/config/health/runtime all move out; otherwise keep in workflow to avoid policy drift. |
-| `Plan` | Not a first core move. Keep in workflow until a real subpackage proves it needs the whole runtime plan contract. |
-| `ConfigPlanRequest` | Not a first core move. It is a planner input, and moving it too early would pull planner ownership into core. |
 | Runtime command presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
 
-The first extraction candidate is still restore. A restore split would need one
-of two shapes:
+The first extraction candidate remains restore. The current shape is a hybrid:
+restore imports neutral primitives from `internal/workflowcore`, and keeps a
+narrow bridge to workflow for config planning and final operator-message
+translation. That bridge is intentionally visible so future typed-command and
+package-boundary work can shrink it instead of hiding it.
 
-1. `internal/workflow` keeps resolving config, plan, secrets, privilege policy,
-   and logging, then calls a smaller restore package with an already-resolved
-   execution context.
-2. A new core package owns enough primitives for restore to resolve everything
-   itself.
-
-The second shape is not acceptable yet because the core would immediately
-absorb too much: runtime profile resolution, metadata, config planning,
-operator errors, local repository privilege checks, progress output, and report
-formatting. That is not a cleaner model.
-
-The first shape is more promising, but it requires a preparatory refactor:
-separate restore's pure planning/reporting helpers from restore's workflow
-resolution. Only the pure helpers should move first.
+The core package must stay bounded. It should own shared data and environment
+seams, not command orchestration, live progress output, privilege policy, or
+report formatting.
 
 ## Boundary Options
 
@@ -99,11 +93,11 @@ This preserves the current low-friction call graph and avoids a fake split.
 The downside is that command-family dependencies remain enforced by review and
 filename discipline rather than by Go import boundaries.
 
-### Option B: Extract `internal/workflow/core`
+### Option B: Extract `internal/workflowcore`
 
-Move `Env`, `Metadata`, `Plan`, request errors, privilege policy, and common
-helpers into a shared core package, then move command families into
-subpackages.
+Move neutral primitives such as `Env`, `Metadata`, `Request`, `Plan`, and
+read-only state helpers into a shared core package, then move command families
+into subpackages.
 
 This gives explicit package boundaries, but it risks creating a large core
 package that every subpackage imports. That would be more ceremony without much
@@ -115,9 +109,9 @@ Move one family, most likely restore, after its dependencies can point inward
 to a small core rather than sideways to workflow internals.
 
 Restore is the best candidate because it is already cohesive and has a clear
-external UI. It is not ready to move until the shared strategy for `Plan`,
-`Env`, `Metadata`, restore progress, request errors, and local repository
-privilege policy is explicit.
+external UI. Its shared primitive strategy is now explicit through
+`internal/workflowcore`; remaining coupling is orchestration, not data
+ownership.
 
 ## Decision
 
@@ -154,9 +148,10 @@ Reopen package splitting when at least one of these is true:
 - A command family needs substantial new behaviour and would otherwise add many
   more files to `internal/workflow`.
 - Restore, health, update, or runtime code starts reaching into another command
-  family's files instead of shared primitives.
-- `Env`, `Metadata`, request errors, and privilege policy have a small,
-  clearly named home that is not just a dumping ground.
+  family's files instead of `internal/workflowcore` primitives.
+- Any proposal adds orchestration, progress output, or privilege policy to
+  `internal/workflowcore`; that is a signal to create a focused package
+  instead.
 - Restore planning/reporting helpers can move without also moving config
   resolution, privilege policy, runtime profile handling, and live progress
   output.

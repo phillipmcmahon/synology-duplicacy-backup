@@ -3,10 +3,10 @@ package workflow
 import (
 	"fmt"
 
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
-type SummaryLine = presentation.Line
+type SummaryLine = workflowcore.SummaryLine
 
 func OperationMode(req *RuntimeRequest) string {
 	if req == nil {

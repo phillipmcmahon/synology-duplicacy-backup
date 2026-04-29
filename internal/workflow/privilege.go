@@ -26,7 +26,7 @@ func localRepositoryRequiresSudo(cfg *config.Config, rt Env) bool {
 }
 
 func localRepositoryRequiresSudoForStorage(cfg localStoragePolicy, rt Env) bool {
-	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && envEUID(rt) != 0
+	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && EnvEUID(rt) != 0
 }
 
 func restoreStorageRequiresSudo(plan *Plan, storage string) bool {

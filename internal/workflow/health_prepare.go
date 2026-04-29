@@ -31,7 +31,7 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 	plan.Request.OperationMode = "Health " + presentation.Title(req.Command)
 	plan.Config.LogRetentionDays = cfg.LogRetentionDays
 	plan.Config.Filter = cfg.Filter
-	plan.Config.FilterLines = splitNonEmptyLines(cfg.Filter)
+	plan.Config.FilterLines = nonEmptyLines(cfg.Filter)
 	plan.Config.PruneOptions = cfg.Prune
 	plan.Config.Threads = cfg.Threads
 

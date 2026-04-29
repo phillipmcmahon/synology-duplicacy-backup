@@ -55,7 +55,7 @@ func HandleDiagnosticsCommand(req *Request, meta Metadata, rt Env) (string, erro
 	if err != nil {
 		return "", err
 	}
-	plan.applyConfig(cfg, rt)
+	plan.ApplyConfig(cfg, rt)
 
 	report := newDiagnosticsReport(&diagnosticsReq, meta, plan, cfg, rt)
 	if diagnosticsReq.JSONSummary {
