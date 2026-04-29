@@ -12,6 +12,47 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v10.0.1] - 2026-04-29
+
+### Changed
+- UI surface smoke captures now enable colour by default, so semantic colour
+  assertions are active during the standard NAS release smoke path unless an
+  operator deliberately sets `CAPTURE_COLOUR=0`.
+- The UI smoke package and CI proxy now assert that packaged smoke runners keep
+  colour capture enabled by default, preventing future release tests from
+  silently skipping colour checks.
+- Release-surface documentation checks now tolerate normal Markdown line
+  wrapping for storage-key guidance instead of depending on adjacent substring
+  matches.
+
+### Fixed
+- UI smoke colour assertions now ignore structural section headers such as
+  `Section: Resolved`, avoiding false positives while continuing to verify
+  semantic validation values.
+- `config validate` now colourizes `Source Path Access : Present` as a
+  successful green validation value.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: `109` captures, `0` unexpected outcomes, colour
+  capture enabled, and dual-target restore smoke with `onsite-garage` plus
+  root-protected `onsite-usb` restoring `phillipmcmahon/code/*`.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.5%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v10.0.0] - 2026-04-29
 
 ### Changed
