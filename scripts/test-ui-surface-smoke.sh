@@ -53,8 +53,11 @@ assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_validation_success_colours"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_validation_warning_colours"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_validation_failure_colours"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "assert_last_capture_report_semantic_colours"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "Available\" green"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "Present\" green"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "Requires sudo\" yellow"
+assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "Unreadable (\" red"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "Failed\" red"
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" 'CAPTURE_COLOUR="${CAPTURE_COLOUR:-1}"'
 assert_contains "$ROOT/scripts/ui-surface-smoke-runner.sh" "local filesystem repository is root-protected"

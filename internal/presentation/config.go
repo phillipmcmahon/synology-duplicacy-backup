@@ -8,11 +8,15 @@ import (
 )
 
 func FormatLines(title string, lines []Line) string {
+	return FormatLinesWithSemanticColour(title, lines, false)
+}
+
+func FormatLinesWithSemanticColour(title string, lines []Line, enableColour bool) string {
 	var b strings.Builder
 	b.WriteString(title)
 	b.WriteByte('\n')
 	for _, line := range lines {
-		fmt.Fprintf(&b, "  %-20s : %s\n", line.Label, line.Value)
+		fmt.Fprintf(&b, "  %-20s : %s\n", line.Label, ColourizeSemanticValue(line.Value, enableColour))
 	}
 	return b.String()
 }
@@ -28,12 +32,23 @@ func FormatValidationReport(title string, resolved, validation []Line, result st
 }
 
 func ColourizeValidationValue(value string, enableColour bool) string {
+	return ColourizeSemanticValue(value, enableColour)
+}
+
+func ColourizeSemanticValue(value string, enableColour bool) string {
 	switch {
-	case strings.HasPrefix(value, "Invalid ("):
+	case strings.HasPrefix(value, "Invalid ("),
+		strings.HasPrefix(value, "Unreadable ("):
 		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
-	case value == ValueNotChecked || value == "Not initialized" || value == ValueRequiresSudo:
+	case strings.HasPrefix(value, ValueRequiresSudo):
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
-	case value == "Limited":
+	case value == ValueNotChecked,
+		value == ValueNotConfigured,
+		value == ValueNotEnabled,
+		value == ValueNotInitialized,
+		value == ValueLimited,
+		value == ValueDegraded,
+		value == ValueSkipped:
 		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
 	case value == ValueValid,
 		value == ValuePresent,
@@ -41,8 +56,17 @@ func ColourizeValidationValue(value string, enableColour bool) string {
 		value == ValueWritable,
 		value == ValueResolved,
 		value == ValueParsed,
+		value == ValuePassed,
+		value == ValueHealthy,
+		value == ValueValidated,
+		value == "Available",
+		strings.HasPrefix(value, "Available ("),
+		value == "Success",
 		value == "Full":
 		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
+	case value == ValueFailed,
+		value == ValueUnhealthy:
+		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
 	default:
 		return value
 	}

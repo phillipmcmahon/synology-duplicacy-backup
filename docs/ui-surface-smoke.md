@@ -234,9 +234,10 @@ Review the `.txt` captures for UI consistency:
 - root-protected local repository captures do not fall through to raw
   `permission denied`/`EACCES` storage errors
 - timestamped runtime and health output remains framed/log-style, while
-  report-style commands remain plain and readable
+  report-style commands colour only shared semantic status values
 - colour semantics are consistent: errors red, warnings yellow, labels cyan,
-  successful semantic results green
+  successful semantic results green, ordinary values white, and neutral
+  outcomes such as `Not required` plain
 - when `CAPTURE_COLOUR=1`, the runner enforces colour semantics for config
   validation captures: success values such as `Present`, `Valid`, `Resolved`,
   `Writable`, and `Passed` must be green; warning values such as

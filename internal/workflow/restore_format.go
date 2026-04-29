@@ -6,6 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
 func marshalRestoreJSON(value interface{}) (string, error) {
@@ -270,21 +273,23 @@ func writeRestoreSafetySection(b *strings.Builder, copyBack, guide string) {
 }
 
 func writeRestoreSection(b *strings.Builder, name string, lines []SummaryLine) {
+	enableColour := logger.ColourEnabled(os.Stdout)
 	fmt.Fprintf(b, "  Section: %s\n", name)
 	for _, line := range lines {
 		if strings.TrimSpace(line.Value) == "" {
 			continue
 		}
-		fmt.Fprintf(b, "    %-18s : %s\n", line.Label, line.Value)
+		fmt.Fprintf(b, "    %-18s : %s\n", line.Label, presentation.ColourizeSemanticValue(line.Value, enableColour))
 	}
 }
 
 func writeRestoreLines(b *strings.Builder, lines []SummaryLine) {
+	enableColour := logger.ColourEnabled(os.Stdout)
 	for _, line := range lines {
 		if strings.TrimSpace(line.Value) == "" {
 			continue
 		}
-		fmt.Fprintf(b, "  %-20s : %s\n", line.Label, line.Value)
+		fmt.Fprintf(b, "  %-20s : %s\n", line.Label, presentation.ColourizeSemanticValue(line.Value, enableColour))
 	}
 }
 

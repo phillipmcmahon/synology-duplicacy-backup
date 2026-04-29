@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
@@ -227,8 +228,9 @@ func isSensitiveQueryKey(key string) bool {
 }
 
 func formatDiagnosticsReport(report *DiagnosticsReport) string {
+	enableColour := logger.ColourEnabled(os.Stdout)
 	var b strings.Builder
-	b.WriteString(presentation.FormatLines(fmt.Sprintf("Diagnostics for %s/%s", report.Label, report.Target), []SummaryLine{
+	b.WriteString(presentation.FormatLinesWithSemanticColour(fmt.Sprintf("Diagnostics for %s/%s", report.Label, report.Target), []SummaryLine{
 		{Label: "Label", Value: report.Label},
 		{Label: "Target", Value: report.Target},
 		{Label: "Location", Value: report.Location},
@@ -236,13 +238,13 @@ func formatDiagnosticsReport(report *DiagnosticsReport) string {
 		{Label: "Source Path", Value: report.SourcePath},
 		{Label: "Storage", Value: report.Storage},
 		{Label: "Storage Scheme", Value: report.StorageScheme},
-	}))
+	}, enableColour))
 	writeDiagnosticsSection(&b, "Secrets", []SummaryLine{
 		{Label: "Secrets File", Value: presentation.DisplayEmpty(report.SecretsFile, "Not required")},
 		{Label: "Secrets Status", Value: report.SecretsStatus},
-	})
-	writeDiagnosticsSection(&b, "State", diagnosticsStateLines(report))
-	writeDiagnosticsSection(&b, "Permissions", diagnosticsPathLines(report.Paths))
+	}, enableColour)
+	writeDiagnosticsSection(&b, "State", diagnosticsStateLines(report), enableColour)
+	writeDiagnosticsSection(&b, "Permissions", diagnosticsPathLines(report.Paths), enableColour)
 	return b.String()
 }
 
@@ -289,9 +291,9 @@ func diagnosticsPathLines(paths []DiagnosticsPathSummary) []SummaryLine {
 	return lines
 }
 
-func writeDiagnosticsSection(b *strings.Builder, name string, lines []SummaryLine) {
+func writeDiagnosticsSection(b *strings.Builder, name string, lines []SummaryLine, enableColour bool) {
 	fmt.Fprintf(b, "  Section: %s\n", name)
 	for _, line := range lines {
-		fmt.Fprintf(b, "    %-18s : %s\n", line.Label, line.Value)
+		fmt.Fprintf(b, "    %-18s : %s\n", line.Label, presentation.ColourizeSemanticValue(line.Value, enableColour))
 	}
 }

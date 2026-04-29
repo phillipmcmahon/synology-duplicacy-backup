@@ -258,6 +258,24 @@ assert_last_capture_value_colour_prefix() {
     fi
 }
 
+assert_last_capture_value_colour_if_present() {
+    value="$1"
+    colour="$2"
+    [ "${CAPTURE_COLOUR:-0}" = "1" ] || return 0
+    if capture_has_semantic_value "$value"; then
+        assert_last_capture_value_colour "$value" "$colour"
+    fi
+}
+
+assert_last_capture_value_colour_prefix_if_present() {
+    value_prefix="$1"
+    colour="$2"
+    [ "${CAPTURE_COLOUR:-0}" = "1" ] || return 0
+    if capture_has_semantic_value_prefix "$value_prefix"; then
+        assert_last_capture_value_colour_prefix "$value_prefix" "$colour"
+    fi
+}
+
 assert_last_capture_validation_success_colours() {
     assert_last_capture_value_colour "Present" green
     assert_last_capture_value_colour "Valid" green
@@ -275,6 +293,20 @@ assert_last_capture_validation_warning_colours() {
 assert_last_capture_validation_failure_colours() {
     assert_last_capture_value_colour "Failed" red
     assert_last_capture_value_colour_prefix "Invalid (" red
+}
+
+assert_last_capture_report_semantic_colours() {
+    assert_last_capture_value_colour_if_present "Available" green
+    assert_last_capture_value_colour_prefix_if_present "Available (" green
+    assert_last_capture_value_colour_if_present "Validated" green
+    assert_last_capture_value_colour_if_present "Passed" green
+    assert_last_capture_value_colour_prefix_if_present "Requires sudo" yellow
+    assert_last_capture_value_colour_if_present "Not checked" yellow
+    assert_last_capture_value_colour_if_present "Not initialized" yellow
+    assert_last_capture_value_colour_if_present "Degraded" yellow
+    assert_last_capture_value_colour_prefix_if_present "Unreadable (" red
+    assert_last_capture_value_colour_if_present "Failed" red
+    assert_last_capture_value_colour_if_present "Unhealthy" red
 }
 
 extract_first_revision() {
@@ -528,12 +560,16 @@ run_capture "config_validate_local_sudo_verbose" any sudo -n "$BIN" config valid
 assert_last_capture_validation_success_colours
 
 run_capture "diagnostics_remote" any "$BIN" diagnostics --target "$TARGET_REMOTE" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "diagnostics_object" any "$BIN" diagnostics --target "$TARGET_OBJECT" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "diagnostics_local_operator" any "$BIN" diagnostics --target "$TARGET_LOCAL" "$LABEL"
 assert_last_capture_contains "Storage Path"
 assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
+assert_last_capture_report_semantic_colours
 run_capture "diagnostics_local_sudo" any sudo -n "$BIN" diagnostics --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "diagnostics_remote_json_summary" any "$BIN" diagnostics --target "$TARGET_REMOTE" --json-summary "$LABEL"
 run_capture "diagnostics_local_operator_json_summary" any "$BIN" diagnostics --target "$TARGET_LOCAL" --json-summary "$LABEL"
 assert_last_capture_contains "Requires sudo: local filesystem repository is root-protected"
@@ -569,14 +605,20 @@ run_capture "health_doctor_local_sudo_verbose" any sudo -n "$BIN" health doctor 
 run_capture "health_doctor_local_sudo_verbose_json_summary" any sudo -n "$BIN" health doctor --target "$TARGET_LOCAL" --verbose --json-summary "$LABEL"
 
 run_capture "restore_plan_remote" any "$BIN" restore plan --target "$TARGET_REMOTE" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_remote" any "$BIN" restore list-revisions --target "$TARGET_REMOTE" --limit 5 "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_plan_object" any "$BIN" restore plan --target "$TARGET_OBJECT" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_object" any "$BIN" restore list-revisions --target "$TARGET_OBJECT" --limit 5 "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_plan_local_operator" any "$BIN" restore plan --target "$TARGET_LOCAL" "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_local_operator_requires_sudo" fail "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
 assert_last_capture_contains "restore list-revisions requires sudo: local filesystem repository is root-protected"
 assert_last_capture_not_matches "permission denied|EACCES"
 run_capture "restore_list_revisions_local_sudo" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 "$LABEL"
+assert_last_capture_report_semantic_colours
 run_capture "restore_list_revisions_remote_json_summary" any "$BIN" restore list-revisions --target "$TARGET_REMOTE" --limit 5 --json-summary "$LABEL"
 run_capture "restore_list_revisions_local_sudo_json_summary" any sudo -n "$BIN" restore list-revisions --target "$TARGET_LOCAL" --limit 5 --json-summary "$LABEL"
 

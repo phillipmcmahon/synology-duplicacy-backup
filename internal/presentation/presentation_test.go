@@ -44,6 +44,9 @@ func TestFormatLinesAndValidationReport(t *testing.T) {
 	if !strings.Contains(got, "Run Summary:") || !strings.Contains(got, "Config File") {
 		t.Fatalf("FormatLines() = %q", got)
 	}
+	if got := FormatLinesWithSemanticColour("Run Summary:", []Line{{Label: "State", Value: "Available"}}, true); !strings.Contains(got, "\033[") || !strings.Contains(got, "Available") {
+		t.Fatalf("FormatLinesWithSemanticColour() = %q", got)
+	}
 
 	report := FormatValidationReport(
 		"Config validation",
@@ -145,7 +148,7 @@ func TestRuntimePresenterPreRunStatusAndValidationColourBranches(t *testing.T) {
 		}
 	}
 
-	valueCases := []string{"Invalid (missing)", "Not checked", "Not initialized", "Requires sudo", "Limited", "Present", "Readable", "Writable", "Resolved", "Parsed", "Full", "Custom"}
+	valueCases := []string{"Invalid (missing)", "Unreadable (denied)", "Not checked", "Not configured", "Not enabled", "Not initialized", "Requires sudo", "Requires sudo: local filesystem repository is root-protected", "Limited", "Degraded", "Skipped", "Present", "Readable", "Writable", "Resolved", "Parsed", "Passed", "Healthy", "Validated", "Available", "Available (**** (2 keys))", "Success", "Full", "Failed", "Unhealthy", "Not required", "Custom"}
 	for _, value := range valueCases {
 		if got := ColourizeValidationValue(value, false); got != value {
 			t.Fatalf("ColourizeValidationValue(%q, false) = %q", value, got)
