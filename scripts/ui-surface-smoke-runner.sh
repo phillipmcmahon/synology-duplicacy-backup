@@ -186,6 +186,9 @@ capture_has_semantic_value() {
         {
             line = $0
             gsub(esc "\\[[0-9;]*m", "", line)
+            if (line ~ /^[[:space:]]*Section[[:space:]]*:/) {
+                next
+            }
             if (line !~ /:/) {
                 next
             }
@@ -209,6 +212,9 @@ capture_has_semantic_value_prefix() {
         {
             line = $0
             gsub(esc "\\[[0-9;]*m", "", line)
+            if (line ~ /^[[:space:]]*Section[[:space:]]*:/) {
+                next
+            }
             if (line !~ /:/) {
                 next
             }
