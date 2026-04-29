@@ -1,0 +1,311 @@
+package operator
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
+)
+
+// MessageError represents an operator-facing message that should be logged
+// as-is without additional translation.
+type MessageError struct {
+	Message string
+}
+
+func (e *MessageError) Error() string {
+	return e.Message
+}
+
+func NewMessageError(format string, args ...interface{}) error {
+	return &MessageError{Message: fmt.Sprintf(format, args...)}
+}
+
+// Message translates internal errors into consistent operator-facing
+// messages. Domain packages can keep returning rich typed errors while the
+// presentation/operator layer remains the single owner of final wording.
+func Message(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, workflowcore.ErrRestoreInterrupted) {
+		return "Restore interrupted by operator; drill workspace was retained"
+	}
+
+	var msgErr *MessageError
+	if errors.As(err, &msgErr) {
+		return normaliseOperatorSentence(msgErr.Message)
+	}
+
+	var requestErr *workflowcore.RequestError
+	if errors.As(err, &requestErr) {
+		return normaliseOperatorSentence(requestErr.Error())
+	}
+
+	var backupErr *apperrors.BackupError
+	if errors.As(err, &backupErr) {
+		return normaliseOperatorSentence(operatorBackupMessage(backupErr))
+	}
+
+	var pruneErr *apperrors.PruneError
+	if errors.As(err, &pruneErr) {
+		return normaliseOperatorSentence(operatorPruneMessage(pruneErr))
+	}
+
+	var snapshotErr *apperrors.SnapshotError
+	if errors.As(err, &snapshotErr) {
+		return normaliseOperatorSentence(operatorSnapshotMessage(snapshotErr))
+	}
+
+	var configErr *apperrors.ConfigError
+	if errors.As(err, &configErr) {
+		return normaliseOperatorSentence(operatorConfigMessage(configErr))
+	}
+
+	var secretsErr *apperrors.SecretsError
+	if errors.As(err, &secretsErr) {
+		return normaliseOperatorSentence(operatorSecretsMessage(secretsErr))
+	}
+
+	var lockErr *apperrors.LockError
+	if errors.As(err, &lockErr) {
+		return normaliseOperatorSentence(operatorLockMessage(lockErr))
+	}
+
+	return normaliseOperatorSentence(err.Error())
+}
+
+func operatorBackupMessage(err *apperrors.BackupError) string {
+	switch err.Phase {
+	case "create-dirs":
+		return withHint(
+			fmt.Sprintf("Backup setup failed: could not create the Duplicacy work directory at %s", valueOrUnknown(err.Context["path"])),
+			"check parent-directory permissions and free space",
+		)
+	case "write-preferences":
+		return withHint(
+			fmt.Sprintf("Backup setup failed: could not write preferences at %s", valueOrUnknown(err.Context["path"])),
+			"check work-directory permissions",
+		)
+	case "write-filters":
+		return withHint(
+			fmt.Sprintf("Backup setup failed: could not write filters at %s", valueOrUnknown(err.Context["path"])),
+			"check work-directory permissions",
+		)
+	case "set-permissions":
+		return withHint(
+			fmt.Sprintf("Backup setup failed: could not set permissions in %s", valueOrUnknown(err.Context["path"])),
+			"check ownership and filesystem permissions on the work directory",
+		)
+	case "run":
+		return withHint("Backup failed while running duplicacy backup", "review the Duplicacy command details above")
+	default:
+		return err.Error()
+	}
+}
+
+func operatorPruneMessage(err *apperrors.PruneError) string {
+	switch err.Phase {
+	case "validate-repo":
+		return "Repository is not ready"
+	case "revision-latest":
+		return withHint(
+			"Could not inspect the latest storage revision",
+			"verify storage access and repository state",
+		)
+	case "revision-list":
+		return "Could not inspect storage revisions"
+	case "revision-check":
+		return "Integrity check did not complete"
+	case "safe-preview":
+		return withHint(
+			"Safe prune preview failed",
+			"review the Duplicacy command details above and verify repository access",
+		)
+	case "run":
+		return withHint(
+			"Prune failed while applying the retention policy",
+			"review the Duplicacy command details above",
+		)
+	case "cleanup-storage":
+		return withHint(
+			"Storage cleanup failed while running exhaustive exclusive prune",
+			"review the Duplicacy command details above and confirm no other client is using the storage",
+		)
+	case "revision-count":
+		if err.Cause != nil {
+			return withHint(err.Cause.Error(), "use prune --force to override percentage-threshold enforcement if needed")
+		}
+		return err.Error()
+	default:
+		return err.Error()
+	}
+}
+
+func operatorSnapshotMessage(err *apperrors.SnapshotError) string {
+	switch err.Phase {
+	case "create":
+		return withHint(
+			fmt.Sprintf("Failed to create snapshot from %s to %s", valueOrUnknown(err.Context["source"]), valueOrUnknown(err.Context["target"])),
+			"check btrfs health, free space, and source path validity",
+		)
+	case "delete":
+		return withHint(
+			fmt.Sprintf("Failed to delete snapshot subvolume %s", valueOrUnknown(err.Context["target"])),
+			"check whether the snapshot still exists and whether btrfs can access it",
+		)
+	case "check-volume":
+		if path := err.Context["path"]; path != "" && err.Cause != nil {
+			return fmt.Sprintf("Btrfs validation failed for %s: %s", path, err.Cause.Error())
+		}
+		if err.Cause != nil {
+			return err.Cause.Error()
+		}
+		return err.Error()
+	default:
+		return err.Error()
+	}
+}
+
+func operatorConfigMessage(err *apperrors.ConfigError) string {
+	switch err.Field {
+	case "open":
+		if path := err.Context["path"]; path != "" {
+			switch {
+			case err.Cause != nil && errors.Is(err.Cause, os.ErrNotExist):
+				return withHint(
+					fmt.Sprintf("Config file not found: %s", path),
+					"create the TOML file or override the location with --config-dir",
+				)
+			case err.Cause != nil && errors.Is(err.Cause, os.ErrPermission):
+				return withHint(
+					fmt.Sprintf("Config file is not accessible: %s", path),
+					"grant read and directory traverse access to the config path, or pass the correct --config-dir for the operator profile",
+				)
+			case err.Cause != nil:
+				return withHint(
+					err.Cause.Error(),
+					"check the config path and file permissions",
+				)
+			default:
+				return withHint(
+					fmt.Sprintf("Config file could not be opened: %s", path),
+					"check the config path and file permissions",
+				)
+			}
+		}
+	case "section-target":
+		if err.Cause != nil {
+			if section := err.Context["section"]; section != "" {
+				return withHint(
+					err.Cause.Error(),
+					fmt.Sprintf("add [targets.%s] to <label>-backup.toml or choose a different --target", section),
+				)
+			}
+			return err.Cause.Error()
+		}
+	case "read",
+		"section-common",
+		"required",
+		"threads",
+		"log-retention-days",
+		"safe-prune-max-delete-percent",
+		"safe-prune-max-delete-count",
+		"safe-prune-min-total-for-percent",
+		"health-freshness-warn-hours",
+		"health-freshness-fail-hours",
+		"health-doctor-warn-after-hours",
+		"health-verify-warn-after-hours",
+		"health-freshness-range",
+		"parse":
+		if err.Cause != nil {
+			return err.Cause.Error()
+		}
+	}
+	return err.Error()
+}
+
+func operatorSecretsMessage(err *apperrors.SecretsError) string {
+	switch err.Phase {
+	case "stat":
+		if path := err.Context["path"]; path != "" {
+			return withHint(
+				fmt.Sprintf("Secrets file not found: %s", path),
+				"create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
+			)
+		}
+	case "permissions":
+		if err.Cause != nil {
+			return withHint(err.Cause.Error(), "run chmod 600 on the target secrets file")
+		}
+	case "ownership":
+		if err.Cause != nil {
+			return withHint(err.Cause.Error(), "use a secrets file owned by the non-root operator account; for root-required commands, run via sudo from that operator or use a root-owned runtime profile")
+		}
+	case "parse":
+		if err.Cause != nil {
+			return withHint(err.Cause.Error(), "verify the TOML syntax and the allowed remote credential keys")
+		}
+	case "read", "required", "open", "validate":
+		if err.Cause != nil {
+			return err.Cause.Error()
+		}
+	}
+	return err.Error()
+}
+
+func operatorLockMessage(err *apperrors.LockError) string {
+	switch err.Phase {
+	case "held":
+		if err.Cause != nil {
+			return withHint(
+				fmt.Sprintf("Cannot start run because %s", err.Cause.Error()),
+				"wait for the active run to finish or clear a stale lock after verifying no backup is running",
+			)
+		}
+		return withHint(
+			"Cannot start run because another backup already holds the lock",
+			"wait for the active run to finish or clear a stale lock after verifying no backup is running",
+		)
+	case "create-parent":
+		return withHint(
+			fmt.Sprintf("Cannot create the lock directory parent at %s", valueOrUnknown(err.Context["path"])),
+			"check that the lock parent path exists and is writable by the user running this command",
+		)
+	case "stale-retry":
+		return withHint(
+			fmt.Sprintf("Could not acquire the lock at %s after removing a stale lock", valueOrUnknown(err.Context["path"])),
+			"check filesystem permissions and verify that no other backup process is running",
+		)
+	default:
+		if err.Cause != nil {
+			return fmt.Sprintf("Lock acquisition failed: %s", err.Cause.Error())
+		}
+		return "Lock acquisition failed"
+	}
+}
+
+func normaliseOperatorSentence(message string) string {
+	message = strings.TrimSpace(message)
+	return strings.TrimSuffix(message, ".")
+}
+
+func withHint(message, hint string) string {
+	if message == "" {
+		return strings.TrimSpace(hint)
+	}
+	if hint == "" {
+		return strings.TrimSpace(message)
+	}
+	return fmt.Sprintf("%s; %s", strings.TrimSpace(message), strings.TrimSpace(hint))
+}
+
+func valueOrUnknown(value string) string {
+	if value == "" {
+		return "<unknown>"
+	}
+	return value
+}

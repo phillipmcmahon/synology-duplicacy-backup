@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func TestPublicCommandSpecsCoverCommandSurface(t *testing.T) {
@@ -55,26 +56,26 @@ func TestPublicCommandSpecsCoverCommandSurface(t *testing.T) {
 func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	type policyCase struct {
 		name           string
-		req            *workflow.Request
+		req            *workflowcore.Request
 		command        string
 		usesProfile    bool
 		requiresSecret bool
 	}
 	cases := []policyCase{
 		{name: "nil request", req: nil},
-		{name: "empty request", req: &workflow.Request{}},
-		{name: "backup", req: &workflow.Request{Command: "backup", DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
-		{name: "prune", req: &workflow.Request{Command: "prune", DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
-		{name: "cleanup-storage", req: &workflow.Request{Command: "cleanup-storage", DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
-		{name: "diagnostics", req: &workflow.Request{Command: "diagnostics", DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
-		{name: "update", req: &workflow.Request{Command: "update", UpdateCommand: "update"}, command: "update", usesProfile: true},
-		{name: "rollback", req: &workflow.Request{Command: "rollback", RollbackCommand: "rollback"}, command: "rollback"},
+		{name: "empty request", req: &workflowcore.Request{}},
+		{name: "backup", req: &workflowcore.Request{Command: "backup", DoBackup: true}, command: "backup", usesProfile: true, requiresSecret: true},
+		{name: "prune", req: &workflowcore.Request{Command: "prune", DoPrune: true}, command: "prune", usesProfile: true, requiresSecret: true},
+		{name: "cleanup-storage", req: &workflowcore.Request{Command: "cleanup-storage", DoCleanupStore: true}, command: "cleanup-storage", usesProfile: true, requiresSecret: true},
+		{name: "diagnostics", req: &workflowcore.Request{Command: "diagnostics", DiagnosticsCommand: "diagnostics"}, command: "diagnostics", usesProfile: true, requiresSecret: true},
+		{name: "update", req: &workflowcore.Request{Command: "update", UpdateCommand: "update"}, command: "update", usesProfile: true},
+		{name: "rollback", req: &workflowcore.Request{Command: "rollback", RollbackCommand: "rollback"}, command: "rollback"},
 	}
 
 	for _, subcommand := range []string{"validate", "explain", "paths"} {
 		cases = append(cases, policyCase{
 			name:           "config " + subcommand,
-			req:            &workflow.Request{Command: "config", ConfigCommand: subcommand},
+			req:            &workflowcore.Request{Command: "config", ConfigCommand: subcommand},
 			command:        "config " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -83,7 +84,7 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, subcommand := range []string{"status", "doctor", "verify"} {
 		cases = append(cases, policyCase{
 			name:           "health " + subcommand,
-			req:            &workflow.Request{Command: "health", HealthCommand: subcommand},
+			req:            &workflowcore.Request{Command: "health", HealthCommand: subcommand},
 			command:        "health " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -92,7 +93,7 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	for _, subcommand := range []string{"plan", "list-revisions", "run", "select"} {
 		cases = append(cases, policyCase{
 			name:           "restore " + subcommand,
-			req:            &workflow.Request{Command: "restore", RestoreCommand: subcommand},
+			req:            &workflowcore.Request{Command: "restore", RestoreCommand: subcommand},
 			command:        "restore " + subcommand,
 			usesProfile:    true,
 			requiresSecret: true,
@@ -101,14 +102,14 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	cases = append(cases,
 		policyCase{
 			name:           "notify test label",
-			req:            &workflow.Request{Command: "notify", NotifyCommand: "test"},
+			req:            &workflowcore.Request{Command: "notify", NotifyCommand: "test"},
 			command:        "notify test",
 			usesProfile:    true,
 			requiresSecret: true,
 		},
 		policyCase{
 			name:           "notify test update",
-			req:            &workflow.Request{Command: "notify", NotifyCommand: "test", NotifyScope: "update"},
+			req:            &workflowcore.Request{Command: "notify", NotifyCommand: "test", NotifyScope: "update"},
 			command:        "notify test update",
 			usesProfile:    true,
 			requiresSecret: true,
@@ -123,6 +124,38 @@ func TestProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 			}
 			if tc.command != "" && !RequiresDSMForRequest(tc.req) {
 				t.Fatalf("RequiresDSMForRequest(%s) = false, want true", tc.name)
+			}
+		})
+	}
+}
+
+func TestRegistryParsersSetCommandDiscriminator(t *testing.T) {
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
+	rt := workflow.DefaultEnv()
+	argsByCommand := map[string][]string{
+		"backup":          {"--target", "onsite-usb", "homes"},
+		"cleanup-storage": {"--target", "onsite-usb", "homes"},
+		"config":          {"validate", "--target", "onsite-usb", "homes"},
+		"diagnostics":     {"--target", "onsite-usb", "homes"},
+		"health":          {"status", "--target", "onsite-usb", "homes"},
+		"notify":          {"test", "--target", "onsite-usb", "homes"},
+		"prune":           {"--target", "onsite-usb", "homes"},
+		"restore":         {"plan", "--target", "onsite-usb", "homes"},
+		"rollback":        {"--check-only"},
+		"update":          {"--check-only"},
+	}
+
+	for _, spec := range PublicCommandSpecs() {
+		t.Run(spec.Name, func(t *testing.T) {
+			result, err := spec.parse(argsByCommand[spec.Name], meta, rt)
+			if err != nil {
+				t.Fatalf("parse(%s) error = %v", spec.Name, err)
+			}
+			if result == nil || result.Request == nil {
+				t.Fatalf("parse(%s) did not return a request: %+v", spec.Name, result)
+			}
+			if result.Request.Command != spec.Name {
+				t.Fatalf("request command = %q, want %q", result.Request.Command, spec.Name)
 			}
 		})
 	}

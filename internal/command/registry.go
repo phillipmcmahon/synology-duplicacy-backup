@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 type CommandFamily string
@@ -34,6 +35,49 @@ type CommandSpec struct {
 	parse     func(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error)
 	usage     func(meta workflow.Metadata, rt workflow.Env) string
 	fullUsage func(meta workflow.Metadata, rt workflow.Env) string
+}
+
+// Command is the parsed, typed command value handed to the entrypoint. It keeps
+// command metadata and the transitional request payload together so dispatch no
+// longer needs a second registry or broad request-field probing.
+type Command interface {
+	Name() string
+	DisplayName() string
+	Family() CommandFamily
+	RequiresDSM() bool
+	ProfilePolicy() ProfilePolicy
+	Request() *workflowcore.Request
+}
+
+type parsedCommand struct {
+	spec        CommandSpec
+	displayName string
+	request     *workflowcore.Request
+}
+
+func newParsedCommand(spec CommandSpec, req *workflowcore.Request) Command {
+	displayName, _, ok := commandSpecForRequest(req)
+	if !ok {
+		displayName = spec.Name
+	}
+	return parsedCommand{spec: spec, displayName: displayName, request: req}
+}
+
+func CommandForRequest(req *workflowcore.Request) (Command, bool) {
+	_, spec, ok := commandSpecForRequest(req)
+	if !ok {
+		return nil, false
+	}
+	return newParsedCommand(spec, req), true
+}
+
+func (c parsedCommand) Name() string                 { return c.spec.Name }
+func (c parsedCommand) DisplayName() string          { return c.displayName }
+func (c parsedCommand) Family() CommandFamily        { return c.spec.Family }
+func (c parsedCommand) RequiresDSM() bool            { return c.spec.RequiresDSM }
+func (c parsedCommand) ProfilePolicy() ProfilePolicy { return c.spec.ProfilePolicy }
+func (c parsedCommand) Request() *workflowcore.Request {
+	return c.request
 }
 
 func (s CommandSpec) UsageText(meta workflow.Metadata, rt workflow.Env) string {
@@ -177,7 +221,7 @@ func commandSpec(name string) (CommandSpec, bool) {
 	return spec, ok
 }
 
-func ProfilePolicyForRequest(req *workflow.Request) (string, ProfilePolicy) {
+func ProfilePolicyForRequest(req *workflowcore.Request) (string, ProfilePolicy) {
 	displayName, spec, ok := commandSpecForRequest(req)
 	if !ok {
 		return displayName, ProfilePolicy{}
@@ -185,7 +229,7 @@ func ProfilePolicyForRequest(req *workflow.Request) (string, ProfilePolicy) {
 	return displayName, spec.ProfilePolicy
 }
 
-func RequiresDSMForRequest(req *workflow.Request) bool {
+func RequiresDSMForRequest(req *workflowcore.Request) bool {
 	_, spec, ok := commandSpecForRequest(req)
 	if !ok {
 		return true
@@ -193,7 +237,7 @@ func RequiresDSMForRequest(req *workflow.Request) bool {
 	return spec.RequiresDSM
 }
 
-func commandSpecForRequest(req *workflow.Request) (string, CommandSpec, bool) {
+func commandSpecForRequest(req *workflowcore.Request) (string, CommandSpec, bool) {
 	if req == nil {
 		return "", CommandSpec{}, false
 	}

@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -16,7 +17,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env)
 	switch action {
 	case "plan", "list-revisions", "run", "select":
 	default:
-		return nil, workflow.NewUsageRequestError("unknown restore command %s", action)
+		return nil, workflowcore.NewUsageRequestError("unknown restore command %s", action)
 	}
 
 	req, err := parseRestoreFlags(action, args[1:])
@@ -28,7 +29,7 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env)
 	switch action {
 	case "run":
 		if req.RestoreRevision <= 0 {
-			return nil, workflow.NewUsageRequestError("restore %s requires --revision <id>", action)
+			return nil, workflowcore.NewUsageRequestError("restore %s requires --revision <id>", action)
 		}
 	case "list-revisions":
 		if req.RestoreLimit == 0 {
@@ -42,8 +43,8 @@ func parseRestoreRequest(args []string, meta workflow.Metadata, rt workflow.Env)
 	return &ParseResult{Request: req}, nil
 }
 
-func parseRestoreFlags(action string, args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseRestoreFlags(action string, args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	opts := sharedFlagOptions{
 		target:     true,
 		configDir:  true,
@@ -61,7 +62,7 @@ func parseRestoreFlags(action string, args []string) (*workflow.Request, error) 
 		jsonSummary: opts.jsonSummary,
 		configDir:   opts.configDir,
 		secretsDir:  opts.secretsDir,
-	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+	}, func(args []string, index *int, req *workflowcore.Request) (bool, error) {
 		switch args[*index] {
 		case "--workspace":
 			value, err := consumeRequiredValue(args, index, "--workspace")

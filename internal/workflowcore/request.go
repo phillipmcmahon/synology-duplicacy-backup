@@ -73,5 +73,3 @@ func (r *Request) Target() string {
 	}
 	return ""
 }
-
-func (r *Request) DeriveModes() {}

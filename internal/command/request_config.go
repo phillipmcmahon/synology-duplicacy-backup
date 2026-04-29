@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -16,7 +17,7 @@ func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	switch action {
 	case "validate", "explain", "paths":
 	default:
-		return nil, workflow.NewUsageRequestError("unknown config command %s", action)
+		return nil, workflowcore.NewUsageRequestError("unknown config command %s", action)
 	}
 
 	req, err := parseConfigFlags(args[1:])
@@ -32,8 +33,8 @@ func parseConfigRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	return &ParseResult{Request: req}, nil
 }
 
-func parseConfigFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseConfigFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	return req, parseSourceFlags(args, req, sharedFlagOptions{
 		target:     true,
 		verbose:    true,

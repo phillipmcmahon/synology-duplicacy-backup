@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseRollbackRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -33,10 +34,10 @@ func parseUpdateRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	return &ParseResult{Request: req}, nil
 }
 
-func parseRollbackFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseRollbackFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
-		return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
+		return nil, workflowcore.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -53,19 +54,19 @@ func parseRollbackFlags(args []string) (*workflow.Request, error) {
 			req.RollbackVersion = value
 		default:
 			if isOption(args[i]) {
-				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+				return nil, workflowcore.NewUsageRequestError("unknown option %s", args[i])
 			}
-			return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
+			return nil, workflowcore.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
 		}
 	}
 
 	return req, nil
 }
 
-func parseUpdateFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{UpdateKeep: 2}
+func parseUpdateFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{UpdateKeep: 2}
 	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
-		return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
+		return nil, workflowcore.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args, " "))
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -101,7 +102,7 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 			case "off", "auto", "required":
 				req.UpdateAttestations = value
 			default:
-				return nil, workflow.NewUsageRequestError("--attestations must be one of: off, auto, required")
+				return nil, workflowcore.NewUsageRequestError("--attestations must be one of: off, auto, required")
 			}
 		case "--config-dir":
 			value, err := consumeRequiredValue(args, &i, "--config-dir")
@@ -111,9 +112,9 @@ func parseUpdateFlags(args []string) (*workflow.Request, error) {
 			req.ConfigDir = value
 		default:
 			if isOption(args[i]) {
-				return nil, workflow.NewUsageRequestError("unknown option %s", args[i])
+				return nil, workflowcore.NewUsageRequestError("unknown option %s", args[i])
 			}
-			return nil, workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
+			return nil, workflowcore.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(args[i:], " "))
 		}
 	}
 

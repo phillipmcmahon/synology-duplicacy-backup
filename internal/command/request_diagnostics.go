@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -21,8 +22,8 @@ func parseDiagnosticsRequest(args []string, meta workflow.Metadata, rt workflow.
 	return &ParseResult{Request: req}, nil
 }
 
-func parseDiagnosticsFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseDiagnosticsFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	return req, parseSourceFlags(args, req, sharedFlagOptions{
 		target:      true,
 		jsonSummary: true,

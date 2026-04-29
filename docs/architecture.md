@@ -10,9 +10,9 @@ package boundaries, and where specific responsibilities now live, see
 
 The application follows an explicit command-specific request model.
 
-The parser still produces one dispatch envelope, but each workflow command
-immediately projects that envelope into the narrow input type it actually
-needs. Only runtime backup, prune, and cleanup-storage operations
+The parser returns a typed command value from the command registry. Each command
+then projects its transitional request payload into the narrow input type it
+actually needs. Only runtime backup, prune, and cleanup-storage operations
 continue into the `RuntimeRequest -> Plan -> Execute` path.
 
 ## Top-Level Flow
@@ -28,6 +28,7 @@ flowchart TD
     Workflow["internal/workflow<br/>runtime plans, policy, state mutation"]
     Restore["internal/restore<br/>restore plans, selection, workspace safety"]
     Health["internal/health<br/>status, doctor, verify reports"]
+    Operator["internal/operator<br/>operator-facing error text"]
     RuntimeFlow["Runtime command path<br/>RuntimeRequest -> Plan -> Executor"]
     CommandHandlers["Other command handlers<br/>config, diagnostics, notify, update, rollback"]
     Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, notify, update"]
@@ -50,6 +51,9 @@ flowchart TD
     Restore --> Domains
     Restore --> Presentation
     Health --> Presentation
+    Workflow --> Operator
+    Restore --> Operator
+    Health --> Operator
     RuntimeFlow --> Domains
     CommandHandlers --> Domains
     RuntimeFlow --> External
@@ -61,7 +65,7 @@ flowchart TD
 ```text
 runWithArgs
   -> command.ParseRequest
-  -> handled help/version output, or dispatchRequest
+  -> handled help/version output, or typed command dispatch
        -> config / diagnostics / notify / restore / rollback / update / health / runtime
 ```
 
@@ -90,18 +94,19 @@ transition guidance so operators can see the new contract plainly.
 split by command family around a shared source/target flag parser, and the
 command registry is the source of truth for public command names, parser
 coverage, help coverage, DSM policy, and profile/root policy. Dispatch then
-projects the parsed envelope into command-specific requests before execution.
+routes the typed command by registry family and projects the transitional
+request payload into command-specific requests before execution.
 
-The registry is the first step of the command-router cleanup. It deliberately
-keeps behaviour stable while giving every public command one auditable metadata
-entry. The next slice can replace the broad parser envelope with typed command
-requests without also having to rediscover parser, help, and privilege policy
-coverage.
+The registry is now the single source of truth for public command metadata and
+dispatch family. The remaining transitional shape is the request payload inside
+each typed command; a later slice can replace that payload with fully
+command-specific request structs without rediscovering parser, help, and
+privilege policy coverage.
 
 Workflow handlers should work from narrow request types rather than passing the
-parser envelope deeper into the system.
-
-Runtime operations are the exception that need the full planning path:
+parser envelope deeper into the system. Every command family now has a narrow
+projection; runtime backup, prune, and cleanup-storage are simply the command
+family whose narrow projection continues into the full planning path:
 
 ```text
 RuntimeRequest -> Plan -> Executor
@@ -111,6 +116,10 @@ The `Plan` stores runtime data in explicit sections for request intent,
 resolved config, and derived paths. Planning validates and derives; execution
 mutates; presentation helpers render operator-facing command text lazily from
 the plan data. That separation is the key runtime boundary.
+
+After typed command routing lands, `internal/workflow` may be renamed to
+`internal/runtime` if the remaining package ownership is runtime-specific
+enough to justify the churn.
 
 For the detailed request, plan, execute, presentation, and error-translation
 walkthrough, use [how-it-works.md](how-it-works.md).
@@ -154,6 +163,7 @@ The codebase now has:
 - a thin entrypoint in `cmd/duplicacy-backup`
 - a command-surface package in `internal/command`
 - a health package in `internal/health`
+- an operator-message package in `internal/operator`
 - a notify package in `internal/notify`
 - an update package in `internal/update`
 - a presentation package in `internal/presentation`
@@ -183,6 +193,7 @@ In practice that means:
 - put CLI parsing and help changes in `internal/command`
 - put health command orchestration, health reports, and health presentation in
   `internal/health`
+- put final operator-facing error wording in `internal/operator`
 - put notification delivery and provider logic in `internal/notify`
 - put shared runtime/config formatting in `internal/presentation`
 - put config, secrets, btrfs, duplicacy, permissions, and locking behaviour in their existing domain packages
@@ -193,7 +204,6 @@ It should own:
 - request-to-plan orchestration
 - execution sequencing
 - workflow policy decisions that span multiple domains
-- final operator-facing message translation
 
 The command entrypoint no longer has broad package-level test seams for locks:
 lock creation is routed through `Env`. The remaining package-level seam in
@@ -222,6 +232,7 @@ One architecture pressure point is worth keeping visible:
 | `internal/command` | CLI request parsing and help / usage text |
 | `internal/health` | Health command orchestration, health reports, health JSON output, and health presentation |
 | `internal/notify` | Notification payloads, provider delivery, and notify-test reports |
+| `internal/operator` | Operator-facing error message translation |
 | `internal/presentation` | Shared output formatting and runtime presentation helpers |
 | `internal/restore` | Restore planning, revision listing, workspace safety, guided selection, and restore reports |
 | `internal/update` | Self-update planning, package verification, installer execution, and managed rollback activation |

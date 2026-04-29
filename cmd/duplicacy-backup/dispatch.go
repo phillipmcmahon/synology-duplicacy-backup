@@ -14,6 +14,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 const (
@@ -22,25 +23,49 @@ const (
 	exitCodeHealthUnhealthy = 2
 )
 
-func dispatchRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
-	spec, ok := dispatchSpecForRequest(req)
-	if !ok {
+func dispatchCommand(cmd command.Command, meta workflow.Metadata, rt workflow.Env) int {
+	if cmd == nil {
+		return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", ""))
+	}
+	req := cmd.Request()
+	if req == nil {
 		commandName := ""
-		if req != nil {
-			commandName = req.Command
+		if cmd != nil {
+			commandName = cmd.Name()
 		}
 		return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", commandName))
 	}
-	if command.RequiresDSMForRequest(req) {
+	if cmd.RequiresDSM() {
 		if err := requireSynologyDSM(); err != nil {
 			return writeCommandFailure("", err)
 		}
 	}
-	if err := validateRootExecution(req, rt); err != nil {
+	if err := validateRootExecution(cmd, rt); err != nil {
 		return writeCommandFailure("", err)
 	}
 
-	return spec.handle(req, meta, rt)
+	switch cmd.Family() {
+	case command.CommandFamilyRuntime:
+		return runRuntimeRequest(req, meta, rt)
+	case command.CommandFamilyConfig:
+		return runConfigRequest(req, meta, rt)
+	case command.CommandFamilyDiagnostics:
+		return runDiagnosticsRequest(req, meta, rt)
+	case command.CommandFamilyHealth:
+		return runHealthRequest(req, meta, rt)
+	case command.CommandFamilyNotify:
+		return runNotifyRequest(req, meta, rt)
+	case command.CommandFamilyRestore:
+		return runRestoreRequest(req, meta, rt)
+	case command.CommandFamilyManagedUpdate:
+		switch cmd.Name() {
+		case "rollback":
+			return runRollbackRequest(req, meta, rt)
+		case "update":
+			return runUpdateRequest(req, meta, rt)
+		}
+	}
+	return writeCommandFailure("", workflow.NewRequestError("no dispatch handler registered for command %q", cmd.Name()))
 }
 
 type directRootProfilePolicy struct {
@@ -51,36 +76,36 @@ type directRootProfilePolicy struct {
 
 const directRootProfileErrorLead = "direct root execution is ambiguous for"
 
-func validateRootExecution(req *workflow.Request, rt workflow.Env) error {
+func validateRootExecution(cmd command.Command, rt workflow.Env) error {
 	if workflow.EnvEUID(rt) != 0 || workflow.HasSudoOperator(rt) {
 		return nil
 	}
-	policy := directRootProfilePolicyForRequest(req)
+	policy := directRootProfilePolicyForCommand(cmd)
 	if !policy.UsesProfile {
 		return nil
 	}
-	if hasExplicitDirectRootProfile(req, rt, policy) {
+	if hasExplicitDirectRootProfile(cmd.Request(), rt, policy) {
 		return nil
 	}
 	return directRootProfileError(policy)
 }
 
-func directRootProfilePolicyForRequest(req *workflow.Request) directRootProfilePolicy {
-	if req == nil {
+func directRootProfilePolicyForCommand(cmd command.Command) directRootProfilePolicy {
+	if cmd == nil {
 		return directRootProfilePolicy{}
 	}
-	commandName, policy := command.ProfilePolicyForRequest(req)
+	policy := cmd.ProfilePolicy()
 	if !policy.UsesProfile {
 		return directRootProfilePolicy{}
 	}
 	return directRootProfilePolicy{
-		Command:         commandName,
+		Command:         cmd.DisplayName(),
 		UsesProfile:     policy.UsesProfile,
 		RequiresSecrets: policy.RequiresSecrets,
 	}
 }
 
-func hasExplicitDirectRootProfile(req *workflow.Request, rt workflow.Env, policy directRootProfilePolicy) bool {
+func hasExplicitDirectRootProfile(req *workflowcore.Request, rt workflow.Env, policy directRootProfilePolicy) bool {
 	if req == nil || req.ConfigDir == "" {
 		return false
 	}

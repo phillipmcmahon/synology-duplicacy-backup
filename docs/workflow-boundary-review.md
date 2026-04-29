@@ -49,7 +49,7 @@ The main split blockers are not file names. They are shared workflow contracts:
 | `Metadata` | Carries runtime paths, owner metadata, binary identity, root volume, and log/lock paths. |
 | `Plan` | Now section-owned by `Request`, `Config`, and `Paths`, but still shared by runtime, config, health, diagnostics, restore, reporting, and notification code. |
 | Request projections | `ConfigPlanRequest`, `RuntimeRequest`, `RestoreRequest`, `HealthRequest`, `NotifyRequest`, update/rollback requests provide the command-family boundary. |
-| Error helpers | `RequestError`, `MessageError`, and `OperatorMessage` keep command surfaces consistent. |
+| Error helpers | `RequestError` lives with neutral request primitives; `MessageError` and operator-facing error translation live in `internal/operator`. |
 | Privilege policy | Direct-root rejection and sudo-required local repository checks span config, health, restore, prune, and cleanup-storage. |
 | Presentation/logging | Runtime command presenter and health/restore output share vocabulary and operator-facing conventions. |
 
@@ -70,7 +70,7 @@ After `#255` and the first `#286` slice, the deliberately small shared core is
 | `Request` and `RequestError` | Moved to `internal/workflowcore` while typed command requests continue to evolve. |
 | `RunState` and read-only state paths | Moved to `internal/workflowcore` for report-only subsystems. State mutation remains in workflow. |
 | `Plan` and `ConfigPlanRequest` | Moved to `internal/workflowcore` because restore needs the read-side plan contract. Runtime planning and execution still live in workflow. |
-| `MessageError`, `OperatorMessage` | Still in workflow. They depend on workflow-owned final wording and should not move until final presentation ownership is clearer. |
+| `MessageError`, `OperatorMessage` | Moved to `internal/operator`; `internal/workflow` only keeps compatibility aliases while older runtime files are gradually narrowed. |
 | Local repository privilege predicates | Core candidate only if restore/config/health/runtime all move out; otherwise keep in workflow to avoid policy drift. |
 | Runtime command presenter/logging | Not core. Subpackages should return reports/results unless there is a clear reason for them to own live output. |
 

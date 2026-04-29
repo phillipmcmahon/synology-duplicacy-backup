@@ -51,7 +51,8 @@ RuntimeRequest -> Plan -> Execute
 
 That is the core architectural idea.
 
-- `Request` means: the parser envelope describing raw CLI intent.
+- typed command means: the registry-selected command plus its transitional
+  request payload.
 - command-specific request types mean: the narrow input each handler actually
   needs.
 - `Plan` means: the fully validated, resolved runtime execution contract.
@@ -81,15 +82,16 @@ main
   -> run
     -> runWithArgs
       -> command.ParseRequest
-      -> handled help/version output, or dispatchRequest
+      -> handled help/version output, or typed command dispatch
            -> config / diagnostics / notify / rollback / update / health / runtime
 ```
 
 In other words:
 
 1. Parse CLI intent.
-2. Print handled help/version output immediately, or project the parsed request
-   into the matching command-specific request type.
+2. Print handled help/version output immediately, or dispatch the typed command
+   by registry family and project its request payload into the matching
+   command-specific request type.
 3. Initialise logging, build a plan, and execute only when the selected runtime
    path actually needs those steps.
 
@@ -316,12 +318,12 @@ Those are still request-level concepts because they describe intent, not machine
 `internal/command` keeps one command registry for the public CLI surface. Each
 entry records the command family, parser, help coverage, DSM requirement, and
 profile/root policy. `ParseRequest` uses that registry for top-level command
-routing, and dispatch uses the same profile policy metadata when rejecting
-ambiguous direct-root profile execution.
+routing and returns a typed command value. Dispatch uses the same metadata when
+checking DSM and direct-root profile rules, so there is no second command
+routing table in the entrypoint.
 
-This is intentionally transitional: the current parser still returns the broad
-`workflow.Request` envelope, but the command inventory and privilege metadata
-now have one home. Typed command requests can replace the envelope without
+The remaining transitional piece is the request payload carried by that typed
+command. Fully command-specific request structs can replace it later without
 creating another parallel dispatch table.
 
 ### What happens in `ParseRequest`
@@ -336,26 +338,24 @@ creating another parallel dispatch table.
 
 ### How parse output is dispatched
 
-`ParseRequest` returns either handled output or a populated `Request`.
+`ParseRequest` returns either handled output or a typed command.
 
 Handled output is terminal and side-effect free. `runWithArgs` prints it and
 returns without creating a logger, reading config, checking privileges, or
 touching backup state.
 
-Unresolved requests go through `dispatchRequest` in
+Unresolved commands go through typed command dispatch in
 [`cmd/duplicacy-backup/dispatch.go`](../cmd/duplicacy-backup/dispatch.go):
 
-- `ConfigCommand` routes to `workflow.HandleConfigCommand`
-- `DiagnosticsCommand` routes to `workflow.HandleDiagnosticsCommand`
-- `NotifyCommand` routes to `workflow.HandleNotifyCommand`
-- `RestoreCommand` routes to `workflow.HandleRestoreCommand`
-- `RollbackCommand` routes to the managed rollback adapter in the update
-  package
-- `UpdateCommand` routes to the update adapter and the update notification hooks
-- `HealthCommand` routes to `health.NewHealthRunner(...).Run(...)`
-- everything else is treated as a runtime backup/prune/cleanup
-  request, projected to `RuntimeRequest`, and then passed through
-  `Planner.Build` followed by `Executor.Run`
+- config routes to `workflow.HandleConfigCommand`
+- diagnostics routes to `workflow.HandleDiagnosticsCommand`
+- notify routes to `workflow.HandleNotifyCommand`
+- restore routes to `restore.HandleRestoreCommand`
+- rollback routes to the managed rollback adapter in the update package
+- update routes to the update adapter and the update notification hooks
+- health routes to `health.NewHealthRunner(...).Run(...)`
+- runtime backup/prune/cleanup projects to `RuntimeRequest`, then passes
+  through `Planner.Build` followed by `Executor.Run`
 
 This dispatch point is why global commands such as `update`, `rollback`, and
 `notify test update` do not inherit label-target runtime requirements. It also
@@ -698,7 +698,7 @@ The rough path is:
 
 If any step fails:
 
-- the error is translated by workflow-owned messaging
+- the error is translated by `internal/operator`
 - `exitCode` is set to `1`
 - deferred cleanup still runs
 
@@ -738,14 +738,14 @@ Both modes must use the same labels, status values, and remediation language.
 
 Operator-facing message translation is handled by:
 
-- [`internal/workflow/messages.go`](../internal/workflow/messages.go)
+- [`internal/operator/messages.go`](../internal/operator/messages.go)
 
 This is an important boundary.
 
 The design rule is:
 
 - domain packages return typed/internal errors
-- workflow owns final operator-facing wording
+- `internal/operator` owns final operator-facing wording
 
 That keeps message tone and punctuation consistent.
 
@@ -880,7 +880,7 @@ Workflow output uses the logger for:
 
 Current message rules are:
 
-- workflow owns final operator wording
+- `internal/operator` owns final operator wording
 - operator-facing messages should be concise and consistent
 - status lines should not force terminal punctuation
 - domain packages should avoid owning final tone/style
@@ -965,7 +965,7 @@ target, config, secrets, dry-run, verbose, and JSON-summary flags.
 
 ### Operator-facing error text
 
-- [`internal/workflow/messages.go`](../internal/workflow/messages.go)
+- [`internal/operator/messages.go`](../internal/operator/messages.go)
 
 ### Backup and prune sequencing
 
@@ -998,7 +998,7 @@ If you have been away from the codebase and need to re-orient quickly, this is t
 7. [`internal/workflow/plan.go`](../internal/workflow/plan.go)
 8. [`internal/workflow/executor.go`](../internal/workflow/executor.go)
 9. [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
-10. [`internal/workflow/messages.go`](../internal/workflow/messages.go)
+10. [`internal/operator/messages.go`](../internal/operator/messages.go)
 
 That path usually gives the clearest mental model with the least jumping around.
 
@@ -1006,12 +1006,13 @@ That path usually gives the clearest mental model with the least jumping around.
 
 If you want the shortest possible internal description:
 
-- `Request` captures CLI intent.
-- workflow projects that parser envelope into command-specific request types.
+- typed commands capture CLI intent and registry metadata.
+- command handlers project the typed command payload into command-specific
+  request types.
 - `Planner` turns runtime intent into a validated execution contract.
 - `Executor` performs the side effects in order.
 - `Presenter` owns runtime rendering.
-- `messages.go` owns final operator-facing wording.
+- `internal/operator/messages.go` owns final operator-facing wording.
 - domain packages do focused work and return data or typed errors.
 
 That is now the core shape of the application.

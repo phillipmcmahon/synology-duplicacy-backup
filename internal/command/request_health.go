@@ -2,11 +2,12 @@ package command
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
 	if len(args) == 0 {
-		return nil, workflow.NewUsageRequestError("health command required")
+		return nil, workflowcore.NewUsageRequestError("health command required")
 	}
 	if result := parseHelpRequest(args, UsageText(meta, rt), FullUsageText(meta, rt)); result != nil {
 		return result, nil
@@ -16,7 +17,7 @@ func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	switch action {
 	case "status", "doctor", "verify":
 	default:
-		return nil, workflow.NewUsageRequestError("unknown health command %s", action)
+		return nil, workflowcore.NewUsageRequestError("unknown health command %s", action)
 	}
 
 	req, err := parseHealthFlags(args[1:])
@@ -32,8 +33,8 @@ func parseHealthRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	return &ParseResult{Request: req}, nil
 }
 
-func parseHealthFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseHealthFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	return req, parseSourceFlags(args, req, sharedFlagOptions{
 		target:      true,
 		verbose:     true,

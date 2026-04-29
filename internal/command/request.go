@@ -5,10 +5,12 @@ import (
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 type ParseResult struct {
-	Request *workflow.Request
+	Command Command
+	Request *workflowcore.Request
 	Output  string
 	Handled bool
 }
@@ -19,7 +21,12 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*Pars
 	}
 
 	if spec, ok := commandSpec(args[0]); ok {
-		return spec.parse(args[1:], meta, rt)
+		result, err := spec.parse(args[1:], meta, rt)
+		if err != nil || result == nil || result.Handled || result.Request == nil {
+			return result, err
+		}
+		result.Command = newParsedCommand(spec, result.Request)
+		return result, nil
 	}
 
 	if result := parseTopLevelMetaRequest(args, meta, rt); result != nil {
@@ -27,24 +34,24 @@ func ParseRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*Pars
 	}
 
 	if isOption(args[0]) {
-		return nil, workflow.NewUsageRequestError("unknown top-level option %s; use a command such as backup, prune, or cleanup-storage", args[0])
+		return nil, workflowcore.NewUsageRequestError("unknown top-level option %s; use a command such as backup, prune, or cleanup-storage", args[0])
 	}
-	return nil, workflow.NewUsageRequestError("unknown command %s", args[0])
+	return nil, workflowcore.NewUsageRequestError("unknown command %s", args[0])
 }
 
-func parseSourceFlagsWithLabel(args []string, req *workflow.Request, opts sharedFlagOptions, extra extraFlagParser) error {
+func parseSourceFlagsWithLabel(args []string, req *workflowcore.Request, opts sharedFlagOptions, extra extraFlagParser) error {
 	if err := parseSourceFlags(args, req, opts, extra); err != nil {
 		if strings.Contains(err.Error(), "source directory required") {
-			return workflow.NewUsageRequestError("backup label required")
+			return workflowcore.NewUsageRequestError("backup label required")
 		}
 		return err
 	}
 	return nil
 }
 
-type extraFlagParser func(args []string, index *int, req *workflow.Request) (bool, error)
+type extraFlagParser func(args []string, index *int, req *workflowcore.Request) (bool, error)
 
-func parseSourceFlags(args []string, req *workflow.Request, opts sharedFlagOptions, extra extraFlagParser) error {
+func parseSourceFlags(args []string, req *workflowcore.Request, opts sharedFlagOptions, extra extraFlagParser) error {
 	var positional []string
 
 	for i := 0; i < len(args); i++ {
@@ -72,7 +79,7 @@ func parseSourceFlags(args []string, req *workflow.Request, opts sharedFlagOptio
 			continue
 		}
 		if isOption(args[i]) {
-			return workflow.NewUsageRequestError("unknown option %s", args[i])
+			return workflowcore.NewUsageRequestError("unknown option %s", args[i])
 		}
 		positional = append(positional, args[i])
 	}
@@ -120,7 +127,7 @@ type sharedFlagOptions struct {
 	secretsDir  bool
 }
 
-func consumeSharedFlag(args []string, index *int, req *workflow.Request, opts sharedFlagOptions) (bool, error) {
+func consumeSharedFlag(args []string, index *int, req *workflowcore.Request, opts sharedFlagOptions) (bool, error) {
 	switch args[*index] {
 	case "--target":
 		if !opts.target {
@@ -177,7 +184,7 @@ func consumeSharedFlag(args []string, index *int, req *workflow.Request, opts sh
 
 func consumeRequiredValue(args []string, index *int, flag string) (string, error) {
 	if *index+1 >= len(args) {
-		return "", workflow.NewUsageRequestError("%s requires a value", flag)
+		return "", workflowcore.NewUsageRequestError("%s requires a value", flag)
 	}
 	*index++
 	return args[*index], nil
@@ -185,10 +192,10 @@ func consumeRequiredValue(args []string, index *int, flag string) (string, error
 
 func parseSourcePositional(positional []string) (string, error) {
 	if len(positional) < 1 {
-		return "", workflow.NewUsageRequestError("source directory required")
+		return "", workflowcore.NewUsageRequestError("source directory required")
 	}
 	if len(positional) > 1 {
-		return "", workflow.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
+		return "", workflowcore.NewUsageRequestError("unexpected extra arguments: %s", strings.Join(positional[1:], " "))
 	}
 	return positional[0], nil
 }
@@ -197,7 +204,7 @@ func parseNonNegativeInt(value string, flag string) (int, error) {
 	var parsed int
 	for _, ch := range value {
 		if ch < '0' || ch > '9' {
-			return 0, workflow.NewUsageRequestError("%s must be a non-negative integer", flag)
+			return 0, workflowcore.NewUsageRequestError("%s must be a non-negative integer", flag)
 		}
 		parsed = parsed*10 + int(ch-'0')
 	}
@@ -210,14 +217,14 @@ func parsePositiveInt(value string, flag string) (int, error) {
 		return 0, err
 	}
 	if parsed <= 0 {
-		return 0, workflow.NewUsageRequestError("%s must be a positive integer", flag)
+		return 0, workflowcore.NewUsageRequestError("%s must be a positive integer", flag)
 	}
 	return parsed, nil
 }
 
-func validateTargetAndLabel(req *workflow.Request) error {
+func validateTargetAndLabel(req *workflowcore.Request) error {
 	if req.RequestedTarget == "" {
-		return workflow.NewRequestError("--target is required")
+		return workflowcore.NewRequestError("--target is required")
 	}
 	if err := workflow.ValidateTargetName(req.RequestedTarget); err != nil {
 		return err

@@ -1097,7 +1097,7 @@ func TestRunWithArgs_DirectRootConfigRequiresExplicitRuntimeProfile(t *testing.T
 	})
 }
 
-func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
+func TestDirectRootProfilePolicyForCommandCoversCommandSurface(t *testing.T) {
 	type policyCase struct {
 		name           string
 		req            *workflow.Request
@@ -1162,7 +1162,8 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := directRootProfilePolicyForRequest(tc.req)
+			cmd, _ := command.CommandForRequest(tc.req)
+			got := directRootProfilePolicyForCommand(cmd)
 			if got.Command != tc.command || got.UsesProfile != tc.usesProfile || got.RequiresSecrets != tc.requiresSecret {
 				t.Fatalf("policy = %+v, want command=%q usesProfile=%v requiresSecrets=%v", got, tc.command, tc.usesProfile, tc.requiresSecret)
 			}
@@ -1170,7 +1171,7 @@ func TestDirectRootProfilePolicyForRequestCoversCommandSurface(t *testing.T) {
 	}
 }
 
-func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
+func TestCommandRegistryDrivesDispatchFamilies(t *testing.T) {
 	type dispatchCase struct {
 		command string
 		req     *workflow.Request
@@ -1192,9 +1193,12 @@ func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
 	seen := make(map[string]bool)
 	for _, tc := range cases {
 		t.Run(tc.command, func(t *testing.T) {
-			spec, ok := dispatchSpecForRequest(tc.req)
-			if !ok || spec.name != tc.want || spec.handle == nil {
-				t.Fatalf("dispatchSpecForRequest(%s) = %q ok=%v handle nil=%t, want %q", tc.command, spec.name, ok, spec.handle == nil, tc.want)
+			cmd, ok := command.CommandForRequest(tc.req)
+			if !ok {
+				t.Fatalf("CommandForRequest(%s) did not match registry", tc.command)
+			}
+			if got := dispatchFamilyName(cmd); got != tc.want {
+				t.Fatalf("dispatch family = %q, want %q", got, tc.want)
 			}
 			seen[tc.command] = true
 		})
@@ -1206,8 +1210,29 @@ func TestDispatchRegistryCoversCommandSurface(t *testing.T) {
 		}
 	}
 
-	if spec, ok := dispatchSpecForRequest(&workflow.Request{}); ok {
-		t.Fatalf("empty request matched dispatch spec %+v", spec)
+	if cmd, ok := command.CommandForRequest(&workflow.Request{}); ok {
+		t.Fatalf("empty request matched command %+v", cmd)
+	}
+}
+
+func dispatchFamilyName(cmd command.Command) string {
+	switch cmd.Family() {
+	case command.CommandFamilyRuntime:
+		return "runtime"
+	case command.CommandFamilyConfig:
+		return "config"
+	case command.CommandFamilyDiagnostics:
+		return "diagnostics"
+	case command.CommandFamilyHealth:
+		return "health"
+	case command.CommandFamilyNotify:
+		return "notify"
+	case command.CommandFamilyRestore:
+		return "restore"
+	case command.CommandFamilyManagedUpdate:
+		return cmd.Name()
+	default:
+		return ""
 	}
 }
 

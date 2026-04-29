@@ -1,4 +1,4 @@
-package workflow
+package operator
 
 import (
 	"errors"
@@ -89,8 +89,8 @@ func TestOperatorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := OperatorMessage(tt.err); got != tt.want {
-				t.Fatalf("OperatorMessage() = %q, want %q", got, tt.want)
+			if got := Message(tt.err); got != tt.want {
+				t.Fatalf("Message() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -216,8 +216,8 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := OperatorMessage(tt.err); got != tt.want {
-				t.Fatalf("OperatorMessage() = %q, want %q", got, tt.want)
+			if got := Message(tt.err); got != tt.want {
+				t.Fatalf("Message() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -226,8 +226,5 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 func TestMessageHelpers(t *testing.T) {
 	if got := (&MessageError{Message: "boom"}).Error(); got != "boom" {
 		t.Fatalf("MessageError.Error() = %q", got)
-	}
-	if got := statusLinef("  hello %s  ", "world"); got != "hello world" {
-		t.Fatalf("statusLinef() = %q", got)
 	}
 }

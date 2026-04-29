@@ -26,6 +26,14 @@ coverage floor and package-level baseline.
 - Command parsing/help files are now split by command family, restore command
   tests are split by plan/run/select responsibilities, and the architecture docs
   now reflect the extracted restore/health subsystem boundaries.
+- Command parsing and dispatch now use neutral `workflowcore.Request`
+  primitives directly where possible, and registry tests assert parsers set the
+  canonical command discriminator during the transition to typed commands.
+- Parsers now return typed command values from the command registry, allowing
+  entrypoint dispatch to route by registry family and removing the separate
+  dispatch registry table.
+- Operator-facing error translation now lives in `internal/operator`, with
+  workflow keeping only compatibility aliases while runtime files are narrowed.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.

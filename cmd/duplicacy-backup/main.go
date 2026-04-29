@@ -56,7 +56,7 @@ func runWithArgs(args []string) int {
 		fmt.Print(result.Output)
 		return 0
 	}
-	return dispatchRequest(result.Request, meta, rt)
+	return dispatchCommand(result.Command, meta, rt)
 }
 
 func initLogger(meta workflow.Metadata) (*logger.Logger, error) {

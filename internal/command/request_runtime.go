@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseRuntimeCommandRequest(command string, args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -23,9 +24,8 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 		req.Command = "cleanup-storage"
 		req.DoCleanupStore = true
 	default:
-		return nil, workflow.NewUsageRequestError("unknown command %s", command)
+		return nil, workflowcore.NewUsageRequestError("unknown command %s", command)
 	}
-	req.DeriveModes()
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
 	}
@@ -33,8 +33,8 @@ func parseRuntimeCommandRequest(command string, args []string, meta workflow.Met
 	return &ParseResult{Request: req}, nil
 }
 
-func parseRuntimeCommandFlags(command string, args []string) (*workflow.Request, error) {
-	req := &workflow.Request{}
+func parseRuntimeCommandFlags(command string, args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{}
 	err := parseSourceFlags(args, req, sharedFlagOptions{
 		target:      true,
 		dryRun:      true,
@@ -42,7 +42,7 @@ func parseRuntimeCommandFlags(command string, args []string) (*workflow.Request,
 		jsonSummary: true,
 		configDir:   true,
 		secretsDir:  true,
-	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+	}, func(args []string, index *int, req *workflowcore.Request) (bool, error) {
 		switch args[*index] {
 		case "--force":
 			if command != "prune" {

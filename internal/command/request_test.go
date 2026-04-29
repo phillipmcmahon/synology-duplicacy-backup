@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func TestParseRequest_HelpHandled(t *testing.T) {
@@ -580,7 +581,7 @@ func TestParseRequest_UpdateRejectsInvalidAttestationMode(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -595,7 +596,7 @@ func TestParseRequest_UpdateRejectsUnexpectedArgs(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -610,7 +611,7 @@ func TestParseRequest_HealthUnknownCommandFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -622,7 +623,7 @@ func TestParseRequest_RejectsOldTopLevelOperationFlags(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -730,7 +731,7 @@ func TestParseRequest_ExtraPositionalArgsFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -789,7 +790,7 @@ func TestParseRequest_NotifyUnknownCommandFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
@@ -801,7 +802,7 @@ func TestParseRequest_ConfigUnknownCommandFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	reqErr, ok := err.(*workflow.RequestError)
+	reqErr, ok := err.(*workflowcore.RequestError)
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}

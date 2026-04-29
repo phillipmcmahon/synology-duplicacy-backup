@@ -5,6 +5,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*ParseResult, error) {
@@ -19,7 +20,7 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	switch action {
 	case "test":
 	default:
-		return nil, workflow.NewUsageRequestError("unknown notify command %s", action)
+		return nil, workflowcore.NewUsageRequestError("unknown notify command %s", action)
 	}
 
 	req, err := parseNotifyFlags(args[1:])
@@ -32,12 +33,12 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 		req.Source = ""
 		req.NotifyScope = "update"
 		if req.RequestedTarget != "" {
-			return nil, workflow.NewUsageRequestError("notify test update does not use --target")
+			return nil, workflowcore.NewUsageRequestError("notify test update does not use --target")
 		}
 		return &ParseResult{Request: req}, nil
 	}
 	if req.NotifyEvent != "" {
-		return nil, workflow.NewUsageRequestError("--event is only supported for notify test update")
+		return nil, workflowcore.NewUsageRequestError("--event is only supported for notify test update")
 	}
 	if err := validateTargetAndLabel(req); err != nil {
 		return nil, err
@@ -46,8 +47,8 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	return &ParseResult{Request: req}, nil
 }
 
-func parseNotifyFlags(args []string) (*workflow.Request, error) {
-	req := &workflow.Request{
+func parseNotifyFlags(args []string) (*workflowcore.Request, error) {
+	req := &workflowcore.Request{
 		NotifyProvider: "all",
 		NotifySeverity: "warning",
 	}
@@ -57,7 +58,7 @@ func parseNotifyFlags(args []string) (*workflow.Request, error) {
 		jsonSummary: true,
 		configDir:   true,
 		secretsDir:  true,
-	}, func(args []string, index *int, req *workflow.Request) (bool, error) {
+	}, func(args []string, index *int, req *workflowcore.Request) (bool, error) {
 		switch args[*index] {
 		case "--provider":
 			value, err := consumeRequiredValue(args, index, "--provider")
@@ -117,7 +118,7 @@ func validateNotifyProvider(provider string) error {
 	case "", "all", "webhook", "ntfy":
 		return nil
 	default:
-		return workflow.NewRequestError("unsupported notify provider %q; expected all, webhook, or ntfy", provider)
+		return workflowcore.NewRequestError("unsupported notify provider %q; expected all, webhook, or ntfy", provider)
 	}
 }
 
@@ -126,7 +127,7 @@ func validateNotifySeverity(severity string) error {
 	case "", "warning", "critical", "info":
 		return nil
 	default:
-		return workflow.NewRequestError("unsupported notify severity %q; expected warning, critical, or info", severity)
+		return workflowcore.NewRequestError("unsupported notify severity %q; expected warning, critical, or info", severity)
 	}
 }
 
@@ -137,5 +138,5 @@ func validateNotifyEvent(event string) error {
 	if notify.IsKnownEvent(event) {
 		return nil
 	}
-	return workflow.NewUsageRequestError("unsupported notify event %q", event)
+	return workflowcore.NewUsageRequestError("unsupported notify event %q", event)
 }

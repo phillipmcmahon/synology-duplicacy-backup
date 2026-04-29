@@ -1,6 +1,6 @@
 package command
 
-import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
+import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 
 type FailureRequestKind string
 
@@ -13,13 +13,13 @@ const (
 type FailureContext struct {
 	JSONSummary bool
 	Kind        FailureRequestKind
-	Request     *workflow.Request
+	Request     *workflowcore.Request
 }
 
 func ParseFailureContext(args []string) FailureContext {
 	ctx := FailureContext{
 		JSONSummary: WantsJSONSummary(args),
-		Request:     &workflow.Request{},
+		Request:     &workflowcore.Request{},
 	}
 	if len(args) == 0 {
 		return ctx
@@ -45,8 +45,8 @@ func WantsJSONSummary(args []string) bool {
 	return false
 }
 
-func parseHealthFailureRequest(args []string) *workflow.Request {
-	req := &workflow.Request{Command: "health"}
+func parseHealthFailureRequest(args []string) *workflowcore.Request {
+	req := &workflowcore.Request{Command: "health"}
 	if len(args) > 0 && !isOption(args[0]) {
 		req.HealthCommand = args[0]
 		args = args[1:]
@@ -72,8 +72,8 @@ func parseHealthFailureRequest(args []string) *workflow.Request {
 	return req
 }
 
-func parseNotifyFailureRequest(args []string) *workflow.Request {
-	req := &workflow.Request{Command: "notify", NotifyProvider: "all", NotifySeverity: "warning"}
+func parseNotifyFailureRequest(args []string) *workflowcore.Request {
+	req := &workflowcore.Request{Command: "notify", NotifyProvider: "all", NotifySeverity: "warning"}
 	if len(args) > 0 && !isOption(args[0]) {
 		req.NotifyCommand = args[0]
 		args = args[1:]
@@ -117,7 +117,7 @@ func parseNotifyFailureRequest(args []string) *workflow.Request {
 	return req
 }
 
-func consumeSharedFlagForFailure(args []string, index *int, req *workflow.Request, opts sharedFlagOptions) bool {
+func consumeSharedFlagForFailure(args []string, index *int, req *workflowcore.Request, opts sharedFlagOptions) bool {
 	handled, err := consumeSharedFlag(args, index, req, opts)
 	if err == nil {
 		return handled
