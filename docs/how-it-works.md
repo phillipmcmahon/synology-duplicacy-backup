@@ -95,7 +95,8 @@ In other words:
 
 Supporting packages now keep adjacent concerns together:
 - `internal/command` owns CLI request parsing and help text
-- `internal/health` owns health reporting, health JSON output, and health presentation
+- `internal/health` owns health command orchestration, health reporting, health
+  JSON output, and health presentation
 - `internal/notify` owns notification delivery and notify-test reporting
 - `internal/update` owns self-update planning, download, checksum and
   attestation verification, install execution, and managed rollback activation
@@ -347,7 +348,7 @@ Unresolved requests go through `dispatchRequest` in
 - `RollbackCommand` routes to the managed rollback adapter in the update
   package
 - `UpdateCommand` routes to the update adapter and the update notification hooks
-- `HealthCommand` routes to `workflow.NewHealthRunner(...).Run(...)`
+- `HealthCommand` routes to `health.NewHealthRunner(...).Run(...)`
 - everything else is treated as a runtime backup/prune/cleanup
   request, projected to `RuntimeRequest`, and then passed through
   `Planner.Build` followed by `Executor.Run`
@@ -948,8 +949,9 @@ config, secrets, dry-run, verbose, and JSON-summary flags.
 - [`internal/workflow/summary.go`](../internal/workflow/summary.go)
 - [`internal/presentation/runtime.go`](../internal/presentation/runtime.go)
 
-### Health reports and health presentation
+### Health command subsystem
 
+- [`internal/health/runner.go`](../internal/health/runner.go)
 - [`internal/health/report.go`](../internal/health/report.go)
 - [`internal/health/verify.go`](../internal/health/verify.go)
 - [`internal/health/presenter.go`](../internal/health/presenter.go)

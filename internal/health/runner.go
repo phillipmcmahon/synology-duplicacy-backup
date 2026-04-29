@@ -1,4 +1,4 @@
-package workflow
+package health
 
 import (
 	"fmt"
@@ -8,32 +8,33 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-type HealthIssue = healthpkg.Issue
-type HealthCheck = healthpkg.Check
-type HealthRevisionResult = healthpkg.RevisionResult
-type HealthReport = healthpkg.Report
+type Metadata = workflow.Metadata
+type Env = workflow.Env
+type Request = workflow.Request
+type Plan = workflow.Plan
+type RunState = workflow.RunState
+type ConfigPlanRequest = workflow.ConfigPlanRequest
 
 type HealthRunner struct {
 	meta      Metadata
 	rt        Env
 	log       *logger.Logger
 	runner    execpkg.Runner
-	presenter *healthpkg.Presenter
+	presenter *Presenter
 }
 
 const (
-	verifyFailureNoRevisionsFound = healthpkg.VerifyFailureNoRevisionsFound
-	verifyFailureIntegrityFailed  = healthpkg.VerifyFailureIntegrityFailed
-	verifyFailureResultMissing    = healthpkg.VerifyFailureResultMissing
-	verifyFailureAccessFailed     = healthpkg.VerifyFailureAccessFailed
-	verifyFailureListingFailed    = healthpkg.VerifyFailureListingFailed
-	verifyActionRunBackup         = "run_backup"
+	verifyFailureNoRevisionsFound = VerifyFailureNoRevisionsFound
+	verifyFailureIntegrityFailed  = VerifyFailureIntegrityFailed
+	verifyFailureResultMissing    = VerifyFailureResultMissing
+	verifyFailureAccessFailed     = VerifyFailureAccessFailed
+	verifyFailureListingFailed    = VerifyFailureListingFailed
 )
 
 func NewHealthRunner(meta Metadata, rt Env, log *logger.Logger, runner execpkg.Runner) *HealthRunner {
@@ -42,11 +43,11 @@ func NewHealthRunner(meta Metadata, rt Env, log *logger.Logger, runner execpkg.R
 		rt:        rt,
 		log:       log,
 		runner:    runner,
-		presenter: healthpkg.NewPresenter(log, rt.Now),
+		presenter: NewPresenter(log, rt.Now),
 	}
 }
 
-func NewFailureHealthReport(req *HealthRequest, checkType, message string, checkedAt time.Time) *HealthReport {
+func NewFailureHealthReport(req *HealthRequest, checkType, message string, checkedAt time.Time) *Report {
 	mode := ""
 	label := ""
 	target := ""
@@ -58,21 +59,21 @@ func NewFailureHealthReport(req *HealthRequest, checkType, message string, check
 			checkType = req.Command
 		}
 	}
-	return healthpkg.NewFailureReport(checkType, label, target, mode, message, checkedAt)
+	return NewFailureReport(checkType, label, target, mode, message, checkedAt)
 }
 
-func WriteHealthReport(w io.Writer, report *HealthReport) error {
-	return healthpkg.WriteReport(w, report)
+func WriteHealthReport(w io.Writer, report *Report) error {
+	return WriteReport(w, report)
 }
 
-func (h *HealthRunner) Run(req *Request) (*HealthReport, int) {
+func (h *HealthRunner) Run(req *Request) (*Report, int) {
 	healthReq := NewHealthRequest(req)
 	return h.run(&healthReq)
 }
 
-func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
+func (h *HealthRunner) run(req *HealthRequest) (*Report, int) {
 	checkedAt := h.rt.Now()
-	report := &HealthReport{
+	report := &Report{
 		Status:    "healthy",
 		CheckType: req.Command,
 		Label:     req.Label,
@@ -90,19 +91,19 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	cfg, plan, sec, err := h.prepare(req)
 	if err != nil {
 		h.presenter.PrintHeader(report)
-		report.AddCheck("Environment", "fail", OperatorMessage(err))
+		report.AddCheck("Environment", "fail", workflow.OperatorMessage(err))
 		report.Finalize()
 		h.maybeSendEarlyNotification(req, report)
 		h.presenter.PrintReport(report)
-		return report, healthpkg.ExitCode(report.Status)
+		return report, ExitCode(report.Status)
 	}
 	report.Location = plan.Config.Location
 	h.presenter.PrintHeader(report)
 
-	state, stateErr := loadRunState(h.meta, req.Label, req.Target())
+	state, stateErr := workflow.LoadRunState(h.meta, req.Label, req.Target())
 	if stateErr != nil {
 		if os.IsNotExist(stateErr) {
-			report.AddCheck("Backup state", "warn", fmt.Sprintf("No prior backup state found at %s", stateFilePath(h.meta, req.Label, req.Target())))
+			report.AddCheck("Backup state", "warn", fmt.Sprintf("No prior backup state found at %s", workflow.StateFilePath(h.meta, req.Label, req.Target())))
 		} else {
 			report.AddCheck("Backup state", "warn", fmt.Sprintf("Could not read backup state: %v", stateErr))
 		}
@@ -113,7 +114,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 
 	lockStatus, lockErr := lock.InspectTarget(h.meta.LockParent, req.Label, req.Target())
 	if lockErr != nil {
-		report.AddCheck("Lock", "warn", OperatorMessage(lockErr))
+		report.AddCheck("Lock", "warn", workflow.OperatorMessage(lockErr))
 	} else {
 		switch {
 		case lockStatus.Active:
@@ -127,11 +128,11 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 
 	dup, dupErr := h.prepareDuplicacySetup(plan, sec)
 	if dupErr != nil {
-		report.AddCheck("Duplicacy setup", "fail", OperatorMessage(dupErr))
+		report.AddCheck("Duplicacy setup", "fail", workflow.OperatorMessage(dupErr))
 		report.Finalize()
 		h.maybeSendEarlyNotification(req, report)
 		h.presenter.PrintReport(report)
-		return report, healthpkg.ExitCode(report.Status)
+		return report, ExitCode(report.Status)
 	}
 	defer dup.Cleanup()
 
@@ -148,7 +149,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 		h.runVerifyChecks(report, cfg, dup, visibleRevisions)
 	}
 
-	if err := updateHealthCheckState(h.meta, req.Label, req.Target(), req.Command, checkedAt); err != nil {
+	if err := workflow.UpdateHealthCheckState(h.meta, req.Label, req.Target(), req.Command, checkedAt); err != nil {
 		report.AddCheck("Health state", "warn", err.Error())
 	}
 
@@ -156,7 +157,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	if h.shouldSendNotification(req, cfg.Health, report.Status) {
 		if payload := buildHealthNotificationPayload(h.rt, report); payload != nil {
 			if err := notify.SendConfigured(cfg.Health.Notify, plan.Paths.SecretsFile, report.Target, payload); err != nil {
-				report.AddCheck("Notification", "warn", OperatorMessage(err))
+				report.AddCheck("Notification", "warn", workflow.OperatorMessage(err))
 			} else {
 				report.NotificationSent = true
 				report.AddCheck("Notification", "pass", "Delivered")
@@ -165,7 +166,7 @@ func (h *HealthRunner) run(req *HealthRequest) (*HealthReport, int) {
 	}
 	report.Finalize()
 	h.presenter.PrintReport(report)
-	return report, healthpkg.ExitCode(report.Status)
+	return report, ExitCode(report.Status)
 }
 
 func (h *HealthRunner) suppressCommandDebug() func() {
@@ -186,15 +187,15 @@ func (h *HealthRunner) suppressCommandDebug() func() {
 	}
 }
 
-func healthCheckSection(name string) string { return healthpkg.SectionForCheck(name) }
-func healthCheckLabel(name string) string   { return healthpkg.LabelForCheck(name) }
-func humanAge(d time.Duration) string       { return healthpkg.HumanAge(d) }
-func humanAgo(d time.Duration) string       { return healthpkg.HumanAgo(d) }
+func healthCheckSection(name string) string { return SectionForCheck(name) }
+func healthCheckLabel(name string) string   { return LabelForCheck(name) }
+func humanAge(d time.Duration) string       { return HumanAge(d) }
+func humanAgo(d time.Duration) string       { return HumanAgo(d) }
 
-func (h *HealthRunner) addVerifyFailureCode(report *HealthReport, code string) {
+func (h *HealthRunner) addVerifyFailureCode(report *Report, code string) {
 	report.AddVerifyFailureCode(code)
 }
 
-func (h *HealthRunner) hasVerifyFailureCode(report *HealthReport, code string) bool {
+func (h *HealthRunner) hasVerifyFailureCode(report *Report, code string) bool {
 	return report.HasVerifyFailureCode(code)
 }

@@ -1,13 +1,15 @@
-package workflow
+package health
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func (h *HealthRunner) addRootProfileConfigWarning(report *HealthReport, req *HealthRequest) {
+func (h *HealthRunner) addRootProfileConfigWarning(report *Report, req *HealthRequest) {
 	if report == nil || req == nil {
 		return
 	}
@@ -27,7 +29,7 @@ func rootProfileConfigWarning(req *HealthRequest, rt Env, candidateFiles []strin
 	}
 	configDir := strings.TrimSpace(req.ConfigDir)
 	if configDir == "" {
-		configDir = EffectiveConfigDir(rt)
+		configDir = workflow.EffectiveConfigDir(rt)
 	}
 	rootConfigDir := filepath.Clean("/root/.config/duplicacy-backup")
 	if filepath.Clean(configDir) != rootConfigDir {
@@ -67,4 +69,11 @@ func rootProfileCandidateConfigFiles(label string, rt Env) []string {
 		}
 	}
 	return candidates
+}
+
+func envValue(rt Env, key string) string {
+	if rt.Getenv != nil {
+		return rt.Getenv(key)
+	}
+	return os.Getenv(key)
 }

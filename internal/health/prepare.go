@@ -1,22 +1,25 @@
-package workflow
+package health
 
 import (
+	"strings"
+
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
 func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secrets.Secrets, error) {
 	if _, err := h.rt.LookPath("duplicacy"); err != nil {
-		return nil, nil, nil, NewMessageError("required command 'duplicacy' not found")
+		return nil, nil, nil, workflow.NewMessageError("required command 'duplicacy' not found")
 	}
 
-	planner := NewPlanner(h.meta, h.rt, h.log, h.runner)
-	plan := planner.derivePlan(req.PlanRequest())
+	planner := workflow.NewPlanner(h.meta, h.rt, h.log, h.runner)
+	plan := planner.DeriveConfigPlan(req.PlanRequest())
 
-	cfgPlan := planner.derivePlan(req.PlanRequest())
-	cfg, err := planner.loadConfig(cfgPlan)
+	cfgPlan := planner.DeriveConfigPlan(req.PlanRequest())
+	cfg, err := planner.LoadConfig(cfgPlan)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -37,7 +40,7 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 
 	var sec *secrets.Secrets
 	if duplicacy.NewStorageSpec(cfg.Storage).NeedsSecrets() {
-		sec, err = planner.loadSecrets(cfgPlan)
+		sec, err = planner.LoadSecrets(cfgPlan)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -63,4 +66,15 @@ func (h *HealthRunner) prepareDuplicacySetup(plan *Plan, sec *secrets.Secrets) (
 		return nil, err
 	}
 	return dup, nil
+}
+
+func nonEmptyLines(value string) []string {
+	lines := strings.Split(value, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }

@@ -118,6 +118,12 @@ func updateHealthCheckState(meta Metadata, label, target string, checkType strin
 	})
 }
 
+// UpdateHealthCheckState records health command recency for the extracted
+// health subsystem while keeping state mutation ownership in workflow.
+func UpdateHealthCheckState(meta Metadata, label, target string, checkType string, checkedAt time.Time) error {
+	return updateHealthCheckState(meta, label, target, checkType, checkedAt)
+}
+
 func mutateRunState(meta Metadata, label, target string, mutate func(*RunState) error) error {
 	state := &RunState{}
 	if existing, err := loadRunState(meta, label, target); err == nil {

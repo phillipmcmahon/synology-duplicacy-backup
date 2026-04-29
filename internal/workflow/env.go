@@ -1,10 +1,6 @@
 package workflow
 
-import (
-	"os"
-
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
-)
+import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 
 const (
 	locationLocal  = workflowcore.LocationLocal
@@ -27,10 +23,3 @@ var EnvEUID = workflowcore.EnvEUID
 var EffectiveConfigDir = workflowcore.EffectiveConfigDir
 var EffectiveSecretsDir = workflowcore.EffectiveSecretsDir
 var SignalSet = workflowcore.SignalSet
-
-func envValue(rt Env, name string) string {
-	if rt.Getenv == nil {
-		return os.Getenv(name)
-	}
-	return rt.Getenv(name)
-}

@@ -14,17 +14,19 @@ shape is simpler to reason about, not merely because a file count is high.
 
 ## Current Shape
 
-`internal/workflow` remains the orchestration package. It wires parser requests,
-resolved config, secrets, Duplicacy operations, health checks, restore drills,
-runtime execution, reporting, locks, and notification handoffs.
+`internal/workflow` remains the runtime orchestration and shared planning
+package. It wires parser requests, resolved config, secrets, Duplicacy
+operations, runtime execution, reporting, locks, diagnostics, and notification
+handoffs. Restore and health now own their command-specific orchestration in
+focused packages while retaining narrow workflow bridges for shared planning,
+state mutation, and operator-message wording.
 
 The production files group naturally by command family:
 
 | Family | Files | Notes |
 |---|---:|---|
-| runtime/core | 17 | `Plan`, `Planner`, `Executor`, runtime seams, state, summary, prune, cleanup, privilege, messages |
-| restore | 12 | Restore orchestration, context, workspace, prompts, progress, parsing, reports |
-| health | 7 | Health runner, preparation, checks, state, notifications, root-profile warnings |
+| runtime/core | 19 | `Planner`, `Executor`, state mutation, summary, prune, cleanup, privilege, messages, runtime notification payloads |
+| shared aliases | 6 | `Env`, `Metadata`, `Request`, `Plan`, `ConfigPlanRequest`, restore sentinels re-exported from `internal/workflowcore` |
 | config | 3 | Config validate/explain/paths and config-specific request projection |
 | notify | 3 | Notify command handling and runtime notification payloads |
 | update | 3 | Update request/status/notification glue around `internal/update` |
@@ -33,7 +35,7 @@ The production files group naturally by command family:
 
 The prefix discipline is working: command-family responsibilities are visible
 from filenames, and domain-specific logic already lives in narrower packages
-such as `internal/health`, `internal/notify`, `internal/update`,
+such as `internal/restore`, `internal/health`, `internal/notify`, `internal/update`,
 `internal/presentation`, `internal/duplicacy`, `internal/config`,
 `internal/secrets`, and `internal/btrfs`.
 
@@ -75,8 +77,11 @@ After `#255` and the first `#286` slice, the deliberately small shared core is
 The first extraction candidate remains restore. The current shape is a hybrid:
 restore imports neutral primitives from `internal/workflowcore`, and keeps a
 narrow bridge to workflow for config planning and final operator-message
-translation. That bridge is intentionally visible so future typed-command and
-package-boundary work can shrink it instead of hiding it.
+translation. Health follows the same pattern: health command orchestration now
+lives in `internal/health`, while workflow still owns shared config planning,
+state mutation, and final operator-message translation. Those bridges are
+intentionally visible so future typed-command and package-boundary work can
+shrink them instead of hiding them.
 
 The core package must stay bounded. It should own shared data and environment
 seams, not command orchestration, live progress output, privilege policy, or

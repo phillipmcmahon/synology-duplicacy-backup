@@ -176,7 +176,8 @@ The rule of thumb is:
 In practice that means:
 
 - put CLI parsing and help changes in `internal/command`
-- put health-report and health-presentation logic in `internal/health`
+- put health command orchestration, health reports, and health presentation in
+  `internal/health`
 - put notification delivery and provider logic in `internal/notify`
 - put shared runtime/config formatting in `internal/presentation`
 - put config, secrets, btrfs, duplicacy, permissions, and locking behaviour in their existing domain packages
@@ -208,7 +209,7 @@ One architecture pressure point is worth keeping visible:
 | Package | Purpose |
 |---|---|
 | `internal/command` | CLI request parsing and help / usage text |
-| `internal/health` | Health reports, health JSON output, and health presentation |
+| `internal/health` | Health command orchestration, health reports, health JSON output, and health presentation |
 | `internal/notify` | Notification payloads, provider delivery, and notify-test reports |
 | `internal/presentation` | Shared output formatting and runtime presentation helpers |
 | `internal/restore` | Restore planning, revision listing, workspace safety, guided selection, and restore reports |

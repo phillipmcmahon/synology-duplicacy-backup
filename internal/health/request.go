@@ -1,4 +1,6 @@
-package workflow
+package health
+
+import "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 
 // HealthRequest is the health command's narrowed view of CLI intent.
 type HealthRequest struct {
@@ -30,8 +32,8 @@ func (r HealthRequest) Target() string {
 	return r.TargetName
 }
 
-func (r HealthRequest) PlanRequest() ConfigPlanRequest {
-	return ConfigPlanRequest{
+func (r HealthRequest) PlanRequest() workflow.ConfigPlanRequest {
+	return workflow.ConfigPlanRequest{
 		Label:      r.Label,
 		TargetName: r.Target(),
 		ConfigDir:  r.ConfigDir,

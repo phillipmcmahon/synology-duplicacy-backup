@@ -9,6 +9,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
+	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
@@ -225,7 +226,7 @@ func writeRollbackPrivilegeFailure() int {
 }
 
 func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow.Env) int {
-	healthReq := workflow.NewHealthRequest(req)
+	healthReq := healthpkg.NewHealthRequest(req)
 	log, err := initLogger(meta)
 	if err != nil {
 		return writeHealthLoggerFailure(&healthReq, rt, err)
@@ -233,7 +234,7 @@ func runHealthRequest(req *workflow.Request, meta workflow.Metadata, rt workflow
 	log.SetVerbose(healthReq.Verbose)
 
 	runner := execpkg.NewCommandRunner(log, false)
-	report, code := workflow.NewHealthRunner(meta, rt, log, runner).Run(req)
+	report, code := healthpkg.NewHealthRunner(meta, rt, log, runner).Run(req)
 	if req.JSONSummary {
 		code = writeHealthJSONSummary(os.Stdout, report, code)
 	}
@@ -283,8 +284,8 @@ func writeRuntimeJSONSummary(w io.Writer, report *workflow.RunReport, code int) 
 	return code
 }
 
-func writeHealthJSONSummary(w io.Writer, report *workflow.HealthReport, code int) int {
-	if err := workflow.WriteHealthReport(w, report); err != nil {
+func writeHealthJSONSummary(w io.Writer, report *healthpkg.Report, code int) int {
+	if err := healthpkg.WriteHealthReport(w, report); err != nil {
 		writeJSONSummaryFailure(err)
 		if code == exitCodeOK {
 			return exitCodeHealthUnhealthy
@@ -297,11 +298,11 @@ func writeJSONSummaryFailure(err error) {
 	writeDirectError("Failed to write JSON summary: %v", err)
 }
 
-func writeHealthLoggerFailure(req *workflow.HealthRequest, rt workflow.Env, err error) int {
+func writeHealthLoggerFailure(req *healthpkg.HealthRequest, rt workflow.Env, err error) int {
 	writeDirectError("Failed to initialise logger: %v", err)
 	if req.JSONSummary {
-		report := workflow.NewFailureHealthReport(req, req.Command, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
-		_ = workflow.WriteHealthReport(os.Stdout, report)
+		report := healthpkg.NewFailureHealthReport(req, req.Command, fmt.Sprintf("Failed to initialise logger: %v", err), rt.Now())
+		_ = healthpkg.WriteHealthReport(os.Stdout, report)
 	}
 	return exitCodeHealthUnhealthy
 }

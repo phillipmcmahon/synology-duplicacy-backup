@@ -1,3 +1,4 @@
-// Package health owns health report models, verification summaries, and
-// presentation helpers for status, doctor, and verify commands.
+// Package health owns the status, doctor, and verify command subsystem:
+// command orchestration, health report models, verification summaries, and
+// presentation helpers.
 package health

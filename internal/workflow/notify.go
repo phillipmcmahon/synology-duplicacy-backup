@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
@@ -99,79 +98,6 @@ func buildRuntimeNotificationPayload(rt Env, plan *Plan, report *RunReport, err 
 	}
 }
 
-func buildHealthNotificationPayload(rt Env, report *HealthReport) *notify.Payload {
-	if report == nil {
-		return nil
-	}
-
-	if report.CheckType == "verify" && report.FailedRevisionCount > 0 {
-		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", string(notify.EventVerifyFailedRevisions),
-			fmt.Sprintf("Verify found failed revisions for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.Location,
-			"", report.CheckType, report.Status,
-			healthNotificationDetails(report, map[string]any{
-				"failed_revision_count": report.FailedRevisionCount,
-				"failed_revisions":      append([]int(nil), report.FailedRevisions...),
-				"message":               healthCheckMessage(report, "Integrity check"),
-			}),
-		)
-	}
-
-	if result, message, ok := healthCheckResult(report, "Backup freshness"); ok && result == "fail" {
-		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", string(notify.EventFreshnessFailed),
-			fmt.Sprintf("Freshness failure for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.Location,
-			"", report.CheckType, report.Status,
-			healthNotificationDetails(report, map[string]any{
-				"message":   message,
-				"freshness": message,
-			}),
-		)
-	}
-
-	switch report.Status {
-	case "degraded":
-		return notify.NewPayload(rt.Now(), rt.Getpid(), "warning", "health", string(notify.EventHealthDegraded),
-			fmt.Sprintf("Health degraded for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.Location,
-			"", report.CheckType, report.Status,
-			healthNotificationDetails(report, map[string]any{
-				"message": firstHealthIssueMessage(report),
-			}),
-		)
-	case "unhealthy":
-		return notify.NewPayload(rt.Now(), rt.Getpid(), "critical", "health", string(notify.EventHealthUnhealthy),
-			fmt.Sprintf("Health unhealthy for %s/%s", report.Label, report.Target),
-			report.Label, report.Target, report.Location,
-			"", report.CheckType, report.Status,
-			healthNotificationDetails(report, map[string]any{
-				"message": firstHealthIssueMessage(report),
-			}),
-		)
-	default:
-		return nil
-	}
-}
-
-func healthNotificationDetails(report *HealthReport, details map[string]any) map[string]any {
-	if details == nil {
-		details = make(map[string]any)
-	}
-	if report == nil {
-		return details
-	}
-	if report.FailureCode != "" {
-		details["failure_code"] = report.FailureCode
-	}
-	if len(report.FailureCodes) > 0 {
-		details["failure_codes"] = append([]string(nil), report.FailureCodes...)
-	}
-	if len(report.RecommendedActions) > 0 {
-		details["recommended_action_codes"] = append([]string(nil), report.RecommendedActions...)
-	}
-	return details
-}
-
 func lastFailedPhaseName(report *RunReport) string {
 	if report == nil {
 		return ""
@@ -179,35 +105,6 @@ func lastFailedPhaseName(report *RunReport) string {
 	for i := len(report.Phases) - 1; i >= 0; i-- {
 		if report.Phases[i].Result == "failed" {
 			return report.Phases[i].Name
-		}
-	}
-	return ""
-}
-
-func healthCheckResult(report *HealthReport, name string) (result string, message string, ok bool) {
-	if report == nil {
-		return "", "", false
-	}
-	for _, check := range report.Checks {
-		if check.Name == name {
-			return check.Result, check.Message, true
-		}
-	}
-	return "", "", false
-}
-
-func healthCheckMessage(report *HealthReport, name string) string {
-	_, message, _ := healthCheckResult(report, name)
-	return message
-}
-
-func firstHealthIssueMessage(report *HealthReport) string {
-	if report == nil {
-		return ""
-	}
-	for _, issue := range report.Issues {
-		if strings.TrimSpace(issue.Message) != "" {
-			return issue.Message
 		}
 	}
 	return ""
@@ -227,4 +124,13 @@ func firstFailedNotificationResult(results []notify.DeliveryResult) string {
 
 func notifyDetailsMessage(details map[string]any) string {
 	return notify.DetailsMessage(details)
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

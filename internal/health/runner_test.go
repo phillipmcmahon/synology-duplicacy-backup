@@ -1,4 +1,4 @@
-package workflow
+package health
 
 import (
 	"bytes"
@@ -18,8 +18,8 @@ import (
 	"unsafe"
 
 	execpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/exec"
-	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
 func captureHealthOutput(t *testing.T, fn func()) string {
@@ -74,7 +74,7 @@ func newIPv4TestServer(t *testing.T, handler http.Handler) *httptest.Server {
 }
 
 func newHealthRuntime(now time.Time, tempDir string) Env {
-	rt := DefaultEnv()
+	rt := workflow.DefaultEnv()
 	rt.Geteuid = func() int { return 0 }
 	rt.LookPath = func(string) (string, error) { return "/usr/bin/true", nil }
 	rt.Now = func() time.Time { return now }
@@ -124,7 +124,7 @@ func assertOrderedTokens(t *testing.T, text string, tokens ...string) {
 
 func TestHealthRunner_StatusHealthy(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -217,7 +217,7 @@ func TestRootProfileConfigWarningIgnoresNonRootAndExplicitConfig(t *testing.T) {
 
 func TestHealthRunner_StatusAllowsLocalReadOnlyTarget(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -254,7 +254,7 @@ func TestHealthRunner_StatusAllowsLocalReadOnlyTarget(t *testing.T) {
 
 func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -314,7 +314,7 @@ func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 
 func TestHealthRunner_VerifyUnhealthyWhenStorageTooOld(t *testing.T) {
 	now := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
@@ -357,7 +357,7 @@ func TestHealthWebhookDelivery_WhenStdinIsNotTTY(t *testing.T) {
 	}))
 	defer server.Close()
 
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	now := time.Date(2026, 4, 10, 21, 11, 7, 0, time.UTC)
 	rt := newHealthRuntime(now, t.TempDir())
@@ -407,7 +407,7 @@ func TestHealthRunner_EarlyFailureSendsWebhookWhenConfigReadable(t *testing.T) {
 	}))
 	defer server.Close()
 
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	now := time.Date(2026, 4, 10, 21, 11, 7, 0, time.UTC)
 	rt := newHealthRuntime(now, t.TempDir())
@@ -467,7 +467,7 @@ func TestWriteHealthReport_DoesNotIncludeSummaryField(t *testing.T) {
 }
 
 func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T) {
-	report := &HealthReport{
+	report := &Report{
 		Status:               "healthy",
 		CheckType:            "verify",
 		Label:                "homes",
@@ -479,7 +479,7 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 		LastVerifyRunAt:      "2026-04-10T22:25:20Z",
 		CheckedRevisionCount: 79,
 		PassedRevisionCount:  79,
-		Checks: []HealthCheck{
+		Checks: []Check{
 			{Name: "Revisions checked", Result: "pass", Message: "79"},
 			{Name: "Revisions failed", Result: "pass", Message: "0"},
 			{Name: "Last verify run", Result: "pass", Message: "<1m ago"},
@@ -528,7 +528,7 @@ func TestWriteHealthReport_VerifyAlwaysIncludesStableFailureFields(t *testing.T)
 
 func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -581,7 +581,7 @@ func TestHealthRunner_VerifyHealthyWhenAllVisibleRevisionsValidate(t *testing.T)
 
 func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -629,23 +629,23 @@ func TestHealthRunner_VerifySkipsBtrfsReadinessChecks(t *testing.T) {
 	if len(report.Issues) != 0 {
 		t.Fatalf("backup-readiness checks should not create verify issues: %+v", report.Issues)
 	}
-	if result, message, ok := healthpkg.CheckResult(report, "Btrfs"); !ok || result != "info" || message != "Not checked; backup-readiness validation is not required for storage integrity verification" {
+	if result, message, ok := CheckResult(report, "Btrfs"); !ok || result != "info" || message != "Not checked; backup-readiness validation is not required for storage integrity verification" {
 		t.Fatalf("Btrfs check = (%q, %q), present=%t, report=%+v", result, message, ok, report)
 	}
-	if _, _, ok := healthpkg.CheckResult(report, "Btrfs root"); ok {
+	if _, _, ok := CheckResult(report, "Btrfs root"); ok {
 		t.Fatalf("verify should not run root subvolume metadata readiness check: %+v", report)
 	}
-	if _, _, ok := healthpkg.CheckResult(report, "Btrfs source"); ok {
+	if _, _, ok := CheckResult(report, "Btrfs source"); ok {
 		t.Fatalf("verify should not run source subvolume metadata readiness check: %+v", report)
 	}
-	if _, _, ok := healthpkg.CheckResult(report, "Last doctor run"); ok {
+	if _, _, ok := CheckResult(report, "Last doctor run"); ok {
 		t.Fatalf("verify should not report doctor recency: %+v", report)
 	}
 }
 
 func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -756,7 +756,7 @@ func TestHealthRunner_VerifyUnhealthyWhenNoRevisionsFound(t *testing.T) {
 
 func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 
@@ -822,7 +822,7 @@ func TestHealthRunner_VerifyUnhealthyWhenResultsDoNotCoverAllVisibleRevisions(t 
 
 func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -844,7 +844,7 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
-	var report *HealthReport
+	var report *Report
 	stderr := captureHealthOutput(t, func() {
 		log, err := logger.New(t.TempDir(), "duplicacy-backup", false)
 		if err != nil {
@@ -946,7 +946,7 @@ func TestHealthRunner_VerifyMixedFailedAndMissingResultsShapeJSONAndOutput(t *te
 
 func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1005,7 +1005,7 @@ func TestHealthRunner_VerifyFailureSummaryIsOperatorFriendly(t *testing.T) {
 
 func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1058,7 +1058,7 @@ func TestHealthRunner_VerifyCheckFailureBeforeAttributionSetsAccessCodes(t *test
 
 func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1121,7 +1121,7 @@ func TestHealthRunner_VerifyListingFailureSetsListingCodesAndZeroCounts(t *testi
 
 func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityFailure(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1172,7 +1172,7 @@ func TestHealthRunner_VerifyRepositoryAccessFailureRemainsDistinctFromIntegrityF
 
 func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	rt.Geteuid = func() int { return 1000 }
@@ -1234,7 +1234,7 @@ func TestHealthRunner_VerifyLocalRepositoryRequiresSudoBeforeIntegrityCheck(t *t
 
 func TestHealthRunner_StatusLocalRepositoryRequiresSudoBeforeRevisionListing(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	rt.Geteuid = func() int { return 1000 }
@@ -1288,7 +1288,7 @@ func TestHealthRunner_StatusLocalRepositoryRequiresSudoBeforeRevisionListing(t *
 
 func TestHealthRunner_AddVerifyFailureCodeDeduplicatesActions(t *testing.T) {
 	runner := &HealthRunner{}
-	report := &HealthReport{CheckType: "verify"}
+	report := &Report{CheckType: "verify"}
 
 	runner.addVerifyFailureCode(report, verifyFailureIntegrityFailed)
 	runner.addVerifyFailureCode(report, verifyFailureResultMissing)
@@ -1313,7 +1313,7 @@ func TestHealthRunner_AddVerifyFailureCodeDeduplicatesActions(t *testing.T) {
 
 func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 0, 0, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1372,7 +1372,7 @@ func TestHealthRunner_VerifyMissingResultsAreShownPerRevision(t *testing.T) {
 
 func TestHealthRunner_VerifyOutputUsesAlignedFooter(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()
@@ -1562,7 +1562,7 @@ func TestHumanAgoFormatting(t *testing.T) {
 
 func TestHealthRunner_VerboseOutputStaysStructured(t *testing.T) {
 	now := time.Date(2026, 4, 10, 20, 22, 23, 0, time.UTC)
-	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	configDir := t.TempDir()

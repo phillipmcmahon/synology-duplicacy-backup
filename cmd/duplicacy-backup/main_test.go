@@ -15,6 +15,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
+	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/lock"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restore"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/update"
@@ -2067,7 +2068,7 @@ func TestWriteHealthJSONSummaryFailureOnlyUpgradesHealthySuccess(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			_, stderr := captureOutput(t, func() {
-				got := writeHealthJSONSummary(errWriter{}, &workflow.HealthReport{}, tt.code)
+				got := writeHealthJSONSummary(errWriter{}, &healthpkg.Report{}, tt.code)
 				if got != tt.want {
 					t.Fatalf("writeHealthJSONSummary() = %d, want %d", got, tt.want)
 				}

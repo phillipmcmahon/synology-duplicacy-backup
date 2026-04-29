@@ -1,15 +1,16 @@
-package workflow
+package health
 
 import (
 	"testing"
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
 func newHealthStateTestRunner(t *testing.T, now time.Time) (*HealthRunner, Metadata) {
 	t.Helper()
-	meta := MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
+	meta := workflow.MetadataForLogDir("duplicacy-backup", "test", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 	rt := newHealthRuntime(now, t.TempDir())
 	return &HealthRunner{meta: meta, rt: rt}, meta
@@ -19,7 +20,7 @@ func TestHealthRunnerLoadHealthRecencyTimeIgnoresMissingAndInvalidState(t *testi
 	now := time.Date(2026, 4, 17, 9, 0, 0, 0, time.UTC)
 	runner, meta := newHealthStateTestRunner(t, now)
 
-	missingReport := &HealthReport{Label: "homes", Target: "onsite-usb"}
+	missingReport := &Report{Label: "homes", Target: "onsite-usb"}
 	if _, _, ok := runner.loadHealthRecencyTime(missingReport, "verify"); ok {
 		t.Fatal("loadHealthRecencyTime() ok = true for missing state")
 	}
@@ -30,7 +31,7 @@ func TestHealthRunnerLoadHealthRecencyTimeIgnoresMissingAndInvalidState(t *testi
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{LastVerifyAt: "not-a-time"}); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
-	invalidReport := &HealthReport{Label: "homes", Target: "onsite-usb"}
+	invalidReport := &Report{Label: "homes", Target: "onsite-usb"}
 	if _, _, ok := runner.loadHealthRecencyTime(invalidReport, "verify"); ok {
 		t.Fatal("loadHealthRecencyTime() ok = true for invalid timestamp")
 	}
@@ -44,7 +45,7 @@ func TestHealthRunnerEvaluateHealthRecencyWarnsForMissingOrStaleState(t *testing
 	runner, meta := newHealthStateTestRunner(t, now)
 	cfg := config.HealthConfig{VerifyWarnAfter: 24}
 
-	missingReport := &HealthReport{Label: "homes", Target: "onsite-usb"}
+	missingReport := &Report{Label: "homes", Target: "onsite-usb"}
 	runner.evaluateHealthRecency(missingReport, cfg, "verify", "Last verify run")
 	if len(missingReport.Checks) != 1 ||
 		missingReport.Checks[0].Result != "warn" ||
@@ -57,7 +58,7 @@ func TestHealthRunnerEvaluateHealthRecencyWarnsForMissingOrStaleState(t *testing
 	if err := saveRunState(meta, "homes", "onsite-usb", &RunState{LastVerifyAt: formatReportTime(staleAt)}); err != nil {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
-	staleReport := &HealthReport{Label: "homes", Target: "onsite-usb"}
+	staleReport := &Report{Label: "homes", Target: "onsite-usb"}
 	runner.evaluateHealthRecency(staleReport, cfg, "verify", "Last verify run")
 	if len(staleReport.Checks) != 1 ||
 		staleReport.Checks[0].Result != "warn" ||
@@ -74,7 +75,7 @@ func TestHealthRunnerEvaluateHealthRecencyPassesForFreshState(t *testing.T) {
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
-	report := &HealthReport{Label: "homes", Target: "onsite-usb"}
+	report := &Report{Label: "homes", Target: "onsite-usb"}
 	runner.evaluateHealthRecency(report, config.HealthConfig{DoctorWarnAfter: 24}, "doctor", "Last doctor run")
 
 	if len(report.Checks) != 1 ||

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/command"
+	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/notify"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
@@ -35,8 +36,8 @@ func buildRequest(args []string, meta workflow.Metadata, rt workflow.Env) (*comm
 	switch failureContext.Kind {
 	case command.FailureRequestHealth:
 		req := failureContext.Request
-		healthReq := workflow.NewHealthRequest(req)
-		_ = workflow.WriteHealthReport(os.Stdout, workflow.NewFailureHealthReport(&healthReq, healthReq.Command, workflow.OperatorMessage(err), completedAt))
+		healthReq := healthpkg.NewHealthRequest(req)
+		_ = healthpkg.WriteHealthReport(os.Stdout, healthpkg.NewFailureHealthReport(&healthReq, healthReq.Command, workflow.OperatorMessage(err), completedAt))
 	case command.FailureRequestNotify:
 		req := failureContext.Request
 		commandName := req.NotifyCommand

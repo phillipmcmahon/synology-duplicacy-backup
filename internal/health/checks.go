@@ -1,4 +1,4 @@
-package workflow
+package health
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/btrfs"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
-	healthpkg "github.com/phillipmcmahon/synology-duplicacy-backup/internal/health"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
+func (h *HealthRunner) runStatusChecks(report *Report, req *HealthRequest, cfg *config.Config, plan *Plan, state *RunState, dup *duplicacy.Setup) []duplicacy.RevisionInfo {
 	report.AddCheck("Config file", "pass", plan.Paths.ConfigFile)
 	defer func() {
 		if plan.Secrets != nil {
@@ -27,7 +27,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest,
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureListingFailed)
 		}
-		report.AddCheck("Latest revision", "fail", OperatorMessage(err))
+		report.AddCheck("Latest revision", "fail", workflow.OperatorMessage(err))
 		return nil
 	}
 	report.RevisionCount = len(revisions)
@@ -74,7 +74,7 @@ func (h *HealthRunner) runStatusChecks(report *HealthReport, req *HealthRequest,
 	return revisions
 }
 
-func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, req *HealthRequest, plan *Plan) {
+func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *Report, req *HealthRequest, plan *Plan) {
 	report.AddCheck("Config file", "pass", plan.Paths.ConfigFile)
 	if plan.Secrets != nil {
 		report.AddCheck("Secrets", "pass", plan.Paths.SecretsFile)
@@ -86,7 +86,7 @@ func (h *HealthRunner) runLocalRepositorySudoStatusChecks(report *HealthReport, 
 	}
 }
 
-func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
+func (h *HealthRunner) runDoctorChecks(report *Report, req *HealthRequest, cfg *config.Config, plan *Plan, dup *duplicacy.Setup) {
 	verifyMode := req.Command == "verify"
 	if _, err := os.Stat(plan.Paths.SnapshotSource); err != nil {
 		if verifyMode {
@@ -106,10 +106,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 			report.AddCheck("Btrfs", "pass", "Yes")
 		default:
 			if readiness.RootErr != nil {
-				report.AddCheck("Btrfs root", "fail", OperatorMessage(readiness.RootErr))
+				report.AddCheck("Btrfs root", "fail", workflow.OperatorMessage(readiness.RootErr))
 			}
 			if readiness.SourceErr != nil {
-				report.AddCheck("Btrfs source", "fail", OperatorMessage(readiness.SourceErr))
+				report.AddCheck("Btrfs source", "fail", workflow.OperatorMessage(readiness.SourceErr))
 			}
 		}
 	}
@@ -130,7 +130,7 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 		if req.Command == "verify" {
 			report.AddVerifyFailureCode(verifyFailureAccessFailed)
 		}
-		report.AddCheck("Repository access", "fail", OperatorMessage(err))
+		report.AddCheck("Repository access", "fail", workflow.OperatorMessage(err))
 	} else {
 		stopValidating()
 		report.AddCheck("Repository access", "pass", "Validated")
@@ -139,6 +139,10 @@ func (h *HealthRunner) runDoctorChecks(report *HealthReport, req *HealthRequest,
 
 func localRepositoryHealthSudoMessage() string {
 	return presentation.LocalRepositoryRequiresSudoMessage("")
+}
+
+func localRepositoryRequiresSudo(cfg *config.Config, rt Env) bool {
+	return cfg != nil && cfg.UsesRootProtectedLocalRepository() && workflow.EnvEUID(rt) != 0
 }
 
 type btrfsReadinessReport struct {
@@ -153,7 +157,7 @@ func (h *HealthRunner) runBtrfsReadinessChecks(plan *Plan) btrfsReadinessReport 
 	}
 }
 
-func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
+func (h *HealthRunner) runVerifyChecks(report *Report, cfg *config.Config, dup *duplicacy.Setup, revisions []duplicacy.RevisionInfo) {
 	if report.HasVerifyFailureCode(verifyFailureListingFailed) {
 		report.RevisionCount = 0
 		report.CheckedRevisionCount = 0
@@ -206,7 +210,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 
-	reconciled := healthpkg.ReconcileVerifyResults(healthVerifyRevisions(revisions), healthVerifyResults(results))
+	reconciled := ReconcileVerifyResults(healthVerifyRevisions(revisions), healthVerifyResults(results))
 	report.CheckedRevisionCount = reconciled.CheckedRevisionCount
 	report.PassedRevisionCount = reconciled.PassedRevisionCount
 	report.FailedRevisionCount = reconciled.FailedRevisionCount
@@ -228,12 +232,12 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	}
 	failedSummary := fmt.Sprintf("%d", report.FailedRevisionCount)
 	if report.FailedRevisionCount > 0 {
-		failedSummary = fmt.Sprintf("%d (%s)", report.FailedRevisionCount, healthpkg.SummariseRevisionIDs(report.FailedRevisions, 4))
+		failedSummary = fmt.Sprintf("%d (%s)", report.FailedRevisionCount, SummariseRevisionIDs(report.FailedRevisions, 4))
 	}
 	report.AddDisplayCheck("Revisions failed", failedResult, failedSummary)
 
 	if len(reconciled.MissingRevisions) > 0 {
-		report.AddCheck("Integrity check", "fail", healthpkg.IntegrityCheckFailureMessage(report.FailedRevisions, reconciled.MissingRevisions))
+		report.AddCheck("Integrity check", "fail", IntegrityCheckFailureMessage(report.FailedRevisions, reconciled.MissingRevisions))
 		for _, check := range reconciled.DetailChecks {
 			report.AddDisplayCheck(check.Name, check.Result, check.Message)
 		}
@@ -241,7 +245,7 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 		return
 	}
 	if report.FailedRevisionCount > 0 {
-		report.AddCheck("Integrity check", "fail", healthpkg.IntegrityCheckFailureMessage(report.FailedRevisions, nil))
+		report.AddCheck("Integrity check", "fail", IntegrityCheckFailureMessage(report.FailedRevisions, nil))
 		for _, check := range reconciled.DetailChecks {
 			report.AddDisplayCheck(check.Name, check.Result, check.Message)
 		}
@@ -252,10 +256,10 @@ func (h *HealthRunner) runVerifyChecks(report *HealthReport, cfg *config.Config,
 	h.evaluateHealthRecency(report, cfg.Health, "verify", "Last verify run")
 }
 
-func healthVerifyRevisions(revisions []duplicacy.RevisionInfo) []healthpkg.VerifyRevision {
-	converted := make([]healthpkg.VerifyRevision, 0, len(revisions))
+func healthVerifyRevisions(revisions []duplicacy.RevisionInfo) []VerifyRevision {
+	converted := make([]VerifyRevision, 0, len(revisions))
 	for _, revision := range revisions {
-		converted = append(converted, healthpkg.VerifyRevision{
+		converted = append(converted, VerifyRevision{
 			Revision:  revision.Revision,
 			CreatedAt: revision.CreatedAt,
 		})
@@ -263,10 +267,10 @@ func healthVerifyRevisions(revisions []duplicacy.RevisionInfo) []healthpkg.Verif
 	return converted
 }
 
-func healthVerifyResults(results []duplicacy.RevisionCheckResult) []healthpkg.VerifyResult {
-	converted := make([]healthpkg.VerifyResult, 0, len(results))
+func healthVerifyResults(results []duplicacy.RevisionCheckResult) []VerifyResult {
+	converted := make([]VerifyResult, 0, len(results))
 	for _, result := range results {
-		converted = append(converted, healthpkg.VerifyResult{
+		converted = append(converted, VerifyResult{
 			Revision: result.Revision,
 			Result:   result.Result,
 			Message:  result.Message,
