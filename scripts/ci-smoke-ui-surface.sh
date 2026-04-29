@@ -42,6 +42,8 @@ assert_executable "$BUNDLE_DIR/run-ui-surface-smoke.sh"
 
 sh -n "$BUNDLE_DIR/setup-env.sh"
 sh -n "$BUNDLE_DIR/run-ui-surface-smoke.sh"
+grep -F 'CAPTURE_COLOUR="${CAPTURE_COLOUR:-1}"' "$BUNDLE_DIR/run-ui-surface-smoke.sh" >/dev/null ||
+    fail "UI smoke runner does not default colour capture on"
 
 tar -tzf "$BUNDLE" | grep -F "${RUN_ID}_bundle/run-ui-surface-smoke.sh" >/dev/null ||
     fail "bundle archive does not contain run-ui-surface-smoke.sh"

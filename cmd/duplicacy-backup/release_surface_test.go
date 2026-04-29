@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -220,8 +221,6 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"health verify --json-summary --target onsite-usb homes",
 			"restore plan --target onsite-usb homes",
 			"restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes",
-			"Storage keys are needed only when the",
-			"selected backend requires them",
 		},
 		filepath.Join(root, "docs", "configuration.md"): {
 			"$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml",
@@ -272,6 +271,25 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 		for _, token := range required {
 			if !strings.Contains(text, token) {
 				t.Fatalf("%s missing %q", path, token)
+			}
+		}
+	}
+
+	regexExpectations := map[string][]string{
+		filepath.Join(root, "docs", "operations.md"): {
+			`Storage keys are needed only when the\s+selected backend requires them`,
+		},
+	}
+
+	for path, required := range regexExpectations {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) failed: %v", path, err)
+		}
+		text := string(data)
+		for _, pattern := range required {
+			if !regexp.MustCompile(pattern).MatchString(text) {
+				t.Fatalf("%s missing pattern %q", path, pattern)
 			}
 		}
 	}

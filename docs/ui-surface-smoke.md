@@ -72,7 +72,7 @@ export TARGET_LOCAL="${TARGET_LOCAL:-onsite-usb}"
 export WORKSPACE_ROOT="${WORKSPACE_ROOT:-/volume1/restore-drills}"
 export MANAGED_BIN="${MANAGED_BIN:-/usr/local/bin/duplicacy-backup}"
 
-CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh
+./run-ui-surface-smoke.sh
 ```
 
 The runner automatically:
@@ -80,6 +80,8 @@ The runner automatically:
 - captures stdout, stderr, exit code, command metadata, and a `summary.tsv`
 - writes captures under `captures/<timestamp>/`
 - writes `ui-surface-captures-<timestamp>.tar.gz` in the bundle root
+- enables colour captures by default; set `CAPTURE_COLOUR=0` only when you
+  deliberately want plain output
 - injects `DUPLICACY_BACKUP_FORCE_COLOUR=1` for colour captures
 - passes the colour override through `sudo -n` for root-required captures
 - resolves managed update/rollback checks through `MANAGED_BIN`,
