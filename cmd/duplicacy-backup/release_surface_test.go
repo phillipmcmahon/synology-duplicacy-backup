@@ -220,7 +220,8 @@ func TestReleaseDocs_StayAlignedWithCurrentSurface(t *testing.T) {
 			"health verify --json-summary --target onsite-usb homes",
 			"restore plan --target onsite-usb homes",
 			"restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes",
-			"storage keys are needed only when the selected backend requires them",
+			"Storage keys are needed only when the",
+			"selected backend requires them",
 		},
 		filepath.Join(root, "docs", "configuration.md"): {
 			"$HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml",

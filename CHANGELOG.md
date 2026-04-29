@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v10.0.0] - 2026-04-29
+
 ### Changed
 - Renamed the deterministic test metadata helper to `MetadataForLogDir`, making
   the production `DefaultMetadataForRuntime` path the only default-named
@@ -40,6 +42,27 @@ coverage floor and package-level baseline.
   now use only the current `[targets.<name>]` model.
 - Removed the v8 runtime-profile migration helper, migration smoke job,
   release-package migration asset, and operator migration guide.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: `109` captures, `0` unexpected outcomes, and
+  dual-target restore smoke with `onsite-garage` plus root-protected
+  `onsite-usb` restoring `phillipmcmahon/code/*`.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.6%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v9.3.0] - 2026-04-28
 
