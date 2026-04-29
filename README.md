@@ -75,6 +75,10 @@ In practice:
 
 ## Quick Start
 
+For the shortest copyable path from one TOML file to one validated backup, use
+[`docs/quickstart.md`](docs/quickstart.md). The steps below give the broader
+project setup context.
+
 ### 1. Build or download
 
 ```bash
@@ -214,6 +218,7 @@ Use the documentation by task:
 
 | Task | Start here |
 |---|---|
+| Create the smallest useful first config and backup | [Quickstart](docs/quickstart.md) |
 | Install or upgrade the binary | [Operations](docs/operations.md) |
 | Confirm platform and storage requirements | [Requirements](docs/requirements.md) |
 | Run common commands | [Operator cheat sheet](docs/cheatsheet.md) |

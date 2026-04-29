@@ -8,6 +8,7 @@ clear path without reading internals first.
 
 | Need | Start here |
 |---|---|
+| Create the smallest useful first config and backup | [Quickstart](quickstart.md) |
 | Confirm production assumptions before installing | [Requirements](requirements.md) |
 | Install, upgrade, rollback, or verify release assets | [Operations](operations.md) |
 | Create or review label, target, health, notification, and secrets config | [Configuration and secrets](configuration.md) |
@@ -36,7 +37,7 @@ clear path without reading internals first.
 
 1. Read [Requirements](requirements.md) to confirm the NAS and storage model.
 2. Install the binary using [Operations](operations.md).
-3. Create the first label config with [Configuration and secrets](configuration.md).
-4. Validate and run the first backup using [Operator cheat sheet](cheatsheet.md).
+3. Create and validate the first label with [Quickstart](quickstart.md).
+4. Expand the config with [Configuration and secrets](configuration.md).
 5. Add scheduled tasks with [Workflow and scheduling](workflow-scheduling.md).
 6. Prove recovery with [Restore drills](restore-drills.md).

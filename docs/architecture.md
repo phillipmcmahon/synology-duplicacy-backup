@@ -19,6 +19,31 @@ continue into the `RuntimeRequest -> Plan -> Execute` path.
 
 `cmd/duplicacy-backup/main.go` is now thin wiring only:
 
+```mermaid
+flowchart TD
+    CLI["cmd/duplicacy-backup<br/>argv, DSM guard, root/profile guard"]
+    Command["internal/command<br/>parse argv and render help"]
+    Dispatch["dispatchRequest<br/>route by command family"]
+    Workflow["internal/workflow<br/>orchestrate plans, policy, reports"]
+    Runtime["Runtime path<br/>RuntimeRequest -> Plan -> Executor"]
+    CommandHandlers["Command handlers<br/>config, diagnostics, health, notify, restore, update, rollback"]
+    Domains["Domain packages<br/>config, secrets, duplicacy, btrfs, health, notify, update"]
+    Presentation["internal/presentation + logger<br/>operator-facing text and colour"]
+    External["External tools/storage<br/>btrfs, duplicacy, repositories"]
+
+    CLI --> Command
+    Command --> Dispatch
+    Dispatch --> Workflow
+    Workflow --> Runtime
+    Workflow --> CommandHandlers
+    Runtime --> Domains
+    CommandHandlers --> Domains
+    Runtime --> External
+    CommandHandlers --> External
+    Workflow --> Presentation
+    Domains --> Workflow
+```
+
 ```text
 runWithArgs
   -> command.ParseRequest
