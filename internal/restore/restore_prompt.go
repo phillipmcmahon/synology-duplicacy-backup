@@ -11,6 +11,7 @@ import (
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/restorepicker"
 )
 
@@ -305,7 +306,7 @@ func restoreListFilesError(err error, output string, revision int) error {
 	if err == nil {
 		return nil
 	}
-	return NewMessageError("%s\nDuplicacy command: duplicacy list -files -r %d\n%s", err.Error(), revision, restoreListFilesDiagnostics(output))
+	return operator.NewMessageError("%s\nDuplicacy command: duplicacy list -files -r %d\n%s", err.Error(), revision, restoreListFilesDiagnostics(output))
 }
 
 func restoreListFilesDiagnostics(output string) string {

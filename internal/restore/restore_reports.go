@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/duplicacy"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 )
 
 type restorePlanReport struct {
@@ -253,7 +254,7 @@ func (r *restorePlanReport) applyState(state *RunState, err error) {
 			r.StateStatus = "Not found"
 			return
 		}
-		r.StateStatus = fmt.Sprintf("Unreadable (%s)", OperatorMessage(err))
+		r.StateStatus = fmt.Sprintf("Unreadable (%s)", operator.Message(err))
 		return
 	}
 	r.StateStatus = "Available"

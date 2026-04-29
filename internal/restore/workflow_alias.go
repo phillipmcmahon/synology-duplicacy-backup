@@ -1,7 +1,6 @@
 package restore
 
 import (
-	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/operator"
 	workflow "github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
@@ -29,7 +28,5 @@ var DefaultEnv = workflowcore.DefaultEnv
 var DefaultMetadataForEnv = workflowcore.DefaultMetadataForEnv
 var LoadRunState = workflowcore.LoadRunState
 var MetadataForLogDir = workflowcore.MetadataForLogDir
-var NewMessageError = operator.NewMessageError
-var OperatorMessage = operator.Message
 var SignalSet = workflowcore.SignalSet
 var StateFilePath = workflowcore.StateFilePath
