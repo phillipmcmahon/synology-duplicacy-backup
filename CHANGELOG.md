@@ -12,6 +12,42 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v10.0.2] - 2026-04-29
+
+### Changed
+- NAS UI smoke bundles now use a stable root-owned smoke binary path for
+  sudo-required captures and automatically refresh that binary from the trusted
+  extracted bundle layout before the run starts.
+- The release playbook now documents the trust boundary for the smoke install
+  path so release operators keep the sudoers glob narrow and treat unexpected
+  bundle paths as release-process failures.
+
+### Fixed
+- Report-style output now has regression coverage that keeps neutral values
+  such as `Not required` and `Custom` uncoloured while preserving semantic
+  success, warning, and failure colour checks.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: automatic smoke binary refresh verified with
+  passwordless sudo, colour capture enabled, and dual-target restore smoke with
+  `onsite-garage` plus root-protected `onsite-usb`.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.4%`
+- `cmd/duplicacy-backup`: `86.0%`
+- `internal/workflow`: `85.5%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v10.0.1] - 2026-04-29
 
 ### Changed
