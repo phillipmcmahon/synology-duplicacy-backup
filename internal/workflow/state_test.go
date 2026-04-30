@@ -49,6 +49,8 @@ func TestRunStateRoundTrip(t *testing.T) {
 }
 
 func TestRunStateExportedSubsystemWrappers(t *testing.T) {
+	// TODO(#292): remove this wrapper-only coverage once workflow's
+	// compatibility exports dissolve into their owning packages.
 	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
 	meta.StateDir = t.TempDir()
 

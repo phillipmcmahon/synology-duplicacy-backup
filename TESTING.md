@@ -80,6 +80,9 @@ Additional #294 validation:
 
 - The local validation gate now runs `scripts/check-coverage-floor.sh`, which
   fails when any package or the aggregate coverage total drops below `85.0%`.
+- GitHub Actions runs the same coverage-floor guard in the test job, so the
+  threshold is enforced even when a contributor pushes without running local
+  validation first.
 - Coverage guard fixture tests pin package failures, aggregate failures,
   package lines without a leading `ok` status field, and no-test package
   handling.

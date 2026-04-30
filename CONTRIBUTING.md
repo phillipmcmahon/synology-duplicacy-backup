@@ -42,9 +42,10 @@ intentional design boundaries:
   Plan shape" so historical prose does not look like a live code regression to
   the lint.
 - `scripts/check-coverage-floor.sh` enforces the current `85.0%` floor for
-  every package with coverable statements and for aggregate coverage. If a
-  change legitimately moves the target, update the script, `TESTING.md`, and
-  release notes in the same commit so the quality bar stays explicit.
+  every package with coverable statements and for aggregate coverage. It runs
+  through `make validate` and GitHub Actions. If a change legitimately moves
+  the target, update the script, `TESTING.md`, and release notes in the same
+  commit so the quality bar stays explicit.
 
 ## Pre-commit Hook (recommended)
 

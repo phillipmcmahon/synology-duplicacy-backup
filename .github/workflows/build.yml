@@ -60,6 +60,9 @@ jobs:
       - name: Run tests
         run: go test -v -race ./...
 
+      - name: Check coverage floor
+        run: sh scripts/check-coverage-floor.sh
+
       - name: Run script tests
         shell: bash
         run: |

@@ -16,6 +16,8 @@ coverage floor and package-level baseline.
 - Local validation now enforces the `85.0%` coverage floor with
   `scripts/check-coverage-floor.sh`, checking both every coverable package and
   aggregate coverage before changes are pushed or released.
+- GitHub Actions now runs the same coverage-floor guard in the test job, so
+  coverage regressions are blocked in CI as well as by local validation.
 - Direct `internal/workflowcore` tests now cover the neutral metadata,
   environment, request, plan, and run-state primitives added during the
   architecture cleanup.
