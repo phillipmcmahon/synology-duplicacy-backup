@@ -480,6 +480,40 @@ func TestRunUpdateRequestFailureNotificationWarning(t *testing.T) {
 	})
 }
 
+func TestEnvWithProfileOwnerInstallsOwnerAwareLocks(t *testing.T) {
+	meta := workflow.Metadata{
+		HasProfileOwner: true,
+		ProfileOwnerUID: 1026,
+		ProfileOwnerGID: 100,
+	}
+	rt := envWithProfileOwner(workflow.DefaultEnv(), meta)
+
+	lockParent := t.TempDir()
+	runLock := rt.NewLock(lockParent, "homes")
+	if runLock == nil {
+		t.Fatal("NewLock returned nil")
+	}
+	sourceLock := rt.NewSourceLock(lockParent, "homes")
+	if sourceLock == nil {
+		t.Fatal("NewSourceLock returned nil")
+	}
+}
+
+func TestRequireSynologyDSM(t *testing.T) {
+	oldIsSynologyDSM := isSynologyDSM
+	t.Cleanup(func() { isSynologyDSM = oldIsSynologyDSM })
+
+	isSynologyDSM = func() bool { return true }
+	if err := requireSynologyDSM(); err != nil {
+		t.Fatalf("requireSynologyDSM() with DSM error = %v", err)
+	}
+
+	isSynologyDSM = func() bool { return false }
+	if err := requireSynologyDSM(); err == nil || !strings.Contains(err.Error(), "requires Synology DSM") {
+		t.Fatalf("requireSynologyDSM() without DSM error = %v", err)
+	}
+}
+
 func TestRun_UsesCLIArgs(t *testing.T) {
 	oldCliArgs := cliArgs
 	cliArgs = func() []string { return []string{"--help"} }

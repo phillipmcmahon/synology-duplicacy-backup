@@ -62,6 +62,31 @@ func TestMaybeSendUpdateFailureNotificationMissingConfigNoops(t *testing.T) {
 	}
 }
 
+func TestLoadUpdateNotifyConfigExportedWrappers(t *testing.T) {
+	configDir := t.TempDir()
+	writeUpdateNotifyConfig(t, configDir, strings.Join([]string{
+		`[update.notify]`,
+		`notify_on = ["failed"]`,
+		`[update.notify.ntfy]`,
+		`url = "https://ntfy.example.invalid"`,
+		`topic = "duplicacy-updates"`,
+	}, "\n"))
+
+	rt := testRuntime()
+	path := UpdateNotifyConfigPath(configDir, rt)
+	if path != filepath.Join(configDir, "duplicacy-backup.toml") {
+		t.Fatalf("UpdateNotifyConfigPath() = %q", path)
+	}
+
+	cfg, gotPath, ok, err := LoadUpdateNotifyConfig(configDir, rt)
+	if err != nil {
+		t.Fatalf("LoadUpdateNotifyConfig() error = %v", err)
+	}
+	if !ok || gotPath != path || cfg.Ntfy.Topic != "duplicacy-updates" {
+		t.Fatalf("LoadUpdateNotifyConfig() = (%+v, %q, %v)", cfg, gotPath, ok)
+	}
+}
+
 func TestMaybeSendUpdateFailureNotificationHonoursInteractiveGate(t *testing.T) {
 	configDir := t.TempDir()
 	called := false

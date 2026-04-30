@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflowcore"
 )
 
 func TestOperatorMessage(t *testing.T) {
@@ -26,6 +27,11 @@ func TestOperatorMessage(t *testing.T) {
 			want: "Backup setup failed: could not write preferences at /tmp/work/.duplicacy/preferences; check work-directory permissions",
 		},
 		{
+			name: "backup write preferences missing path",
+			err:  apperrors.NewBackupError("write-preferences", errors.New("failed to write preferences file: permission denied")),
+			want: "Backup setup failed: could not write preferences at <unknown>; check work-directory permissions",
+		},
+		{
 			name: "prune validate repo",
 			err:  apperrors.NewPruneError("validate-repo", errors.New("boom")),
 			want: "Repository is not ready",
@@ -36,9 +42,29 @@ func TestOperatorMessage(t *testing.T) {
 			want: "failed to list revisions for percentage calculation (fail-closed); use prune --force to override percentage-threshold enforcement if needed",
 		},
 		{
+			name: "prune revision count fallback without cause",
+			err:  apperrors.NewPruneError("revision-count", nil),
+			want: "prune/revision-count: unknown error",
+		},
+		{
 			name: "message error",
 			err:  NewMessageError("Refusing to continue because safe prune thresholds were exceeded."),
 			want: "Refusing to continue because safe prune thresholds were exceeded",
+		},
+		{
+			name: "nil error",
+			err:  nil,
+			want: "",
+		},
+		{
+			name: "request error",
+			err:  workflowcore.NewRequestError("restore failed."),
+			want: "restore failed",
+		},
+		{
+			name: "restore interrupted",
+			err:  workflowcore.ErrRestoreInterrupted,
+			want: "Restore interrupted by operator; drill workspace was retained",
 		},
 		{
 			name: "message error preserves multiline diagnostics",

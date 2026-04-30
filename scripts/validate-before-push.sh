@@ -57,6 +57,9 @@ go run honnef.co/go/tools/cmd/staticcheck ./...
 echo "Plan section boundary check"
 sh scripts/check-plan-section-boundary.sh
 
+echo "Coverage floor check"
+sh scripts/check-coverage-floor.sh
+
 echo "go test -v -race ./..."
 go test -v -race ./...
 

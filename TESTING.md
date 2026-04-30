@@ -55,20 +55,37 @@ Current Linux Go 1.26 development validation snapshot:
 - `go vet ./...`
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
+- `scripts/check-coverage-floor.sh`
 - package coverage floor: `85.0%`
-- overall coverage: `87.3%`
-- `cmd/duplicacy-backup`: `85.8%`
-- `internal/workflow`: `85.3%`
-- `internal/restorepicker`: `88.8%`
-- `internal/update`: `85.2%`
-- `internal/duplicacy`: `89.6%`
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/command`: `85.8%`
+- `internal/config`: `88.3%`
+- `internal/duplicacy`: `89.7%`
 - `internal/exec`: `95.2%`
+- `internal/health`: `88.2%`
+- `internal/lock`: `87.2%`
+- `internal/logger`: `89.5%`
+- `internal/notify`: `89.3%`
+- `internal/operator`: `89.4%`
+- `internal/presentation`: `92.1%`
+- `internal/restore`: `85.9%`
+- `internal/restorepicker`: `88.9%`
 - `internal/secrets`: `93.1%`
-- `internal/config`: `88.0%`
-- `internal/health`: `94.3%`
-- `internal/logger`: `89.3%`
-- `internal/lock`: `88.5%`
-- `internal/presentation`: `91.5%`
+- `internal/update`: `85.3%`
+- `internal/workflow`: `85.8%`
+- `internal/workflowcore`: `91.1%`
+
+Additional #294 validation:
+
+- The local validation gate now runs `scripts/check-coverage-floor.sh`, which
+  fails when any package or the aggregate coverage total drops below `85.0%`.
+- Coverage guard fixture tests pin package failures, aggregate failures,
+  package lines without a leading `ok` status field, and no-test package
+  handling.
+- Direct `internal/workflowcore` tests now cover the neutral metadata,
+  environment, request, plan, and run-state primitives introduced during the
+  architecture cleanup.
 
 Additional v9.1.1 validation:
 

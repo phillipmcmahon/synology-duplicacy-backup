@@ -12,11 +12,21 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Added
+- Local validation now enforces the `85.0%` coverage floor with
+  `scripts/check-coverage-floor.sh`, checking both every coverable package and
+  aggregate coverage before changes are pushed or released.
+- Direct `internal/workflowcore` tests now cover the neutral metadata,
+  environment, request, plan, and run-state primitives added during the
+  architecture cleanup.
+
 ### Changed
 - Release-prep notes now include an explicit operator-impact section, further
   reading placeholders, and coverage lines for `internal/workflowcore`,
   `internal/restore`, `internal/health`, and `internal/operator` so new
   architecture packages remain visible in release evidence.
+- The current testing baseline is refreshed to show all coverable packages at
+  or above the `85.0%` floor, with aggregate coverage at `87.6%`.
 - The release playbook now requires commentary for material coverage movement,
   explicit CLI/config/operator-impact wording, and links to deeper docs when a
   release highlights architecture or process changes.

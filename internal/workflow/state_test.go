@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestRunStateRoundTrip(t *testing.T) {
@@ -44,6 +45,31 @@ func TestRunStateRoundTrip(t *testing.T) {
 	}
 	if got := fileInfo.Mode().Perm(); got != 0600 {
 		t.Fatalf("state file perms = %04o, want 0600", got)
+	}
+}
+
+func TestRunStateExportedSubsystemWrappers(t *testing.T) {
+	meta := MetadataForLogDir("duplicacy-backup", "2.1.3", "now", t.TempDir())
+	meta.StateDir = t.TempDir()
+
+	wantPath := filepath.Join(meta.StateDir, "homes.onsite-usb.json")
+	if got := StateFilePath(meta, "homes", "onsite-usb"); got != wantPath {
+		t.Fatalf("StateFilePath() = %q, want %q", got, wantPath)
+	}
+	if _, err := LoadRunState(meta, "homes", "onsite-usb"); !os.IsNotExist(err) {
+		t.Fatalf("LoadRunState() error = %v, want IsNotExist", err)
+	}
+
+	checkedAt := time.Date(2026, 4, 30, 10, 15, 0, 0, time.UTC)
+	if err := UpdateHealthCheckState(meta, "homes", "onsite-usb", "verify", checkedAt); err != nil {
+		t.Fatalf("UpdateHealthCheckState() error = %v", err)
+	}
+	loaded, err := LoadRunState(meta, "homes", "onsite-usb")
+	if err != nil {
+		t.Fatalf("LoadRunState() after update error = %v", err)
+	}
+	if loaded.LastVerifyAt != "2026-04-30T10:15:00Z" {
+		t.Fatalf("LastVerifyAt = %q", loaded.LastVerifyAt)
 	}
 }
 
