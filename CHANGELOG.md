@@ -53,6 +53,24 @@ coverage floor and package-level baseline.
 - Empty or malformed internal requests no longer fall through to the runtime
   backup/prune dispatcher; missing dispatch coverage now fails explicitly.
 
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `84.7%`
+- `cmd/duplicacy-backup`: `84.7%`
+- `internal/workflow`: `84.9%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
+
 ## [v10.0.2] - 2026-04-29
 
 ### Changed
