@@ -37,15 +37,30 @@ coverage floor and package-level baseline.
   # becomes:
   #   duplicacy-backup backup --storage onsite-usb homes
 
-  # Update backup and secrets TOML files.
-  perl -0pi -e 's/\[targets\./[storage./g; s/\{target\}/\{storage\}/g' \
-    "$HOME/.config/duplicacy-backup"/*-backup.toml \
-    "$HOME/.config/duplicacy-backup/secrets"/*-secrets.toml
+  # Update backup and secrets TOML files. This avoids perl because it is not
+  # installed on DSM by default.
+  CONFIG_DIR="$HOME/.config/duplicacy-backup"
+
+  for file in "$CONFIG_DIR"/*-backup.toml "$CONFIG_DIR"/secrets/*-secrets.toml; do
+    [ -f "$file" ] || continue
+    tmp="${file}.tmp.$$"
+    sed \
+      -e 's/\[targets\./[storage./g' \
+      -e 's/{target}/{storage}/g' \
+      "$file" > "$tmp" &&
+      mv "$tmp" "$file"
+  done
 
   # If you keep restore workspace templates outside those TOML files, update
   # those template files too.
-  find /path/to/custom-restore-templates -type f -exec \
-    perl -0pi -e 's/\{target\}/\{storage\}/g' {} +
+  RESTORE_TEMPLATE_DIR="/path/to/custom-restore-templates"
+
+  find "$RESTORE_TEMPLATE_DIR" -type f | while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    tmp="${file}.tmp.$$"
+    sed -e 's/{target}/{storage}/g' "$file" > "$tmp" &&
+      mv "$tmp" "$file"
+  done
 
   # Then validate each label/storage pair before scheduled jobs resume.
   duplicacy-backup config validate --storage <storage-name> <label>
