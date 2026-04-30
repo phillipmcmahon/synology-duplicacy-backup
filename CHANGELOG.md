@@ -12,6 +12,20 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Release-prep notes now include an explicit operator-impact section, further
+  reading placeholders, and coverage lines for `internal/workflowcore`,
+  `internal/restore`, `internal/health`, and `internal/operator` so new
+  architecture packages remain visible in release evidence.
+- The release playbook now requires commentary for material coverage movement,
+  explicit CLI/config/operator-impact wording, and links to deeper docs when a
+  release highlights architecture or process changes.
+
+### Fixed
+- Release-prep package coverage extraction now also handles packages reported
+  by `go test -cover` without the leading `ok` status field, such as packages
+  with no direct test files.
+
 ## [v10.0.3] - 2026-04-30
 
 ### Changed

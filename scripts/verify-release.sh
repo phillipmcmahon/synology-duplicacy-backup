@@ -17,7 +17,7 @@ Verify one published GitHub release and its latest mirrored artefacts on homesto
 Checks:
   - GitHub release exists and is neither draft nor prerelease
   - release name and tag match the requested tag
-  - release notes include Highlights, Validation, and Coverage sections
+  - release notes include Highlights, Operator impact, Validation, and Coverage sections
   - expected packaged assets are present on GitHub
   - the GitHub release has a release attestation
   - release assets verify against the release attestation
@@ -40,6 +40,22 @@ EOF
 fail() {
     echo "Error: $*" >&2
     exit 1
+}
+
+release_requires_operator_impact() {
+    version="${TAG#v}"
+    major="${version%%.*}"
+    rest="${version#*.}"
+    minor="${rest%%.*}"
+    patch="${rest#*.}"
+    patch="${patch%%[!0-9]*}"
+
+    [ -n "$major" ] && [ -n "$minor" ] && [ -n "$patch" ] || return 1
+    [ "$major" -gt 10 ] && return 0
+    [ "$major" -lt 10 ] && return 1
+    [ "$minor" -gt 0 ] && return 0
+    [ "$minor" -lt 0 ] && return 1
+    [ "$patch" -ge 4 ]
 }
 
 require_command() {
@@ -139,6 +155,9 @@ jq -e --arg tag "$TAG" '.tagName == $tag and .name == $tag' "$release_json_file"
 jq -e '.body | contains("## Highlights")' "$release_json_file" >/dev/null || fail "release notes missing Highlights section"
 jq -e '.body | contains("## Validation")' "$release_json_file" >/dev/null || fail "release notes missing Validation section"
 jq -e '.body | contains("## Coverage")' "$release_json_file" >/dev/null || fail "release notes missing Coverage section"
+if release_requires_operator_impact; then
+    jq -e '.body | contains("## Operator impact")' "$release_json_file" >/dev/null || fail "release notes missing Operator impact section"
+fi
 
 jq -r '.assets[].name' "$release_json_file" | sort >"$release_assets_tmp"
 printf '%s\n' "$EXPECTED_RELEASE_ASSETS" | sort >"$expected_release_tmp"

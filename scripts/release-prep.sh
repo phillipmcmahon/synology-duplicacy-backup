@@ -109,7 +109,7 @@ mv "$SUMMARY_OUT.tmp" "$SUMMARY_OUT"
 extract_pkg_coverage() {
     pkg="$1"
     full_pkg="github.com/phillipmcmahon/synology-duplicacy-backup/$pkg"
-    line="$(awk -v pkg="$full_pkg" '$2 == pkg { line = $0 } END { print line }' "$COVER_OUT")"
+    line="$(awk -v pkg="$full_pkg" '$1 == pkg || $2 == pkg { line = $0 } END { print line }' "$COVER_OUT")"
     [ -n "$line" ] || {
         printf 'unknown'
         return 0
@@ -119,6 +119,10 @@ extract_pkg_coverage() {
 
 OVERALL_COVERAGE="$(awk '{print $3}' "$SUMMARY_OUT" | tail -n 1)"
 WORKFLOW_COVERAGE="$(extract_pkg_coverage internal/workflow)"
+WORKFLOWCORE_COVERAGE="$(extract_pkg_coverage internal/workflowcore)"
+RESTORE_COVERAGE="$(extract_pkg_coverage internal/restore)"
+HEALTH_COVERAGE="$(extract_pkg_coverage internal/health)"
+OPERATOR_COVERAGE="$(extract_pkg_coverage internal/operator)"
 CMD_COVERAGE="$(extract_pkg_coverage cmd/duplicacy-backup)"
 DUPLICACY_COVERAGE="$(extract_pkg_coverage internal/duplicacy)"
 EXEC_COVERAGE="$(extract_pkg_coverage internal/exec)"
@@ -129,6 +133,10 @@ cat >"$NOTES_OUT" <<EOF
 - Replace these bullets with the shipped user-visible changes.
 - Fold in any important notes from superseded release attempts before publishing.
 
+## Operator impact
+- State whether CLI, config-file, scheduling, restore, update, or privilege behaviour changed.
+- If the release is internal-only, say: No CLI or config-file behaviour changes; refactoring is internal-only.
+
 ## Validation
 - Linux Go 1.26: \`go test ./...\`
 - Linux Go 1.26: \`go vet ./...\`
@@ -138,10 +146,17 @@ cat >"$NOTES_OUT" <<EOF
 ## Coverage
 - Linux Go 1.26: overall coverage = \`$OVERALL_COVERAGE\`
 - Linux Go 1.26: \`internal/workflow\` coverage = \`$WORKFLOW_COVERAGE\`
+- Linux Go 1.26: \`internal/workflowcore\` coverage = \`$WORKFLOWCORE_COVERAGE\`
+- Linux Go 1.26: \`internal/restore\` coverage = \`$RESTORE_COVERAGE\`
+- Linux Go 1.26: \`internal/health\` coverage = \`$HEALTH_COVERAGE\`
+- Linux Go 1.26: \`internal/operator\` coverage = \`$OPERATOR_COVERAGE\`
 - Linux Go 1.26: \`cmd/duplicacy-backup\` coverage = \`$CMD_COVERAGE\`
 - Linux Go 1.26: \`internal/duplicacy\` coverage = \`$DUPLICACY_COVERAGE\`
 - Linux Go 1.26: \`internal/exec\` coverage = \`$EXEC_COVERAGE\`
 - Linux Go 1.26: \`internal/secrets\` coverage = \`$SECRETS_COVERAGE\`
+
+## Further reading
+- Link the relevant changelog entry and any docs that explain the release rationale.
 EOF
 
 cat <<EOF
