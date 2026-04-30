@@ -108,7 +108,8 @@ mv "$SUMMARY_OUT.tmp" "$SUMMARY_OUT"
 
 extract_pkg_coverage() {
     pkg="$1"
-    line="$(grep -F "github.com/phillipmcmahon/synology-duplicacy-backup/$pkg" "$COVER_OUT" | tail -n 1 || true)"
+    full_pkg="github.com/phillipmcmahon/synology-duplicacy-backup/$pkg"
+    line="$(awk -v pkg="$full_pkg" '$2 == pkg { line = $0 } END { print line }' "$COVER_OUT")"
     [ -n "$line" ] || {
         printf 'unknown'
         return 0

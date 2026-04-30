@@ -42,6 +42,9 @@ coverage floor and package-level baseline.
 - Operator and maintainer documentation now reflects the latest package
   ownership boundaries, restore/operator message handling, and colour-capture
   environment variable surface.
+- Release-prep coverage extraction now matches package paths exactly, so
+  `internal/workflow` release notes are not confused with
+  `internal/workflowcore`.
 - The root changelog now carries only the active major release line plus
   `Unreleased`; older major-version history lives under `docs/changelog/` so
   release notes stay focused while historical entries remain offline-greppable.
