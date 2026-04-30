@@ -25,6 +25,9 @@ coverage floor and package-level baseline.
 - Release-prep package coverage extraction now also handles packages reported
   by `go test -cover` without the leading `ok` status field, such as packages
   with no direct test files.
+- Release verification now has fixture coverage for the new operator-impact
+  section gate so historical releases remain verifiable while future releases
+  enforce the strengthened note contract.
 
 ## [v10.0.3] - 2026-04-30
 

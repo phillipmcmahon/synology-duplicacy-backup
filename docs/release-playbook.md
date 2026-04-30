@@ -23,6 +23,11 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Refresh coverage numbers before writing release notes.
 - Public release notes must include `Highlights`, `Operator impact`,
   `Validation`, and `Coverage`.
+- Treat the CLI, config files, scheduler commands, restore/update behaviour,
+  privilege model, published packages, and operator-facing output as the public
+  compatibility contract. Go packages under `internal/` are implementation
+  detail; changing them does not require a major release unless it also changes
+  that operator contract.
 - Keep `CHANGELOG.md` as the repo-rooted mirror for `Unreleased` and the
   current major release line. Historical major-version notes stay
   offline-greppable under [`docs/changelog/`](changelog/README.md).

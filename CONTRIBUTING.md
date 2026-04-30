@@ -20,6 +20,14 @@ go run honnef.co/go/tools/cmd/staticcheck ./...
 go test -race ./...
 ```
 
+## Public Compatibility Contract
+
+The public contract is the operator surface: CLI commands and flags, config
+files, scheduler commands, restore/update behaviour, privilege model,
+published packages, and operator-facing output. Go packages under `internal/`
+are implementation detail; changing them does not require a major release
+unless the operator contract changes too.
+
 ## Architecture Guards
 
 `make validate` and GitHub lint run architecture guards that protect

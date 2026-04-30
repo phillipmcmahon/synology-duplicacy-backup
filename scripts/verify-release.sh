@@ -52,9 +52,9 @@ release_requires_operator_impact() {
 
     [ -n "$major" ] && [ -n "$minor" ] && [ -n "$patch" ] || return 1
     [ "$major" -gt 10 ] && return 0
-    [ "$major" -lt 10 ] && return 1
+    [ "$major" -eq 10 ] || return 1
     [ "$minor" -gt 0 ] && return 0
-    [ "$minor" -lt 0 ] && return 1
+    [ "$minor" -eq 0 ] || return 1
     [ "$patch" -ge 4 ]
 }
 
