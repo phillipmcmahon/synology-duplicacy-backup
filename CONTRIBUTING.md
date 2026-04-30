@@ -30,8 +30,8 @@ unless the operator contract changes too.
 
 ## Architecture Guards
 
-`make validate` and GitHub lint run architecture guards that protect
-intentional design boundaries:
+`make validate` and GitHub validation run architecture and quality guards that
+protect intentional design boundaries:
 
 - `scripts/check-plan-section-boundary.sh` preserves the section-owned
   `workflow.Plan` shape. If you add, rename, or remove fields in
@@ -46,6 +46,20 @@ intentional design boundaries:
   through `make validate` and GitHub Actions. If a change legitimately moves
   the target, update the script, `TESTING.md`, and release notes in the same
   commit so the quality bar stays explicit.
+
+Coverage guard review decisions:
+
+- The CI guard intentionally runs as a self-contained step after
+  `go test -v -race ./...`, even though that means tests execute twice. The
+  clarity and independence are preferred while the full workflow remains fast;
+  optimize only if CI runtime becomes a real bottleneck.
+- The guard currently runs on Ubuntu Go 1.26 only. If the workflow later adds
+  macOS, Windows, or multiple Go-version test matrices, decide explicitly
+  whether coverage should run on every matrix entry or only on the canonical
+  Linux release-validation leg.
+- The current floor is a single `85.0%` baseline. Package-specific floors for
+  security-sensitive or historically higher-coverage packages are tracked as a
+  deliberate follow-up in issue `#295`, not hidden inside the baseline guard.
 
 ## Pre-commit Hook (recommended)
 

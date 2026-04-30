@@ -83,6 +83,14 @@ Additional #294 validation:
 - GitHub Actions runs the same coverage-floor guard in the test job, so the
   threshold is enforced even when a contributor pushes without running local
   validation first.
+- The CI coverage guard is intentionally self-contained: it reruns coverage
+  after the race test step instead of sharing artefacts between steps. Keep
+  that simpler shape unless CI runtime becomes a measured bottleneck.
+- Coverage is enforced on the canonical Ubuntu Go 1.26 test job. If future CI
+  adds OS or Go-version test matrices, review whether the coverage guard should
+  stay on the canonical Linux leg or run on every matrix entry.
+- Package-specific floors above the shared `85.0%` baseline are tracked as
+  follow-up issue `#295`.
 - Coverage guard fixture tests pin package failures, aggregate failures,
   package lines without a leading `ok` status field, and no-test package
   handling.
