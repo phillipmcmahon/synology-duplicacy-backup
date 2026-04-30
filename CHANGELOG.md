@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v10.0.3] - 2026-04-30
+
 ### Changed
 - Command parsing now records a single canonical command discriminator on the
   request envelope, and dispatch/policy lookup use that discriminator instead
