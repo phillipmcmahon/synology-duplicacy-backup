@@ -24,9 +24,10 @@ coverage floor and package-level baseline.
   `[storage.<name>]` and `[storage.<name>.keys]` instead of target tables;
   restore workspace templates use `{storage}` instead of `{target}`; and
   runtime, health, notification, diagnostics, restore, and state JSON now use
-  storage-oriented names such as `storage` and `storage_name`.
-  Existing `<label>.<target>.json` state files are ignored and regenerated at
-  the new `<label>.<storage>.json` path on the next run.
+  storage-oriented names such as `storage` and `storage_name`. State file paths
+  keep the same `<label>.<storage-name>.json` filename when the storage name is
+  unchanged; only the JSON field names inside refreshed state shift to the new
+  storage terminology.
 
   Minimal migration recipe:
 
