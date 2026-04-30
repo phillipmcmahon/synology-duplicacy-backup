@@ -158,7 +158,7 @@ func buildPrimitiveCommand(opts PrimitiveOptions, restorePath string) string {
 		shellQuote(opts.ScriptName),
 		"restore",
 		"run",
-		"--target",
+		"--storage",
 		shellQuote(opts.Target),
 		"--revision",
 		opts.Revision,

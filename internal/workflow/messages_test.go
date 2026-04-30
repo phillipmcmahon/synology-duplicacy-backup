@@ -62,8 +62,8 @@ func TestOperatorMessage(t *testing.T) {
 		},
 		{
 			name: "config missing remote target includes target hint",
-			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [targets.remote] table"), "section", "remote"),
-			want: "config file /tmp/homes-backup.toml is missing required [targets.remote] table; add [targets.remote] to <label>-backup.toml or choose a different --target",
+			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [storage.remote] table"), "section", "remote"),
+			want: "config file /tmp/homes-backup.toml is missing required [storage.remote] table; add [storage.remote] to <label>-backup.toml or choose a different --storage",
 		},
 		{
 			name: "secrets validate",
@@ -78,7 +78,7 @@ func TestOperatorMessage(t *testing.T) {
 		{
 			name: "secrets stat includes creation hint",
 			err:  apperrors.NewSecretsError("stat", errors.New("secrets file not found"), "path", "/home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml"),
-			want: "Secrets file not found: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
+			want: "Secrets file not found: /home/operator/.config/duplicacy-backup/secrets/homes-secrets.toml; create <label>-secrets.toml under the configured secrets directory and add [storage.<name>] plus [storage.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 		},
 		{
 			name: "lock held",
@@ -174,8 +174,8 @@ func TestOperatorMessage_AdditionalBranches(t *testing.T) {
 		},
 		{
 			name: "config missing local target",
-			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [targets.local] table"), "section", "local"),
-			want: "config file /tmp/homes-backup.toml is missing required [targets.local] table; add [targets.local] to <label>-backup.toml or choose a different --target",
+			err:  apperrors.NewConfigError("section-target", errors.New("config file /tmp/homes-backup.toml is missing required [storage.local] table"), "section", "local"),
+			want: "config file /tmp/homes-backup.toml is missing required [storage.local] table; add [storage.local] to <label>-backup.toml or choose a different --storage",
 		},
 		{
 			name: "secrets ownership",

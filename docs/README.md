@@ -11,7 +11,7 @@ clear path without reading internals first.
 | Create the smallest useful first config and backup | [Quickstart](quickstart.md) |
 | Confirm production assumptions before installing | [Requirements](requirements.md) |
 | Install, upgrade, rollback, or verify release assets | [Operations](operations.md) |
-| Create or review label, target, health, notification, and secrets config | [Configuration and secrets](configuration.md) |
+| Create or review label, storage, health, notification, and secrets config | [Configuration and secrets](configuration.md) |
 | Run common day-to-day commands | [Operator cheat sheet](cheatsheet.md) |
 | Build Synology Task Scheduler jobs | [Workflow and scheduling](workflow-scheduling.md) |
 | Diagnose failed runs or unclear status output | [Troubleshooting](troubleshooting.md) |

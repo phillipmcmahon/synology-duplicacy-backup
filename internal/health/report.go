@@ -32,7 +32,7 @@ type Report struct {
 	Status               string           `json:"status"`
 	CheckType            string           `json:"check_type"`
 	Label                string           `json:"label"`
-	Target               string           `json:"target"`
+	Target               string           `json:"storage"`
 	Mode                 string           `json:"mode"`
 	Location             string           `json:"location,omitempty"`
 	CheckedAt            string           `json:"checked_at"`
@@ -314,7 +314,7 @@ func jsonPayload(report *Report) map[string]any {
 		"status":            report.Status,
 		"check_type":        report.CheckType,
 		"label":             report.Label,
-		"target":            report.Target,
+		"storage":           report.Target,
 		"mode":              report.Mode,
 		"checked_at":        report.CheckedAt,
 		"notification_sent": report.NotificationSent,

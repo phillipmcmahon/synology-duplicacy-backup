@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/logger"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/presentation"
 )
 
@@ -32,7 +34,7 @@ type TestReport struct {
 	Command   string           `json:"command"`
 	Scope     string           `json:"scope,omitempty"`
 	Label     string           `json:"label"`
-	Target    string           `json:"target"`
+	Target    string           `json:"storage"`
 	Location  string           `json:"location,omitempty"`
 	Provider  string           `json:"provider"`
 	Severity  string           `json:"severity"`
@@ -139,10 +141,11 @@ func formatTestJSON(report *TestReport) string {
 }
 
 func formatTestText(report *TestReport) string {
+	enableColour := logger.ColourEnabled(os.Stdout)
 	lines := []reportLine{
 		{Label: "Scope", Value: report.Scope},
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Provider", Value: report.Provider},
 		{Label: "Severity", Value: report.Severity},
@@ -165,6 +168,7 @@ func formatTestText(report *TestReport) string {
 		if provider.Destination != "" {
 			value = fmt.Sprintf("%s -> %s", value, provider.Destination)
 		}
+		value = colourizeNotifyResult(value, enableColour)
 		providerLines = append(providerLines, reportLine{Label: label, Value: value})
 	}
 
@@ -193,8 +197,23 @@ func formatTestText(report *TestReport) string {
 	if result == "" {
 		result = "unknown"
 	}
-	fmt.Fprintf(&b, "  %-20s : %s\n", "Result", presentation.Title(result))
+	fmt.Fprintf(&b, "  %-20s : %s\n", "Result", colourizeNotifyResult(presentation.Title(result), enableColour))
 	return b.String()
+}
+
+func colourizeNotifyResult(value string, enableColour bool) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch {
+	case strings.HasPrefix(normalized, "delivered"),
+		strings.HasPrefix(normalized, "success"):
+		return logger.ColourizeForLevel(logger.SUCCESS, value, enableColour)
+	case strings.HasPrefix(normalized, "preview"):
+		return logger.ColourizeForLevel(logger.WARNING, value, enableColour)
+	case strings.HasPrefix(normalized, "failed"):
+		return logger.ColourizeForLevel(logger.ERROR, value, enableColour)
+	default:
+		return value
+	}
 }
 
 type reportLine struct {

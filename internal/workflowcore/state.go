@@ -9,7 +9,7 @@ import (
 
 type RunState struct {
 	Label                        string `json:"label,omitempty"`
-	Target                       string `json:"target,omitempty"`
+	Storage                      string `json:"storage,omitempty"`
 	LastRunStartedAt             string `json:"last_run_started_at,omitempty"`
 	LastRunCompletedAt           string `json:"last_run_completed_at,omitempty"`
 	LastRunResult                string `json:"last_run_result,omitempty"`
@@ -25,13 +25,13 @@ type RunState struct {
 
 // StateFilePath returns the profile state file path for report-only command
 // subsystems.
-func StateFilePath(meta Metadata, label string, target string) string {
-	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, target))
+func StateFilePath(meta Metadata, label string, storageName string) string {
+	return filepath.Join(meta.StateDir, fmt.Sprintf("%s.%s.json", label, storageName))
 }
 
 // LoadRunState reads prior run state for report-only command subsystems.
-func LoadRunState(meta Metadata, label, target string) (*RunState, error) {
-	path := StateFilePath(meta, label, target)
+func LoadRunState(meta Metadata, label, storageName string) (*RunState, error) {
+	path := StateFilePath(meta, label, storageName)
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -43,8 +43,8 @@ func LoadRunState(meta Metadata, label, target string) (*RunState, error) {
 	if state.Label == "" {
 		state.Label = label
 	}
-	if state.Target == "" {
-		state.Target = target
+	if state.Storage == "" {
+		state.Storage = storageName
 	}
 	return &state, nil
 }

@@ -40,7 +40,7 @@ func TestPlannerBuild_BackupPlan(t *testing.T) {
 	dir := t.TempDir()
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, ""))
 
-	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-usb"}
+	req := &Request{Source: "homes", DoBackup: true, RequestedStorageName: "onsite-usb"}
 	rt := testRuntime()
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
@@ -81,7 +81,7 @@ func TestPlannerBuild_RemotePlanLoadsSecrets(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, ""))
 	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "offsite-storj", ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoBackup: true, RequestedStorageName: "offsite-storj", ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
@@ -111,7 +111,7 @@ func TestPlannerBuild_LocalDuplicacyPlanLoadsSecrets(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, ""))
 	secretsFile := writeTargetTestSecrets(t, secretsDir, "homes", "onsite-rustfs")
 
-	req := &Request{Source: "homes", DoBackup: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoBackup: true, RequestedStorageName: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
 	runner := execpkg.NewMockRunner(
 		execpkg.MockResult{Stdout: "btrfs\n"},
 		execpkg.MockResult{Stdout: "256\n"},
@@ -197,17 +197,17 @@ func TestPlannerBuild_NonRootLocalRepositoryMutationRequiresRoot(t *testing.T) {
 	}{
 		{
 			name: "prune",
-			req:  &Request{Source: "homes", DoPrune: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			req:  &Request{Source: "homes", DoPrune: true, RequestedStorageName: "onsite-usb", ConfigDir: configDir},
 			want: "prune requires sudo: local filesystem repository is root-protected",
 		},
 		{
 			name: "prune dry-run",
-			req:  &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			req:  &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedStorageName: "onsite-usb", ConfigDir: configDir},
 			want: "prune --dry-run requires sudo: local filesystem repository is root-protected",
 		},
 		{
 			name: "cleanup storage",
-			req:  &Request{Source: "homes", DoCleanupStore: true, RequestedTarget: "onsite-usb", ConfigDir: configDir},
+			req:  &Request{Source: "homes", DoCleanupStore: true, RequestedStorageName: "onsite-usb", ConfigDir: configDir},
 			want: "cleanup-storage requires sudo: local filesystem repository is root-protected",
 		},
 	}
@@ -230,7 +230,7 @@ func TestPlannerBuild_NonRootLocalRepositoryCleanupDryRunIsSimulationOnly(t *tes
 	rt.Geteuid = func() int { return 1000 }
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
-	req := &Request{Source: "homes", DoCleanupStore: true, DryRun: true, RequestedTarget: "onsite-usb", ConfigDir: configDir}
+	req := &Request{Source: "homes", DoCleanupStore: true, DryRun: true, RequestedStorageName: "onsite-usb", ConfigDir: configDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
@@ -250,7 +250,7 @@ func TestPlannerBuild_NonRootObjectRepositoryMutationUsesCredentials(t *testing.
 	rt.Geteuid = func() int { return 1000 }
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
-	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
+	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedStorageName: "onsite-rustfs", ConfigDir: configDir, SecretsDir: secretsDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
@@ -269,7 +269,7 @@ func TestPlannerBuild_NonRootRemoteMountedRepositoryMutationUsesMountAccess(t *t
 	rt.Geteuid = func() int { return 1000 }
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt, testLogger(t), execpkg.NewMockRunner())
 
-	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedTarget: "offsite-usb", ConfigDir: configDir}
+	req := &Request{Source: "homes", DoPrune: true, DryRun: true, RequestedStorageName: "offsite-usb", ConfigDir: configDir}
 	plan, err := planner.Build(runtimeRequestForTest(req))
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
@@ -282,14 +282,14 @@ func TestPlannerBuild_NonRootRemoteMountedRepositoryMutationUsesMountAccess(t *t
 func TestPlannerLoadSecrets(t *testing.T) {
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	body := "[storage.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	sec, err := planner.loadSecrets(&Plan{
-		Config: PlanConfig{Target: "offsite-storj"},
+		Config: PlanConfig{StorageName: "offsite-storj"},
 		Paths:  PlanPaths{SecretsFile: secretsFile},
 	})
 	if err != nil {
@@ -319,7 +319,7 @@ func TestPlannerLoadConfig_MissingCanonicalFileReportsCanonicalPath(t *testing.T
 	_, err := planner.loadConfig(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "offsite-storj",
+			StorageName: "offsite-storj",
 		},
 		Paths: PlanPaths{
 			ConfigDir:  configDir,
@@ -339,7 +339,7 @@ func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 	_, err := planner.loadConfig(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "offsite-storj",
+			StorageName: "offsite-storj",
 		},
 		Paths: PlanPaths{ConfigFile: configFile},
 	})
@@ -351,14 +351,14 @@ func TestPlannerLoadConfig_RejectsLabelMismatch(t *testing.T) {
 func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 	secretsDir := t.TempDir()
 	secretsFile := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj.keys]\ns3_id = \"\"\n"
+	body := "[storage.offsite-storj.keys]\ns3_id = \"\"\n"
 	if err := os.WriteFile(secretsFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
 	_, err := planner.loadSecrets(&Plan{
-		Config: PlanConfig{Target: "offsite-storj"},
+		Config: PlanConfig{StorageName: "offsite-storj"},
 		Paths:  PlanPaths{SecretsFile: secretsFile},
 	})
 	if err == nil || !strings.Contains(err.Error(), "s3_id") {
@@ -369,7 +369,7 @@ func TestPlannerLoadSecrets_Invalid(t *testing.T) {
 func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 	secretsDir := t.TempDir()
 	legacyFile := filepath.Join(secretsDir, "duplicacy-homes.toml")
-	body := "[targets.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	body := "[storage.offsite-storj.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(legacyFile, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -378,7 +378,7 @@ func TestPlannerLoadSecrets_DoesNotFallbackToLegacyLabelFile(t *testing.T) {
 	_, err := planner.loadSecrets(&Plan{
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "offsite-storj",
+			StorageName: "offsite-storj",
 		},
 		Paths: PlanPaths{
 			SecretsDir:  secretsDir,
@@ -416,7 +416,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	writeTargetTestConfig(t, dir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365"))
 
 	planner := NewPlanner(MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime(), testLogger(t), execpkg.NewMockRunner())
-	plan := planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", DoBackup: true, ConfigDir: dir, RequestedTarget: "onsite-usb"}))
+	plan := planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", DoBackup: true, ConfigDir: dir, RequestedStorageName: "onsite-usb"}))
 
 	cfg, err := planner.loadConfig(plan)
 	if err != nil {
@@ -436,7 +436,7 @@ func TestPlannerLoadConfigAndLocalDiskStorageHelpers(t *testing.T) {
 	if err := planner.validateBackupFilesystem(plan); err != nil {
 		t.Fatalf("validateBackupFilesystem() error = %v", err)
 	}
-	if err := planner.validateBackupFilesystem(planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", RequestedTarget: "onsite-usb"}))); err != nil {
+	if err := planner.validateBackupFilesystem(planner.deriveRuntimePlan(runtimeRequestForTest(&Request{Source: "homes", RequestedStorageName: "onsite-usb"}))); err != nil {
 		t.Fatalf("validateBackupFilesystem(no backup) error = %v", err)
 	}
 	if got := splitNonEmptyLines("a\n\nb\n"); len(got) != 2 || got[0] != "a" || got[1] != "b" {

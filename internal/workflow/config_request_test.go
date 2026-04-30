@@ -4,17 +4,17 @@ import "testing"
 
 func TestNewConfigRequestProjectsOnlyConfigIntent(t *testing.T) {
 	req := &Request{
-		ConfigCommand:   "validate",
-		Source:          "homes",
-		RequestedTarget: "onsite-usb",
-		ConfigDir:       "/home/operator/.config/duplicacy-backup",
-		SecretsDir:      "/home/operator/.config/duplicacy-backup/secrets",
-		NotifyCommand:   "test",
-		RestoreCommand:  "run",
-		UpdateCommand:   "update",
-		DoBackup:        true,
-		DryRun:          true,
-		JSONSummary:     true,
+		ConfigCommand:        "validate",
+		Source:               "homes",
+		RequestedStorageName: "onsite-usb",
+		ConfigDir:            "/home/operator/.config/duplicacy-backup",
+		SecretsDir:           "/home/operator/.config/duplicacy-backup/secrets",
+		NotifyCommand:        "test",
+		RestoreCommand:       "run",
+		UpdateCommand:        "update",
+		DoBackup:             true,
+		DryRun:               true,
+		JSONSummary:          true,
 	}
 
 	got := NewConfigRequest(req)

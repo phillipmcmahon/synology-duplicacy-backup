@@ -18,7 +18,7 @@ The safest model is:
 Use these rules before creating tasks:
 
 - `backup` always uses `sudo -n` because it needs btrfs snapshot access and
-  full source read access, regardless of whether the target storage is local or
+  full source read access, regardless of whether the storage is local or
   remote.
 - `prune` uses `sudo -n` for local filesystem storage because the repository
   files are root-protected OS resources.
@@ -53,11 +53,11 @@ for a generalized sudoers template.
 Use a label-first pattern so tasks sort cleanly in DSM:
 
 ```text
-<Label> Backup <Target>
-<Label> Prune <Target>
-<Label> Health Status <Target>
-<Label> Health Doctor <Target>
-<Label> Health Verify <Target>
+<Label> Backup <Storage>
+<Label> Prune <Storage>
+<Label> Health Status <Storage>
+<Label> Health Doctor <Storage>
+<Label> Health Verify <Storage>
 ```
 
 Examples:
@@ -71,11 +71,11 @@ Homes Health Status Offsite Storj
 
 ## Cadence Template
 
-Start with these slots, then put the relevant labels and targets into each one.
+Start with these slots, then put the relevant labels and storage names into each one.
 
 ### Frequent Backup Slot
 
-Use for important local or fast targets.
+Use for important local or fast storage.
 
 Recommended cadence:
 
@@ -85,7 +85,7 @@ Recommended cadence:
 Command template:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup backup --storage <storage> <label>
 ```
 
 Example entries:
@@ -98,7 +98,7 @@ plexvideo  -> onsite-usb      -> daily
 
 ### Daily Backup Slot
 
-Use for slower offsite, remote, or object-storage targets.
+Use for slower offsite, remote, or object-storage storage.
 
 Recommended cadence:
 
@@ -108,7 +108,7 @@ Recommended cadence:
 Command template:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup backup --storage <storage> <label>
 ```
 
 Example entries:
@@ -125,7 +125,7 @@ Use for low-change labels or large data sets that do not need daily backup.
 Command template:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup backup --storage <storage> <label>
 ```
 
 Example entries:
@@ -147,10 +147,10 @@ Command templates:
 
 ```bash
 # Local filesystem repository
-sudo -n /usr/local/bin/duplicacy-backup prune --target <local-path-target> <label>
+sudo -n /usr/local/bin/duplicacy-backup prune --storage <local-path-storage> <label>
 
 # Object repository or remote mounted filesystem repository
-/usr/local/bin/duplicacy-backup prune --target <object-or-remote-target> <label>
+/usr/local/bin/duplicacy-backup prune --storage <object-or-remote-storage> <label>
 ```
 
 Example entries:
@@ -162,17 +162,17 @@ homes      -> offsite-storj   -> weekly, no sudo
 
 ### Daily Health Slot
 
-Use this for lightweight visibility that a target is reachable and the latest
+Use this for lightweight visibility that a storage entry is reachable and the latest
 revision signal is sensible.
 
 Command templates:
 
 ```bash
 # Local filesystem repositories
-sudo -n /usr/local/bin/duplicacy-backup health status --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup health status --storage <storage> <label>
 
 # Object repositories or remote mounted filesystem repositories
-/usr/local/bin/duplicacy-backup health status --target <target> <label>
+/usr/local/bin/duplicacy-backup health status --storage <storage> <label>
 ```
 
 Example entries:
@@ -190,10 +190,10 @@ Command templates:
 
 ```bash
 # Local filesystem repositories
-sudo -n /usr/local/bin/duplicacy-backup health doctor --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup health doctor --storage <storage> <label>
 
 # Object repositories or remote mounted filesystem repositories
-/usr/local/bin/duplicacy-backup health doctor --target <target> <label>
+/usr/local/bin/duplicacy-backup health doctor --storage <storage> <label>
 ```
 
 Example entries:
@@ -218,10 +218,10 @@ Command templates:
 
 ```bash
 # Local filesystem repositories
-sudo -n /usr/local/bin/duplicacy-backup health verify --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup health verify --storage <storage> <label>
 
 # Object repositories or remote mounted filesystem repositories
-/usr/local/bin/duplicacy-backup health verify --target <target> <label>
+/usr/local/bin/duplicacy-backup health verify --storage <storage> <label>
 ```
 
 Example entries:
@@ -257,10 +257,10 @@ repository:
 
 ```bash
 # Local filesystem repository
-sudo -n /usr/local/bin/duplicacy-backup cleanup-storage --target <local-path-target> <label>
+sudo -n /usr/local/bin/duplicacy-backup cleanup-storage --storage <local-path-storage> <label>
 
 # Object repository or remote mounted filesystem repository
-/usr/local/bin/duplicacy-backup cleanup-storage --target <object-or-remote-target> <label>
+/usr/local/bin/duplicacy-backup cleanup-storage --storage <object-or-remote-storage> <label>
 ```
 
 `cleanup-storage --dry-run` is simulation-only: it prints the validation and
@@ -275,7 +275,7 @@ Use it only as an explicit operator decision when safe-prune thresholds are
 intentionally being overridden:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup prune --force --target <target> <label>
+sudo -n /usr/local/bin/duplicacy-backup prune --force --storage <storage> <label>
 ```
 
 ## Operational Notes
@@ -283,7 +283,7 @@ sudo -n /usr/local/bin/duplicacy-backup prune --force --target <target> <label>
 - Keep DSM scheduler email enabled for raw task failures.
 - Use native `ntfy` for richer degraded, unhealthy, and selected runtime alerts.
 - Move a later task if it routinely overlaps another task touching the same
-  label and target.
+  label and storage.
 - Prefer changing cadence before combining unrelated commands into one script.
 
 ## Supported Boundary

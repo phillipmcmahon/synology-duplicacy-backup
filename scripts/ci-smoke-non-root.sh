@@ -7,7 +7,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 BINARY="${BINARY:-/tmp/duplicacy-backup}"
 OPERATOR_USER="${OPERATOR_USER:-duplicacyci}"
-TARGET="${TARGET:-onsite-ci}"
+STORAGE="${STORAGE:-onsite-ci}"
 IMAGE="${BTRFS_IMAGE:-/tmp/duplicacy-backup-ci-non-root.btrfs}"
 
 cleanup() {
@@ -22,7 +22,7 @@ ci_create_operator_user "$OPERATOR_USER"
 ci_install_binary "$BINARY"
 ci_install_fake_duplicacy
 ci_mount_btrfs_volume1 "$IMAGE"
-ci_write_local_config "$OPERATOR_USER" "$TARGET" "/volume1/duplicacy/homes"
+ci_write_local_config "$OPERATOR_USER" "$STORAGE" "/volume1/duplicacy/homes"
 chown -R "$OPERATOR_USER:$(id -gn "$OPERATOR_USER")" /volume1/duplicacy
 
 operator_home="$(getent passwd "$OPERATOR_USER" | awk -F: '{print $6; exit}')"
@@ -70,10 +70,10 @@ run_operator_expect_policy_fail() {
 }
 
 run_operator duplicacy-backup --version
-run_operator duplicacy-backup config explain --target "$TARGET" homes
-run_operator duplicacy-backup config paths --target "$TARGET" homes
-run_operator duplicacy-backup diagnostics --target "$TARGET" homes
-run_operator duplicacy-backup restore plan --target "$TARGET" homes
+run_operator duplicacy-backup config explain --storage "$STORAGE" homes
+run_operator duplicacy-backup config paths --storage "$STORAGE" homes
+run_operator duplicacy-backup diagnostics --storage "$STORAGE" homes
+run_operator duplicacy-backup restore plan --storage "$STORAGE" homes
 
 chmod 0700 /volume1/duplicacy /volume1/duplicacy/homes
 chown -R root:root /volume1/duplicacy
@@ -81,18 +81,18 @@ chown -R root:root /volume1/duplicacy
 tmp_output="$(mktemp)"
 trap 'rm -f "$tmp_output"; cleanup' EXIT
 
-run_operator_expect_policy_fail "$tmp_output" "local filesystem repository is root-protected" duplicacy-backup config validate --target "$TARGET" homes
+run_operator_expect_policy_fail "$tmp_output" "local filesystem repository is root-protected" duplicacy-backup config validate --storage "$STORAGE" homes
 assert_output_contains "$tmp_output" "Storage Access"
 assert_output_contains "$tmp_output" "Repository Access"
 assert_output_contains "$tmp_output" "Requires sudo"
 assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_policy_fail "$tmp_output" "Requires sudo: local filesystem repository is root-protected" duplicacy-backup health status --target "$TARGET" homes
+run_operator_expect_policy_fail "$tmp_output" "Requires sudo: local filesystem repository is root-protected" duplicacy-backup health status --storage "$STORAGE" homes
 assert_output_contains "$tmp_output" "Repository Access"
 assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_policy_fail "$tmp_output" "restore list-revisions requires sudo: local filesystem repository is root-protected" duplicacy-backup restore list-revisions --target "$TARGET" homes
+run_operator_expect_policy_fail "$tmp_output" "restore list-revisions requires sudo: local filesystem repository is root-protected" duplicacy-backup restore list-revisions --storage "$STORAGE" homes
 assert_output_not_matches "$tmp_output" "permission denied|EACCES"
 
-run_operator_expect_policy_fail "$tmp_output" "prune --dry-run requires sudo: local filesystem repository is root-protected" duplicacy-backup prune --target "$TARGET" --dry-run homes
+run_operator_expect_policy_fail "$tmp_output" "prune --dry-run requires sudo: local filesystem repository is root-protected" duplicacy-backup prune --storage "$STORAGE" --dry-run homes
 assert_output_not_matches "$tmp_output" "permission denied|EACCES"

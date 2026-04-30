@@ -44,7 +44,7 @@ type Payload struct {
 	Event     string         `json:"event"`
 	Summary   string         `json:"summary"`
 	Label     string         `json:"label"`
-	Target    string         `json:"target"`
+	Target    string         `json:"storage"`
 	Location  string         `json:"location,omitempty"`
 	Operation string         `json:"operation,omitempty"`
 	Check     string         `json:"check,omitempty"`
@@ -180,7 +180,7 @@ func SendConfiguredDetailedWithOptions(cfg config.HealthNotifyConfig, secretsFil
 }
 
 func ConfiguredDestinations(cfg config.HealthNotifyConfig, provider string) ([]Destination, error) {
-	return ConfiguredDestinationsForScope(cfg, provider, "selected target")
+	return ConfiguredDestinationsForScope(cfg, provider, "selected storage")
 }
 
 func ConfiguredDestinationsForScope(cfg config.HealthNotifyConfig, provider string, scope string) ([]Destination, error) {
@@ -454,7 +454,7 @@ func ntfyMessageBody(payload *Payload) string {
 		lines = append(lines, fmt.Sprintf("Label: %s", payload.Label))
 	}
 	if payload.Target != "" {
-		lines = append(lines, fmt.Sprintf("Target: %s", payload.Target))
+		lines = append(lines, fmt.Sprintf("Storage: %s", payload.Target))
 	}
 	if payload.Location != "" {
 		lines = append(lines, fmt.Sprintf("Location: %s", payload.Location))

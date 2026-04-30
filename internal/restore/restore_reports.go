@@ -37,7 +37,7 @@ type restorePlanReport struct {
 
 type restoreRevisionsReport struct {
 	Label           string                `json:"label"`
-	Target          string                `json:"target"`
+	Target          string                `json:"storage_name"`
 	Location        string                `json:"location"`
 	ConfigFile      string                `json:"config_file"`
 	SourcePath      string                `json:"source_path"`

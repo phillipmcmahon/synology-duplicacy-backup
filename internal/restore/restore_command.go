@@ -231,7 +231,7 @@ func handleRestoreSelect(req *RestoreRequest, meta Metadata, rt Env, deps Restor
 		return "", err
 	}
 	if len(revisions) == 0 {
-		return "", NewRequestError("restore select found no visible revisions; run restore list-revisions --target %s %s to inspect the target directly", req.Target(), req.Label)
+		return "", NewRequestError("restore select found no visible revisions; run restore list-revisions --storage %s %s to inspect the storage directly", req.Target(), req.Label)
 	}
 	revision, err := promptRestoreRevision(reader, revisions, 50, deps)
 	if err != nil {

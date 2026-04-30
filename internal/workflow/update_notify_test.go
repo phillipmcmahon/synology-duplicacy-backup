@@ -46,7 +46,7 @@ func TestMaybeSendUpdateFailureNotification(t *testing.T) {
 	if !strings.Contains(gotBody, "Event: update_install_failed") ||
 		!strings.Contains(gotBody, "Operation: update") ||
 		strings.Contains(gotBody, "Label:") ||
-		strings.Contains(gotBody, "Target:") {
+		strings.Contains(gotBody, "StorageName:") {
 		t.Fatalf("Body = %q", gotBody)
 	}
 }

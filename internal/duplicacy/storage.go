@@ -75,7 +75,7 @@ func (s StorageSpec) ValidateSecrets(sec *secrets.Secrets) error {
 	required := s.RequiredSecretKeys()
 	for _, key := range required {
 		if sec == nil || strings.TrimSpace(sec.Keys[key]) == "" {
-			return fmt.Errorf("storage %q requires %s in [targets.<name>.keys]", s.Scheme(), strings.Join(required, " and "))
+			return fmt.Errorf("storage %q requires %s in [storage.<name>.keys]", s.Scheme(), strings.Join(required, " and "))
 		}
 	}
 	return nil

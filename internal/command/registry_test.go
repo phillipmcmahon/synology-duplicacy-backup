@@ -143,14 +143,14 @@ func TestRegistryParsersSetCommandDiscriminator(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := workflow.DefaultEnv()
 	argsByCommand := map[string][]string{
-		"backup":          {"--target", "onsite-usb", "homes"},
-		"cleanup-storage": {"--target", "onsite-usb", "homes"},
-		"config":          {"validate", "--target", "onsite-usb", "homes"},
-		"diagnostics":     {"--target", "onsite-usb", "homes"},
-		"health":          {"status", "--target", "onsite-usb", "homes"},
-		"notify":          {"test", "--target", "onsite-usb", "homes"},
-		"prune":           {"--target", "onsite-usb", "homes"},
-		"restore":         {"plan", "--target", "onsite-usb", "homes"},
+		"backup":          {"--storage", "onsite-usb", "homes"},
+		"cleanup-storage": {"--storage", "onsite-usb", "homes"},
+		"config":          {"validate", "--storage", "onsite-usb", "homes"},
+		"diagnostics":     {"--storage", "onsite-usb", "homes"},
+		"health":          {"status", "--storage", "onsite-usb", "homes"},
+		"notify":          {"test", "--storage", "onsite-usb", "homes"},
+		"prune":           {"--storage", "onsite-usb", "homes"},
+		"restore":         {"plan", "--storage", "onsite-usb", "homes"},
 		"rollback":        {"--check-only"},
 		"update":          {"--check-only"},
 	}

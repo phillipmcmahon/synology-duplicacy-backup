@@ -10,14 +10,13 @@ GOARCH="amd64"
 GOARM=""
 REPO_ROOT=""
 DEFAULT_LABEL="homes"
-DEFAULT_TARGET="onsite-garage"
+DEFAULT_STORAGE="onsite-garage"
 DEFAULT_WORKSPACE_ROOT="/volume1/restore-drills"
 DEFAULT_RUN_RESTORE="0"
-DEFAULT_RESTORE_TARGET=""
-DEFAULT_RESTORE_TARGETS=""
+DEFAULT_RESTORE_STORAGE=""
 DEFAULT_RESTORE_PATH=""
 DEFAULT_RESTORE_USE_SUDO="0"
-DEFAULT_RESTORE_USE_SUDO_TARGETS=""
+DEFAULT_RESTORE_USE_SUDO_STORAGE=""
 
 usage() {
     cat <<'EOF'
@@ -31,26 +30,24 @@ Options:
   --run-id <value>       Bundle id. Defaults to ui-surface-smoke-<UTC timestamp>
   --version <value>      Version string embedded into the binary
   --build-time <value>   Build timestamp in UTC RFC3339 form
-  --goos <value>         Target GOOS (default: linux)
-  --goarch <value>       Target GOARCH (default: amd64)
-  --goarm <value>        Target GOARM (for GOARCH=arm)
+  --goos <value>         Output GOOS (default: linux)
+  --goarch <value>       Output GOARCH (default: amd64)
+  --goarm <value>        Output GOARM (for GOARCH=arm)
   --default-label <name> LABEL default written to setup-env.sh
-  --default-target <name>
-                         TARGET default written to setup-env.sh
+  --default-storage <name>
+                         STORAGE default written to setup-env.sh
   --default-workspace-root <path>
                          WORKSPACE_ROOT default written to setup-env.sh
   --default-run-restore <0|1>
                          RUN_RESTORE default written to setup-env.sh
-  --default-restore-target <name>
-                         RESTORE_TARGET default written to setup-env.sh
-  --default-restore-targets <names>
-                         RESTORE_TARGETS default written to setup-env.sh
+  --default-restore-storage <names>
+                         RESTORE_STORAGE default written to setup-env.sh
   --default-restore-path <path>
                          RESTORE_PATH default written to setup-env.sh
   --default-restore-use-sudo <0|1>
                          RESTORE_USE_SUDO default written to setup-env.sh
-  --default-restore-use-sudo-targets <names>
-                         RESTORE_USE_SUDO_TARGETS default written to setup-env.sh
+  --default-restore-use-sudo-storage <names>
+                         RESTORE_USE_SUDO_STORAGE default written to setup-env.sh
   --repo-root <path>     Repository root (default: script parent directory)
   --help                 Show this help text
 EOF
@@ -126,9 +123,9 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_LABEL="$2"
             shift 2
             ;;
-        --default-target)
-            [ "$#" -ge 2 ] || fail "--default-target requires a value"
-            DEFAULT_TARGET="$2"
+        --default-storage)
+            [ "$#" -ge 2 ] || fail "--default-storage requires a value"
+            DEFAULT_STORAGE="$2"
             shift 2
             ;;
         --default-workspace-root)
@@ -141,14 +138,9 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_RUN_RESTORE="$2"
             shift 2
             ;;
-        --default-restore-target)
-            [ "$#" -ge 2 ] || fail "--default-restore-target requires a value"
-            DEFAULT_RESTORE_TARGET="$2"
-            shift 2
-            ;;
-        --default-restore-targets)
-            [ "$#" -ge 2 ] || fail "--default-restore-targets requires a value"
-            DEFAULT_RESTORE_TARGETS="$2"
+        --default-restore-storage)
+            [ "$#" -ge 2 ] || fail "--default-restore-storage requires a value"
+            DEFAULT_RESTORE_STORAGE="$2"
             shift 2
             ;;
         --default-restore-path)
@@ -161,9 +153,9 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_RESTORE_USE_SUDO="$2"
             shift 2
             ;;
-        --default-restore-use-sudo-targets)
-            [ "$#" -ge 2 ] || fail "--default-restore-use-sudo-targets requires a value"
-            DEFAULT_RESTORE_USE_SUDO_TARGETS="$2"
+        --default-restore-use-sudo-storage)
+            [ "$#" -ge 2 ] || fail "--default-restore-use-sudo-storage requires a value"
+            DEFAULT_RESTORE_USE_SUDO_STORAGE="$2"
             shift 2
             ;;
         --repo-root)
@@ -215,7 +207,7 @@ package_args="
   --goarch $GOARCH
   --instructions $INSTRUCTIONS
   --default-label $DEFAULT_LABEL
-  --default-target $DEFAULT_TARGET
+  --default-storage $DEFAULT_STORAGE
   --default-workspace-root $DEFAULT_WORKSPACE_ROOT
   --repo-root $ROOT
 "
@@ -236,34 +228,29 @@ chmod 755 "$bundle_dir/run-ui-surface-smoke.sh"
 # The extracted bundle binary path is part of the documented sudoers
 # Cmnd_Alias glob; keep this setup-env shape in sync with docs/ui-surface-smoke.md.
 quoted_default_run_restore="$(shell_quote "$DEFAULT_RUN_RESTORE")"
-quoted_default_restore_target="$(shell_quote "$DEFAULT_RESTORE_TARGET")"
-quoted_default_restore_targets="$(shell_quote "$DEFAULT_RESTORE_TARGETS")"
+quoted_default_restore_storage="$(shell_quote "$DEFAULT_RESTORE_STORAGE")"
 quoted_default_restore_path="$(shell_quote "$DEFAULT_RESTORE_PATH")"
 quoted_default_restore_use_sudo="$(shell_quote "$DEFAULT_RESTORE_USE_SUDO")"
-quoted_default_restore_use_sudo_targets="$(shell_quote "$DEFAULT_RESTORE_USE_SUDO_TARGETS")"
+quoted_default_restore_use_sudo_storage="$(shell_quote "$DEFAULT_RESTORE_USE_SUDO_STORAGE")"
 cat >> "$bundle_dir/setup-env.sh" <<EOF
 
 # UI surface restore automation defaults. Existing environment values are preserved.
 DEFAULT_RUN_RESTORE=$quoted_default_run_restore
-DEFAULT_RESTORE_TARGET=$quoted_default_restore_target
-DEFAULT_RESTORE_TARGETS=$quoted_default_restore_targets
+DEFAULT_RESTORE_STORAGE=$quoted_default_restore_storage
 DEFAULT_RESTORE_PATH=$quoted_default_restore_path
 DEFAULT_RESTORE_USE_SUDO=$quoted_default_restore_use_sudo
-DEFAULT_RESTORE_USE_SUDO_TARGETS=$quoted_default_restore_use_sudo_targets
+DEFAULT_RESTORE_USE_SUDO_STORAGE=$quoted_default_restore_use_sudo_storage
 
 RUN_RESTORE="\${RUN_RESTORE:-\$DEFAULT_RUN_RESTORE}"
-if [ -z "\${RESTORE_TARGET:-}" ] && [ -n "\$DEFAULT_RESTORE_TARGET" ]; then
-    RESTORE_TARGET="\$DEFAULT_RESTORE_TARGET"
-fi
-if [ -z "\${RESTORE_TARGETS:-}" ] && [ -n "\$DEFAULT_RESTORE_TARGETS" ]; then
-    RESTORE_TARGETS="\$DEFAULT_RESTORE_TARGETS"
+if [ -z "\${RESTORE_STORAGE:-}" ] && [ -n "\$DEFAULT_RESTORE_STORAGE" ]; then
+    RESTORE_STORAGE="\$DEFAULT_RESTORE_STORAGE"
 fi
 RESTORE_PATH="\${RESTORE_PATH:-\$DEFAULT_RESTORE_PATH}"
 RESTORE_USE_SUDO="\${RESTORE_USE_SUDO:-\$DEFAULT_RESTORE_USE_SUDO}"
-RESTORE_USE_SUDO_TARGETS="\${RESTORE_USE_SUDO_TARGETS:-\$DEFAULT_RESTORE_USE_SUDO_TARGETS}"
+RESTORE_USE_SUDO_STORAGE="\${RESTORE_USE_SUDO_STORAGE:-\$DEFAULT_RESTORE_USE_SUDO_STORAGE}"
 SMOKE_SUDO_BIN="\${SMOKE_SUDO_BIN:-/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke}"
 
-export RUN_RESTORE RESTORE_TARGET RESTORE_TARGETS RESTORE_PATH RESTORE_USE_SUDO RESTORE_USE_SUDO_TARGETS SMOKE_SUDO_BIN
+export RUN_RESTORE RESTORE_STORAGE RESTORE_PATH RESTORE_USE_SUDO RESTORE_USE_SUDO_STORAGE SMOKE_SUDO_BIN
 EOF
 
 output_dir="$ROOT/build/test-packages/release/$RUN_ID"

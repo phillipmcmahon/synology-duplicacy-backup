@@ -29,7 +29,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 		Request: PlanRequest{OperationMode: "Backup"},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "onsite-usb",
+			StorageName: "onsite-usb",
 			Location:    locationLocal,
 		},
 	}, time.Date(2026, 4, 10, 16, 47, 50, 900_000_000, time.UTC), "")
@@ -39,7 +39,7 @@ func TestPresenterSummaryAndBackupResult(t *testing.T) {
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run started - 2026-04-10 16:47:50", "Operation", "Backup", "Label", "homes", "Target", "onsite-usb", "Location", locationLocal, "Run Summary:", "Config File", "Revision", "2361", "Files", "Duration", "00:00:03"} {
+	for _, token := range []string{"Run started - 2026-04-10 16:47:50", "Operation", "Backup", "Label", "homes", "Storage", "onsite-usb", "Location", locationLocal, "Run Summary:", "Config File", "Revision", "2361", "Files", "Duration", "00:00:03"} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
@@ -73,14 +73,14 @@ func TestPresenterPreRunFailurePlanIncludesStorageIdentity(t *testing.T) {
 		Request: PlanRequest{OperationMode: "Storage cleanup"},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "offsite-storj",
+			StorageName: "offsite-storj",
 			Location:    locationRemote,
 		},
 	})
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Storage cleanup", "Label", "homes", "Target", "offsite-storj", "Location", locationRemote} {
+	for _, token := range []string{"Run could not start", "Operation", "Storage cleanup", "Label", "homes", "Storage", "offsite-storj", "Location", locationRemote} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}
@@ -103,7 +103,7 @@ func TestPresenterPreRunFailureContextAndStatus(t *testing.T) {
 	log.Close()
 
 	output := readSingleLogFile(t, logDir)
-	for _, token := range []string{"Run could not start", "Operation", "Safe prune", "Label", "homes", "Target", "onsite-usb", "Status", "Preparing drill workspace"} {
+	for _, token := range []string{"Run could not start", "Operation", "Safe prune", "Label", "homes", "Storage", "onsite-usb", "Status", "Preparing drill workspace"} {
 		if !strings.Contains(output, token) {
 			t.Fatalf("output missing %q:\n%s", token, output)
 		}

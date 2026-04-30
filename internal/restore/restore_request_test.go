@@ -13,7 +13,7 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 		DryRun:                   true,
 		RestoreWorkspace:         "/volume1/restore-drills/homes",
 		RestoreWorkspaceRoot:     "/volume1/restore-drills",
-		RestoreWorkspaceTemplate: "{label}-{target}-{revision}",
+		RestoreWorkspaceTemplate: "{label}-{storage}-{revision}",
 		RestoreRevision:          2403,
 		RestorePath:              "phillipmcmahon/code",
 		RestorePathPrefix:        "phillipmcmahon",
@@ -31,7 +31,7 @@ func TestNewRestoreRequestProjectsOnlyRestoreIntent(t *testing.T) {
 	if got.ConfigDir != "/home/operator/.config/duplicacy-backup" || got.SecretsDir != "/home/operator/.config/duplicacy-backup/secrets" {
 		t.Fatalf("restore config projection failed: %#v", got)
 	}
-	if got.Workspace != "/volume1/restore-drills/homes" || got.WorkspaceRoot != "/volume1/restore-drills" || got.WorkspaceTemplate != "{label}-{target}-{revision}" || got.Revision != 2403 || got.Path != "phillipmcmahon/code" || got.PathPrefix != "phillipmcmahon" {
+	if got.Workspace != "/volume1/restore-drills/homes" || got.WorkspaceRoot != "/volume1/restore-drills" || got.WorkspaceTemplate != "{label}-{storage}-{revision}" || got.Revision != 2403 || got.Path != "phillipmcmahon/code" || got.PathPrefix != "phillipmcmahon" {
 		t.Fatalf("restore operation projection failed: %#v", got)
 	}
 	if !got.JSONSummary || !got.DryRun || !got.Yes || got.Limit != 25 {

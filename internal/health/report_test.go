@@ -383,7 +383,7 @@ func TestPresenterPrintsStructuredHealthReport(t *testing.T) {
 	for _, token := range []string{
 		"Health check started - 2026-04-15 10:00:00",
 		"Check", "Verify",
-		"Target", "offsite-storj",
+		"Storage", "offsite-storj",
 		"Section: Status",
 		"Section: Alerts",
 		"Result", "Degraded",

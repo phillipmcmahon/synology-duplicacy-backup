@@ -18,7 +18,7 @@ func TestObservabilityHelpers(t *testing.T) {
 		},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "onsite-usb",
+			StorageName: "onsite-usb",
 			Location:    locationLocal,
 		},
 	}
@@ -53,7 +53,7 @@ func TestObservabilityHelpers(t *testing.T) {
 		Request: PlanRequest{OperationMode: "Safe prune"},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "onsite-usb",
+			StorageName: "onsite-usb",
 			Location:    locationLocal,
 		},
 	}
@@ -72,7 +72,7 @@ func TestObservabilityHelpers(t *testing.T) {
 
 func TestPlanHelpersAndVersionText(t *testing.T) {
 	plan := &Plan{
-		Config: PlanConfig{Target: "offsite-storj", Location: locationRemote},
+		Config: PlanConfig{StorageName: "offsite-storj", Location: locationRemote},
 		Paths:  PlanPaths{WorkRoot: "/tmp/work"},
 	}
 	if !plan.IsRemoteLocation() {
@@ -99,7 +99,7 @@ func TestPlanSectionsExposeFocusedViews(t *testing.T) {
 		},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "onsite-usb",
+			StorageName: "onsite-usb",
 			Location:    locationLocal,
 		},
 		Paths: PlanPaths{
@@ -112,7 +112,7 @@ func TestPlanSectionsExposeFocusedViews(t *testing.T) {
 	if !sections.Request.DoBackup || sections.Request.OperationMode != "Backup" {
 		t.Fatalf("request section = %+v", sections.Request)
 	}
-	if sections.Config.Target != "onsite-usb" || sections.Config.Location != locationLocal {
+	if sections.Config.StorageName != "onsite-usb" || sections.Config.Location != locationLocal {
 		t.Fatalf("config section = %+v", sections.Config)
 	}
 	if sections.Paths.BackupTarget != "/backups/homes" || sections.Paths.WorkRoot != "/tmp/work" {

@@ -41,7 +41,7 @@ func NewRestoreRequest(req *Request) RestoreRequest {
 	return RestoreRequest{
 		Command:           req.RestoreCommand,
 		Label:             req.Source,
-		TargetName:        strings.TrimSpace(req.RequestedTarget),
+		TargetName:        strings.TrimSpace(req.Target()),
 		ConfigDir:         req.ConfigDir,
 		SecretsDir:        req.SecretsDir,
 		JSONSummary:       req.JSONSummary,

@@ -22,10 +22,10 @@ func TestRequestErrors(t *testing.T) {
 
 func TestRequestAndConfigPlanProjection(t *testing.T) {
 	req := &Request{
-		Source:          "homes",
-		RequestedTarget: "onsite-usb",
-		ConfigDir:       "/config",
-		SecretsDir:      "/secrets",
+		Source:               "homes",
+		RequestedStorageName: "onsite-usb",
+		ConfigDir:            "/config",
+		SecretsDir:           "/secrets",
 	}
 
 	if got := req.Target(); got != "onsite-usb" {

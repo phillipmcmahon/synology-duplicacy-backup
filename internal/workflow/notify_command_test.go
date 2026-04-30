@@ -22,19 +22,19 @@ func TestHandleNotifyCommand_DryRun(t *testing.T) {
 		`source_path = "/volume1/homes"`,
 		`[health.notify]`,
 		`webhook_url = "https://example.invalid/duplicacy"`,
-		`[targets.onsite-usb]`,
+		`[storage.onsite-usb]`,
 		`location = "local"`,
 		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "onsite-usb",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		NotifyProvider:  "all",
-		NotifySeverity:  "warning",
-		DryRun:          true,
+		NotifyCommand:        "test",
+		RequestedStorageName: "onsite-usb",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		NotifyProvider:       "all",
+		NotifySeverity:       "warning",
+		DryRun:               true,
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
@@ -82,19 +82,19 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 		`[health.notify.ntfy]`,
 		`url = "` + ntfyServer.URL + `"`,
 		`topic = "duplicacy-alerts"`,
-		`[targets.onsite-usb]`,
+		`[storage.onsite-usb]`,
 		`location = "local"`,
 		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "onsite-usb",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		SecretsDir:      t.TempDir(),
-		NotifyProvider:  "all",
-		NotifySeverity:  "critical",
+		NotifyCommand:        "test",
+		RequestedStorageName: "onsite-usb",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		SecretsDir:           t.TempDir(),
+		NotifyProvider:       "all",
+		NotifySeverity:       "critical",
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
@@ -124,20 +124,20 @@ func TestHandleNotifyCommand_JSONSummary(t *testing.T) {
 		`[health.notify.ntfy]`,
 		`url = "https://ntfy.sh"`,
 		`topic = "duplicacy-alerts"`,
-		`[targets.onsite-usb]`,
+		`[storage.onsite-usb]`,
 		`location = "local"`,
 		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "onsite-usb",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		NotifyProvider:  "ntfy",
-		NotifySeverity:  "warning",
-		DryRun:          true,
-		JSONSummary:     true,
+		NotifyCommand:        "test",
+		RequestedStorageName: "onsite-usb",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		NotifyProvider:       "ntfy",
+		NotifySeverity:       "warning",
+		DryRun:               true,
+		JSONSummary:          true,
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
@@ -159,18 +159,18 @@ func TestHandleNotifyCommand_NoDestinationConfigured(t *testing.T) {
 	writeNotifyConfig(t, configDir, "homes", strings.Join([]string{
 		`label = "homes"`,
 		`source_path = "/volume1/homes"`,
-		`[targets.onsite-usb]`,
+		`[storage.onsite-usb]`,
 		`location = "local"`,
 		`storage = "/backups/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "onsite-usb",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		NotifyProvider:  "all",
-		NotifySeverity:  "warning",
+		NotifyCommand:        "test",
+		RequestedStorageName: "onsite-usb",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		NotifyProvider:       "all",
+		NotifySeverity:       "warning",
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
@@ -201,18 +201,18 @@ func TestHandleNotifyCommand_DuplicacyTargetCanSendWithoutReadableSecretsWhenTok
 		`[health.notify.ntfy]`,
 		`url = "` + server.URL + `"`,
 		`topic = "duplicacy-alerts"`,
-		`[targets.offsite-storj]`,
+		`[storage.offsite-storj]`,
 		`location = "remote"`,
 		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "offsite-storj",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		SecretsDir:      t.TempDir(),
-		NotifyProvider:  "ntfy",
+		NotifyCommand:        "test",
+		RequestedStorageName: "offsite-storj",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		SecretsDir:           t.TempDir(),
+		NotifyProvider:       "ntfy",
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
@@ -250,19 +250,19 @@ func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 		`source_path = "/volume1/homes"`,
 		`[health.notify]`,
 		`webhook_url = "` + server.URL + `"`,
-		`[targets.onsite-rustfs]`,
+		`[storage.onsite-rustfs]`,
 		`location = "local"`,
 		`storage = "s3://rustfs.local/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "onsite-rustfs",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		SecretsDir:      t.TempDir(),
-		NotifyProvider:  "webhook",
-		NotifySeverity:  "warning",
+		NotifyCommand:        "test",
+		RequestedStorageName: "onsite-rustfs",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		SecretsDir:           t.TempDir(),
+		NotifyProvider:       "webhook",
+		NotifySeverity:       "warning",
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 
@@ -273,7 +273,7 @@ func TestHandleNotifyCommand_LocalDuplicacyTargetPayload(t *testing.T) {
 	if !strings.Contains(out, "Webhook") || !strings.Contains(out, "Success") {
 		t.Fatalf("output = %q", out)
 	}
-	if !strings.Contains(webhookBody, `"target":"onsite-rustfs"`) ||
+	if !strings.Contains(webhookBody, `"storage":"onsite-rustfs"`) ||
 		!strings.Contains(webhookBody, `"location":"local"`) ||
 		strings.Contains(webhookBody, `"storage_type"`) {
 		t.Fatalf("webhookBody = %q", webhookBody)
@@ -288,18 +288,18 @@ func TestHandleNotifyCommand_DuplicacyTargetTokenParseErrorStillFails(t *testing
 		`[health.notify.ntfy]`,
 		`url = "https://ntfy.sh"`,
 		`topic = "duplicacy-alerts"`,
-		`[targets.offsite-storj]`,
+		`[storage.offsite-storj]`,
 		`location = "remote"`,
 		`storage = "s3://EU@gateway.storjshare.io/bucket/homes"`,
 	}, "\n"))
 
 	req := &Request{
-		NotifyCommand:   "test",
-		RequestedTarget: "offsite-storj",
-		Source:          "homes",
-		ConfigDir:       configDir,
-		SecretsDir:      t.TempDir(),
-		NotifyProvider:  "ntfy",
+		NotifyCommand:        "test",
+		RequestedStorageName: "offsite-storj",
+		Source:               "homes",
+		ConfigDir:            configDir,
+		SecretsDir:           t.TempDir(),
+		NotifyProvider:       "ntfy",
 	}
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	restore := notify.SetTokenLoadersForTesting(nil, func(path, target string) (string, error) {
@@ -390,7 +390,7 @@ func TestHandleNotifyCommand_UpdateSendNtfyWithoutTargetSecrets(t *testing.T) {
 	if gotTitle != "WARNING: Duplicacy Backup simulated update install failed" {
 		t.Fatalf("Title = %q", gotTitle)
 	}
-	if strings.Contains(gotBody, "Label:") || strings.Contains(gotBody, "Target:") || !strings.Contains(gotBody, "Operation: update") {
+	if strings.Contains(gotBody, "Label:") || strings.Contains(gotBody, "StorageName:") || !strings.Contains(gotBody, "Operation: update") {
 		t.Fatalf("Body = %q", gotBody)
 	}
 }

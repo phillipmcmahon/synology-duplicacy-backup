@@ -25,7 +25,7 @@ func (h *HealthRunner) prepare(req *HealthRequest) (*config.Config, *Plan, *secr
 		return nil, nil, nil, err
 	}
 
-	plan.Config.Target = cfg.Target
+	plan.Config.StorageName = cfg.StorageName
 	plan.Config.Location = cfg.Location
 	plan.Paths.ConfigFile = cfgPlan.Paths.ConfigFile
 	plan.Paths.SecretsFile = cfgPlan.Paths.SecretsFile

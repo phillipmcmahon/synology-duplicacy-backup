@@ -31,7 +31,7 @@ func NewNotifyRequest(req *Request) NotifyRequest {
 		Command:     req.NotifyCommand,
 		Scope:       req.NotifyScope,
 		Label:       req.Source,
-		TargetName:  req.RequestedTarget,
+		TargetName:  req.Target(),
 		ConfigDir:   req.ConfigDir,
 		SecretsDir:  req.SecretsDir,
 		JSONSummary: req.JSONSummary,

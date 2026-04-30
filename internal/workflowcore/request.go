@@ -42,6 +42,7 @@ type Request struct {
 	RollbackYes              bool
 	UpdateCommand            string
 	ForcePrune               bool
+	RequestedStorageName     string
 	RequestedTarget          string
 	DryRun                   bool
 	Verbose                  bool
@@ -69,6 +70,9 @@ type Request struct {
 
 func (r *Request) Target() string {
 	if r != nil {
+		if r.RequestedStorageName != "" {
+			return r.RequestedStorageName
+		}
 		return r.RequestedTarget
 	}
 	return ""

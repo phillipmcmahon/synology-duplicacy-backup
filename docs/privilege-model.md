@@ -40,7 +40,7 @@ For root-required commands, keep the canonical runtime profile under the
 operator user and invoke through `sudo` from that operator account:
 
 ```bash
-sudo duplicacy-backup backup --target onsite-usb homes
+sudo duplicacy-backup backup --storage onsite-usb homes
 ```
 
 When invoked this way with normal sudo metadata, default config, secrets, logs,
@@ -72,11 +72,11 @@ XDG_STATE_HOME=/var/services/homes/operator/.local/state \
   duplicacy-backup config explain \
     --config-dir /var/services/homes/operator/.config/duplicacy-backup \
     --secrets-dir /var/services/homes/operator/.config/duplicacy-backup/secrets \
-    --target onsite-usb homes
+    --storage onsite-usb homes
 ```
 
-For label/target commands, pass both `--config-dir` and `--secrets-dir` so the
-whole runtime profile is explicit even when a particular target does not need a
+For label/storage commands, pass both `--config-dir` and `--secrets-dir` so the
+whole runtime profile is explicit even when a particular storage entry does not need a
 secrets file. Setting `XDG_STATE_HOME` prevents logs, state, and locks from
 falling back to `/root`.
 
@@ -96,12 +96,12 @@ Use exact command lines for the scheduled root-required operations:
 
 ```sudoers
 Cmnd_Alias DUPLICACY_BACKUP_SCHEDULED_BACKUPS = \
-    /usr/local/bin/duplicacy-backup backup --target onsite-usb homes, \
-    /usr/local/bin/duplicacy-backup backup --target offsite-storj homes
+    /usr/local/bin/duplicacy-backup backup --storage onsite-usb homes, \
+    /usr/local/bin/duplicacy-backup backup --storage offsite-storj homes
 
 Cmnd_Alias DUPLICACY_BACKUP_LOCAL_REPO_MUTATION = \
-    /usr/local/bin/duplicacy-backup prune --target onsite-usb homes, \
-    /usr/local/bin/duplicacy-backup cleanup-storage --target onsite-usb homes
+    /usr/local/bin/duplicacy-backup prune --storage onsite-usb homes, \
+    /usr/local/bin/duplicacy-backup cleanup-storage --storage onsite-usb homes
 
 operator ALL=(root) NOPASSWD: DUPLICACY_BACKUP_SCHEDULED_BACKUPS, DUPLICACY_BACKUP_LOCAL_REPO_MUTATION
 ```
@@ -112,7 +112,7 @@ Then set the sudoers file mode:
 sudo chmod 0440 /etc/sudoers.d/duplicacy-backup-operator
 ```
 
-Replace `operator`, labels, and targets with the real scheduled task values.
+Replace `operator`, labels, and storage names with the real scheduled task values.
 Use `/usr/local/bin/duplicacy-backup` rather than relying on `PATH`, and use
 `sudo -n` in scheduled commands so a missing sudoers entry fails immediately
 instead of waiting for a password prompt.

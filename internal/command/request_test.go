@@ -206,14 +206,14 @@ func TestParseRequest_SetsCommandDiscriminator(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "backup", args: []string{"backup", "--target", "onsite-usb", "homes"}, want: "backup"},
-		{name: "cleanup-storage", args: []string{"cleanup-storage", "--target", "onsite-usb", "homes"}, want: "cleanup-storage"},
-		{name: "config", args: []string{"config", "validate", "--target", "onsite-usb", "homes"}, want: "config"},
-		{name: "diagnostics", args: []string{"diagnostics", "--target", "onsite-usb", "homes"}, want: "diagnostics"},
-		{name: "health", args: []string{"health", "status", "--target", "onsite-usb", "homes"}, want: "health"},
-		{name: "notify", args: []string{"notify", "test", "--target", "onsite-usb", "homes"}, want: "notify"},
-		{name: "prune", args: []string{"prune", "--target", "onsite-usb", "homes"}, want: "prune"},
-		{name: "restore", args: []string{"restore", "plan", "--target", "onsite-usb", "homes"}, want: "restore"},
+		{name: "backup", args: []string{"backup", "--storage", "onsite-usb", "homes"}, want: "backup"},
+		{name: "cleanup-storage", args: []string{"cleanup-storage", "--storage", "onsite-usb", "homes"}, want: "cleanup-storage"},
+		{name: "config", args: []string{"config", "validate", "--storage", "onsite-usb", "homes"}, want: "config"},
+		{name: "diagnostics", args: []string{"diagnostics", "--storage", "onsite-usb", "homes"}, want: "diagnostics"},
+		{name: "health", args: []string{"health", "status", "--storage", "onsite-usb", "homes"}, want: "health"},
+		{name: "notify", args: []string{"notify", "test", "--storage", "onsite-usb", "homes"}, want: "notify"},
+		{name: "prune", args: []string{"prune", "--storage", "onsite-usb", "homes"}, want: "prune"},
+		{name: "restore", args: []string{"restore", "plan", "--storage", "onsite-usb", "homes"}, want: "restore"},
 		{name: "rollback", args: []string{"rollback", "--check-only"}, want: "rollback"},
 		{name: "update", args: []string{"update", "--check-only"}, want: "update"},
 	}
@@ -233,7 +233,7 @@ func TestParseRequest_SetsCommandDiscriminator(t *testing.T) {
 
 func TestParseRequest_ConfigValidate(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"config", "validate", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"config", "validate", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -244,7 +244,7 @@ func TestParseRequest_ConfigValidate(t *testing.T) {
 
 func TestParseRequest_ConfigValidateVerbose(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"config", "validate", "--verbose", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"config", "validate", "--verbose", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -255,7 +255,7 @@ func TestParseRequest_ConfigValidateVerbose(t *testing.T) {
 
 func TestParseRequest_ConfigExplainExplicitTarget(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"config", "explain", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"config", "explain", "--storage", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -266,7 +266,7 @@ func TestParseRequest_ConfigExplainExplicitTarget(t *testing.T) {
 
 func TestParseRequest_Diagnostics(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"diagnostics", "--target", "offsite-storj", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"diagnostics", "--storage", "offsite-storj", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -282,7 +282,7 @@ func TestParseRequest_Diagnostics(t *testing.T) {
 
 func TestParseRequest_TargetFlag(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"health", "verify", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"health", "verify", "--storage", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -293,7 +293,7 @@ func TestParseRequest_TargetFlag(t *testing.T) {
 
 func TestParseRequest_NotifyTest(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"notify", "test", "--target", "offsite-storj", "--provider", "ntfy", "--severity", "critical", "--summary", "Smoke", "--message", "Synthetic", "--json-summary", "--dry-run", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"notify", "test", "--storage", "offsite-storj", "--provider", "ntfy", "--severity", "critical", "--summary", "Smoke", "--message", "Synthetic", "--json-summary", "--dry-run", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -311,7 +311,7 @@ func TestParseRequest_NotifyTest(t *testing.T) {
 
 func TestParseRequest_NotifyTestAllowsOmittedEvent(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"notify", "test", "--target", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"notify", "test", "--storage", "offsite-storj", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -340,15 +340,15 @@ func TestParseRequest_NotifyTestUpdate(t *testing.T) {
 
 func TestParseRequest_NotifyTestUpdateRejectsTarget(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"notify", "test", "update", "--target", "onsite-usb"}, meta, workflow.DefaultEnv())
-	if err == nil || !strings.Contains(err.Error(), "does not use --target") {
+	_, err := ParseRequest([]string{"notify", "test", "update", "--storage", "onsite-usb"}, meta, workflow.DefaultEnv())
+	if err == nil || !strings.Contains(err.Error(), "does not use --storage") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
 }
 
 func TestParseRequest_RestorePlan(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "plan", "--target", "offsite-storj", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"restore", "plan", "--storage", "offsite-storj", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -363,7 +363,7 @@ func TestParseRequest_RestorePlan(t *testing.T) {
 
 func TestParseRequest_RestoreRunRemoteWithSecrets(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "run", "--target", "offsite-storj", "--revision", "2403", "--path", "docs/readme.md", "--workspace", "/restore/homes", "--config-dir", "/cfg", "--secrets-dir", "/sec", "--yes", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"restore", "run", "--storage", "offsite-storj", "--revision", "2403", "--path", "docs/readme.md", "--workspace", "/restore/homes", "--config-dir", "/cfg", "--secrets-dir", "/sec", "--yes", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -382,7 +382,7 @@ func TestParseRequest_RestoreRunRemoteWithSecrets(t *testing.T) {
 
 func TestParseRequest_RestoreRunMissingLabelUsesLabelError(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs/*", "--yes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"restore", "run", "--storage", "onsite-usb", "--revision", "2403", "--path", "docs/*", "--yes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "backup label required") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
@@ -390,7 +390,7 @@ func TestParseRequest_RestoreRunMissingLabelUsesLabelError(t *testing.T) {
 
 func TestParseRequest_RestoreListRevisions(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "list-revisions", "--target", "offsite-storj", "--limit", "25", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"restore", "list-revisions", "--storage", "offsite-storj", "--limit", "25", "--json-summary", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -407,7 +407,7 @@ func TestParseRequest_RestoreListRevisions(t *testing.T) {
 
 func TestParseRequest_RestoreRun(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace-root", "/restore", "--workspace-template", "{label}-{target}-{revision}-{run_timestamp}", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"restore", "run", "--storage", "onsite-usb", "--revision", "2403", "--path", "docs", "--workspace-root", "/restore", "--workspace-template", "{label}-{storage}-{revision}-{run_timestamp}", "--dry-run", "--yes", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -416,7 +416,7 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 		result.Request.RestoreRevision != 2403 ||
 		result.Request.RestorePath != "docs" ||
 		result.Request.RestoreWorkspaceRoot != "/restore" ||
-		result.Request.RestoreWorkspaceTemplate != "{label}-{target}-{revision}-{run_timestamp}" ||
+		result.Request.RestoreWorkspaceTemplate != "{label}-{storage}-{revision}-{run_timestamp}" ||
 		!result.Request.DryRun ||
 		!result.Request.RestoreYes ||
 		result.Request.Source != "homes" {
@@ -426,14 +426,14 @@ func TestParseRequest_RestoreRun(t *testing.T) {
 
 func TestParseRequest_RestoreSelect(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"restore", "select", "--target", "onsite-usb", "--workspace-root", "/restore", "--workspace-template", "{label}-{target}-{run_timestamp}", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"restore", "select", "--storage", "onsite-usb", "--workspace-root", "/restore", "--workspace-template", "{label}-{storage}-{run_timestamp}", "--path-prefix", "phillipmcmahon/code", "--config-dir", "/cfg", "--secrets-dir", "/sec", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
 	if result.Request.RestoreCommand != "select" ||
 		result.Request.Target() != "onsite-usb" ||
 		result.Request.RestoreWorkspaceRoot != "/restore" ||
-		result.Request.RestoreWorkspaceTemplate != "{label}-{target}-{run_timestamp}" ||
+		result.Request.RestoreWorkspaceTemplate != "{label}-{storage}-{run_timestamp}" ||
 		result.Request.RestorePathPrefix != "phillipmcmahon/code" ||
 		result.Request.ConfigDir != "/cfg" ||
 		result.Request.SecretsDir != "/sec" ||
@@ -444,7 +444,7 @@ func TestParseRequest_RestoreSelect(t *testing.T) {
 
 func TestParseRequest_RestoreRunRequiresRevision(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"restore", "run", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"restore", "run", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "requires --revision") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
@@ -452,7 +452,7 @@ func TestParseRequest_RestoreRunRequiresRevision(t *testing.T) {
 
 func TestParseRequest_RestorePlanRejectsRuntimeFlags(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"restore", "plan", "--target", "onsite-usb", "--dry-run", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"restore", "plan", "--storage", "onsite-usb", "--dry-run", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "unknown option --dry-run") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
@@ -460,7 +460,7 @@ func TestParseRequest_RestorePlanRejectsRuntimeFlags(t *testing.T) {
 
 func TestParseRequest_RestoreUnknownCommandFails(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"restore", "execute", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"restore", "execute", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "unknown restore command") {
 		t.Fatalf("ParseRequest() err = %v", err)
 	}
@@ -469,7 +469,7 @@ func TestParseRequest_RestoreUnknownCommandFails(t *testing.T) {
 func TestParseFailureContext_HealthUsesSharedFlags(t *testing.T) {
 	ctx := ParseFailureContext([]string{
 		"health", "verify",
-		"--target", "offsite-storj",
+		"--storage", "offsite-storj",
 		"--json-summary",
 		"--verbose",
 		"--config-dir", "/cfg",
@@ -480,7 +480,7 @@ func TestParseFailureContext_HealthUsesSharedFlags(t *testing.T) {
 		t.Fatalf("ctx = %+v", ctx)
 	}
 	if ctx.Request.HealthCommand != "verify" ||
-		ctx.Request.RequestedTarget != "offsite-storj" ||
+		ctx.Request.Target() != "offsite-storj" ||
 		ctx.Request.ConfigDir != "/cfg" ||
 		ctx.Request.SecretsDir != "/sec" ||
 		ctx.Request.Source != "homes" ||
@@ -493,7 +493,7 @@ func TestParseFailureContext_HealthUsesSharedFlags(t *testing.T) {
 func TestParseFailureContext_NotifyUsesSharedFlags(t *testing.T) {
 	ctx := ParseFailureContext([]string{
 		"notify", "test",
-		"--target", "offsite-storj",
+		"--storage", "offsite-storj",
 		"--provider", "ntfy",
 		"--severity", "critical",
 		"--summary", "Synthetic summary",
@@ -509,7 +509,7 @@ func TestParseFailureContext_NotifyUsesSharedFlags(t *testing.T) {
 		t.Fatalf("ctx = %+v", ctx)
 	}
 	if ctx.Request.NotifyCommand != "test" ||
-		ctx.Request.RequestedTarget != "offsite-storj" ||
+		ctx.Request.Target() != "offsite-storj" ||
 		ctx.Request.NotifyProvider != "ntfy" ||
 		ctx.Request.NotifySeverity != "critical" ||
 		ctx.Request.NotifySummary != "Synthetic summary" ||
@@ -526,7 +526,7 @@ func TestParseFailureContext_NotifyUsesSharedFlags(t *testing.T) {
 
 func TestParseRequest_HealthStatus(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"health", "status", "--target", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"health", "status", "--storage", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -619,7 +619,7 @@ func TestParseRequest_HealthUnknownCommandFails(t *testing.T) {
 
 func TestParseRequest_RejectsOldTopLevelOperationFlags(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -627,14 +627,14 @@ func TestParseRequest_RejectsOldTopLevelOperationFlags(t *testing.T) {
 	if !ok || !reqErr.ShowUsage {
 		t.Fatalf("error = %#v", err)
 	}
-	if got := err.Error(); got != "unknown top-level option --target; use a command such as backup, prune, or cleanup-storage" {
+	if got := err.Error(); got != "unknown top-level option --storage; use a command such as backup, prune, or cleanup-storage" {
 		t.Fatalf("error = %q", got)
 	}
 }
 
 func TestParseRequest_BackupCommand(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -645,7 +645,7 @@ func TestParseRequest_BackupCommand(t *testing.T) {
 
 func TestParseRequest_CleanupStorageCommand(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"cleanup-storage", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"cleanup-storage", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -657,9 +657,9 @@ func TestParseRequest_CleanupStorageCommand(t *testing.T) {
 func TestParseRequest_RuntimeCommandsRejectOldOperationFlags(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	for _, args := range [][]string{
-		{"backup", "--target", "onsite-usb", "--prune", "homes"},
-		{"prune", "--target", "onsite-usb", "--backup", "homes"},
-		{"cleanup-storage", "--target", "onsite-usb", "--fix-perms", "homes"},
+		{"backup", "--storage", "onsite-usb", "--prune", "homes"},
+		{"prune", "--storage", "onsite-usb", "--backup", "homes"},
+		{"cleanup-storage", "--storage", "onsite-usb", "--fix-perms", "homes"},
 	} {
 		_, err := ParseRequest(args, meta, workflow.DefaultEnv())
 		if err == nil || !strings.Contains(err.Error(), "unknown option") {
@@ -670,7 +670,7 @@ func TestParseRequest_RuntimeCommandsRejectOldOperationFlags(t *testing.T) {
 
 func TestParseRequest_PruneForce(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"prune", "--target", "onsite-usb", "--force", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"prune", "--storage", "onsite-usb", "--force", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -681,7 +681,7 @@ func TestParseRequest_PruneForce(t *testing.T) {
 
 func TestParseRequest_Verbose(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--verbose", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "--verbose", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -692,7 +692,7 @@ func TestParseRequest_Verbose(t *testing.T) {
 
 func TestParseRequest_JSONSummary(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	result, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultEnv())
+	result, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "--json-summary", "homes"}, meta, workflow.DefaultEnv())
 	if err != nil {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -703,7 +703,7 @@ func TestParseRequest_JSONSummary(t *testing.T) {
 
 func TestParseRequest_FixPermsCommandIsRemoved(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"fix-perms", "--target", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"fix-perms", "--storage", "onsite-usb", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "unknown command fix-perms") {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -711,7 +711,7 @@ func TestParseRequest_FixPermsCommandIsRemoved(t *testing.T) {
 
 func TestParseRequest_FixPermsFlagIsRemoved(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "--fix-perms", "homes"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "--fix-perms", "homes"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "unknown option --fix-perms") {
 		t.Fatalf("ParseRequest() error = %v", err)
 	}
@@ -719,7 +719,7 @@ func TestParseRequest_FixPermsFlagIsRemoved(t *testing.T) {
 
 func TestParseRequest_InvalidLabel(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "../etc"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "../etc"}, meta, workflow.DefaultEnv())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -727,7 +727,7 @@ func TestParseRequest_InvalidLabel(t *testing.T) {
 
 func TestParseRequest_ExtraPositionalArgsFail(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"backup", "--target", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"backup", "--storage", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultEnv())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -830,9 +830,9 @@ func TestParseRequest_OptionValueErrors(t *testing.T) {
 func TestParseRequest_UnknownOptionsFail(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	cases := [][]string{
-		{"backup", "--target", "onsite-usb", "--mystery", "homes"},
-		{"config", "validate", "--target", "onsite-usb", "--mystery", "homes"},
-		{"notify", "test", "--target", "onsite-usb", "--mystery", "homes"},
+		{"backup", "--storage", "onsite-usb", "--mystery", "homes"},
+		{"config", "validate", "--storage", "onsite-usb", "--mystery", "homes"},
+		{"notify", "test", "--storage", "onsite-usb", "--mystery", "homes"},
 	}
 	for _, args := range cases {
 		_, err := ParseRequest(args, meta, workflow.DefaultEnv())
@@ -844,7 +844,7 @@ func TestParseRequest_UnknownOptionsFail(t *testing.T) {
 
 func TestParseRequest_ConfigExtraArgsFail(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	_, err := ParseRequest([]string{"config", "validate", "--target", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultEnv())
+	_, err := ParseRequest([]string{"config", "validate", "--storage", "onsite-usb", "homes", "extra"}, meta, workflow.DefaultEnv())
 	if err == nil || !strings.Contains(err.Error(), "unexpected extra arguments") {
 		t.Fatalf("err = %v", err)
 	}
@@ -859,7 +859,7 @@ func TestParseRequest_TargetRequiredForRuntimeConfigAndHealth(t *testing.T) {
 		{"health", "status", "homes"},
 		{"notify", "test", "homes"},
 	} {
-		if _, err := ParseRequest(args, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "--target is required") {
+		if _, err := ParseRequest(args, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "--storage is required") {
 			t.Fatalf("args %v err = %v", args, err)
 		}
 	}
@@ -867,10 +867,10 @@ func TestParseRequest_TargetRequiredForRuntimeConfigAndHealth(t *testing.T) {
 
 func TestParseRequest_NotifyRejectsInvalidProviderAndSeverity(t *testing.T) {
 	meta := workflow.MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	if _, err := ParseRequest([]string{"notify", "test", "--target", "onsite-usb", "--provider", "email", "homes"}, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "unsupported notify provider") {
+	if _, err := ParseRequest([]string{"notify", "test", "--storage", "onsite-usb", "--provider", "email", "homes"}, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "unsupported notify provider") {
 		t.Fatalf("provider err = %v", err)
 	}
-	if _, err := ParseRequest([]string{"notify", "test", "--target", "onsite-usb", "--severity", "low", "homes"}, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "unsupported notify severity") {
+	if _, err := ParseRequest([]string{"notify", "test", "--storage", "onsite-usb", "--severity", "low", "homes"}, meta, workflow.DefaultEnv()); err == nil || !strings.Contains(err.Error(), "unsupported notify severity") {
 		t.Fatalf("severity err = %v", err)
 	}
 }

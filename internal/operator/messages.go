@@ -202,7 +202,7 @@ func operatorConfigMessage(err *apperrors.ConfigError) string {
 			if section := err.Context["section"]; section != "" {
 				return withHint(
 					err.Cause.Error(),
-					fmt.Sprintf("add [targets.%s] to <label>-backup.toml or choose a different --target", section),
+					fmt.Sprintf("add [storage.%s] to <label>-backup.toml or choose a different --storage", section),
 				)
 			}
 			return err.Cause.Error()
@@ -234,7 +234,7 @@ func operatorSecretsMessage(err *apperrors.SecretsError) string {
 		if path := err.Context["path"]; path != "" {
 			return withHint(
 				fmt.Sprintf("Secrets file not found: %s", path),
-				"create <label>-secrets.toml under the configured secrets directory and add [targets.<name>] plus [targets.<name>.keys] when the selected Duplicacy storage needs runtime keys",
+				"create <label>-secrets.toml under the configured secrets directory and add [storage.<name>] plus [storage.<name>.keys] when the selected Duplicacy storage needs runtime keys",
 			)
 		}
 	case "permissions":

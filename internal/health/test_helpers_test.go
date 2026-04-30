@@ -24,7 +24,7 @@ func saveRunState(meta Metadata, label, target string, state *RunState) error {
 		return fmt.Errorf("failed to create state directory %s: %w", meta.StateDir, err)
 	}
 	state.Label = label
-	state.Target = target
+	state.Storage = target
 	body, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func writeTargetTestConfig(t *testing.T, dir, label, target, body string) string
 func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 	t.Helper()
 	path := filepath.Join(dir, fmt.Sprintf("%s-secrets.toml", label))
-	body := fmt.Sprintf("[targets.%s.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
+	body := fmt.Sprintf("[storage.%s.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -80,7 +80,7 @@ func buildLabelConfig(label, target, location, sourcePath, storage string, threa
 		}
 	}
 
-	fmt.Fprintf(&b, "\n[targets.%s]\n", target)
+	fmt.Fprintf(&b, "\n[storage.%s]\n", target)
 	fmt.Fprintf(&b, "location = %q\n", location)
 	fmt.Fprintf(&b, "storage = %q\n", storage)
 

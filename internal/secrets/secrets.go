@@ -1,5 +1,5 @@
 // Package secrets handles loading and validating per-label secret files
-// for target-specific Duplicacy storage keys and notification credentials.
+// for storage-specific Duplicacy storage keys and notification credentials.
 package secrets
 
 import (
@@ -22,14 +22,14 @@ type Secrets struct {
 	Keys map[string]string
 }
 
-type fileTargetSecrets struct {
+type fileStorageSecrets struct {
 	Keys                     map[string]string `toml:"keys"`
 	HealthWebhookBearerToken *string           `toml:"health_webhook_bearer_token"`
 	HealthNtfyToken          *string           `toml:"health_ntfy_token"`
 }
 
 type fileSecrets struct {
-	Targets map[string]fileTargetSecrets `toml:"targets"`
+	Storage map[string]fileStorageSecrets `toml:"storage"`
 }
 
 var upperCaseSecretsKeyPattern = regexp.MustCompile(`(?m)^\s*[A-Z][A-Z0-9_]*\s*=`)
@@ -104,8 +104,8 @@ func sudoOperatorUID() (uint32, bool) {
 	return uint32(parsed), true
 }
 
-// ParseSecrets decodes a TOML secrets file from r for a specific target.
-func ParseSecrets(r io.Reader, source, target string) (*Secrets, error) {
+// ParseSecrets decodes a TOML secrets file from r for a specific storage entry.
+func ParseSecrets(r io.Reader, source, storageName string) (*Secrets, error) {
 	body, err := io.ReadAll(r)
 	if err != nil {
 		return nil, apperrors.NewSecretsError("read", fmt.Errorf("error reading secrets file: %w", err), "source", source)
@@ -126,15 +126,15 @@ func ParseSecrets(r io.Reader, source, target string) (*Secrets, error) {
 		return nil, apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, source), "source", source)
 	}
 
-	section, ok := raw.Targets[target]
+	section, ok := raw.Storage[storageName]
 	if !ok {
-		return nil, apperrors.NewSecretsError("required", fmt.Errorf("secrets file %s is missing required [targets.%s] table", source, target), "source", source, "target", target)
+		return nil, apperrors.NewSecretsError("required", fmt.Errorf("secrets file %s is missing required [storage.%s] table", source, storageName), "source", source, "storage", storageName)
 	}
 	return &Secrets{Keys: copyStringMap(section.Keys)}, nil
 }
 
-// LoadSecretsFile loads and validates a secrets TOML file for a specific target.
-func LoadSecretsFile(path, target string) (*Secrets, error) {
+// LoadSecretsFile loads and validates a secrets TOML file for a specific storage entry.
+func LoadSecretsFile(path, storageName string) (*Secrets, error) {
 	if err := ValidateFileAccess(path); err != nil {
 		return nil, err
 	}
@@ -145,25 +145,25 @@ func LoadSecretsFile(path, target string) (*Secrets, error) {
 	}
 	defer f.Close()
 
-	return ParseSecrets(f, path, target)
+	return ParseSecrets(f, path, storageName)
 }
 
-func LoadOptionalHealthWebhookToken(path, target string) (string, error) {
-	return loadOptionalTargetToken(path, target, func(section fileTargetSecrets) *string {
+func LoadOptionalHealthWebhookToken(path, storageName string) (string, error) {
+	return loadOptionalStorageToken(path, storageName, func(section fileStorageSecrets) *string {
 		return section.HealthWebhookBearerToken
 	})
 }
 
-func LoadOptionalHealthNtfyToken(path, target string) (string, error) {
+func LoadOptionalHealthNtfyToken(path, storageName string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	return loadOptionalTargetToken(path, target, func(section fileTargetSecrets) *string {
+	return loadOptionalStorageToken(path, storageName, func(section fileStorageSecrets) *string {
 		return section.HealthNtfyToken
 	})
 }
 
-func loadOptionalTargetToken(path, target string, selectToken func(fileTargetSecrets) *string) (string, error) {
+func loadOptionalStorageToken(path, storageName string, selectToken func(fileStorageSecrets) *string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
@@ -181,10 +181,10 @@ func loadOptionalTargetToken(path, target string, selectToken func(fileTargetSec
 	if err != nil {
 		return "", apperrors.NewSecretsError("open", fmt.Errorf("secrets file is not readable: %s", path), "path", path)
 	}
-	return parseOptionalTargetToken(string(body), path, target, selectToken)
+	return parseOptionalStorageToken(string(body), path, storageName, selectToken)
 }
 
-func parseOptionalTargetToken(text, source, target string, selectToken func(fileTargetSecrets) *string) (string, error) {
+func parseOptionalStorageToken(text, source, storageName string, selectToken func(fileStorageSecrets) *string) (string, error) {
 	if err := validateSecretsKeysUseLowerSnakeCase(text, source); err != nil {
 		return "", err
 	}
@@ -199,7 +199,7 @@ func parseOptionalTargetToken(text, source, target string, selectToken func(file
 		return "", apperrors.NewSecretsError("parse", fmt.Errorf("unexpected key %q in secrets file %s", key, source), "source", source)
 	}
 
-	section, ok := raw.Targets[target]
+	section, ok := raw.Storage[storageName]
 	if !ok {
 		return "", nil
 	}

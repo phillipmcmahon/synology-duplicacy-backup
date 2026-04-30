@@ -25,7 +25,7 @@ func (p *Presenter) PrintHeader(report *Report) {
 	p.log.Info("%s", statusLinef("Health check started - %s", report.StartedAt.Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Check", presentation.Title(report.CheckType))
 	p.log.PrintLine("Label", report.Label)
-	p.log.PrintLine("Target", report.Target)
+	p.log.PrintLine("Storage", report.Target)
 	if report.Location != "" {
 		p.log.PrintLine("Location", report.Location)
 	}

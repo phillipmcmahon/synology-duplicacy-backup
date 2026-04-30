@@ -1,7 +1,7 @@
 # Quickstart
 
 This is the shortest useful path from an installed binary to one validated
-backup. It assumes a Synology DSM NAS, a Btrfs-backed source, and a target that
+backup. It assumes a Synology DSM NAS, a Btrfs-backed source, and a storage entry that
 uses S3-compatible Duplicacy credentials.
 
 ## 1. Create One Config File
@@ -23,7 +23,7 @@ freshness_fail_hours = 48
 doctor_warn_after_hours = 48
 verify_warn_after_hours = 168
 
-[targets.offsite-s3]
+[storage.offsite-s3]
 location = "remote"
 storage = "s3://s3.example.com/my-backup-bucket/homes"
 ```
@@ -41,7 +41,7 @@ chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 Create `$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml`:
 
 ```toml
-[targets.offsite-s3.keys]
+[storage.offsite-s3.keys]
 s3_id = "replace-with-access-key"
 s3_secret = "replace-with-secret-key"
 ```
@@ -57,7 +57,7 @@ chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ## 3. Validate
 
 ```sh
-duplicacy-backup config validate --target offsite-s3 homes
+duplicacy-backup config validate --storage offsite-s3 homes
 ```
 
 Validation should report `Result : Passed`. If it fails, fix that before
@@ -66,7 +66,7 @@ running a backup.
 ## 4. Dry Run
 
 ```sh
-sudo duplicacy-backup backup --target offsite-s3 --dry-run homes
+sudo duplicacy-backup backup --storage offsite-s3 --dry-run homes
 ```
 
 Backup uses `sudo` because it creates a Btrfs snapshot and reads the full source
@@ -76,13 +76,13 @@ under the operator profile rather than `/root`.
 ## 5. Real Backup
 
 ```sh
-sudo duplicacy-backup backup --target offsite-s3 homes
+sudo duplicacy-backup backup --storage offsite-s3 homes
 ```
 
 After the first backup, check health:
 
 ```sh
-duplicacy-backup health status --target offsite-s3 homes
+duplicacy-backup health status --storage offsite-s3 homes
 ```
 
 For scheduling, restore drills, local filesystem repository rules, and update

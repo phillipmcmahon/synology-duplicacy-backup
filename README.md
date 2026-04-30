@@ -8,7 +8,7 @@ application now also owns restore drills, health checks, diagnostics, managed
 updates, and rollback workflows.
 
 It runs Duplicacy backups on Synology NAS using btrfs snapshots, with support
-for named per-label targets, threshold-guarded prune, and directory-based
+for named per-label storage entries, threshold-guarded prune, and directory-based
 locking. The same command surface also gives
 operators safe restore workflows, read-only repository health checks, redacted
 support bundles, and managed install maintenance.
@@ -27,9 +27,9 @@ workflow in [`docs/linux-environment.md`](docs/linux-environment.md) is for
 development, validation, and packaging only; it is not a generic-Linux
 production support statement.
 
-## Target Model
+## Storage Model
 
-Each named target describes two things:
+Each named storage entry describes two things:
 
 - `storage`: the complete Duplicacy storage value
 - `location`: where that storage lives operationally
@@ -46,24 +46,23 @@ operator scheduling and reporting.
 
 In practice:
 
-- targets use `storage = "..."` containing the complete Duplicacy backend path
-- runtime keys live under `[targets.<name>.keys]` in the secrets file and are
+- storage entries use `storage = "..."` containing the complete Duplicacy backend path
+- runtime keys live under `[storage.<name>.keys]` in the secrets file and are
   loaded for known Duplicacy backends that require them; S3-compatible
   Duplicacy schemes `s3://`, `s3c://`, `minio://`, and `minios://` use
   `s3_id` and `s3_secret`, while native `storj://` uses `storj_key` and
   `storj_passphrase`
 - path-based filesystem repositories are protected OS resources; run prune,
-  prune dry-run, or actual cleanup mutation for those targets as root
+  prune dry-run, or actual cleanup mutation for those storage entries as root
 - `cleanup-storage --dry-run` is simulation-only and does not scan repository
   chunks
 - object and remote repository mutation is governed by storage credentials
-- runtime, health, `config explain`, and `config paths` surface target
-  location in operator-facing output
+- runtime, health, `config explain`, and `config paths` surface storage location in operator-facing output
 
 ## Highlights
 
 - Read-only btrfs snapshots for consistent backups
-- Named targets for onsite and offsite backups
+- Named storage entries for onsite and offsite backups
 - Guided full and selective restore drills into safe workspaces
 - Read-only health, doctor, and verify checks for automation
 - Redacted diagnostics bundles for operator support
@@ -71,7 +70,7 @@ In practice:
 - Threshold-guarded prune with optional forced override
 - Dry-run support for previewing actions
 - Structured logging with rotation
-- TOML-based per-label configuration with named targets
+- TOML-based per-label configuration with named storage entries
 
 ## Quick Start
 
@@ -85,7 +84,7 @@ project setup context.
 # Current platform
 make build
 
-# Synology targets
+# Synology builds
 make synology
 ```
 
@@ -129,9 +128,9 @@ chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 The installer manages the binary only. Runtime config and secrets are
 operator-owned files under the user profile.
 
-For labels with Duplicacy storage targets, or for any target that needs
+For labels with Duplicacy storage entries, or for any storage entry that needs
 authenticated notification delivery, create a matching label secrets file under
-`$HOME/.config/duplicacy-backup/secrets` and add target-specific entries inside
+`$HOME/.config/duplicacy-backup/secrets` and add storage-specific entries inside
 it:
 
 ```bash
@@ -141,27 +140,27 @@ chmod 700 "$HOME/.config/duplicacy-backup/secrets"
 chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ```
 
-Duplicacy storage keys live under `[targets.<name>.keys]` and are written to
+Duplicacy storage keys live under `[storage.<name>.keys]` and are written to
 the generated Duplicacy preferences file using the exact key names Duplicacy
 expects, such as `s3_id` and `s3_secret` for S3-compatible storage.
 
-The matching backup TOML models targets explicitly with `location` and
+The matching backup TOML models storage entries explicitly with `location` and
 `storage`. For example:
 
 ```toml
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
 
-[targets.offsite-usb]
+[storage.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
-[targets.onsite-rustfs]
+[storage.onsite-rustfs]
 location = "local"
 storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
@@ -171,31 +170,31 @@ storage = "s3://rustfs.local/my-backup-bucket/homes"
 Start with validation and a dry run before scheduling anything:
 
 ```bash
-# Validate the selected local repository target from the homes config
-sudo duplicacy-backup config validate --target onsite-usb homes
+# Validate the selected local repository storage from the homes config
+sudo duplicacy-backup config validate --storage onsite-usb homes
 
 # Preview a backup without changing storage
-sudo duplicacy-backup backup --target onsite-usb --dry-run homes
+sudo duplicacy-backup backup --storage onsite-usb --dry-run homes
 
 # Run a backup
-sudo duplicacy-backup backup --target onsite-usb homes
-sudo duplicacy-backup prune --target onsite-usb homes
-sudo duplicacy-backup cleanup-storage --target onsite-usb homes
+sudo duplicacy-backup backup --storage onsite-usb homes
+sudo duplicacy-backup prune --storage onsite-usb homes
+sudo duplicacy-backup cleanup-storage --storage onsite-usb homes
 
 # Check backup freshness and repository status
-sudo duplicacy-backup health status --target onsite-usb homes
+sudo duplicacy-backup health status --storage onsite-usb homes
 
-# Gather a redacted support bundle for one label and target
-duplicacy-backup diagnostics --target onsite-usb homes
+# Gather a redacted support bundle for one label and storage
+duplicacy-backup diagnostics --storage onsite-usb homes
 
 # Start the guided operator restore flow
-sudo duplicacy-backup restore select --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --storage onsite-usb homes
+sudo duplicacy-backup restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert or scripted restore path
-duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+duplicacy-backup restore plan --storage onsite-usb homes
+sudo duplicacy-backup restore list-revisions --storage onsite-usb homes
+sudo duplicacy-backup restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes
 ```
 
 When a root-required command is invoked with normal `sudo` metadata from the
@@ -224,7 +223,7 @@ Use the documentation by task:
 | Run common commands | [Operator cheat sheet](docs/cheatsheet.md) |
 | Diagnose failed runs or confusing status output | [Troubleshooting](docs/troubleshooting.md) |
 | Check exact CLI syntax | [CLI reference](docs/cli.md) |
-| Configure labels, targets, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
+| Configure labels, storage names, health, notifications, and secrets | [Configuration and secrets](docs/configuration.md) |
 | Plan Synology Task Scheduler jobs | [Workflow and scheduling](docs/workflow-scheduling.md) |
 | Restore onto a replacement NAS | [Restore onto a new NAS](docs/new-nas-restore.md) |
 | Practise full or selective restores safely | [Restore drills](docs/restore-drills.md) |
@@ -235,20 +234,20 @@ Core operating rules:
 
 - `backup`, `prune`, `cleanup-storage`, `config`,
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
-  commands require an explicit `--target <name>`.
+  commands require an explicit `--storage <name>`.
 - Runtime operations are first-class commands. Use `backup`, `prune`,
   or `cleanup-storage`.
 - Storage keys are loaded for known Duplicacy backends that require them.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
-- `health status`, `health doctor`, and `health verify` use target-specific
-  state under `$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json`
+- `health status`, `health doctor`, and `health verify` use storage-specific
+  state under `$HOME/.local/state/duplicacy-backup/state/<label>.<storage>.json`
   by default.
 - Use `sudo` for `health status`, `health doctor`, and `health verify` against
   path-based local repositories because their Duplicacy metadata is
   root-protected. Object and remote repository checks remain operator-user and
   credential-governed.
-- `diagnostics` prints a redacted label-target support bundle with resolved
+- `diagnostics` prints a redacted label-storage support bundle with resolved
   paths, storage scheme, state freshness, and permission summaries.
 - `restore select` is the primary operator restore path. It presents restore
   points first, then supports inspect-only, full restore, or tree-based
@@ -267,12 +266,12 @@ Core operating rules:
   metadata is root-protected. Object and remote restore remains operator-user
   and credential-governed.
 - Restore workspaces default to
-  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+  `/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>`.
   `source_path` is only live-source and copy-back context. Use
   `--workspace-root` to place derived job folders under an existing
   operator-managed shared-folder root. Use `--workspace-template` or
   `[restore].workspace_template` to choose the derived child folder name from
-  `{label}`, `{target}`, `{snapshot_timestamp}`, `{revision}`, and
+  `{label}`, `{storage}`, `{snapshot_timestamp}`, `{revision}`, and
   `{run_timestamp}`.
 - `restore select` uses a tree picker with arrow-key navigation, `Space` to
   toggle files or subtrees, `Tab` to inspect the primitive detail pane, `g`

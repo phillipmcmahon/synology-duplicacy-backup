@@ -3,7 +3,7 @@ package workflow
 import "testing"
 
 func TestPlanSectionsAndFallbacks(t *testing.T) {
-	if got := (*Plan)(nil).Sections(); got.Request.OperationMode != "" || got.Config.Target != "" || got.Paths.WorkRoot != "" {
+	if got := (*Plan)(nil).Sections(); got.Request.OperationMode != "" || got.Config.StorageName != "" || got.Paths.WorkRoot != "" {
 		t.Fatalf("nil Sections() = %#v", got)
 	}
 	if (*Plan)(nil).TargetName() != "" {
@@ -25,7 +25,7 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 			OperationMode:       "Backup",
 		},
 		Config: PlanConfig{
-			Target:                  "onsite-usb",
+			StorageName:             "onsite-usb",
 			Location:                locationLocal,
 			BackupLabel:             "homes",
 			Threads:                 16,
@@ -48,7 +48,7 @@ func TestPlanSectionsAndFallbacks(t *testing.T) {
 		!sections.Request.NeedsSnapshot || sections.Request.DefaultNotice != "notice" || sections.Request.OperationMode != "Backup" {
 		t.Fatalf("request section = %#v", sections.Request)
 	}
-	if sections.Config.Target != "onsite-usb" || sections.Config.Location != locationLocal || sections.Config.BackupLabel != "homes" ||
+	if sections.Config.StorageName != "onsite-usb" || sections.Config.Location != locationLocal || sections.Config.BackupLabel != "homes" ||
 		sections.Config.Threads != 16 || sections.Config.LogRetentionDays != 28 || sections.Config.SafePruneMaxDeleteCount != 25 {
 		t.Fatalf("config section = %#v", sections.Config)
 	}

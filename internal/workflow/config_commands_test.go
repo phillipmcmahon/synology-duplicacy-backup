@@ -33,7 +33,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -45,7 +45,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 		"Section: Validation",
 		"Label",
 		"homes",
-		"Target",
+		"Storage",
 		"offsite-storj",
 		"Config File",
 		"homes-backup.toml",
@@ -68,13 +68,13 @@ func TestHandleConfigCommand_ValidateConfiguredRemote(t *testing.T) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertResolvedLabels(t, out, "Label", "Target", "Config File")
+	assertResolvedLabels(t, out, "Label", "Storage", "Config File")
 	assertResolvedValues(t, out, map[string]string{
 		"Label":       "homes",
-		"Target":      "offsite-storj",
+		"Storage":     "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host")
 }
 
@@ -93,7 +93,7 @@ func TestHandleConfigCommand_ValidateConfiguredRemoteWithoutRootRunsSafeChecks(t
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -147,7 +147,7 @@ func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootRunsSafe
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "onsite-rustfs"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "onsite-rustfs"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -159,7 +159,7 @@ func TestHandleConfigCommand_ValidateConfiguredLocalDuplicacyWithoutRootRunsSafe
 		"Resolved",
 		"Repository Access",
 		"Valid",
-		"Target Settings",
+		"Storage Settings",
 		"Valid",
 		"Secrets",
 		"Valid",
@@ -206,7 +206,7 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
@@ -227,20 +227,20 @@ func TestHandleConfigCommand_ValidateLocalPathRepositoryWithoutRootRequiresSudo(
 	if values["Repository Access"] != "Requires sudo" {
 		t.Fatalf("Repository Access = %q:\n%s", values["Repository Access"], report)
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertAllowedValidationOutcomes(t, report)
 }
 
 func TestHandleConfigCommand_ValidateRequiresExplicitTarget(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildLabelConfig("homes", "onsite-usb", locationLocal, "/volume1/homes", "/backups/homes", 4, "-keep 0:365", `
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://bucket/homes"
 `))
 
 	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir}
-	if _, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime()); err == nil || !strings.Contains(err.Error(), "requires an explicit target selection") {
+	if _, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime()); err == nil || !strings.Contains(err.Error(), "requires an explicit storage selection") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 }
@@ -261,23 +261,23 @@ func TestHandleConfigCommand_ValidateExplicitLocalTarget(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config validation succeeded for homes/onsite-usb", "Section: Resolved", "Section: Validation", "Label", "homes", "Target", "onsite-usb", "Source Path Access", "Present", "Btrfs Source", "Valid", "Required Settings", "Health Thresholds", "Storage Access", "Writable", "Threads", "Valid", "Prune Policy", "Target Settings", "Repository Access", "Secrets", "Not required", "Result", "Passed"} {
+	for _, token := range []string{"Config validation succeeded for homes/onsite-usb", "Section: Resolved", "Section: Validation", "Label", "homes", "Storage", "onsite-usb", "Source Path Access", "Present", "Btrfs Source", "Valid", "Required Settings", "Health Thresholds", "Storage Access", "Writable", "Threads", "Valid", "Prune Policy", "Storage Settings", "Repository Access", "Secrets", "Not required", "Result", "Passed"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertResolvedLabels(t, out, "Label", "Target", "Config File")
+	assertResolvedLabels(t, out, "Label", "Storage", "Config File")
 	assertResolvedValues(t, out, map[string]string{
 		"Label":       "homes",
-		"Target":      "onsite-usb",
+		"Storage":     "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host")
 }
 
@@ -297,7 +297,7 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTarget(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, filepath.Join(storageRoot, "homes"), 4, ""))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -305,16 +305,16 @@ func TestHandleConfigCommand_ValidateLocalReadOnlyTarget(t *testing.T) {
 	if !strings.Contains(out, "Config validation succeeded for homes/onsite-usb") {
 		t.Fatalf("output = %q", out)
 	}
-	if !strings.Contains(out, "Target Settings") || !strings.Contains(out, "Valid") {
+	if !strings.Contains(out, "Storage Settings") || !strings.Contains(out, "Valid") {
 		t.Fatalf("output = %q", out)
 	}
-	assertResolvedLabels(t, out, "Label", "Target", "Config File")
+	assertResolvedLabels(t, out, "Label", "Storage", "Config File")
 	assertResolvedValues(t, out, map[string]string{
 		"Label":       "homes",
-		"Target":      "onsite-usb",
+		"Storage":     "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host")
 	if !strings.Contains(out, "Repository Access") || !strings.Contains(out, "Valid") {
 		t.Fatalf("output = %q", out)
@@ -333,23 +333,23 @@ func TestHandleConfigCommand_ValidateExplicitRemoteTarget(t *testing.T) {
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
 	}
-	for _, token := range []string{"Config validation succeeded for homes/offsite-storj", "Section: Resolved", "Section: Validation", "Label", "homes", "Target", "offsite-storj", "Source Path Access", "Present", "Required Settings", "Health Thresholds", "Secrets", "Storage Access", "Resolved", "Threads", "Valid", "Prune Policy", "Result", "Passed"} {
+	for _, token := range []string{"Config validation succeeded for homes/offsite-storj", "Section: Resolved", "Section: Validation", "Label", "homes", "Storage", "offsite-storj", "Source Path Access", "Present", "Required Settings", "Health Thresholds", "Secrets", "Storage Access", "Resolved", "Threads", "Valid", "Prune Policy", "Result", "Passed"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertResolvedLabels(t, out, "Label", "Target", "Config File")
+	assertResolvedLabels(t, out, "Label", "Storage", "Config File")
 	assertResolvedValues(t, out, map[string]string{
 		"Label":       "homes",
-		"Target":      "offsite-storj",
+		"Storage":     "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, out, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, out, "Source Path", "Destination", "Destination Host")
 }
 
@@ -368,7 +368,7 @@ func TestHandleConfigCommand_ValidateReportsInvalidHealthThresholds(t *testing.T
 doctor_warn_after_hours = 48000000
 `))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -379,13 +379,13 @@ doctor_warn_after_hours = 48000000
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertResolvedLabels(t, report, "Label", "Target", "Config File")
+	assertResolvedLabels(t, report, "Label", "Storage", "Config File")
 	assertResolvedValues(t, report, map[string]string{
 		"Label":       "homes",
-		"Target":      "onsite-usb",
+		"Storage":     "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 }
 
@@ -403,7 +403,7 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", nestedSourcePath, t.TempDir(), 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -414,13 +414,13 @@ func TestHandleConfigCommand_ValidateFailsWhenSourcePathIsNotBtrfsSubvolume(t *t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertResolvedLabels(t, report, "Label", "Target", "Config File")
+	assertResolvedLabels(t, report, "Label", "Storage", "Config File")
 	assertResolvedValues(t, report, map[string]string{
 		"Label":       "homes",
-		"Target":      "onsite-usb",
+		"Storage":     "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 }
 
@@ -445,7 +445,7 @@ func TestHandleConfigCommand_ValidateDoesNotRequireNonRootSourceReadAccess(t *te
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v\n%s", err, ConfigCommandOutput(err))
@@ -471,7 +471,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalStorageDoesNotExist(t *testin
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, filepath.Join(t.TempDir(), "missing-storage"), 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/onsite-usb") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -482,13 +482,13 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalStorageDoesNotExist(t *testin
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertResolvedLabels(t, report, "Label", "Target", "Config File")
+	assertResolvedLabels(t, report, "Label", "Storage", "Config File")
 	assertResolvedValues(t, report, map[string]string{
 		"Label":       "homes",
-		"Target":      "onsite-usb",
+		"Storage":     "onsite-usb",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 }
 
@@ -501,7 +501,7 @@ func TestHandleConfigCommand_ValidateFailsWhenDuplicacyStorageIsInvalid(t *testi
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "not-a-duplicacy-url", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "offsite-storj"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "Config validation failed for homes/offsite-storj") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -512,13 +512,13 @@ func TestHandleConfigCommand_ValidateFailsWhenDuplicacyStorageIsInvalid(t *testi
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertResolvedLabels(t, report, "Label", "Target", "Config File")
+	assertResolvedLabels(t, report, "Label", "Storage", "Config File")
 	assertResolvedValues(t, report, map[string]string{
 		"Label":       "homes",
-		"Target":      "offsite-storj",
+		"Storage":     "offsite-storj",
 		"Config File": filepath.Join(configDir, "homes-backup.toml"),
 	})
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 }
 
@@ -532,23 +532,23 @@ func TestHandleConfigCommand_ValidateFailsWhenS3SecretsUseLegacyStorjKeys(t *tes
 	secretsDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket/homes", 4, "-keep 0:365"))
 	secretsPath := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj.keys]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
+	body := "[storage.offsite-storj.keys]\nstorj_s3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\nstorj_s3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n"
 	if err := os.WriteFile(secretsPath, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
 	}
 	report := ConfigCommandOutput(err)
-	for _, token := range []string{"Config validation failed for homes/offsite-storj", "Storage Access", "Resolved", "Repository Access", "Not checked", "Secrets", "Invalid (storage \"s3\" requires s3_id and s3_secret in [targets.<name>.keys])", "Result", "Failed"} {
+	for _, token := range []string{"Config validation failed for homes/offsite-storj", "Storage Access", "Resolved", "Repository Access", "Not checked", "Secrets", "Invalid (storage \"s3\" requires s3_id and s3_secret in [storage.<name>.keys])", "Result", "Failed"} {
 		if !strings.Contains(report, token) {
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 }
 
 func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t *testing.T) {
@@ -563,7 +563,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "initialize the repository before running backups") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -574,7 +574,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsNotInitialized(t 
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -591,7 +591,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil || !strings.Contains(OperatorMessage(err), "initialize the repository before running backups") {
 		t.Fatalf("HandleConfigCommand() err = %v", err)
@@ -602,7 +602,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsNotInitialized(t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -621,7 +621,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", sourcePath, storageRoot, 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
@@ -635,7 +635,7 @@ func TestHandleConfigCommand_ValidateFailsWhenLocalRepositoryIsInaccessible(t *t
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 	assertAllowedValidationOutcomes(t, report)
 }
@@ -652,7 +652,7 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", sourcePath, "s3://bucket", 4, "-keep 0:365"))
 	writeTargetTestSecrets(t, secretsDir, "homes", "offsite-storj")
 
-	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	_, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err == nil {
 		t.Fatal("HandleConfigCommand() expected error")
@@ -666,32 +666,32 @@ func TestHandleConfigCommand_ValidateFailsWhenRemoteRepositoryIsInaccessible(t *
 			t.Fatalf("report missing %q:\n%s", token, report)
 		}
 	}
-	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Target Settings", "Secrets")
+	assertValidationLabels(t, report, "Config", "Required Settings", "Threads", "Prune Policy", "Health Thresholds", "Source Path Access", "Btrfs Source", "Storage Access", "Repository Access", "Storage Settings", "Secrets")
 	assertValidationExcludesLabels(t, report, "Source Path", "Destination", "Destination Host")
 	assertAllowedValidationOutcomes(t, report)
 }
 
 func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	configDir := t.TempDir()
-	restoreSection := "[restore]\nworkspace_root = \"/volume1/restore-drills\"\nworkspace_template = \"{label}-rev{revision}-{target}-{run_timestamp}\"\n"
+	restoreSection := "[restore]\nworkspace_root = \"/volume1/restore-drills\"\nworkspace_template = \"{label}-rev{revision}-{storage}-{run_timestamp}\"\n"
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", localTargetConfig("homes", "/volume1/homes", "/backups", 4, "-keep 0:365", restoreSection))
 
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
 	rt := testRuntime()
 
-	explainReq := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	explainReq := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	explainOut, err := HandleConfigCommand(explainReq, meta, rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(explain) error = %v", err)
 	}
-	for _, token := range []string{"Config explanation for homes/onsite-usb", "Target", "onsite-usb", "Storage", "/backups/homes", "Restore Workspace Root", "/volume1/restore-drills", "Restore Workspace Template", "{label}-rev{revision}-{target}-{run_timestamp}"} {
+	for _, token := range []string{"Config explanation for homes/onsite-usb", "Storage", "onsite-usb", "Storage", "/backups/homes", "Restore Workspace Root", "/volume1/restore-drills", "Restore Workspace Template", "{label}-rev{revision}-{storage}-{run_timestamp}"} {
 		if !strings.Contains(explainOut, token) {
 			t.Fatalf("explain output missing %q:\n%s", token, explainOut)
 		}
 	}
-	assertFlatLabels(t, explainOut, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Restore Workspace Root", "Restore Workspace Template")
+	assertFlatLabels(t, explainOut, "Label", "Storage Name", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Restore Workspace Root", "Restore Workspace Template")
 
-	pathsReq := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	pathsReq := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	pathsOut, err := HandleConfigCommand(pathsReq, meta, rt)
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(paths) error = %v", err)
@@ -707,14 +707,14 @@ func TestHandleConfigCommand_ExplainLocalAndPaths(t *testing.T) {
 	if strings.Contains(pathsOut, "Work Dir") || strings.Contains(pathsOut, "Snapshot") {
 		t.Fatalf("paths output should only contain stable paths:\n%s", pathsOut)
 	}
-	assertFlatLabels(t, pathsOut, "Label", "Target", "Location", "Config Dir", "Config File", "Source Path", "Log Dir")
+	assertFlatLabels(t, pathsOut, "Label", "Storage Name", "Location", "Config Dir", "Config File", "Source Path", "Log Dir")
 }
 
 func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -729,14 +729,14 @@ func TestHandleConfigCommand_ExplainRemoteDoesNotRequireSecretsAccess(t *testing
 			t.Fatalf("output should not include %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-rustfs"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -751,14 +751,14 @@ func TestHandleConfigCommand_ExplainLocalDuplicacyDoesNotRequireSecretsAccess(t 
 			t.Fatalf("output should not include %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-garage", buildTargetConfig("homes", "onsite-garage", locationLocal, "/volume1/homes", "minio://garage@192.168.202.24:3900/garage/homes", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-garage"}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-garage"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -768,7 +768,7 @@ func TestHandleConfigCommand_ExplainLocalMinioIncludesSecretsFile(t *testing.T) 
 			t.Fatalf("output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config File", "Source Path", "Storage", "Threads", "Prune Policy", "Secrets File")
 }
 
 func TestHandleConfigCommand_ExplainIncludesFilterWhenConfigured(t *testing.T) {
@@ -781,12 +781,12 @@ threads = 4
 filter = "-e *.tmp"
 prune = "-keep 0:365"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/backups/homes"
 `)
 
-	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{ConfigCommand: "explain", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -794,14 +794,14 @@ storage = "/backups/homes"
 	if !strings.Contains(out, "Filter") || !strings.Contains(out, "-e *.tmp") {
 		t.Fatalf("output missing filter:\n%s", out)
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config File", "Source Path", "Storage", "Threads", "Filter", "Prune Policy")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config File", "Source Path", "Storage", "Threads", "Filter", "Prune Policy")
 }
 
 func TestHandleConfigCommand_PathsDuplicacyStorageIncludesSecrets(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://bucket", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "offsite-storj"}
+	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(paths remote) error = %v", err)
@@ -811,14 +811,14 @@ func TestHandleConfigCommand_PathsDuplicacyStorageIncludesSecrets(t *testing.T) 
 			t.Fatalf("remote paths output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
 }
 
 func TestHandleConfigCommand_PathsLocalDuplicacyIncludesSecrets(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "onsite-rustfs", localDuplicacyTargetConfig("homes", "/volume1/homes", "s3://rustfs.local/bucket", 4, "-keep 0:365"))
 
-	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-rustfs"}
+	req := &Request{ConfigCommand: "paths", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-rustfs"}
 	out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleConfigCommand(paths local duplicacy) error = %v", err)
@@ -828,7 +828,7 @@ func TestHandleConfigCommand_PathsLocalDuplicacyIncludesSecrets(t *testing.T) {
 			t.Fatalf("local duplicacy paths output missing %q:\n%s", token, out)
 		}
 	}
-	assertFlatLabels(t, out, "Label", "Target", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
+	assertFlatLabels(t, out, "Label", "Storage Name", "Location", "Config Dir", "Config File", "Source Path", "Log Dir", "Secrets Dir", "Secrets File")
 }
 
 func TestHandleConfigCommand_Unsupported(t *testing.T) {
@@ -891,7 +891,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	writeTargetTestSecrets(t, secretsDir, "archives", "offsite-storj")
 
 	t.Run("local-enabled", func(t *testing.T) {
-		req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+		req := &Request{ConfigCommand: "validate", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -900,7 +900,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	})
 
 	t.Run("local-not-enabled", func(t *testing.T) {
-		req := &Request{ConfigCommand: "validate", Source: "readmedia", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+		req := &Request{ConfigCommand: "validate", Source: "readmedia", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -909,7 +909,7 @@ func TestConfigValidateValidationSectionUsesAllowedOutcomes(t *testing.T) {
 	})
 
 	t.Run("remote", func(t *testing.T) {
-		req := &Request{ConfigCommand: "validate", Source: "archives", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+		req := &Request{ConfigCommand: "validate", Source: "archives", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 		out, err := HandleConfigCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 		if err != nil {
 			t.Fatalf("HandleConfigCommand() error = %v", err)
@@ -922,11 +922,11 @@ func TestConfigValidateValidationSectionRejectsStatusPayloadHybrids(t *testing.T
 	report := strings.Join([]string{
 		"Config validation succeeded for homes/offsite-storj",
 		"  Section: Resolved",
-		"    Target             : offsite-storj",
+		"    Storage              : offsite-storj",
 		"  Section: Validation",
 		"    Threads            : Valid (16)",
 		"    Storage Access     : Resolved (gateway.example.test)",
-		"    Target Settings    : Valid (backup:users)",
+		"    Storage Settings    : Valid (backup:users)",
 		"  Result               : Passed",
 		"",
 	}, "\n")

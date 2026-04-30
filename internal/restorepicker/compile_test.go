@@ -129,7 +129,7 @@ func TestCompileSelectionDirectoryCommandUsesDuplicacySubtreePattern(t *testing.
 	})
 
 	wantPath := "phillipmcmahon/code/*"
-	wantCommand := "'duplicacy-backup' restore run --target 'onsite-usb' --revision 2403 --workspace '/volume1/restore-drills/homes-onsite-usb' --yes --path 'phillipmcmahon/code/*' 'homes'"
+	wantCommand := "'duplicacy-backup' restore run --storage 'onsite-usb' --revision 2403 --workspace '/volume1/restore-drills/homes-onsite-usb' --yes --path 'phillipmcmahon/code/*' 'homes'"
 	if len(preview.RestorePaths) != 1 || preview.RestorePaths[0] != wantPath {
 		t.Fatalf("RestorePaths = %#v, want [%q]", preview.RestorePaths, wantPath)
 	}

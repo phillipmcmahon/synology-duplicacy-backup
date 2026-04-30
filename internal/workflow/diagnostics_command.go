@@ -17,7 +17,7 @@ import (
 
 type DiagnosticsReport struct {
 	Label             string                   `json:"label"`
-	Target            string                   `json:"target"`
+	Target            string                   `json:"storage_name"`
 	Location          string                   `json:"location"`
 	ConfigDir         string                   `json:"config_dir"`
 	ConfigFile        string                   `json:"config_file"`
@@ -232,7 +232,7 @@ func formatDiagnosticsReport(report *DiagnosticsReport) string {
 	var b strings.Builder
 	b.WriteString(presentation.FormatLinesWithSemanticColour(fmt.Sprintf("Diagnostics for %s/%s", report.Label, report.Target), []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage Name", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Config File", Value: report.ConfigFile},
 		{Label: "Source Path", Value: report.SourcePath},

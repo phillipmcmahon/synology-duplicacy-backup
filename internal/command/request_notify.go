@@ -32,8 +32,8 @@ func parseNotifyRequest(args []string, meta workflow.Metadata, rt workflow.Env) 
 	if action == "test" && req.Source == "update" {
 		req.Source = ""
 		req.NotifyScope = "update"
-		if req.RequestedTarget != "" {
-			return nil, workflowcore.NewUsageRequestError("notify test update does not use --target")
+		if req.Target() != "" {
+			return nil, workflowcore.NewUsageRequestError("notify test update does not use --storage")
 		}
 		return &ParseResult{Request: req}, nil
 	}

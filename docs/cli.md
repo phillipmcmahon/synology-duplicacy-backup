@@ -23,11 +23,11 @@ duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
 
 Backup is one workflow among several. `backup`, `prune`, `cleanup-storage`,
 `config`, `diagnostics`, `health`, restore commands, and label-scoped
-`notify test` commands need an explicit `--target <name>`.
+`notify test` commands need an explicit `--storage <name>`.
 `notify test update`, `update`, and `rollback` are global application commands
-and do not use a target.
+and do not use a label-scoped storage selection.
 
-Targets describe both storage and deployment location:
+Storage entries describe both storage and deployment location:
 
 - `location = "local"` or `location = "remote"`
 - `storage = "..."` is passed directly to Duplicacy
@@ -43,16 +43,16 @@ Runtime operations are first-class commands with their own command names.
 
 | Command | Description |
 |---|---|
-| `backup --target <target> <label>` | Run a backup for the selected label and target |
-| `prune --target <target> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for root-protected local filesystem repositories, including `--dry-run` previews |
-| `cleanup-storage --target <target> <label>` | Run exhaustive exclusive storage cleanup; root is required for root-protected local filesystem repositories except `--dry-run` simulation |
+| `backup --storage <storage> <label>` | Run a backup for the selected label and storage |
+| `prune --storage <storage> [--force] <label>` | Run threshold-guarded prune, or forced prune with `--force`; root is required for root-protected local filesystem repositories, including `--dry-run` previews |
+| `cleanup-storage --storage <storage> <label>` | Run exhaustive exclusive storage cleanup; root is required for root-protected local filesystem repositories except `--dry-run` simulation |
 
 ## Modifiers
 
 | Flag | Description |
 |---|---|
 | `--force` | Override safe prune thresholds for `prune` |
-| `--target <name>` | Use the named target config; required for `backup`, `prune`, `cleanup-storage`, `config`, `diagnostics`, `health`, restore commands, and label-scoped `notify test` commands |
+| `--storage <name>` | Use the named storage config; required for `backup`, `prune`, `cleanup-storage`, `config`, `diagnostics`, `health`, restore commands, and label-scoped `notify test` commands |
 | `--dry-run` | Simulate actions without making changes |
 | `--verbose` | Show detailed operational logging and command details |
 | `--json-summary` | Write a machine-readable run summary to stdout |
@@ -66,32 +66,32 @@ Runtime operations are first-class commands with their own command names.
 
 | Command | Description |
 |---|---|
-| `config validate --target <target> <label>` | Validate backup-readiness for the selected target, including source path shape, storage, repository, and any required storage secrets. Use `sudo` for local filesystem repository readiness checks. |
-| `config explain --target <target> <label>` | Show resolved config values for the selected target from that label config |
-| `config paths --target <target> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
+| `config validate --storage <storage> <label>` | Validate backup-readiness for the selected storage, including source path shape, storage, repository, and any required storage secrets. Use `sudo` for local filesystem repository readiness checks. |
+| `config explain --storage <storage> <label>` | Show resolved config values for the selected storage from that label config |
+| `config paths --storage <storage> <label>` | Show resolved stable config, source, log, and any applicable secrets paths |
 
 ## Diagnostics Command
 
 | Command | Description |
 |---|---|
-| `diagnostics --target <target> <label>` | Print a redacted support bundle with resolved config, storage, secrets, state, and path-permission context |
-| `diagnostics --target <target> --json-summary <label>` | Write the diagnostics report as JSON |
+| `diagnostics --storage <storage> <label>` | Print a redacted support bundle with resolved config, storage, secrets, state, and path-permission context |
+| `diagnostics --storage <storage> --json-summary <label>` | Write the diagnostics report as JSON |
 
 ## Notify Commands
 
 | Command | Description |
 |---|---|
-| `notify test --target <target> <label>` | Send a simulated notification through the configured destinations for the selected target |
+| `notify test --storage <storage> <label>` | Send a simulated notification through the configured destinations for the selected storage |
 | `notify test update` | Send a simulated update notification through the global update notification config |
 
 ## Restore Commands
 
 | Command | Description |
 |---|---|
-| `restore select --target <target> [--workspace-root <path>] [--workspace-template <template>] [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
-| `restore plan --target <target> <label>` | Print a safe read-only restore drill plan for the selected label and target |
-| `restore list-revisions --target <target> [--limit <count>] <label>` | List visible revisions without executing a restore |
-| `restore run --target <target> --revision <id> [--path <relative-path-or-pattern>] [--workspace-root <path>] [--workspace-template <template>] [--workspace <path>] [--yes] <label>` | Prepare or reuse a drill workspace, restore only there, and never copy back to the live source |
+| `restore select --storage <storage> [--workspace-root <path>] [--workspace-template <template>] [--path-prefix <path>] <label>` | Primary operator restore flow: choose a restore point, inspect it read-only, or browse revision paths in an interactive tree and confirm guided restore execution |
+| `restore plan --storage <storage> <label>` | Print a safe read-only restore drill plan for the selected label and storage |
+| `restore list-revisions --storage <storage> [--limit <count>] <label>` | List visible revisions without executing a restore |
+| `restore run --storage <storage> --revision <id> [--path <relative-path-or-pattern>] [--workspace-root <path>] [--workspace-template <template>] [--workspace <path>] [--yes] <label>` | Prepare or reuse a drill workspace, restore only there, and never copy back to the live source |
 
 ## Update Command
 
@@ -103,16 +103,16 @@ Runtime operations are first-class commands with their own command names.
 
 | Command | Description |
 |---|---|
-| `rollback --check-only` | Inspect retained managed-install versions and the selected rollback target |
+| `rollback --check-only` | Inspect retained managed-install versions and the selected rollback version |
 | `rollback [--version <tag>] --yes` | Activate the newest previous retained version, or a specific retained version |
 
 ## Health Commands
 
 | Command | Description |
 |---|---|
-| `health status --target <target> <label>` | Fast read-only health summary for operators and schedulers. Use sudo for local filesystem repositories |
-| `health doctor --target <target> <label>` | Read-only environment and storage diagnostic pass. Use sudo for local filesystem repositories |
-| `health verify --target <target> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for local filesystem repositories |
+| `health status --storage <storage> <label>` | Fast read-only health summary for operators and schedulers. Use sudo for local filesystem repositories |
+| `health doctor --storage <storage> <label>` | Read-only environment and storage diagnostic pass. Use sudo for local filesystem repositories |
+| `health verify --storage <storage> <label>` | Read-only integrity check across revisions found for the current label. Use sudo for local filesystem repositories |
 
 ## Environment Variables
 
@@ -137,36 +137,36 @@ use the [operator cheat sheet](cheatsheet.md). For recurring Synology scheduling
 patterns, use [workflow-scheduling.md](workflow-scheduling.md).
 
 ```bash
-# Runtime command: one label, one target, one explicit operation
-sudo duplicacy-backup backup --target onsite-usb homes
-sudo duplicacy-backup prune --target onsite-usb homes
-sudo duplicacy-backup cleanup-storage --target onsite-usb homes
+# Runtime command: one label, one storage, one explicit operation
+sudo duplicacy-backup backup --storage onsite-usb homes
+sudo duplicacy-backup prune --storage onsite-usb homes
+sudo duplicacy-backup cleanup-storage --storage onsite-usb homes
 
 # Runtime command with modifiers
-sudo duplicacy-backup backup --target onsite-usb --json-summary --dry-run homes
+sudo duplicacy-backup backup --storage onsite-usb --json-summary --dry-run homes
 
 # Config command
-sudo duplicacy-backup config validate --target onsite-usb homes
+sudo duplicacy-backup config validate --storage onsite-usb homes
 
 # Health command
-sudo duplicacy-backup health status --target onsite-usb homes
+sudo duplicacy-backup health status --storage onsite-usb homes
 
 # Redacted support bundle
-duplicacy-backup diagnostics --target onsite-usb homes
+duplicacy-backup diagnostics --storage onsite-usb homes
 
 # Label-scoped notification test
-duplicacy-backup notify test --target onsite-usb homes
+duplicacy-backup notify test --storage onsite-usb homes
 
 # Guided operator restore
-sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --storage onsite-usb homes
 
 # Start the picker from a useful subtree in a large backup
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
-duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+duplicacy-backup restore plan --storage onsite-usb homes
+sudo duplicacy-backup restore list-revisions --storage onsite-usb homes
+sudo duplicacy-backup restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes
 
 # Global update command
 /usr/local/bin/duplicacy-backup update --check-only
@@ -183,7 +183,7 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - `--help` is intentionally concise; use `--help-full` for detailed command help.
 - Every `backup`, `prune`, `cleanup-storage`, `config`,
   `diagnostics`, `health`, restore commands, and label-scoped `notify test`
-  command needs `--target <name>`.
+  command needs `--storage <name>`.
 - Runtime operations are first-class commands with their own command names.
 - Root is required for `backup`, `prune`, `prune --dry-run`, and actual
   `cleanup-storage` mutation against root-protected local filesystem
@@ -195,8 +195,8 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 - Root-required commands should normally be invoked with `sudo` from the
   operator account. Profile-using commands started from a direct root shell are
   rejected unless explicit profile roots are supplied with `--config-dir`,
-  `--secrets-dir` for label/target commands, and `XDG_STATE_HOME`.
-- `restore plan` is read-only. It resolves the selected target and prints
+  `--secrets-dir` for label/storage commands, and `XDG_STATE_HOME`.
+- `restore plan` is read-only. It resolves the selected storage and prints
   Duplicacy commands for a separate drill workspace; it does not create
   directories, write preferences, run `duplicacy restore`, or copy data back.
 - `restore list-revisions` is a read-only discovery command. It creates a
@@ -206,10 +206,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   copies data back. Stored UID/GID metadata is intentionally not replayed into
   the drill workspace so non-root restores remain inspectable by the operator.
   If `--workspace` is omitted, the workspace is derived from the restore job:
-  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+  `/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>`.
   Use `--workspace-root` to choose the parent folder while keeping a derived
   restore-job folder name. Use `--workspace-template` to choose that child
-  folder name from `{label}`, `{target}`, `{snapshot_timestamp}`,
+  folder name from `{label}`, `{storage}`, `{snapshot_timestamp}`,
   `{revision}`, and `{run_timestamp}`. The root must already exist and remains
   operator-managed, which is the recommended pattern for Synology shared-folder
   visibility. Use `--workspace` only when you want an exact workspace path; it
@@ -238,10 +238,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   treated as operator-directed maintenance.
 - `--json-summary` writes machine-readable output to stdout while human logs
   stay on stderr.
-- `diagnostics` is non-mutating. It gathers resolved label-target context,
+- `diagnostics` is non-mutating. It gathers resolved label-storage context,
   redacts secret values, and is intended for support bundles.
 - Health command exit codes are `0` healthy, `1` degraded, `2` unhealthy.
-- Storage keys live under `[targets.<name>.keys]` in the label secrets file
+- Storage keys live under `[storage.<name>.keys]` in the label secrets file
   when the selected backend requires them. For S3-compatible storage this
   means `s3_id` and `s3_secret`, including `s3://`, `s3c://`,
   `minio://`, and `minios://` storage values. Native `storj://` storage uses
@@ -258,7 +258,7 @@ duplicacy-backup notify test update --provider ntfy --dry-run
 
 Source-of-truth guides:
 
-- Config files, target model, health policy, notification TOML, and secrets:
+- Config files, storage model, health policy, notification TOML, and secrets:
   [configuration.md](configuration.md)
 - Install, update, rollback, and release verification procedures:
   [operations.md](operations.md)

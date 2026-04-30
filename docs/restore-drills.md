@@ -28,7 +28,7 @@ credentials or mount permissions.
 
 Local filesystem repositories, such as directly attached USB filesystem
 storage, are root-protected by design. Use `sudo` for `restore select`,
-`restore list-revisions`, and `restore run` against those targets. When the
+`restore list-revisions`, and `restore run` against those storage. When the
 command is invoked through `sudo` from the operator account, the tool repairs
 the drill workspace ownership back to the operator so restored data remains
 inspectable.
@@ -81,22 +81,22 @@ active path so the operator knows what remains to inspect or rerun.
 
 ## Start Here
 
-Pick the label and target you want to prove. For most operator restores, start
+Pick the label and storage you want to prove. For most operator restores, start
 with the guided flow:
 
 ```bash
-duplicacy-backup config explain --target onsite-usb homes
-sudo duplicacy-backup config validate --target onsite-usb homes
-sudo duplicacy-backup health status --target onsite-usb homes
-sudo duplicacy-backup restore select --target onsite-usb homes
+duplicacy-backup config explain --storage onsite-usb homes
+sudo duplicacy-backup config validate --storage onsite-usb homes
+sudo duplicacy-backup health status --storage onsite-usb homes
+sudo duplicacy-backup restore select --storage onsite-usb homes
 ```
 
 Use the expert primitives when you want a step-by-step runbook instead:
 
 ```bash
-duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
-sudo duplicacy-backup restore run --target onsite-usb --revision <revision> --yes homes
+duplicacy-backup restore plan --storage onsite-usb homes
+sudo duplicacy-backup restore list-revisions --storage onsite-usb homes
+sudo duplicacy-backup restore run --storage onsite-usb --revision <revision> --yes homes
 ```
 
 `restore plan` shows the same `Storage` value as `config explain`, the
@@ -106,9 +106,9 @@ the wrapper. `restore run` creates or reuses the separate workspace and writes
 this tool, the Duplicacy snapshot ID is `data`.
 
 If the selected storage backend needs credentials, `restore run` writes the
-target keys from the label secrets file into the drill workspace preferences.
+storage keys from the label secrets file into the drill workspace preferences.
 For a fully manual Duplicacy drill, use Duplicacy's normal password and key
-handling. The same key names used in `[targets.<name>.keys]`, such as `s3_id`
+handling. The same key names used in `[storage.<name>.keys]`, such as `s3_id`
 and `s3_secret`, are the keys Duplicacy expects.
 
 Primary Duplicacy references:
@@ -124,7 +124,7 @@ For restore execution, the wrapper prepares the drill workspace for you. When
 `--workspace` is omitted, it derives a predictable path from the restore job:
 
 ```text
-/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>
+/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>
 ```
 
 For example:
@@ -146,7 +146,7 @@ sudo mkdir -p /volume1/restore-drills
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision 2403 \
   --workspace-root /volume1/restore-drills \
   --path 'phillipmcmahon/code/*' \
@@ -164,7 +164,7 @@ different set of restore metadata. The template controls only one folder name
 below the root; it cannot contain `/` or `\`. Supported variables are:
 
 - `{label}`
-- `{target}`
+- `{storage}`
 - `{snapshot_timestamp}`
 - `{revision}`
 - `{run_timestamp}`
@@ -173,15 +173,15 @@ Variable values are sanitised before they become folder names. Spaces,
 punctuation outside `.`, `_`, and `-`, and non-ASCII characters are replaced
 with `_` so restore workspaces stay portable and path-safe.
 
-For example, this lets you recover the same snapshot id from multiple targets
+For example, this lets you recover the same snapshot id from multiple storage entries
 without clobbering prior drills:
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision 2403 \
   --workspace-root /volume1/restore-drills \
-  --workspace-template '{label}-rev{revision}-{target}-{run_timestamp}' \
+  --workspace-template '{label}-rev{revision}-{storage}-{run_timestamp}' \
   --path 'phillipmcmahon/code/*' \
   --yes homes
 ```
@@ -191,7 +191,7 @@ You can also make those naming defaults part of the label config:
 ```toml
 [restore]
 workspace_root = "/volume1/restore-drills"
-workspace_template = "{label}-rev{revision}-{target}-{run_timestamp}"
+workspace_template = "{label}-rev{revision}-{storage}-{run_timestamp}"
 ```
 
 Command-line flags win over config defaults. Use `--workspace` only when you
@@ -226,7 +226,7 @@ unless you deliberately change ownership for a manual drill. The parent
 
 If you are preparing the workspace manually instead, initialise this folder as
 a temporary Duplicacy repository that points at the same storage used by the
-backup target:
+backup storage:
 
 ```bash
 duplicacy init data "/volumeUSB2/usbshare/duplicacy/homes"
@@ -240,7 +240,7 @@ duplicacy init data "s3://EU@gateway.storjshare.io/bucket-id/homes"
 
 This prepares the drill workspace for manual Duplicacy use. If Duplicacy
 reports that the storage is not initialised, stop and re-check the selected
-target and storage value before continuing. `restore run` refuses to use the
+storage name and storage value before continuing. `restore run` refuses to use the
 live source path, refuses workspaces inside the live source tree, and refuses
 non-empty unprepared workspaces.
 During execution, `restore run` prints coloured status/progress to stderr,
@@ -260,7 +260,7 @@ rerun the restore or remove the workspace manually when it is no longer useful.
 List available backup revisions with the wrapper:
 
 ```bash
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+sudo duplicacy-backup restore list-revisions --storage onsite-usb homes
 ```
 
 Choose a revision that matches the recovery point you want to prove. Health
@@ -270,7 +270,7 @@ confirming that the repository is current before a drill.
 If you prefer the guided operator flow, use the picker:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --storage onsite-usb homes
 ```
 
 The picker prints the exact primitive command or commands that will be used for
@@ -297,7 +297,7 @@ point, for example
 the drill workspace an obvious link back to the restore point the operator
 chose. Pass `--workspace-root` when you want that derived folder under a
 specific shared-folder root. Pass `--workspace-template` when you want the
-derived folder to use a different mix of label, target, revision, snapshot, and
+derived folder to use a different mix of label, storage, revision, snapshot, and
 run timestamp metadata. Pass `--workspace` explicitly only when you want to pin
 the flow to one exact drill directory.
 
@@ -313,7 +313,7 @@ The common restore shapes are:
 For large repositories, start from a useful subtree:
 
 ```bash
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
 ```
 
 ## NAS Permission Smoke Check
@@ -324,14 +324,14 @@ shared-folder root before and after a small restore drill:
 ```bash
 stat -c '%a %U:%G %n' /volume1/restore-drills
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision <revision> \
   --workspace-root /volume1/restore-drills \
   --path "relative/file/or/pattern" \
   --yes \
   homes
 stat -c '%a %U:%G %n' /volume1/restore-drills
-find /volume1/restore-drills -maxdepth 1 -type d -name '<label>-<target>-*' -print
+find /volume1/restore-drills -maxdepth 1 -type d -name '<label>-<storage>-*' -print
 # Example for homes/onsite-usb:
 find /volume1/restore-drills -maxdepth 1 -type d -name 'homes-onsite-usb-*' -print
 ```
@@ -346,7 +346,7 @@ Run the restore into the drill workspace:
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision <revision> \
   --yes \
   homes
@@ -375,7 +375,7 @@ or a directory subtree into the drill workspace:
 
 ```bash
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision <revision> \
   --path "relative/file/or/pattern" \
   --yes \
@@ -385,8 +385,8 @@ sudo duplicacy-backup restore run \
 Examples:
 
 ```bash
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
-sudo duplicacy-backup restore run --target onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
+sudo duplicacy-backup restore run --storage onsite-usb --revision 2403 --path "phillipmcmahon/Documents/tax.pdf" --yes homes
+sudo duplicacy-backup restore run --storage onsite-usb --revision 2403 --path "phillipmcmahon/Music/*" --yes homes
 ```
 
 Use paths relative to the snapshot root, not absolute NAS paths. For example,
@@ -404,7 +404,7 @@ command is produced for each selected path or pattern.
 ## Copy Back Deliberately
 
 Only copy data back after you have inspected the restored files and confirmed
-the target location. Start with `rsync --dry-run`:
+the storage location. Start with `rsync --dry-run`:
 
 ```bash
 rsync -a --dry-run \
@@ -426,7 +426,7 @@ assuming a file-level copy is sufficient.
 
 ## Drill Checklist
 
-- Confirm the label and target with `config explain`.
+- Confirm the label and storage with `config explain`.
 - On an existing NAS, confirm `config validate` and `health status` before
   restoring.
 - On a replacement NAS where `source_path` is not configured yet, confirm
@@ -438,7 +438,7 @@ assuming a file-level copy is sufficient.
 - Restore only into the drill workspace.
 - Inspect restored data before copying anything back.
 - Use `rsync --dry-run` before any live copy-back step.
-- Record the label, target, revision, restored paths, and outcome.
+- Record the label, storage, revision, restored paths, and outcome.
 
 ## Current Boundary
 

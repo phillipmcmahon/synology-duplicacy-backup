@@ -112,7 +112,7 @@ source_path = "/volume1/source"
 threads = 1
 prune = "-keep 0:365"
 
-[targets.$target]
+[storage.$target]
 location = "local"
 storage = "$storage"
 EOF
@@ -137,12 +137,12 @@ source_path = "/volume1/source"
 threads = 1
 prune = "-keep 0:365"
 
-[targets.$target]
+[storage.$target]
 location = "remote"
 storage = "s3://EU@example.invalid/duplicacy-backup-ci/homes"
 EOF
     cat >"$secrets_dir/homes-secrets.toml" <<EOF
-[targets.$target.keys]
+[storage.$target.keys]
 s3_id = "ABCDEFGHIJKLMNOPQRSTUVWXYZ01"
 s3_secret = "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR"
 EOF

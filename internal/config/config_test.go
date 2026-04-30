@@ -42,7 +42,7 @@ source_path = "/volume1/homes"
 [common]
 filter = "-e \\.DS_Store"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
@@ -73,7 +73,7 @@ func TestParseFile_TargetConfigAllowsMissingSourcePathForRestoreOnlyUse(t *testi
 	p := writeTempConfig(t, `
 label = "homes"
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.example.invalid/bucket/homes"
 `)
@@ -101,9 +101,9 @@ source_path = "/volume1/homes"
 
 [restore]
 workspace_root = "/volume1/recovery"
-workspace_template = "{label}-{revision}-{target}-{run_timestamp}"
+workspace_template = "{label}-{revision}-{storage}-{run_timestamp}"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
@@ -112,7 +112,7 @@ threads = 4
 	if values["RESTORE_WORKSPACE_ROOT"] != "/volume1/recovery" {
 		t.Fatalf("RESTORE_WORKSPACE_ROOT = %q", values["RESTORE_WORKSPACE_ROOT"])
 	}
-	if values["RESTORE_WORKSPACE_TEMPLATE"] != "{label}-{revision}-{target}-{run_timestamp}" {
+	if values["RESTORE_WORKSPACE_TEMPLATE"] != "{label}-{revision}-{storage}-{run_timestamp}" {
 		t.Fatalf("RESTORE_WORKSPACE_TEMPLATE = %q", values["RESTORE_WORKSPACE_TEMPLATE"])
 	}
 }
@@ -122,7 +122,7 @@ func TestParseFile_ResolveHealthDefaultsAndOverrides(t *testing.T) {
 label = "homes"
 source_path = "/volume1/homes"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
@@ -168,7 +168,7 @@ source_path = "/volume1/homes"
 [common]
 threads = 2
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 8
@@ -187,13 +187,13 @@ source_path = "/volume1/homes"
 [common]
 threads = 4
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
 `, "onsite-usb")
 
-	if values["TARGET"] != "onsite-usb" {
-		t.Fatalf("TARGET = %q", values["TARGET"])
+	if values["STORAGE_NAME"] != "onsite-usb" {
+		t.Fatalf("STORAGE_NAME = %q", values["STORAGE_NAME"])
 	}
 	if values["LOCATION"] != "local" {
 		t.Fatalf("LOCATION = %q", values["LOCATION"])
@@ -213,15 +213,15 @@ freshness_fail_hours = 40
 notify_on = ["degraded"]
 send_for = ["doctor"]
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://bucket/homes"
 
-[targets.offsite-storj.health]
+[storage.offsite-storj.health]
 freshness_warn_hours = 10
 verify_warn_after_hours = 72
 
-[targets.offsite-storj.health.notify]
+[storage.offsite-storj.health.notify]
 send_for = ["verify"]
 interactive = true
 `)
@@ -254,7 +254,7 @@ func TestParseFile_ResolveValues_MissingExplicitTargetFails(t *testing.T) {
 label = "homes"
 source_path = "/volume1/homes"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
 `)
@@ -263,7 +263,7 @@ storage = "/volumeUSB1/usbshare/duplicacy/homes"
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 	_, err = raw.ResolveValues("", p)
-	if err == nil || !strings.Contains(err.Error(), "requires an explicit target selection") {
+	if err == nil || !strings.Contains(err.Error(), "requires an explicit storage selection") {
 		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
@@ -278,7 +278,7 @@ threads = 4
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 	_, err = raw.ResolveValues("local", p)
-	if err == nil || !strings.Contains(err.Error(), "missing required [targets.local] table") {
+	if err == nil || !strings.Contains(err.Error(), "missing required [storage.local] table") {
 		t.Fatalf("ResolveValues() err = %v", err)
 	}
 }
@@ -348,7 +348,7 @@ safe_prune_max_delete_count = 0
 safe_prune_max_delete_percent = 0
 safe_prune_min_total_for_percent = 0
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 0
@@ -373,7 +373,7 @@ filter = '''
 -exclude .DS_Store
 '''
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume1/backups/homes"
 threads = 4
@@ -420,7 +420,7 @@ func TestApply_StringValues(t *testing.T) {
 		"FILTER":                     "-e *.tmp",
 		"PRUNE":                      "-keep 0:365 -keep 30:180",
 		"RESTORE_WORKSPACE_ROOT":     "/volume1/recovery",
-		"RESTORE_WORKSPACE_TEMPLATE": "{label}-{target}-{revision}",
+		"RESTORE_WORKSPACE_TEMPLATE": "{label}-{storage}-{revision}",
 	}
 	if err := cfg.Apply(vals); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -428,7 +428,7 @@ func TestApply_StringValues(t *testing.T) {
 	if cfg.Filter != "-e *.tmp" || cfg.Prune != "-keep 0:365 -keep 30:180" {
 		t.Fatalf("cfg after Apply = %+v", cfg)
 	}
-	if cfg.RestoreWorkspaceRoot != "/volume1/recovery" || cfg.RestoreWorkspaceTemplate != "{label}-{target}-{revision}" {
+	if cfg.RestoreWorkspaceRoot != "/volume1/recovery" || cfg.RestoreWorkspaceTemplate != "{label}-{storage}-{revision}" {
 		t.Fatalf("restore workspace config after Apply = %+v", cfg)
 	}
 }
@@ -478,7 +478,7 @@ func TestValidateRequired(t *testing.T) {
 	}
 	if err := (&Config{SourcePath: "/volume1/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing storage")
-	} else if !strings.Contains(err.Error(), "targets.<name>.storage") {
+	} else if !strings.Contains(err.Error(), "storage.<name>.storage") {
 		t.Fatalf("missing storage error = %v", err)
 	}
 	if err := (&Config{Storage: "/vol/homes", Threads: 4, Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
@@ -488,12 +488,12 @@ func TestValidateRequired(t *testing.T) {
 	}
 	if err := (&Config{SourcePath: "/volume1/homes", Storage: "/vol/homes", Prune: "-keep 0:30"}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing threads")
-	} else if !strings.Contains(err.Error(), "common.threads or targets.<name>.threads") {
+	} else if !strings.Contains(err.Error(), "common.threads or storage.<name>.threads") {
 		t.Fatalf("missing threads error = %v", err)
 	}
 	if err := (&Config{SourcePath: "/volume1/homes", Storage: "/vol/homes", Threads: 4}).ValidateRequired(true, true); err == nil {
 		t.Fatal("expected missing prune")
-	} else if !strings.Contains(err.Error(), "common.prune or targets.<name>.prune") {
+	} else if !strings.Contains(err.Error(), "common.prune or storage.<name>.prune") {
 		t.Fatalf("missing prune error = %v", err)
 	}
 	if err := (&Config{Storage: "/vol/homes"}).ValidateRequired(false, false); err != nil {
@@ -589,11 +589,11 @@ func TestValidateTargetSemantics(t *testing.T) {
 		cfg  Config
 		want string
 	}{
-		{name: "local disk okay", cfg: Config{Target: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes"}},
-		{name: "remote path okay", cfg: Config{Target: "offsite-usb", Location: "remote", Storage: "/volume1/duplicacy/duplicacy/homes"}},
-		{name: "local object storage okay", cfg: Config{Target: "onsite-rustfs", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
-		{name: "remote object storage okay", cfg: Config{Target: "offsite-storj", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
-		{name: "location required", cfg: Config{Target: "onsite-usb", Storage: "/volume2/backups/homes"}, want: "target.location must be set"},
+		{name: "local disk okay", cfg: Config{StorageName: "onsite-usb", Location: "local", Storage: "/volume2/backups/homes"}},
+		{name: "remote path okay", cfg: Config{StorageName: "offsite-usb", Location: "remote", Storage: "/volume1/duplicacy/duplicacy/homes"}},
+		{name: "local object storage okay", cfg: Config{StorageName: "onsite-rustfs", Location: "local", Storage: "s3://rustfs.local/bucket/homes"}},
+		{name: "remote object storage okay", cfg: Config{StorageName: "offsite-storj", Location: "remote", Storage: "s3://gateway.example.invalid/bucket/homes"}},
+		{name: "location required", cfg: Config{StorageName: "onsite-usb", Storage: "/volume2/backups/homes"}, want: "storage.location must be set"},
 	}
 
 	for _, tc := range cases {

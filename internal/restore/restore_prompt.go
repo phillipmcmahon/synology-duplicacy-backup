@@ -354,7 +354,7 @@ func buildRestoreRunCommand(scriptName string, req *RestoreRequest, revision int
 		shellQuote(scriptName),
 		"restore",
 		"run",
-		"--target",
+		"--storage",
 		shellQuote(req.Target()),
 		"--revision",
 		strconv.Itoa(revision),

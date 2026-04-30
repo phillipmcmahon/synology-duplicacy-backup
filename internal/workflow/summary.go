@@ -30,7 +30,7 @@ func OperationMode(req *RuntimeRequest) string {
 func SummaryLines(plan *Plan) []SummaryLine {
 	lines := []SummaryLine{
 		{Label: "Operation Mode", Value: plan.Request.OperationMode},
-		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Storage", Value: plan.TargetName()},
 		{Label: "Location", Value: plan.Config.Location},
 		{Label: "Config File", Value: plan.Paths.ConfigFile},
 		{Label: "Source Path", Value: plan.Paths.SnapshotSource},

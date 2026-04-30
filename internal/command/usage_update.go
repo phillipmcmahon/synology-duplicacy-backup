@@ -139,7 +139,7 @@ SUPPORTED LAYOUT:
     If the running binary is outside that layout, update stops and asks for a manual install.
 
 UPDATE NOTIFICATIONS:
-    update notification config is global, not label/target scoped:
+    update notification config is global, not label/storage scoped:
       {{config_dir}}/{{app_config_file}}
 
     Example:

@@ -125,7 +125,7 @@ func TestValidateRestoreWorkspaceSelection_RejectsRelativeRoot(t *testing.T) {
 }
 
 func TestValidateRestoreWorkspaceSelection_RejectsWorkspaceAndTemplate(t *testing.T) {
-	err := validateRestoreWorkspaceSelection(&RestoreRequest{Workspace: "/restore/exact", WorkspaceTemplate: "{label}-{target}"})
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{Workspace: "/restore/exact", WorkspaceTemplate: "{label}-{storage}"})
 	if err == nil || !strings.Contains(err.Error(), "--workspace and --workspace-template cannot be used together") {
 		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
 	}
@@ -135,7 +135,7 @@ func TestApplyRestoreConfigDefaults_ExactWorkspaceOverridesConfigDefaults(t *tes
 	req := &RestoreRequest{Workspace: "/restore/exact"}
 	applyRestoreConfigDefaults(req, &config.Config{
 		RestoreWorkspaceRoot:     "/restore/root",
-		RestoreWorkspaceTemplate: "{label}-{target}",
+		RestoreWorkspaceTemplate: "{label}-{storage}",
 	})
 
 	if req.WorkspaceRoot != "" || req.WorkspaceTemplate != "" {
@@ -154,7 +154,7 @@ func TestValidateRestoreWorkspaceSelection_RejectsUnsupportedTemplateVariable(t 
 }
 
 func TestValidateRestoreWorkspaceSelection_RejectsTemplatePath(t *testing.T) {
-	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceTemplate: "{label}/{target}"})
+	err := validateRestoreWorkspaceSelection(&RestoreRequest{WorkspaceTemplate: "{label}/{storage}"})
 	if err == nil || !strings.Contains(err.Error(), "must produce one folder name") {
 		t.Fatalf("validateRestoreWorkspaceSelection() err = %v", err)
 	}
@@ -239,7 +239,7 @@ label = "homes"
 threads = 4
 prune = "-keep 0:365"
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.example.invalid/bucket/homes"
 `)

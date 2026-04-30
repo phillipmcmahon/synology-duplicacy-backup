@@ -172,7 +172,7 @@ sh ./scripts/package-test-bundle.sh \
   --goos linux \
   --goarch amd64 \
   --default-label homes \
-  --default-target onsite-garage \
+  --default-storage onsite-garage \
   --default-workspace-root /volume1/restore-drills \
   --instructions build/test-packages/instructions/${RUN_ID}.md
 ```
@@ -184,7 +184,7 @@ with this operator-facing layout:
 - `README.md` starts with the setup command and points to the smoke-test
   instructions.
 - `setup-env.sh` extracts the packaged tarball and exports `BIN`, `CFG`, `SEC`,
-  `LABEL`, `TARGET`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`.
+  `LABEL`, `STORAGE`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`.
 - `artifacts/<platform>/` contains the Linux package tarball.
 - `checksums/<platform>/` contains the package checksum.
 - `instructions/smoke-test.md` contains the NAS smoke-test procedure.
@@ -200,7 +200,7 @@ Smoke instructions should begin with:
 Operators can override values before sourcing the setup file:
 
 ```bash
-TARGET=onsite-usb LABEL=homes . ./setup-env.sh
+STORAGE=onsite-usb LABEL=homes . ./setup-env.sh
 ```
 
 ### One artefact

@@ -1,7 +1,7 @@
 # Configuration and Secrets
 
 Use this reference when you are creating or reviewing label config files,
-target definitions, health policy, notifications, and secrets. For copyable
+storage definitions, health policy, notifications, and secrets. For copyable
 daily commands, use the [operator cheat sheet](cheatsheet.md); for restore
 procedure, use [restore-drills.md](restore-drills.md).
 
@@ -45,7 +45,7 @@ variables are still useful for schedulers, smoke captures, and support runs:
 
 ## Config File Format
 
-Each config file defines one source label and one or more named targets.
+Each config file defines one source label and one or more named storage.
 The expected layout is:
 
 - top-level `label`
@@ -54,13 +54,13 @@ The expected layout is:
 - optional `[restore]`
 - optional `[health]`
 - optional `[health.notify]`
-- one or more `[targets.<name>]`
-- optional `[targets.<name>.health]`
-- optional `[targets.<name>.health.notify]`
+- one or more `[storage.<name>]`
+- optional `[storage.<name>.health]`
+- optional `[storage.<name>.health.notify]`
 
-## Target Model
+## Storage Model
 
-Targets use two explicit fields:
+Storage entries use two explicit fields:
 
 - `storage` is the complete Duplicacy storage value
 - `location` describes where the storage lives operationally
@@ -73,14 +73,14 @@ Supported locations:
 This means local disk paths, remote S3-compatible storage, native Duplicacy
 backends, and local S3-compatible services such as RustFS or MinIO all use the
 same `storage = "..."` shape. `location` is still important because it tells
-operators where the target lives for scheduling, reporting, and permission
+operators where the storage lives for scheduling, reporting, and permission
 management decisions.
 
 Operational rules:
 
-- every target passes `storage` directly to Duplicacy
+- every storage entry passes `storage` directly to Duplicacy
 - include the complete backend path in `storage`
-- runtime keys live under `[targets.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
+- runtime keys live under `[storage.<name>.keys]` in the secrets file and are loaded for known Duplicacy backends that require them
 - local filesystem repositories are protected OS resources; manage custom
   ownership or permissions with DSM/Linux tools outside this application
 
@@ -91,17 +91,17 @@ Operational rules:
 | `label` | Yes | Source label used on the CLI |
 | `source_path` | Required for backup and full `config validate`; optional for restore-only DR access | Btrfs source root for this label; must be a snapshot-safe volume or subvolume when configured |
 | `common.filter` | No | Default Duplicacy filter pattern |
-| `common.threads` | Yes for backup unless set on the target | Duplicacy threads; power of 2, max 16 |
-| `common.prune` | Yes for prune unless set on the target | Duplicacy prune policy |
+| `common.threads` | Yes for backup unless set on the storage entry | Duplicacy threads; power of 2, max 16 |
+| `common.prune` | Yes for prune unless set on the storage entry | Duplicacy prune policy |
 | `common.log_retention_days` | No | Log retention days; default `30` |
 | `common.safe_prune_max_delete_percent` | No | Default `10` |
 | `common.safe_prune_max_delete_count` | No | Default `25` |
 | `common.safe_prune_min_total_for_percent` | No | Default `20` |
-| `targets.<name>.location` | Yes | Deployment location: `local` or `remote` |
-| `targets.<name>.storage` | Yes | Complete Duplicacy storage value, including the repository/path component you want Duplicacy to use |
-| `targets.<name>.filter` | No | Target-specific filter override |
-| `targets.<name>.threads` | No | Target-specific thread override |
-| `targets.<name>.prune` | No | Target-specific prune override |
+| `storage.<name>.location` | Yes | Deployment location: `local` or `remote` |
+| `storage.<name>.storage` | Yes | Complete Duplicacy storage value, including the repository/path component you want Duplicacy to use |
+| `storage.<name>.filter` | No | Storage-specific filter override |
+| `storage.<name>.threads` | No | Storage-specific thread override |
+| `storage.<name>.prune` | No | Storage-specific prune override |
 
 ## Health Policy
 
@@ -118,9 +118,9 @@ The optional `[health]` table controls read-only health checks:
 
 The optional `[health.notify]` table controls notifications for
 non-interactive health runs and selected runtime failures. It can deliver to a
-generic webhook destination, native `ntfy`, or both. Targets can override
-these values under `[targets.<name>.health]` and
-`[targets.<name>.health.notify]`:
+generic webhook destination, native `ntfy`, or both. Storage entries can override
+these values under `[storage.<name>.health]` and
+`[storage.<name>.health.notify]`:
 
 | Key | Required | Description |
 |---|---|---|
@@ -152,11 +152,11 @@ Optional `[health.notify.ntfy]` keys:
 | `url` | No | Base `ntfy` URL; defaults to `https://ntfy.sh` |
 | `topic` | Yes | `ntfy` topic name |
 
-Notification authentication is target-scoped. If a webhook or `ntfy`
+Notification authentication is storage-scoped. If a webhook or `ntfy`
 destination requires authentication, store `health_webhook_bearer_token` and/or
-`health_ntfy_token` under the matching `[targets.<name>]` section in the
-secrets file. If several targets notify to the same authenticated destination,
-repeat the token in each target section that needs to send notifications.
+`health_ntfy_token` under the matching `[storage.<name>]` section in the
+secrets file. If several storage entries notify to the same authenticated destination,
+repeat the token in each storage section that needs to send notifications.
 
 Notification payloads are generic JSON, not vendor-specific message formats.
 Every payload includes shared fields such as:
@@ -169,7 +169,7 @@ Every payload includes shared fields such as:
 - `event`
 - `summary`
 - `label`
-- `target`
+- `storage`
 - `location`
 - `status`
 
@@ -181,7 +181,7 @@ while native `ntfy` support covers the low-cost Synology path directly.
 
 ### Update Notifications
 
-Self-update notifications are global application settings, not label or target
+Self-update notifications are global application settings, not label or storage
 settings. Put them in:
 
 ```text
@@ -225,15 +225,15 @@ need more noise control.
 
 ### Simulated Notification Sends
 
-`notify test` uses the configured label and target exactly as a real runtime or
+`notify test` uses the configured label and storage exactly as a real runtime or
 health notification would, but it sends a clearly marked synthetic event with
 `category = test`. `notify test update` uses the global update notification
 config and simulates an update event without running the updater.
 
 This is useful for validating:
 
-- destination resolution for the selected target
-- target-scoped notification auth
+- destination resolution for the selected storage
+- storage-scoped notification auth
 - provider reachability and acceptance
 - global update notification routing, when using `notify test update`
 
@@ -247,7 +247,7 @@ It does not prove that:
 Provider-specific expectations:
 
 - native `ntfy` sends a real message to the configured topic using the same
-  target-scoped token handling as live notifications; public topics can be
+  storage-scoped token handling as live notifications; public topics can be
   tested without reading the label secrets file, but token-protected topics
   still need readable token access
 - generic webhook sends the same generic JSON payload shape used by live
@@ -255,7 +255,7 @@ Provider-specific expectations:
 
 Recommended operator flow:
 
-1. Confirm the selected target has the provider configured.
+1. Confirm the selected storage has the provider configured.
 2. Start with `notify test --dry-run` if you want to inspect the resolved
    destinations and synthetic payload details without sending anything.
 3. Run `notify test` without `--dry-run` to send the real synthetic message.
@@ -292,26 +292,26 @@ interactive = false
 url = "https://ntfy.sh"
 topic = "duplicacy-backup-alerts"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume2/backups/homes"
 
-[targets.offsite-usb]
+[storage.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
-[targets.offsite-storj.health]
+[storage.offsite-storj.health]
 verify_warn_after_hours = 336
 
-[targets.onsite-rustfs]
+[storage.onsite-rustfs]
 location = "local"
 storage = "s3://rustfs.local/my-backup-bucket/homes"
 
-[targets.onsite-minio]
+[storage.onsite-minio]
 location = "local"
 storage = "minio://garage@192.168.202.24:3900/garage/homes"
 ```
@@ -323,7 +323,7 @@ The default root is `/volume1/restore-drills` and the default execution
 template is:
 
 ```text
-{label}-{target}-{snapshot_timestamp}-rev{revision}
+{label}-{storage}-{snapshot_timestamp}-rev{revision}
 ```
 
 You can set operator defaults in the label config:
@@ -331,19 +331,19 @@ You can set operator defaults in the label config:
 ```toml
 [restore]
 workspace_root = "/volume1/restore-drills"
-workspace_template = "{label}-{revision}-{target}-{run_timestamp}"
+workspace_template = "{label}-{revision}-{storage}-{run_timestamp}"
 ```
 
 `workspace_root` must already exist when restore execution runs. Use it for the
 parent shared-folder location. `workspace_template` controls only the child
 folder name; it cannot contain path separators. Supported variables are
-`{label}`, `{target}`, `{snapshot_timestamp}`, `{revision}`, and
+`{label}`, `{storage}`, `{snapshot_timestamp}`, `{revision}`, and
 `{run_timestamp}`. Runtime flags override config defaults:
 `--workspace-root`, `--workspace-template`, or exact `--workspace`.
 
 Template values are sanitised for path safety and portability. Characters
 outside ASCII letters, digits, `.`, `_`, and `-` are replaced with `_`, so labels
-or targets containing spaces, punctuation, or non-ASCII characters produce safe
+or storage names containing spaces, punctuation, or non-ASCII characters produce safe
 workspace folder names rather than literal copies of the original text.
 
 ## Source Path Rule
@@ -375,13 +375,13 @@ volume or subvolume it cannot be used as the backup snapshot source.
 
 When you need to include or exclude directories beneath the snapshot root, keep
 `source_path` pointed at the real Btrfs root location and use Duplicacy
-filters under `common.filter` or `targets.<name>.filter` to shape what is
+filters under `common.filter` or `storage.<name>.filter` to shape what is
 actually backed up.
 
 Restore-only disaster recovery access can omit `source_path`. Restore commands
-only need the label, target, storage value, and any storage secrets to read
+only need the label, storage name, storage value, and any storage secrets to read
 existing Duplicacy data. Restore workspaces are derived from the restore job:
-`/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+`/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>`.
 Use `[restore].workspace_root`, `--workspace-root`, and optionally
 `workspace_template` / `--workspace-template` to place and name those derived
 job folders under an existing operator-managed root, such as a Synology shared
@@ -394,7 +394,7 @@ validation.
 ## Secrets
 
 Known Duplicacy backends that require runtime storage keys load them from, and
-authenticated notification delivery can optionally read target-scoped tokens
+authenticated notification delivery can optionally read storage-scoped tokens
 from:
 
 ```text
@@ -409,15 +409,15 @@ Overrides:
 Example:
 
 ```toml
-[targets.offsite-storj]
+[storage.offsite-storj]
 health_webhook_bearer_token = "optional-webhook-bearer-token"
 health_ntfy_token = "optional-ntfy-bearer-token"
 
-[targets.offsite-storj.keys]
+[storage.offsite-storj.keys]
 s3_id = "your-access-key-id"
 s3_secret = "your-secret-access-key"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 health_ntfy_token = "optional-ntfy-bearer-token"
 ```
 
@@ -427,18 +427,18 @@ Requirements:
 - accepted when running root-required commands through `sudo` from that same operator account
 - secrets directory permissions `0700`
 - permissions `0600`
-- storage keys live under `[targets.<name>.keys]` and are loaded for known Duplicacy backends that require them
-- notification auth tokens may be present for any target
-- a `[targets.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that target
-- notification auth tokens are target-scoped; repeat them under each notifying target that needs authenticated delivery
+- storage keys live under `[storage.<name>.keys]` and are loaded for known Duplicacy backends that require them
+- notification auth tokens may be present for any storage entry
+- a `[storage.<name>]` section may contain only `health_webhook_bearer_token` and/or `health_ntfy_token` when no storage credentials are needed for that storage entry
+- notification auth tokens are storage-scoped; repeat them under each notifying storage entry that needs authenticated delivery
 
-Storage keys under `[targets.<name>.keys]` are passed through to Duplicacy as
+Storage keys under `[storage.<name>.keys]` are passed through to Duplicacy as
 runtime preference keys. Use the key names Duplicacy expects for the selected
 storage value. S3-compatible Duplicacy schemes `s3://`, `s3c://`,
 `minio://`, and `minios://` use `s3_id` and `s3_secret`:
 
 ```toml
-[targets.onsite-minio.keys]
+[storage.onsite-minio.keys]
 s3_id = "your-access-key-id"
 s3_secret = "your-secret-access-key"
 ```
@@ -446,15 +446,15 @@ s3_secret = "your-secret-access-key"
 Native Duplicacy `storj://` storage uses Storj-specific Duplicacy keys:
 
 ```toml
-[targets.offsite-storj-native.keys]
+[storage.offsite-storj-native.keys]
 storj_key = "your-storj-access-grant"
 storj_passphrase = "your-storj-passphrase"
 ```
 
 The bundled installer does not create or rewrite secrets directories or files.
 
-Path-based storage targets do not load storage keys.
-They only need a matching secrets file if a notifying target uses
+Path-based storage entries do not load storage keys.
+They only need a matching secrets file if a notifying storage entry uses
 `health_webhook_bearer_token` and/or `health_ntfy_token`.
 
 ## Safe Prune Thresholds
@@ -469,16 +469,16 @@ Use `prune --force` to override threshold enforcement.
 
 ## Health State
 
-Successful runs update a target-specific state file under:
+Successful runs update a storage-specific state file under:
 
 ```text
-$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json
+$HOME/.local/state/duplicacy-backup/state/<label>.<storage>.json
 ```
 
 When `XDG_STATE_HOME` is set, the state root is
 `$XDG_STATE_HOME/duplicacy-backup/state`.
 
-`health status`, `health doctor`, and `health verify` combine this target-specific state
+`health status`, `health doctor`, and `health verify` combine this storage-specific state
 with live Duplicacy storage inspection. When `duplicacy list` exposes revision
 creation times, those storage timestamps are used as the authoritative
 freshness signal.
@@ -498,26 +498,26 @@ the operator user so later non-root commands can read the same state.
 | Btrfs `source_path` subvolume check | `config validate`, backup, `health doctor`; uses unprivileged `stat` filesystem/inode probes and is not required for restore-only access or storage integrity verification |
 | storage accessibility check | `config validate` |
 | repository readiness and integrity probes | `config validate`, `health status`, `health doctor`, `health verify`; local filesystem repositories are protected OS resources and require `sudo` for these probes |
-| target secrets loading | selected storage scheme requires keys; validation then expects `[targets.<name>.keys]` in the secrets file |
+| storage secrets loading | selected storage scheme requires keys; validation then expects `[storage.<name>.keys]` in the secrets file |
 
 ## Output Model
 
-Human-facing screens now make the selected target shape explicit:
+Human-facing screens now make the selected storage shape explicit:
 
-- runtime headers show `Label`, `Target`, and `Location`
-- health headers show `Check`, `Label`, `Target`, and `Location`
+- runtime headers show `Label`, `Storage`, and `Location`
+- health headers show `Check`, `Label`, `Storage`, and `Location`
 - `config explain` and `config paths` show `Location`
 - `config explain` stays read-only by default and does not load storage secrets
 - `config validate` assumes the operator-user profile is the normal model and
-  reports the selected target checks directly
+  reports the selected storage checks directly
 
 `config validate` intentionally keeps its `Resolved` section identity-only:
 
 - `Label`
-- `Target`
+- `Storage`
 - `Config File`
 
-The new target-model checks are surfaced under `Target Settings`.
+The new storage-model checks are surfaced under `Storage Settings`.
 
 `config validate` keeps repository probing read-only. It does not initialise
 storage, create repositories, or modify config/state. Repository readiness is
@@ -532,13 +532,13 @@ reported as:
 integrity-checking a local filesystem repository from the operator account.
 Backups write local repository chunk and snapshot metadata as root for
 data-at-rest protection, so repository readiness and integrity probes must be
-run through `sudo` for those targets:
+run through `sudo` for those storage entries:
 
 ```bash
-sudo duplicacy-backup config validate --target onsite-usb homes
-sudo duplicacy-backup health status --target onsite-usb homes
-sudo duplicacy-backup health doctor --target onsite-usb homes
-sudo duplicacy-backup health verify --target onsite-usb homes
+sudo duplicacy-backup config validate --storage onsite-usb homes
+sudo duplicacy-backup health status --storage onsite-usb homes
+sudo duplicacy-backup health doctor --storage onsite-usb homes
+sudo duplicacy-backup health verify --storage onsite-usb homes
 ```
 
 Remote mounted filesystem repositories continue to validate and verify as the
@@ -569,4 +569,4 @@ homes-secrets.toml
 ```
 
 Every runtime, `config`, and `health` command requires an explicit
-`--target <name>`.
+`--storage <name>`.

@@ -14,8 +14,8 @@ import (
 )
 
 const defaultRestoreWorkspaceRoot = "/volume1/restore-drills"
-const defaultRestoreWorkspaceTemplate = "{label}-{target}-{snapshot_timestamp}-rev{revision}"
-const defaultRestorePlanWorkspaceTemplate = "{label}-{target}-{run_timestamp}"
+const defaultRestoreWorkspaceTemplate = "{label}-{storage}-{snapshot_timestamp}-rev{revision}"
+const defaultRestorePlanWorkspaceTemplate = "{label}-{storage}-{run_timestamp}"
 
 var unsafeRestoreWorkspaceSegmentPattern = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
@@ -67,7 +67,7 @@ func recommendedRestoreWorkspaceRoot(label, target string, root string, workspac
 	}
 	name, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
 		Label:             label,
-		Target:            target,
+		Storage:           target,
 		SnapshotTimestamp: "<restore-point-timestamp>",
 		Revision:          "<revision>",
 		RunTimestamp:      restoreWorkspaceTimestamp(now),
@@ -92,7 +92,7 @@ func recommendedRestoreWorkspaceForRevisionRoot(label, target string, revision d
 	}
 	name, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
 		Label:             label,
-		Target:            target,
+		Storage:           target,
 		SnapshotTimestamp: snapshotTimestamp,
 		Revision:          fmt.Sprintf("%d", revision.Revision),
 		RunTimestamp:      restoreWorkspaceTimestamp(now),
@@ -157,7 +157,7 @@ func applyRestoreConfigDefaults(req *RestoreRequest, cfg *config.Config) {
 
 type restoreWorkspaceTemplateValues struct {
 	Label             string
-	Target            string
+	Storage           string
 	SnapshotTimestamp string
 	Revision          string
 	RunTimestamp      string
@@ -174,7 +174,7 @@ func validateRestoreWorkspaceTemplate(template string) error {
 	}
 	_, err := renderRestoreWorkspaceTemplate(template, restoreWorkspaceTemplateValues{
 		Label:             "label",
-		Target:            "target",
+		Storage:           "storage",
 		SnapshotTimestamp: "20260424-070000",
 		Revision:          "2403",
 		RunTimestamp:      "20260428-120000",
@@ -189,7 +189,7 @@ func renderRestoreWorkspaceTemplate(template string, values restoreWorkspaceTemp
 	}
 	replacements := map[string]string{
 		"label":              safeRestoreWorkspaceSegment(values.Label),
-		"target":             safeRestoreWorkspaceSegment(values.Target),
+		"storage":            safeRestoreWorkspaceSegment(values.Storage),
 		"snapshot_timestamp": safeRestoreWorkspaceSegment(values.SnapshotTimestamp),
 		"revision":           safeRestoreWorkspaceSegment(values.Revision),
 		"run_timestamp":      safeRestoreWorkspaceSegment(values.RunTimestamp),
@@ -209,7 +209,7 @@ func renderRestoreWorkspaceTemplate(template string, values restoreWorkspaceTemp
 		name := template[i+1 : i+1+end]
 		value, ok := replacements[name]
 		if !ok {
-			return "", NewRequestError("restore workspace template uses unsupported variable {%s}; supported variables are {label}, {target}, {snapshot_timestamp}, {revision}, and {run_timestamp}", name)
+			return "", NewRequestError("restore workspace template uses unsupported variable {%s}; supported variables are {label}, {storage}, {snapshot_timestamp}, {revision}, and {run_timestamp}", name)
 		}
 		out.WriteString(value)
 		i += end + 2

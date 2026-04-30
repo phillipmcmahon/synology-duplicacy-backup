@@ -8,7 +8,7 @@ import (
 
 type RunReport struct {
 	Label          string        `json:"label,omitempty"`
-	Target         string        `json:"target,omitempty"`
+	Target         string        `json:"storage,omitempty"`
 	Operation      string        `json:"operation,omitempty"`
 	Mode           string        `json:"mode,omitempty"`
 	Location       string        `json:"location,omitempty"`

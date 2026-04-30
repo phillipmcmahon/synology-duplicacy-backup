@@ -16,7 +16,7 @@ func NewConfigRequest(req *Request) ConfigRequest {
 	return ConfigRequest{
 		Command:    req.ConfigCommand,
 		Label:      req.Source,
-		TargetName: req.RequestedTarget,
+		TargetName: req.Target(),
 		ConfigDir:  req.ConfigDir,
 		SecretsDir: req.SecretsDir,
 	}

@@ -95,8 +95,8 @@ func writeHealthConfig(t *testing.T, dir, label string, body string) {
 	var config strings.Builder
 	fmt.Fprintf(&config, "label = %q\n", label)
 	fmt.Fprintf(&config, "source_path = %q\n", sourcePath)
-	if !strings.Contains(body, "[targets.") {
-		fmt.Fprintf(&config, "\n[targets.onsite-usb]\nlocation = %q\nstorage = %q\n", locationLocal, storage)
+	if !strings.Contains(body, "[storage.") {
+		fmt.Fprintf(&config, "\n[storage.onsite-usb]\nlocation = %q\nstorage = %q\n", locationLocal, storage)
 	}
 	if strings.TrimSpace(body) != "" {
 		config.WriteString("\n")
@@ -301,7 +301,7 @@ func TestHealthRunner_StatusOutputShowsTargetAndDefersSecrets(t *testing.T) {
 	assertOrderedTokens(t, stderr,
 		"Check                : Status",
 		"Label                : homes",
-		"Target               : offsite-storj",
+		"Storage              : offsite-storj",
 	)
 	assertOrderedTokens(t, stderr,
 		"Config File          :",

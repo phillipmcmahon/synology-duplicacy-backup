@@ -10,7 +10,7 @@ const restoreUsageLine = "{{script}} restore <plan|list-revisions|run|select> [O
 
 var restoreCommandHelpLines = []string{
 	"    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to restore into a drill workspace",
-	"    plan                   Resolve a safe read-only restore drill plan for one label and target",
+	"    plan                   Resolve a safe read-only restore drill plan for one label and storage",
 	"    list-revisions         List visible backup revisions without executing a restore",
 	"    run                    Prepare or reuse a drill workspace, then restore a revision, file, or pattern only there",
 }
@@ -41,7 +41,7 @@ Restore commands:
 {{restore_commands}}
 
 Options:
-    --target <name>
+    --storage <name>
     --workspace <path>      use this exact drill workspace path
     --workspace-root <path> run/select only; derive under an existing root
     --workspace-template <template>
@@ -65,12 +65,12 @@ Interactive restore select:
     progress.
 
 Examples:
-    sudo {{script}} restore select --target onsite-usb homes
-    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-    {{script}} restore plan --target onsite-usb homes
-    sudo {{script}} restore list-revisions --target onsite-usb homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
-    {{script}} restore plan --target offsite-storj homes
+    sudo {{script}} restore select --storage onsite-usb homes
+    sudo {{script}} restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
+    {{script}} restore plan --storage onsite-usb homes
+    sudo {{script}} restore list-revisions --storage onsite-usb homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    {{script}} restore plan --storage offsite-storj homes
 
 Use --help-full for the detailed restore reference.
 `,
@@ -88,7 +88,7 @@ RESTORE COMMANDS:
 {{restore_commands}}
 
 OPTIONS:
-    --target <name>        Select the named target (required)
+    --storage <name>        Select the named storage config (required)
     --workspace <path>     Use this exact drill workspace path
     --workspace-root <path>
                            Run/select only; derive under an existing root; cannot be combined with --workspace
@@ -114,7 +114,7 @@ BEHAVIOUR:
     restore plan:
       - reads the selected label config
       - shows the resolved source path, storage value, config file, and applicable secrets file
-      - reads the target state file when available to show the latest known backup revision
+      - reads the storage state file when available to show the latest known backup revision
       - prints Duplicacy commands for creating a separate drill workspace, listing revisions, and restoring manually
       - does not create directories, write Duplicacy preferences, execute duplicacy restore, or copy data back
     restore list-revisions:
@@ -127,7 +127,7 @@ BEHAVIOUR:
       - when --workspace is omitted, derives a predictable workspace from a template
       - uses --workspace-root <path> to derive that predictable workspace under an existing operator-chosen parent
       - uses --workspace-template <template> to choose the derived child folder name
-      - supports {label}, {target}, {snapshot_timestamp}, {revision}, and {run_timestamp}
+      - supports {label}, {storage}, {snapshot_timestamp}, {revision}, and {run_timestamp}
       - uses --workspace <path> only when you need an exact workspace path
       - creates that workspace and writes .duplicacy/preferences when needed
       - rejects the live source path, source-child workspaces, and non-empty unprepared workspaces
@@ -154,7 +154,7 @@ BEHAVIOUR:
       - for restore actions, shows the generated restore commands and asks for confirmation
       - shows listing progress before the picker and restore progress after confirmation
       - delegates restore actions to restore run, which prepares the workspace when needed
-      - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point by default, for example <label>-<target>-<restore-point-timestamp>-rev<id>
+      - when --workspace is omitted for restore actions, uses a drill workspace named from the selected restore point by default, for example <label>-<storage>-<restore-point-timestamp>-rev<id>
       - accepts --workspace-root to place that derived workspace under an existing shared-folder root
       - accepts --workspace-template to choose the derived child folder name
       - never copies data back
@@ -184,19 +184,19 @@ SAFETY MODEL:
     permissions.
 
 EXAMPLES:
-    sudo {{script}} restore select --target onsite-usb homes
-    sudo {{script}} restore select --target onsite-usb --workspace-root /volume1/restore-drills homes
-    sudo {{script}} restore select --target onsite-usb --workspace-template '{label}-{revision}-{target}-{run_timestamp}' homes
-    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-    {{script}} restore plan --target onsite-usb homes
-    {{script}} restore plan --target offsite-storj homes
-    sudo {{script}} restore list-revisions --target onsite-usb homes
-    {{script}} restore list-revisions --target offsite-storj --json-summary homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --workspace-template '{label}-{revision}-{target}-{run_timestamp}' --path docs/readme.md --yes homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --path 'docs/*' --yes homes
-    {{script}} restore plan --target offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
+    sudo {{script}} restore select --storage onsite-usb homes
+    sudo {{script}} restore select --storage onsite-usb --workspace-root /volume1/restore-drills homes
+    sudo {{script}} restore select --storage onsite-usb --workspace-template '{label}-{revision}-{storage}-{run_timestamp}' homes
+    sudo {{script}} restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
+    {{script}} restore plan --storage onsite-usb homes
+    {{script}} restore plan --storage offsite-storj homes
+    sudo {{script}} restore list-revisions --storage onsite-usb homes
+    {{script}} restore list-revisions --storage offsite-storj --json-summary homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --path docs/readme.md --dry-run homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --workspace-root /volume1/restore-drills --path docs/readme.md --yes homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --workspace-template '{label}-{revision}-{storage}-{run_timestamp}' --path docs/readme.md --yes homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --path 'docs/*' --yes homes
+    {{script}} restore plan --storage offsite-storj --config-dir /opt/etc --secrets-dir /opt/secrets homes
 `,
 		"{{restore_usage}}", restoreUsage(meta),
 		"{{restore_commands}}", restoreCommandHelpBlock(),

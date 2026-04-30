@@ -26,7 +26,7 @@ func TestHandleDiagnosticsCommand_LocalTargetIncludesStateAndPermissions(t *test
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
-	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleDiagnosticsCommand(req, meta, testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
@@ -56,7 +56,7 @@ func TestHandleDiagnosticsCommand_LocalRootProtectedRepositoryUsesPolicyWording(
 
 	rt := testRuntime()
 	rt.Geteuid = func() int { return 1000 }
-	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb"}
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb"}
 	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), rt)
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
@@ -79,12 +79,12 @@ func TestHandleDiagnosticsCommand_RemoteSecretsAreRedacted(t *testing.T) {
 	secretsDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://EU@gateway.example.invalid/bucket/homes", 4, ""))
 	secretPath := filepath.Join(secretsDir, "homes-secrets.toml")
-	body := "[targets.offsite-storj.keys]\ns3_id = \"visible-id\"\ns3_secret = \"visible-secret\"\n"
+	body := "[storage.offsite-storj.keys]\ns3_id = \"visible-id\"\ns3_secret = \"visible-secret\"\n"
 	if err := os.WriteFile(secretPath, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedTarget: "offsite-storj"}
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: secretsDir, RequestedStorageName: "offsite-storj"}
 	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
@@ -101,7 +101,7 @@ func TestHandleDiagnosticsCommand_JSONSummary(t *testing.T) {
 	configDir := t.TempDir()
 	writeTargetTestConfig(t, configDir, "homes", "offsite-storj", remoteTargetConfig("homes", "/volume1/homes", "s3://user:password@gateway.example.invalid/bucket/homes?token=secret-token&region=EU", 4, ""))
 
-	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: t.TempDir(), RequestedTarget: "offsite-storj", JSONSummary: true}
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, SecretsDir: t.TempDir(), RequestedStorageName: "offsite-storj", JSONSummary: true}
 	out, err := HandleDiagnosticsCommand(req, MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir()), testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)
@@ -134,7 +134,7 @@ func TestHandleDiagnosticsCommand_JSONSummaryIncludesZeroRevisionWhenStateExists
 		t.Fatalf("saveRunState() error = %v", err)
 	}
 
-	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", JSONSummary: true}
+	req := &Request{DiagnosticsCommand: "diagnostics", Source: "homes", ConfigDir: configDir, RequestedStorageName: "onsite-usb", JSONSummary: true}
 	out, err := HandleDiagnosticsCommand(req, meta, testRuntime())
 	if err != nil {
 		t.Fatalf("HandleDiagnosticsCommand() error = %v", err)

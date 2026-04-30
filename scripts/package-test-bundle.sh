@@ -15,7 +15,7 @@ REPO_ROOT=""
 DEFAULT_CONFIG_DIR=""
 DEFAULT_SECRETS_DIR=""
 DEFAULT_LABEL="homes"
-DEFAULT_TARGET="onsite-garage"
+DEFAULT_STORAGE="onsite-garage"
 DEFAULT_WORKSPACE_ROOT="/volume1/restore-drills"
 
 usage() {
@@ -31,17 +31,17 @@ Options:
   --poc-name <value>     Required when --kind poc; creates build/test-packages/poc/<name>/<run-id>
   --version <value>      Version string embedded into the binary
   --build-time <value>   Build timestamp in UTC RFC3339 form
-  --goos <value>         Target GOOS (default: linux)
-  --goarch <value>       Target GOARCH (default: amd64)
-  --goarm <value>        Target GOARM (for GOARCH=arm)
+  --goos <value>         Output GOOS (default: linux)
+  --goarch <value>       Output GOARCH (default: amd64)
+  --goarm <value>        Output GOARM (for GOARCH=arm)
   --instructions <path>  Markdown instructions to include in the bundle
   --default-config-dir <path>
                          CFG default written to setup-env.sh
   --default-secrets-dir <path>
                          SEC default written to setup-env.sh
   --default-label <name> LABEL default written to setup-env.sh (default: homes)
-  --default-target <name>
-                         TARGET default written to setup-env.sh (default: onsite-garage)
+  --default-storage <name>
+                         STORAGE default written to setup-env.sh (default: onsite-garage)
   --default-workspace-root <path>
                          WORKSPACE_ROOT default written to setup-env.sh
   --repo-root <path>     Repository root (default: script parent directory)
@@ -158,9 +158,9 @@ while [ "$#" -gt 0 ]; do
             DEFAULT_LABEL="$2"
             shift 2
             ;;
-        --default-target)
-            [ "$#" -ge 2 ] || fail "--default-target requires a value"
-            DEFAULT_TARGET="$2"
+        --default-storage)
+            [ "$#" -ge 2 ] || fail "--default-storage requires a value"
+            DEFAULT_STORAGE="$2"
             shift 2
             ;;
         --default-workspace-root)
@@ -279,19 +279,19 @@ EOF
 quoted_default_config_dir="$(shell_quote "$DEFAULT_CONFIG_DIR")"
 quoted_default_secrets_dir="$(shell_quote "$DEFAULT_SECRETS_DIR")"
 quoted_default_label="$(shell_quote "$DEFAULT_LABEL")"
-quoted_default_target="$(shell_quote "$DEFAULT_TARGET")"
+quoted_default_target="$(shell_quote "$DEFAULT_STORAGE")"
 quoted_default_workspace_root="$(shell_quote "$DEFAULT_WORKSPACE_ROOT")"
 
 cat > "$bundle_dir/setup-env.sh" <<EOF
 # Source this file from the extracted bundle root:
 #   . ./setup-env.sh
 #
-# Existing CFG, SEC, LABEL, TARGET, and WORKSPACE_ROOT values are preserved.
+# Existing CFG, SEC, LABEL, STORAGE, and WORKSPACE_ROOT values are preserved.
 
 DEFAULT_CFG=$quoted_default_config_dir
 DEFAULT_SEC=$quoted_default_secrets_dir
 DEFAULT_LABEL=$quoted_default_label
-DEFAULT_TARGET=$quoted_default_target
+DEFAULT_STORAGE=$quoted_default_target
 DEFAULT_WORKSPACE_ROOT=$quoted_default_workspace_root
 
 setup_script=\${BASH_SOURCE:-\$0}
@@ -344,11 +344,11 @@ if [ -z "\${SEC:-}" ]; then
 fi
 
 LABEL="\${LABEL:-\$DEFAULT_LABEL}"
-TARGET="\${TARGET:-\$DEFAULT_TARGET}"
+STORAGE="\${STORAGE:-\$DEFAULT_STORAGE}"
 WORKSPACE_ROOT="\${WORKSPACE_ROOT:-\$DEFAULT_WORKSPACE_ROOT}"
 RESTORE_ROOT="\${RESTORE_ROOT:-\$WORKSPACE_ROOT}"
 
-export BUNDLE_ROOT BIN CFG SEC LABEL TARGET WORKSPACE_ROOT RESTORE_ROOT
+export BUNDLE_ROOT BIN CFG SEC LABEL STORAGE WORKSPACE_ROOT RESTORE_ROOT
 
 cat <<SETUP_EOF
 Smoke bundle environment:
@@ -357,7 +357,7 @@ Smoke bundle environment:
   CFG             : \$CFG
   SEC             : \$SEC
   LABEL           : \$LABEL
-  TARGET          : \$TARGET
+  STORAGE          : \$STORAGE
   WORKSPACE_ROOT  : \$WORKSPACE_ROOT
 SETUP_EOF
 EOF
@@ -375,7 +375,7 @@ less instructions/$instructions_name
 
 Contents:
 
-- \`setup-env.sh\` extracts the package and exports \`BIN\`, \`CFG\`, \`SEC\`, \`LABEL\`, \`TARGET\`, and \`WORKSPACE_ROOT\`.
+- \`setup-env.sh\` extracts the package and exports \`BIN\`, \`CFG\`, \`SEC\`, \`LABEL\`, \`STORAGE\`, and \`WORKSPACE_ROOT\`.
 - \`artifacts/$artifact_platform/\` contains the Linux package tarball.
 - \`checksums/$artifact_platform/\` contains the package checksum.
 - \`instructions/\` contains the NAS smoke-test procedure.

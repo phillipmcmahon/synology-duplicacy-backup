@@ -1,6 +1,6 @@
 // Package config handles TOML configuration file parsing and validation.
 // It supports the current single-file-per-label model with shared [common]
-// values plus [targets.<name>] sections.
+// values plus [storage.<name>] sections.
 package config
 
 import (
@@ -32,7 +32,7 @@ var pruneKeepValuePattern = regexp.MustCompile(`^\d+:\d+$`)
 // Config holds all parsed and validated configuration values.
 type Config struct {
 	Label                       string
-	Target                      string
+	StorageName                 string
 	Location                    string
 	SourcePath                  string
 	Storage                     string
@@ -101,7 +101,7 @@ type tableRestore struct {
 	WorkspaceTemplate *string `toml:"workspace_template"`
 }
 
-type tableTarget struct {
+type tableStorage struct {
 	Location                    *string      `toml:"location"`
 	Storage                     *string      `toml:"storage"`
 	Filter                      *string      `toml:"filter"`
@@ -116,13 +116,13 @@ type tableTarget struct {
 
 // File holds the decoded TOML config file before mode-specific resolution.
 type File struct {
-	Label      *string                `toml:"label"`
-	SourcePath *string                `toml:"source_path"`
-	Common     *tableCommon           `toml:"common"`
-	Restore    *tableRestore          `toml:"restore"`
-	Targets    map[string]tableTarget `toml:"targets"`
-	Health     *tableHealth           `toml:"health"`
-	Notify     *tableHealthNotify     `toml:"notify"`
+	Label      *string                 `toml:"label"`
+	SourcePath *string                 `toml:"source_path"`
+	Common     *tableCommon            `toml:"common"`
+	Restore    *tableRestore           `toml:"restore"`
+	Storage    map[string]tableStorage `toml:"storage"`
+	Health     *tableHealth            `toml:"health"`
+	Notify     *tableHealthNotify      `toml:"notify"`
 }
 
 type tableHealth struct {
@@ -242,8 +242,8 @@ func LoadAppConfig(path string) (*AppConfig, error) {
 }
 
 // ResolveValues merges the decoded file into the key/value shape used by
-// Config.Apply. Only the current [targets.<name>] layout is supported.
-func (f *File) ResolveValues(targetName, path string) (map[string]string, error) {
+// Config.Apply. Only the current [storage.<name>] layout is supported.
+func (f *File) ResolveValues(storageName, path string) (map[string]string, error) {
 	values := make(map[string]string)
 	if f.Label != nil {
 		values["LABEL"] = strings.TrimSpace(*f.Label)
@@ -252,7 +252,7 @@ func (f *File) ResolveValues(targetName, path string) (map[string]string, error)
 		values["SOURCE_PATH"] = strings.TrimSpace(*f.SourcePath)
 	}
 
-	selected, target, err := f.selectTarget(targetName, path)
+	selected, storage, err := f.selectStorage(storageName, path)
 	if err != nil {
 		return nil, err
 	}
@@ -262,50 +262,50 @@ func (f *File) ResolveValues(targetName, path string) (map[string]string, error)
 	}
 	mergeRestore(values, f.Restore)
 
-	values["TARGET"] = selected
-	if target.Location != nil {
-		values["LOCATION"] = strings.TrimSpace(*target.Location)
+	values["STORAGE_NAME"] = selected
+	if storage.Location != nil {
+		values["LOCATION"] = strings.TrimSpace(*storage.Location)
 	}
-	if target.Storage == nil || strings.TrimSpace(*target.Storage) == "" {
-		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required targets.%s.storage value", path, selected), "path", path, "target", selected)
+	if storage.Storage == nil || strings.TrimSpace(*storage.Storage) == "" {
+		return nil, apperrors.NewConfigError("storage", fmt.Errorf("config file %s is missing required storage.%s.storage value", path, selected), "path", path, "storage", selected)
 	}
-	values["STORAGE"] = strings.TrimSpace(*target.Storage)
-	if target.Filter != nil {
-		values["FILTER"] = *target.Filter
+	values["STORAGE"] = strings.TrimSpace(*storage.Storage)
+	if storage.Filter != nil {
+		values["FILTER"] = *storage.Filter
 	}
-	if target.Threads != nil {
-		values["THREADS"] = fmt.Sprintf("%d", *target.Threads)
+	if storage.Threads != nil {
+		values["THREADS"] = fmt.Sprintf("%d", *storage.Threads)
 	}
-	if target.Prune != nil {
-		values["PRUNE"] = *target.Prune
+	if storage.Prune != nil {
+		values["PRUNE"] = *storage.Prune
 	}
-	if target.LogRetentionDays != nil {
-		values["LOG_RETENTION_DAYS"] = fmt.Sprintf("%d", *target.LogRetentionDays)
+	if storage.LogRetentionDays != nil {
+		values["LOG_RETENTION_DAYS"] = fmt.Sprintf("%d", *storage.LogRetentionDays)
 	}
-	if target.SafePruneMaxDeletePercent != nil {
-		values["SAFE_PRUNE_MAX_DELETE_PERCENT"] = fmt.Sprintf("%d", *target.SafePruneMaxDeletePercent)
+	if storage.SafePruneMaxDeletePercent != nil {
+		values["SAFE_PRUNE_MAX_DELETE_PERCENT"] = fmt.Sprintf("%d", *storage.SafePruneMaxDeletePercent)
 	}
-	if target.SafePruneMaxDeleteCount != nil {
-		values["SAFE_PRUNE_MAX_DELETE_COUNT"] = fmt.Sprintf("%d", *target.SafePruneMaxDeleteCount)
+	if storage.SafePruneMaxDeleteCount != nil {
+		values["SAFE_PRUNE_MAX_DELETE_COUNT"] = fmt.Sprintf("%d", *storage.SafePruneMaxDeleteCount)
 	}
-	if target.SafePruneMinTotalForPercent != nil {
-		values["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *target.SafePruneMinTotalForPercent)
+	if storage.SafePruneMinTotalForPercent != nil {
+		values["SAFE_PRUNE_MIN_TOTAL_FOR_PERCENT"] = fmt.Sprintf("%d", *storage.SafePruneMinTotalForPercent)
 	}
 	return values, nil
 }
 
-func (f *File) selectTarget(targetName, path string) (string, tableTarget, error) {
-	selected := strings.TrimSpace(targetName)
+func (f *File) selectStorage(storageName, path string) (string, tableStorage, error) {
+	selected := strings.TrimSpace(storageName)
 	if selected == "" {
-		return "", tableTarget{}, apperrors.NewConfigError("target-selection", fmt.Errorf("config file %s requires an explicit target selection", path), "path", path)
+		return "", tableStorage{}, apperrors.NewConfigError("storage-selection", fmt.Errorf("config file %s requires an explicit storage selection", path), "path", path)
 	}
-	if target, ok := f.Targets[selected]; ok {
-		return selected, target, nil
+	if storage, ok := f.Storage[selected]; ok {
+		return selected, storage, nil
 	}
-	return "", tableTarget{}, apperrors.NewConfigError("section-target", fmt.Errorf("config file %s is missing required [targets.%s] table", path, selected), "path", path, "section", selected)
+	return "", tableStorage{}, apperrors.NewConfigError("section-storage", fmt.Errorf("config file %s is missing required [storage.%s] table", path, selected), "path", path, "section", selected)
 }
 
-func (f *File) ResolveHealth(targetName string) HealthConfig {
+func (f *File) ResolveHealth(storageName string) HealthConfig {
 	cfg := NewDefaults().Health
 	if f == nil {
 		return cfg
@@ -336,8 +336,8 @@ func (f *File) ResolveHealth(targetName string) HealthConfig {
 	if f.Notify != nil {
 		applyNotify(&cfg.Notify, f.Notify)
 	}
-	if selected, target, err := f.selectTarget(targetName, "<label>-backup.toml"); err == nil && selected != "" {
-		applyHealth(target.Health)
+	if selected, storage, err := f.selectStorage(storageName, "<label>-backup.toml"); err == nil && selected != "" {
+		applyHealth(storage.Health)
 	}
 	return cfg
 }
@@ -428,8 +428,8 @@ func (c *Config) Apply(values map[string]string) error {
 	if v, ok := values["LABEL"]; ok {
 		c.Label = v
 	}
-	if v, ok := values["TARGET"]; ok {
-		c.Target = v
+	if v, ok := values["STORAGE_NAME"]; ok {
+		c.StorageName = v
 	}
 	if v, ok := values["LOCATION"]; ok {
 		c.Location = v
@@ -495,16 +495,16 @@ func (c *Config) ValidateRequired(doBackup, doPrune bool) error {
 	var missing []string
 
 	if c.Storage == "" {
-		missing = append(missing, "targets.<name>.storage")
+		missing = append(missing, "storage.<name>.storage")
 	}
 	if doBackup && c.SourcePath == "" {
 		missing = append(missing, "source_path")
 	}
 	if doBackup && c.Threads == 0 {
-		missing = append(missing, "common.threads or targets.<name>.threads")
+		missing = append(missing, "common.threads or storage.<name>.threads")
 	}
 	if doPrune && c.Prune == "" {
-		missing = append(missing, "common.prune or targets.<name>.prune")
+		missing = append(missing, "common.prune or storage.<name>.prune")
 	}
 
 	if len(missing) > 0 {
@@ -555,7 +555,7 @@ func (c *Config) ValidateThresholds() error {
 		return apperrors.NewConfigError("health-freshness-range", fmt.Errorf("health.freshness_warn_hours must be less than or equal to health.freshness_fail_hours"))
 	}
 	if c.Location != "" && c.Location != "local" && c.Location != "remote" {
-		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be either \"local\" or \"remote\" (was %q)", c.Location))
+		return apperrors.NewConfigError("storage-location", fmt.Errorf("storage.location must be either \"local\" or \"remote\" (was %q)", c.Location))
 	}
 	if err := c.Health.Validate(); err != nil {
 		return err
@@ -575,7 +575,7 @@ func (c *Config) UsesPathStorage() bool {
 // UsesRootProtectedLocalRepository is the sudo boundary for repository access.
 // Only path-based targets whose configured location is local are treated as
 // root-protected local repositories. Remote mounted filesystems are governed by
-// their mount credentials and permissions, like object-storage targets.
+// their mount credentials and permissions, like object-storage storage.
 func (c *Config) UsesRootProtectedLocalRepository() bool {
 	return c != nil && c.Location == "local" && c.UsesPathStorage()
 }
@@ -626,14 +626,18 @@ func (c *Config) ValidatePrunePolicy() error {
 	return nil
 }
 
-// ValidateTargetSemantics checks target-level configuration combinations that
+// ValidateStorageSemantics checks storage-level configuration combinations that
 // are internally inconsistent even before any operation-specific planning.
-func (c *Config) ValidateTargetSemantics() error {
+func (c *Config) ValidateStorageSemantics() error {
 	switch {
 	case c.Location == "":
-		return apperrors.NewConfigError("target-location", fmt.Errorf("target.location must be set to \"local\" or \"remote\""))
+		return apperrors.NewConfigError("storage-location", fmt.Errorf("storage.location must be set to \"local\" or \"remote\""))
 	}
 	return nil
+}
+
+func (c *Config) ValidateTargetSemantics() error {
+	return c.ValidateStorageSemantics()
 }
 
 // BuildPruneArgs splits the prune string into individual arguments.

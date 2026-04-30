@@ -21,7 +21,7 @@ This is the longer walkthrough.
 - [Main Packages](#main-packages)
 - [Request Phase](#request-phase)
 - [Environment and Metadata Seams](#environment-and-metadata-seams)
-- [Label-Target Model](#label-target-model)
+- [Label-Storage Model](#label-storage-model)
 - [Plan Phase](#plan-phase)
 - [Execute Phase](#execute-phase)
 - [Presentation Layer](#presentation-layer)
@@ -285,7 +285,7 @@ The parser `Request` contains raw CLI intent only:
 
 - selected runtime command such as `backup`, `prune`, or `cleanup-storage`
 - `--force` as a prune-threshold override for `prune`
-- `--target <name>` as the explicit configured target selector
+- `--storage <name>` as the explicit configured storage selector
 - `--dry-run`
 - config/secrets directory overrides
 - source label
@@ -357,7 +357,7 @@ Unresolved commands go through typed command dispatch in
   through `Planner.Build` followed by `Executor.Run`
 
 This dispatch point is why global commands such as `update`, `rollback`, and
-`notify test update` do not inherit label-target runtime requirements. It also
+`notify test update` do not inherit label-storage runtime requirements. It also
 keeps diagnostics and restore drill commands out of the runtime executor path:
 `diagnostics` is non-mutating, `restore plan` and `restore list-revisions` are
 read-only, `restore select` is an interactive revision-first guide that can
@@ -368,11 +368,11 @@ operator progress to stderr while keeping the final report on stdout.
 
 Local filesystem restore repositories are root-protected OS resources, so
 `restore list-revisions`, `restore select`, and `restore run` require `sudo`
-for those targets. Object restore remains governed by the operator profile and
+for those storage. Object restore remains governed by the operator profile and
 storage credentials; remote mounted filesystem restore remains governed by the
 operator profile and mount permissions.
 
-`diagnostics` is the support-bundle path. It resolves one label and target,
+`diagnostics` is the support-bundle path. It resolves one label and storage,
 redacts secret values, reports config/storage/state/path context, and exits
 without running Duplicacy backup, prune, restore, or cleanup operations.
 
@@ -428,12 +428,12 @@ mocking whole packages.
 - lock directory parent
 - log directory
 
-## Label-Target Model
+## Label-Storage Model
 
 The operational identity is now:
 
 ```text
-label + target
+label + storage
 ```
 
 Examples:
@@ -444,20 +444,20 @@ Examples:
 That identity flows through:
 
 - config selection: `<label>-backup.toml`
-- secrets selection: `<label>-secrets.toml` plus `[targets.<name>]`
-- state files: `<label>.<target>.json`
-- machine JSON summaries: `label` plus `target`
-- repository-phase locking: one lock per label-target pair
+- secrets selection: `<label>-secrets.toml` plus `[storage.<name>]`
+- state files: `<label>.<storage>.json`
+- machine JSON summaries: `label` plus `storage`
+- repository-phase locking: one lock per label-storage pair
 
 Runtime and health recency updates both use the same state mutation helper:
-load the existing `<label>.<target>.json` file when present, apply one focused
+load the existing `<label>.<storage>.json` file when present, apply one focused
 mutation, then save the normalised state file back with the standard
 permissions.
 
 This lets one source label keep multiple independent destinations without
 forcing revision parity or schedule alignment between them.
 
-Each target also resolves into a small operational model:
+Each storage entry also resolves into a small operational model:
 
 ```text
 storage + location
@@ -474,7 +474,7 @@ Supported locations are intentionally limited to:
 This keeps every storage backend behind Duplicacy while still giving operators
 useful scheduling and reporting language. Local disk paths, mounted remote
 filesystem paths, native Duplicacy backends, and S3-compatible services all use
-one target shape. A mounted remote filesystem can use a path-based storage value
+one storage shape. A mounted remote filesystem can use a path-based storage value
 with `location = "remote"`; a local RustFS or MinIO service can use URL-like
 storage with `location = "local"`.
 
@@ -540,7 +540,7 @@ This creates the first concrete runtime shape:
 - backup label
 - timestamp
 - temp work root
-- snapshot source and target
+- snapshot source and destination
 - repository path
 - config path
 - secrets path
@@ -563,17 +563,17 @@ It:
   - optional `[health.notify]`
     - generic webhook JSON for health outcomes and opt-in runtime failures
     - optional native `[health.notify.ntfy]` destination
-  - one or more `[targets.<name>]`
-  - optional `[targets.<name>.health]`
-  - optional `[targets.<name>.health.notify]`
+  - one or more `[storage.<name>]`
+  - optional `[storage.<name>.health]`
+  - optional `[storage.<name>.health.notify]`
 - applies values into `config.Config`
 - validates required keys
 - validates thresholds
-- validates the target model:
+- validates the storage model:
   - storage value
   - deployment location
 Self-update notifications intentionally do not flow through `loadConfig`,
-because update is application maintenance rather than a label/target
+because update is application maintenance rather than a label/storage
 operation. The update path reads global app config from
 `<config-dir>/duplicacy-backup.toml` when `[update.notify]` is present.
 - builds prune args
@@ -602,7 +602,7 @@ can read an existing repository without `source_path`, because the original
 source tree may not exist on a replacement NAS yet. In that mode, copy-back
 context is unavailable. The default drill workspace is derived from the restore
 job itself:
-`/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`.
+`/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>`.
 If the operator supplies `--workspace-root`, that existing root remains
 operator-managed and the tool creates the derived job folder underneath it.
 
@@ -619,7 +619,7 @@ It:
 
 The resulting `Secrets` object is attached to the plan.
 
-Path-based Duplicacy storage targets do not call `loadSecrets` for storage
+Path-based Duplicacy storage entries do not call `loadSecrets` for storage
 credentials, even when their `location` is `remote`. URL-like storage values
 only call `loadSecrets` when that backend requires runtime keys. That is a
 deliberate consequence of the model: the Duplicacy storage value drives
@@ -635,7 +635,7 @@ It stores those concerns in explicit named sections so future changes can be
 discussed in the right shape:
 
 - `PlanRequest` for mode decisions and resolved operator intent
-- `PlanConfig` for label, target, health notify, prune, and threshold values
+- `PlanConfig` for label, storage, health notify, prune, and threshold values
 - `PlanPaths` for resolved filesystem, config, secrets, snapshot, and storage paths
 
 Together, those sections contain:
@@ -943,7 +943,7 @@ If you want to change a specific behaviour, start here:
 `internal/command/request.go` keeps source-label commands on a shared parser
 path. Command-specific parser and help files live beside it as
 `request_<family>.go` and `usage_<family>.go`, with small extras around common
-target, config, secrets, dry-run, verbose, and JSON-summary flags.
+storage, config, secrets, dry-run, verbose, and JSON-summary flags.
 
 ### Path derivation and execution contract
 

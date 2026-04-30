@@ -63,7 +63,7 @@ func saveRunState(meta Metadata, label, target string, state *RunState) error {
 		return err
 	}
 	state.Label = label
-	state.Target = target
+	state.Storage = target
 	body, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func writeTargetTestSecrets(t *testing.T, dir, label, target string) string {
 		t.Fatalf("MkdirAll(%q) error = %v", dir, err)
 	}
 	path := filepath.Join(dir, fmt.Sprintf("%s-secrets.toml", label))
-	body := fmt.Sprintf("[targets.%s.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
+	body := fmt.Sprintf("[storage.%s.keys]\ns3_id = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ01\"\ns3_secret = \"abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQR\"\n", target)
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
 	}
@@ -118,7 +118,7 @@ source_path = %q
 threads = %d
 prune = %q
 
-[targets.%s]
+[storage.%s]
 location = %q
 storage = %q
 %s

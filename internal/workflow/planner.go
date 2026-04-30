@@ -208,7 +208,7 @@ func (p *Planner) derivePlanFromInput(input planDerivationInput) *Plan {
 			OperationMode:       input.operationMode,
 		},
 		Config: PlanConfig{
-			Target:      target,
+			StorageName: target,
 			BackupLabel: backupLabel,
 		},
 		Paths: PlanPaths{
@@ -261,15 +261,15 @@ func (p *Planner) loadConfigWithOptions(plan *Plan, opts loadConfigOptions) (*co
 	if err := cfg.Apply(values); err != nil {
 		return nil, err
 	}
-	cfg.Health = raw.ResolveHealth(cfg.Target)
+	cfg.Health = raw.ResolveHealth(cfg.StorageName)
 	if cfg.Label == "" {
 		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s is missing required label value", plan.Paths.ConfigFile), "path", plan.Paths.ConfigFile)
 	}
 	if cfg.Label != plan.Config.BackupLabel {
 		return nil, apperrors.NewConfigError("label", fmt.Errorf("config file %s defines label %q, expected %q", plan.Paths.ConfigFile, cfg.Label, plan.Config.BackupLabel), "path", plan.Paths.ConfigFile, "label", cfg.Label)
 	}
-	if cfg.Target == "" {
-		cfg.Target = plan.TargetName()
+	if cfg.StorageName == "" {
+		cfg.StorageName = plan.TargetName()
 	}
 	plan.ApplyConfigIdentity(cfg)
 	plan.Paths.SecretsFile = secrets.GetSecretsFilePath(plan.Paths.SecretsDir, plan.Config.BackupLabel)
@@ -313,7 +313,7 @@ func (p *Planner) validateBackupFilesystem(plan *Plan) error {
 }
 
 func (p *Planner) loadSecrets(plan *Plan) (*secrets.Secrets, error) {
-	sec, err := secrets.LoadSecretsFile(plan.Paths.SecretsFile, plan.Config.Target)
+	sec, err := secrets.LoadSecretsFile(plan.Paths.SecretsFile, plan.Config.StorageName)
 	if err != nil {
 		return nil, err
 	}

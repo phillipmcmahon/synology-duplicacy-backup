@@ -55,7 +55,7 @@ CI deliberately does **not** run the full command capture matrix because that
 requires the real NAS profile, configured repositories, sudo policy, and restore
 workspace. Treat CI as proof that the automation is packaged and runnable; treat
 the NAS capture as proof that the operator UI is correct against production-like
-targets.
+storage.
 
 ## Run on the NAS
 
@@ -66,9 +66,9 @@ directory:
 . ./setup-env.sh
 
 export LABEL="${LABEL:-homes}"
-export TARGET_REMOTE="${TARGET_REMOTE:-offsite-storj}"
-export TARGET_OBJECT="${TARGET_OBJECT:-onsite-garage}"
-export TARGET_LOCAL="${TARGET_LOCAL:-onsite-usb}"
+export STORAGE_REMOTE="${STORAGE_REMOTE:-offsite-storj}"
+export STORAGE_OBJECT="${STORAGE_OBJECT:-onsite-garage}"
+export STORAGE_LOCAL="${STORAGE_LOCAL:-onsite-usb}"
 export WORKSPACE_ROOT="${WORKSPACE_ROOT:-/volume1/restore-drills}"
 export MANAGED_BIN="${MANAGED_BIN:-/usr/local/bin/duplicacy-backup}"
 export SMOKE_SUDO_BIN="${SMOKE_SUDO_BIN:-/usr/local/lib/duplicacy-backup/smoke/duplicacy-backup-smoke}"
@@ -84,7 +84,8 @@ The runner automatically:
 - enables colour captures by default; set `CAPTURE_COLOUR=0` only when you
   deliberately want plain output
 - injects `DUPLICACY_BACKUP_FORCE_COLOUR=1` for colour captures
-- passes the colour override through `sudo -n` for root-required captures
+- passes the colour override plus `DUPLICACY_BACKUP_CONFIG_DIR` and
+  `DUPLICACY_BACKUP_SECRETS_DIR` through `sudo -n` for root-required captures
   using the stable smoke binary path in `SMOKE_SUDO_BIN`
 - resolves managed update/rollback checks through `MANAGED_BIN`,
   `/usr/local/bin/duplicacy-backup`, or `PATH`
@@ -108,7 +109,8 @@ Allow the operator account to refresh and run only that stable smoke binary
 without a password. Replace `<operator>` with the NAS account running the smoke
 suite, including the `/var/services/homes/<operator>/...` path. `SETENV` is
 intentionally limited to the smoke binary execution so colour captures can pass
-`DUPLICACY_BACKUP_FORCE_COLOUR=1` through sudo without allowing arbitrary root
+`DUPLICACY_BACKUP_FORCE_COLOUR=1`, `DUPLICACY_BACKUP_CONFIG_DIR`, and
+`DUPLICACY_BACKUP_SECRETS_DIR` through sudo without allowing arbitrary root
 commands:
 
 ```sh
@@ -137,39 +139,43 @@ The runner fails before capturing commands if it cannot refresh
 rule before running the full suite:
 
 ```sh
-sudo -n DUPLICACY_BACKUP_FORCE_COLOUR=1 "$SMOKE_SUDO_BIN" --version
+sudo -n \
+  DUPLICACY_BACKUP_FORCE_COLOUR=1 \
+  DUPLICACY_BACKUP_CONFIG_DIR="$CFG" \
+  DUPLICACY_BACKUP_SECRETS_DIR="$SEC" \
+  "$SMOKE_SUDO_BIN" --version
 ```
 
 ## Optional Restore Run
 
 The default run skips actual restore execution. To include small real restore
 surfaces, choose a narrow snapshot-relative path. The runner auto-selects the
-latest visible revision for each restore target unless `RESTORE_REVISION` is
+latest visible revision for each restore storage unless `RESTORE_REVISION` is
 set explicitly:
 
 ```sh
 RUN_RESTORE=1 \
-RESTORE_TARGET="$TARGET_REMOTE" \
+RESTORE_STORAGE="$STORAGE_REMOTE" \
 RESTORE_PATH='phillipmcmahon/code/*' \
 CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
 
 To exercise both object/remote and root-protected local filesystem restore in
-one release smoke run, provide multiple targets and name the targets that need
+one release smoke run, provide multiple storage entries and name the storage entries that need
 sudo:
 
 ```sh
 RUN_RESTORE=1 \
-RESTORE_TARGETS="$TARGET_OBJECT $TARGET_LOCAL" \
-RESTORE_USE_SUDO_TARGETS="$TARGET_LOCAL" \
+RESTORE_STORAGE="$STORAGE_OBJECT $STORAGE_LOCAL" \
+RESTORE_USE_SUDO_STORAGE="$STORAGE_LOCAL" \
 RESTORE_PATH='phillipmcmahon/code/*' \
 CAPTURE_COLOUR=1 \
 ./run-ui-surface-smoke.sh
 ```
 
-`RESTORE_USE_SUDO=1` is still available for single-target runs where the only
-restore target is root-protected local filesystem storage.
+`RESTORE_USE_SUDO=1` is still available for single-storage runs where the only
+restore storage is root-protected local filesystem storage.
 
 For fully automated release smoke bundles, bake the restore defaults into the
 bundle when packaging:
@@ -177,13 +183,13 @@ bundle when packaging:
 ```sh
 scripts/package-ui-surface-smoke.sh \
   --default-run-restore 1 \
-  --default-restore-targets 'onsite-garage onsite-usb' \
-  --default-restore-use-sudo-targets 'onsite-usb' \
+  --default-restore-storage 'onsite-garage onsite-usb' \
+  --default-restore-use-sudo-storage 'onsite-usb' \
   --default-restore-path 'phillipmcmahon/code/*'
 ```
 
 Use `--default-restore-use-sudo 1` only for bundles whose default restore
-target is a root-protected local filesystem repository.
+storage is a root-protected local filesystem repository.
 
 The restore automation creates a smoke-owned root namespace first:
 
@@ -195,19 +201,19 @@ Inside that namespace, it creates case roots such as:
 
 ```text
 default/
-revision-target-run/
-target-revision-snapshot/
-same-revision-cross-target/
-data-restore-<target>/
+revision-storage-run/
+storage-revision-snapshot/
+same-revision-cross-storage/
+data-restore-<storage>/
 ```
 
 The template-matrix cases run `restore run --dry-run` with different
-`--workspace-template` combinations to prove that `{label}`, `{target}`,
+`--workspace-template` combinations to prove that `{label}`, `{storage}`,
 `{snapshot_timestamp}`, `{revision}`, and `{run_timestamp}` are rendered
 consistently. The real data restore uses a smoke-marked derived workspace:
 
 ```text
-<label>-rev<revision>-<target>-smoke-<run_timestamp>
+<label>-rev<revision>-<storage>-smoke-<run_timestamp>
 ```
 
 The `ui-smoke` and `smoke` markers make the workspace obviously test-owned, the
@@ -221,12 +227,12 @@ find "$WORKSPACE_ROOT" -maxdepth 1 -type d -name 'ui-smoke-*'
 
 With `RUN_RESTORE=1`, the template dry-runs, real restore, restore content
 presence check, and restore dry-run captures are expected to succeed for every
-target in `RESTORE_TARGETS`. The runner also asserts that restore reports
+storage entry in `RESTORE_STORAGE`. The runner also asserts that restore reports
 include `-ignore-owner`, which protects non-root drill restores from Duplicacy
 UID/GID replay failures while keeping copy-back manual. If `RESTORE_REVISION`
-is omitted, each target capture includes a `restore_revision_auto_select` step
+is omitted, each storage capture includes a `restore_revision_auto_select` step
 showing the selected revision. If `RESTORE_REVISION` is provided, the runner
-captures a `restore_revision_lookup` listing for each target before running the
+captures a `restore_revision_lookup` listing for each storage entry before running the
 template matrix.
 
 ## Optional Interactive Checks
@@ -239,14 +245,14 @@ selection:
 . ./setup-env.sh
 mkdir -p captures/manual
 
-CAPTURE_COLOUR=1 "$BIN" restore select --target "$TARGET_REMOTE" "$LABEL" \
+CAPTURE_COLOUR=1 "$BIN" restore select --storage "$STORAGE_REMOTE" "$LABEL" \
   2>&1 | tee captures/manual/restore_select_remote.txt
 
-CAPTURE_COLOUR=1 sudo -n "$SMOKE_SUDO_BIN" restore select --target "$TARGET_LOCAL" "$LABEL" \
+CAPTURE_COLOUR=1 sudo -n "$SMOKE_SUDO_BIN" restore select --storage "$STORAGE_LOCAL" "$LABEL" \
   2>&1 | tee captures/manual/restore_select_local_sudo.txt
 ```
 
-Only run the local target command when the local repository is intentionally
+Only run the local storage command when the local repository is intentionally
 root-protected and sudoers allows the stable smoke binary without a password.
 
 ## Optional Notification Checks

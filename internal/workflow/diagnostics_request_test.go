@@ -4,20 +4,20 @@ import "testing"
 
 func TestNewDiagnosticsRequestProjectsOnlyDiagnosticsIntent(t *testing.T) {
 	req := &Request{
-		DiagnosticsCommand: "diagnostics",
-		Source:             "homes",
-		RequestedTarget:    "onsite-usb",
-		ConfigDir:          "/home/operator/.config/duplicacy-backup",
-		SecretsDir:         "/home/operator/.config/duplicacy-backup/secrets",
-		JSONSummary:        true,
-		NotifyCommand:      "test",
-		NotifyProvider:     "ntfy",
-		RestoreCommand:     "run",
-		RestoreRevision:    2403,
-		UpdateCommand:      "update",
-		UpdateForce:        true,
-		DoBackup:           true,
-		DryRun:             true,
+		DiagnosticsCommand:   "diagnostics",
+		Source:               "homes",
+		RequestedStorageName: "onsite-usb",
+		ConfigDir:            "/home/operator/.config/duplicacy-backup",
+		SecretsDir:           "/home/operator/.config/duplicacy-backup/secrets",
+		JSONSummary:          true,
+		NotifyCommand:        "test",
+		NotifyProvider:       "ntfy",
+		RestoreCommand:       "run",
+		RestoreRevision:      2403,
+		UpdateCommand:        "update",
+		UpdateForce:          true,
+		DoBackup:             true,
+		DryRun:               true,
 	}
 
 	got := NewDiagnosticsRequest(req)

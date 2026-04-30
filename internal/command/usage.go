@@ -30,7 +30,7 @@ Commands:
     Managed install        update, rollback
 
 Common options:
-    --target <name>        Select a configured label target where required
+    --storage <name>       Select a configured storage entry where required
     --dry-run              Preview supported operations without making changes
     --verbose              Show detailed operational output where supported
     --json-summary         Write supported command summaries as JSON
@@ -57,17 +57,17 @@ Command-specific options:
     --attestations <mode>  Update release attestation mode
 
 Examples:
-    sudo {{script}} backup --target onsite-usb homes
-    sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
-    sudo {{script}} backup --target offsite-storj homes
-    sudo {{script}} prune --target onsite-usb homes
-    sudo {{script}} config validate --target onsite-usb homes
-    {{script}} diagnostics --target onsite-usb homes
-    sudo {{script}} health status --target onsite-usb homes
-    {{script}} notify test --target onsite-usb homes
-    sudo {{script}} restore select --target onsite-usb homes
-    {{script}} restore plan --target onsite-usb homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    sudo {{script}} backup --storage onsite-usb homes
+    sudo {{script}} backup --storage onsite-usb --json-summary --dry-run homes
+    sudo {{script}} backup --storage offsite-storj homes
+    sudo {{script}} prune --storage onsite-usb homes
+    sudo {{script}} config validate --storage onsite-usb homes
+    {{script}} diagnostics --storage onsite-usb homes
+    sudo {{script}} health status --storage onsite-usb homes
+    {{script}} notify test --storage onsite-usb homes
+    sudo {{script}} restore select --storage onsite-usb homes
+    {{script}} restore plan --storage onsite-usb homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes
     {{script}} update --check-only
     {{script}} rollback --check-only
 
@@ -103,9 +103,9 @@ func FullUsageText(meta workflow.Metadata, rt workflow.Env) string {
        {{script}} rollback [OPTIONS]
 
 COMMAND OVERVIEW:
-    Runtime operations      Run or maintain one configured label target
-      backup                Run a backup for the selected label and target
-      prune                 Run threshold-guarded prune for the selected label and target
+    Runtime operations      Run or maintain one configured storage entry
+      backup                Run a backup for the selected label and storage
+      prune                 Run threshold-guarded prune for the selected label and storage
                               Root is required for local filesystem repositories,
                               including --dry-run previews
       cleanup-storage       Request storage maintenance:
@@ -113,12 +113,12 @@ COMMAND OVERVIEW:
                               Use only when no other client is writing to the same storage
                               Root is required for local filesystem repositories,
                               except --dry-run simulation
-    Config and inspection   Read, explain, validate, or diagnose configured targets
+    Config and inspection   Read, explain, validate, or diagnose configured storage
       config validate       Validate backup-readiness, including source path and configured secrets
                               Use sudo when validating local filesystem repository readiness
-      config explain        Show resolved config values for the selected target
+      config explain        Show resolved config values for the selected storage
       config paths          Show resolved config, source, log, and secrets paths
-      diagnostics           Print a redacted support bundle for one label and target
+      diagnostics           Print a redacted support bundle for one label and storage
       health status         Fast read-only health summary for operators and schedulers
                               Use sudo for local filesystem repositories
       health doctor         Read-only environment and storage diagnostics
@@ -142,7 +142,7 @@ COMMAND OVERVIEW:
       rollback              Inspect or activate a retained managed-install version
 
 COMMON OPTIONS:
-    --target <name>          Select the named target config where the command uses a label target
+    --storage <name>        Select the named storage config where the command uses label storage
     --dry-run                Simulate supported actions without making changes
     --verbose                Show detailed operational logging and command details
     --json-summary           Write a machine-readable command summary to stdout
@@ -192,25 +192,25 @@ CONFIG STRUCTURE:
       [common]
       [health]
       [health.notify]
-      [targets.<name>]
-      optional [targets.<name>.health]
-      optional [targets.<name>.health.notify]
-    each [targets.<name>] entry must include:
+      [storage.<name>]
+      optional [storage.<name>.health]
+      optional [storage.<name>.health.notify]
+    each [storage.<name>] entry must include:
       location = "local" | "remote"
       storage = "<duplicacy storage value>"
 
     TARGET SECRETS:
-      Duplicacy storage targets load runtime preference keys from:
+      Duplicacy storage entries load runtime preference keys from:
         {{default_secrets_dir}}/<label>-secrets.toml
-      Path-based Duplicacy storage targets do not use storage credentials
-      Any target may also store optional health_webhook_bearer_token / health_ntfy_token there
+      Path-based Duplicacy storage entries do not use storage credentials
+      Any storage entry may also store optional health_webhook_bearer_token / health_ntfy_token there
       Override directory with --secrets-dir or DUPLICACY_BACKUP_SECRETS_DIR
-      Use [targets.<name>.keys] tables with Duplicacy key names such as:
+      Use [storage.<name>.keys] tables with Duplicacy key names such as:
         s3_id      # s3, s3c, minio, minios
         s3_secret  # s3, s3c, minio, minios
         storj_key        # native storj
         storj_passphrase # native storj
-      Use [targets.<name>] for:
+      Use [storage.<name>] for:
         optional health_webhook_bearer_token
         optional health_ntfy_token
 
@@ -221,8 +221,8 @@ CONFIG STRUCTURE:
         Repository Access  : Requires sudo for local filesystem repositories
 
 HEALTH STATE:
-    Target-specific run and health state are stored under:
-      {{state_dir}}/<label>.<target>.json
+    Storage-specific run and health state are stored under:
+      {{state_dir}}/<label>.<storage>.json
     Health commands combine this state with live storage inspection.
 
 HEALTH CONFIG:
@@ -255,7 +255,7 @@ UPDATE NOTIFY CONFIG:
       url = "https://ntfy.sh"
       topic = "duplicacy-updates"
 
-    Update notifications are not label/target scoped and do not read storage secrets.
+    Update notifications are not label/storage scoped and do not read storage secrets.
 
 ARGUMENTS:
     source                   Backup label
@@ -267,8 +267,8 @@ INTERACTIVE SAFETY RAILS:
     Non-interactive runs continue without confirmation so scheduled jobs are unaffected
 
 COMMAND MODEL:
-    Runtime operations are first-class commands. Use "backup --target ...",
-    "prune --target ...", or "cleanup-storage --target ...".
+    Runtime operations are first-class commands. Use "backup --storage ...",
+    "prune --storage ...", or "cleanup-storage --storage ...".
 
 OUTPUT MODEL:
     Report-style commands such as config, diagnostics, restore plan, and
@@ -304,7 +304,7 @@ EXIT CODES:
                              Restore selection cancellation before execution exits 0.
 
 RESTORE PLANNING AND DISCOVERY:
-    restore plan is read-only. It resolves label and target context, shows the
+    restore plan is read-only. It resolves label and storage context, shows the
     safe drill workspace pattern, and prints Duplicacy commands to run manually.
     It does not create directories, write preferences, run duplicacy restore, or
     copy data back to the live source path.
@@ -320,10 +320,10 @@ RESTORE EXECUTION:
     restore run prepares the drill workspace when needed and then executes
     duplicacy restore only inside that workspace. When --workspace is omitted,
     the workspace is derived from --workspace-root plus this default template:
-    {label}-{target}-{snapshot_timestamp}-rev{revision}.
+    {label}-{storage}-{snapshot_timestamp}-rev{revision}.
     Use --workspace-root to choose an existing parent root while keeping a
     derived job folder. Use --workspace-template to choose that child folder
-    name from {label}, {target}, {snapshot_timestamp}, {revision}, and
+    name from {label}, {storage}, {snapshot_timestamp}, {revision}, and
     {run_timestamp}. Use --workspace only when you need an exact workspace path.
     source_path is only live-source and copy-back context; restore-only DR
     access does not require it.
@@ -356,29 +356,29 @@ RESTORE SELECTION:
     procedure without the interactive guide.
 
 EXAMPLES:
-    sudo {{script}} backup --target onsite-usb homes
-    sudo {{script}} backup --target onsite-usb --json-summary --dry-run homes
-    sudo {{script}} health status --target onsite-usb homes
-    sudo {{script}} health doctor --json-summary --target onsite-usb homes
-    {{script}} health verify --target offsite-storj homes
-    sudo {{script}} prune --target onsite-usb homes
-    sudo {{script}} prune --target onsite-usb --force homes
-    sudo {{script}} cleanup-storage --target onsite-usb homes
-    sudo {{script}} backup --target offsite-storj homes
-    sudo {{script}} backup --target onsite-usb --verbose homes
-    sudo {{script}} backup --target onsite-usb --config-dir /opt/etc homes
-    sudo {{script}} backup --secrets-dir /opt/secrets --target offsite-storj homes
-    sudo {{script}} config validate --target onsite-usb homes
-    {{script}} config explain --target offsite-storj homes
-    {{script}} config paths --target onsite-usb homes
-    {{script}} diagnostics --target onsite-usb homes
-    sudo {{script}} restore select --target onsite-usb homes
-    sudo {{script}} restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
-    {{script}} restore plan --target onsite-usb homes
-    {{script}} restore plan --target offsite-storj homes
-    sudo {{script}} restore list-revisions --target onsite-usb homes
-    sudo {{script}} restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes
-    {{script}} notify test --target onsite-usb homes
+    sudo {{script}} backup --storage onsite-usb homes
+    sudo {{script}} backup --storage onsite-usb --json-summary --dry-run homes
+    sudo {{script}} health status --storage onsite-usb homes
+    sudo {{script}} health doctor --json-summary --storage onsite-usb homes
+    {{script}} health verify --storage offsite-storj homes
+    sudo {{script}} prune --storage onsite-usb homes
+    sudo {{script}} prune --storage onsite-usb --force homes
+    sudo {{script}} cleanup-storage --storage onsite-usb homes
+    sudo {{script}} backup --storage offsite-storj homes
+    sudo {{script}} backup --storage onsite-usb --verbose homes
+    sudo {{script}} backup --storage onsite-usb --config-dir /opt/etc homes
+    sudo {{script}} backup --secrets-dir /opt/secrets --storage offsite-storj homes
+    sudo {{script}} config validate --storage onsite-usb homes
+    {{script}} config explain --storage offsite-storj homes
+    {{script}} config paths --storage onsite-usb homes
+    {{script}} diagnostics --storage onsite-usb homes
+    sudo {{script}} restore select --storage onsite-usb homes
+    sudo {{script}} restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
+    {{script}} restore plan --storage onsite-usb homes
+    {{script}} restore plan --storage offsite-storj homes
+    sudo {{script}} restore list-revisions --storage onsite-usb homes
+    sudo {{script}} restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes
+    {{script}} notify test --storage onsite-usb homes
     {{script}} rollback --check-only
     {{script}} rollback --yes
     {{script}} update --check-only

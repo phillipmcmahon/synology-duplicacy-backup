@@ -9,15 +9,15 @@ repeating the full operating model here.
 
 ## First Checks
 
-Start with the exact label and target from the failed output. Most commands are
-target-scoped, so checking the wrong target can make a real problem look
+Start with the exact label and storage from the failed output. Most commands are
+storage-scoped, so checking the wrong storage can make a real problem look
 inconsistent.
 
 Useful first commands:
 
 ```bash
-duplicacy-backup config validate --target <target> <label>
-duplicacy-backup health status --target <target> <label>
+duplicacy-backup config validate --storage <storage> <label>
+duplicacy-backup health status --storage <storage> <label>
 ```
 
 If the problem came from Synology Task Scheduler, also read the task's captured
@@ -30,7 +30,7 @@ This usually means the scheduler saw a command failure, while `health status`
 is reporting the current backup health state from the last known state file.
 Those are related signals, but they are not the same signal.
 
-Check the scheduled task command, the selected `--target`, and the captured
+Check the scheduled task command, the selected `--storage`, and the captured
 standard output/error from the failed run. If the task was a maintenance
 command such as prune, cleanup, or update, it can fail even when the
 latest backup state is still healthy.
@@ -45,10 +45,10 @@ See also:
 
 `Repository Access : Not initialized` means the selected storage value was
 reachable, but the repository does not yet exist there for that label and
-target. This is different from `Invalid`, which means access is broken or the
+storage entry. This is different from `Invalid`, which means access is broken or the
 storage cannot be read correctly.
 
-Confirm the target name and full `storage` value in the label config. Do not
+Confirm the storage name and full `storage` value in the label config. Do not
 expect `config validate` to initialise storage; it is read-only. Once the
 repository has been intentionally initialised, validation should move from `Not
 initialized` to `Valid`.
@@ -60,7 +60,7 @@ See also:
 
 ## Repository Access Requires Sudo
 
-`Repository Access : Requires sudo` means the selected target uses path-based
+`Repository Access : Requires sudo` means the selected storage uses path-based
 local repository storage. Backups write local repository chunk and snapshot
 metadata as root so ordinary users cannot inspect or mutate backup internals
 outside the tool's policy boundary.
@@ -69,10 +69,10 @@ Run the same validation, health diagnostic, or integrity check through `sudo`
 from the operator account:
 
 ```bash
-sudo duplicacy-backup config validate --target <target> <label>
-sudo duplicacy-backup health status --target <target> <label>
-sudo duplicacy-backup health doctor --target <target> <label>
-sudo duplicacy-backup health verify --target <target> <label>
+sudo duplicacy-backup config validate --storage <storage> <label>
+sudo duplicacy-backup health status --storage <storage> <label>
+sudo duplicacy-backup health doctor --storage <storage> <label>
+sudo duplicacy-backup health verify --storage <storage> <label>
 ```
 
 This is different from `Invalid`: the repository may be healthy, but the
@@ -97,7 +97,7 @@ state no longer meets policy.
 Run a JSON summary when you need precise automation detail:
 
 ```bash
-duplicacy-backup health verify --json-summary --target <target> <label>
+duplicacy-backup health verify --json-summary --storage <storage> <label>
 ```
 
 Look for `failure_code`, `failure_codes`, and `recommended_action_codes`, then
@@ -111,7 +111,7 @@ See also:
 ## Storage Credentials Fail During Validation Or Backup
 
 Storage keys are passed through to Duplicacy using the names under
-`[targets.<name>.keys]` in the secrets file. The wrapper checks that required
+`[storage.<name>.keys]` in the secrets file. The wrapper checks that required
 keys are present for known backends such as S3-compatible storage, but it does
 not enforce provider-specific credential lengths. If a credential value is the
 wrong length, expired, or belongs to the wrong backend, use Duplicacy's own
@@ -121,7 +121,7 @@ For S3-compatible storage, including Storj gateway and Duplicacy's `s3c://`,
 `minio://`, and `minios://` schemes, use generic Duplicacy key names:
 
 ```toml
-[targets.offsite-storj.keys]
+[storage.offsite-storj.keys]
 s3_id = "..."
 s3_secret = "..."
 ```
@@ -129,7 +129,7 @@ s3_secret = "..."
 For native Duplicacy `storj://` storage, use:
 
 ```toml
-[targets.offsite-storj.keys]
+[storage.offsite-storj.keys]
 storj_key = "..."
 storj_passphrase = "..."
 ```
@@ -150,7 +150,7 @@ backup repository yet, start with [Restore onto a new NAS](new-nas-restore.md).
 For most operator restores, start with the guided flow:
 
 ```bash
-duplicacy-backup restore select --target <target> <label>
+duplicacy-backup restore select --storage <storage> <label>
 ```
 
 That path is revision-first: choose a restore point, inspect it read-only or
@@ -164,7 +164,7 @@ the operator user because access is governed by the mount permissions.
 Use `restore plan` when you want the explicit expert path and safe next-step commands:
 
 ```bash
-duplicacy-backup restore plan --target <target> <label>
+duplicacy-backup restore plan --storage <storage> <label>
 ```
 
 If `restore select` fails before the picker appears, check that the command is
@@ -178,21 +178,21 @@ List revisions before restoring:
 
 ```bash
 # Use sudo for local filesystem repositories.
-duplicacy-backup restore list-revisions --target <target> <label>
+duplicacy-backup restore list-revisions --storage <storage> <label>
 ```
 
 For large repositories, start browsing under a known subtree:
 
 ```bash
 # Use sudo for local filesystem repositories.
-duplicacy-backup restore select --target <target> --path-prefix <relative-path> <label>
+duplicacy-backup restore select --storage <storage> --path-prefix <relative-path> <label>
 ```
 
 Restore into the drill workspace only:
 
 ```bash
 # Use sudo for local filesystem repositories.
-duplicacy-backup restore run --target <target> --revision <id> --path <relative-path-or-pattern> --yes <label>
+duplicacy-backup restore run --storage <storage> --revision <id> --path <relative-path-or-pattern> --yes <label>
 ```
 
 Use a snapshot-relative file path for one file, or a Duplicacy pattern such as
@@ -323,7 +323,7 @@ Start with the non-mutating rollback inspection:
 /usr/local/bin/duplicacy-backup rollback --check-only
 ```
 
-If the previous retained version is the right target, activate it with:
+If the previous retained version is the right version, activate it with:
 
 ```bash
 sudo /usr/local/bin/duplicacy-backup rollback --yes

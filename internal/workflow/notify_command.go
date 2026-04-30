@@ -30,18 +30,18 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 		return "", err
 	}
 
-	plan.Config.Target = cfg.Target
+	plan.Config.StorageName = cfg.StorageName
 	plan.Config.Location = cfg.Location
 	plan.Config.Notify = cfg.Health.Notify
 	plan.Paths.SecretsFile = secretsFileForPlan(plan)
 
-	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.Target, cfg.Location, req)
+	payload := buildTestNotificationPayload(planner.rt, cfg.Label, cfg.StorageName, cfg.Location, req)
 	destinations, err := notify.ConfiguredDestinations(cfg.Health.Notify, req.Provider)
 	if err != nil {
 		report := newNotifyTestReport(req, cfg, payload, nil, "failed")
 		output := notify.FormatTestOutput(report, req.JSONSummary)
 		return output, &notify.CommandError{
-			Message: fmt.Sprintf("Notification test failed for %s/%s; %s", cfg.Label, cfg.Target, OperatorMessage(err)),
+			Message: fmt.Sprintf("Notification test failed for %s/%s; %s", cfg.Label, cfg.StorageName, OperatorMessage(err)),
 			Output:  output,
 		}
 	}
@@ -59,7 +59,7 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 	results, sendErr := notify.SendConfiguredDetailedWithOptions(
 		cfg.Health.Notify,
 		plan.Paths.SecretsFile,
-		cfg.Target,
+		cfg.StorageName,
 		payload,
 		req.Provider,
 		notify.SendOptions{IgnoreOptionalAuthLoadErrors: true},
@@ -68,7 +68,7 @@ func handleNotifyTest(req *NotifyRequest, planner *Planner) (string, error) {
 	if sendErr != nil {
 		report.Result = "failed"
 		output := notify.FormatTestOutput(report, req.JSONSummary)
-		message := fmt.Sprintf("Notification test failed for %s/%s", cfg.Label, cfg.Target)
+		message := fmt.Sprintf("Notification test failed for %s/%s", cfg.Label, cfg.StorageName)
 		if failure := firstFailedNotificationResult(results); failure != "" {
 			message = fmt.Sprintf("%s; %s", message, OperatorMessage(fmt.Errorf("%s", failure)))
 		}
@@ -147,7 +147,7 @@ func newNotifyTestReport(req *NotifyRequest, cfg *config.Config, payload *notify
 	return notify.NewTestReport(notify.TestReportInput{
 		Command:  "test",
 		Label:    cfg.Label,
-		Target:   cfg.Target,
+		Target:   cfg.StorageName,
 		Location: cfg.Location,
 		Provider: req.Provider,
 		Severity: payload.Severity,

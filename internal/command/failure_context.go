@@ -127,7 +127,7 @@ func consumeSharedFlagForFailure(args []string, index *int, req *workflowcore.Re
 
 func isSharedFlag(arg string, opts sharedFlagOptions) bool {
 	switch arg {
-	case "--target":
+	case "--storage":
 		return opts.target
 	case "--dry-run":
 		return opts.dryRun

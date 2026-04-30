@@ -45,7 +45,7 @@ func (p *RuntimePresenter) PrintHeader(data HeaderData) {
 	p.log.Info("%s", statusLinef("Run started - %s", data.StartedAt.Format("2006-01-02 15:04:05")))
 	p.log.PrintLine("Operation", data.Operation)
 	p.log.PrintLine("Label", data.Label)
-	p.log.PrintLine("Target", data.Target)
+	p.log.PrintLine("Storage", data.Target)
 	if data.Location != "" {
 		p.log.PrintLine("Location", data.Location)
 	}
@@ -72,7 +72,7 @@ func (p *RuntimePresenter) PrintPreRunFailure(data PreRunFailureData) {
 		p.log.PrintLine("Label", data.Label)
 	}
 	if data.Target != "" {
-		p.log.PrintLine("Target", data.Target)
+		p.log.PrintLine("Storage", data.Target)
 	}
 	if data.Location != "" {
 		p.log.PrintLine("Location", data.Location)

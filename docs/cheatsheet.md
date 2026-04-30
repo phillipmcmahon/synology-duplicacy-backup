@@ -21,56 +21,56 @@ This is the primary home for copyable operator command examples. Use
 
 `backup`, `prune`, `cleanup-storage`, `config`, `diagnostics`,
 `health`, restore commands, and label-scoped `notify test` commands need an
-explicit `--target <name>`.
+explicit `--storage <name>`.
 
-Target model:
+Storage model:
 
 - `location = "local"` or `location = "remote"`
-- targets use `storage = "..."`; include the full Duplicacy backend path there
+- storage entries use `storage = "..."`; include the full Duplicacy backend path there
 - storage keys are loaded for known Duplicacy backends that require them
 
 ## Common Runs
 
 ```bash
-# Backup homes to target onsite-usb
-sudo duplicacy-backup backup --target onsite-usb homes
+# Backup homes to storage onsite-usb
+sudo duplicacy-backup backup --storage onsite-usb homes
 
-# Safe prune homes on target onsite-usb
-sudo duplicacy-backup prune --target onsite-usb homes
+# Safe prune homes on storage onsite-usb
+sudo duplicacy-backup prune --storage onsite-usb homes
 
-# Backup homes to target offsite-storj
-sudo duplicacy-backup backup --target offsite-storj homes
+# Backup homes to storage offsite-storj
+sudo duplicacy-backup backup --storage offsite-storj homes
 
 # Backup homes to a local S3-compatible service
-sudo duplicacy-backup backup --target onsite-rustfs homes
+sudo duplicacy-backup backup --storage onsite-rustfs homes
 
-# Backup homes to target offsite-usb on a mounted remote filesystem
-sudo duplicacy-backup backup --target offsite-usb homes
+# Backup homes to storage offsite-usb on a mounted remote filesystem
+sudo duplicacy-backup backup --storage offsite-usb homes
 
-# Preview a backup of homes to target onsite-usb
-sudo duplicacy-backup backup --target onsite-usb --dry-run homes
+# Preview a backup of homes to storage onsite-usb
+sudo duplicacy-backup backup --storage onsite-usb --dry-run homes
 
-# Preview prune for homes on target onsite-usb with detailed logs
-sudo duplicacy-backup prune --target onsite-usb --verbose --dry-run homes
+# Preview prune for homes on storage onsite-usb with detailed logs
+sudo duplicacy-backup prune --storage onsite-usb --verbose --dry-run homes
 
-# Run storage cleanup for homes on target onsite-usb
-sudo duplicacy-backup cleanup-storage --target onsite-usb homes
+# Run storage cleanup for homes on storage onsite-usb
+sudo duplicacy-backup cleanup-storage --storage onsite-usb homes
 ```
 
 ## Health Checks
 
 ```bash
-# Fast health summary for homes on local filesystem target onsite-usb
-sudo duplicacy-backup health status --target onsite-usb homes
+# Fast health summary for homes on local filesystem storage onsite-usb
+sudo duplicacy-backup health status --storage onsite-usb homes
 
-# Run a doctor check for homes on local filesystem target onsite-usb
-sudo duplicacy-backup health doctor --target onsite-usb homes
+# Run a doctor check for homes on local filesystem storage onsite-usb
+sudo duplicacy-backup health doctor --storage onsite-usb homes
 
-# Run verify for homes on local filesystem target onsite-usb
-sudo duplicacy-backup health verify --target onsite-usb homes
+# Run verify for homes on local filesystem storage onsite-usb
+sudo duplicacy-backup health verify --storage onsite-usb homes
 
-# Write a JSON verify report for homes on local filesystem target onsite-usb
-sudo duplicacy-backup health verify --json-summary --target onsite-usb homes
+# Write a JSON verify report for homes on local filesystem storage onsite-usb
+sudo duplicacy-backup health verify --json-summary --storage onsite-usb homes
 ```
 
 Exit codes:
@@ -85,30 +85,30 @@ logger or privilege problem exits `2`.
 ## Config Commands
 
 ```bash
-# Validate config for homes on target onsite-usb
-sudo duplicacy-backup config validate --target onsite-usb homes
+# Validate config for homes on storage onsite-usb
+sudo duplicacy-backup config validate --storage onsite-usb homes
 
-# Explain config for homes on target onsite-usb
-duplicacy-backup config explain --target onsite-usb homes
+# Explain config for homes on storage onsite-usb
+duplicacy-backup config explain --storage onsite-usb homes
 
-# Explain config for homes on target offsite-storj
-duplicacy-backup config explain --target offsite-storj homes
+# Explain config for homes on storage offsite-storj
+duplicacy-backup config explain --storage offsite-storj homes
 
-# Show paths for homes on target onsite-usb
-duplicacy-backup config paths --target onsite-usb homes
+# Show paths for homes on storage onsite-usb
+duplicacy-backup config paths --storage onsite-usb homes
 
-# Show paths for homes on target offsite-storj
-duplicacy-backup config paths --target offsite-storj homes
+# Show paths for homes on storage offsite-storj
+duplicacy-backup config paths --storage offsite-storj homes
 ```
 
 ## Diagnostics
 
 ```bash
-# Gather a redacted support bundle for homes on target onsite-usb
-duplicacy-backup diagnostics --target onsite-usb homes
+# Gather a redacted support bundle for homes on storage onsite-usb
+duplicacy-backup diagnostics --storage onsite-usb homes
 
 # Write machine-readable diagnostics for support or automation
-duplicacy-backup diagnostics --target offsite-storj --json-summary homes
+duplicacy-backup diagnostics --storage offsite-storj --json-summary homes
 ```
 
 - Use `diagnostics` when you need one pasteable view of resolved config paths, storage scheme, secrets presence, state freshness, last run status, and basic path permissions.
@@ -121,7 +121,7 @@ duplicacy-backup diagnostics --target offsite-storj --json-summary homes
 /usr/local/bin/duplicacy-backup
 $HOME/.config/duplicacy-backup/<label>-backup.toml
 $HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml  # Duplicacy storage keys and notification auth tokens when needed
-$HOME/.local/state/duplicacy-backup/state/<label>.<target>.json
+$HOME/.local/state/duplicacy-backup/state/<label>.<storage>.json
 ```
 
 Recommended permissions:
@@ -153,20 +153,20 @@ Installer behaviour:
 - For restore-only disaster recovery access, `source_path` can be omitted until the future live source root is known.
 - Use `storage` for Duplicacy backend behaviour and `location` for operator meaning; do not use `location` to decide whether secrets are needed.
 - Local filesystem repositories are OS-protected resources. Run actual
-  `prune`, `prune --dry-run`, and `cleanup-storage` mutation for those targets
+  `prune`, `prune --dry-run`, and `cleanup-storage` mutation for those storage entries
   as root. Remote mounted filesystem repositories are governed by mount
   permissions; object repositories are governed by credentials.
 - `cleanup-storage --dry-run` is simulation-only and does not scan repository
   chunks.
 - `config validate` is read-only. It does not initialise repositories or change storage state.
 - `config validate` is intended to be useful as the operator user; it validates source path presence/Btrfs shape without requiring direct read access to protected source contents.
-- For local filesystem repositories, run `sudo duplicacy-backup config validate --target <target> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
+- For local filesystem repositories, run `sudo duplicacy-backup config validate --storage <storage> <label>` when you need repository readiness checked. Local repository files are root-protected by design.
 - For remote mounted filesystem repositories, run readiness and restore checks as the operator user. Access is controlled by the mount credentials and permissions, not by root-owned local repository files.
 - `Repository Access : Valid` means the selected repository is ready to use.
 - `Repository Access : Not initialized` means the storage is reachable but that repository has not been initialised yet.
 - `Repository Access : Requires sudo` means the local repository may be healthy, but the readiness, diagnostic, or integrity probe needs sudo because local repository metadata is root-protected.
 - `Repository Access : Invalid (...)` means repository access is broken, not merely uninitialised.
-- `config explain` and `config paths` show `Location` for the selected target.
+- `config explain` and `config paths` show `Location` for the selected storage.
 - `config explain` does not load storage secrets; it stays read-only and still shows the expected secrets-file path when the selected backend needs one.
 - `config paths` only includes secrets paths when the selected backend needs secrets.
 
@@ -180,7 +180,7 @@ Installer behaviour:
 ### Restore Drills
 
 - `duplicacy-backup restore run` prepares or reuses a drill workspace, restores only there with Duplicacy `-ignore-owner`, and never copies data back to the live source.
-- On an existing NAS, start every drill with `config explain`, `config validate`, and `health status` for the exact label and target.
+- On an existing NAS, start every drill with `config explain`, `config validate`, and `health status` for the exact label and storage.
 - On a replacement NAS where `source_path` is not known yet, use `config explain` and `restore list-revisions` to prove restore access first.
 - Use snapshot ID `data` for repositories created by this tool.
 - `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation.
@@ -192,21 +192,21 @@ Installer behaviour:
 
 ```bash
 # Confirm the selected repository before a restore drill
-duplicacy-backup config explain --target onsite-usb homes
-sudo duplicacy-backup config validate --target onsite-usb homes
-sudo duplicacy-backup health status --target onsite-usb homes
+duplicacy-backup config explain --storage onsite-usb homes
+sudo duplicacy-backup config validate --storage onsite-usb homes
+sudo duplicacy-backup health status --storage onsite-usb homes
 
 # Guided operator restore
-sudo duplicacy-backup restore select --target onsite-usb homes
+sudo duplicacy-backup restore select --storage onsite-usb homes
 
 # Start the picker under a known subtree in a large backup
-sudo duplicacy-backup restore select --target onsite-usb --path-prefix phillipmcmahon/code homes
+sudo duplicacy-backup restore select --storage onsite-usb --path-prefix phillipmcmahon/code homes
 
 # Expert restore primitives
-duplicacy-backup restore plan --target onsite-usb homes
-sudo duplicacy-backup restore list-revisions --target onsite-usb homes
+duplicacy-backup restore plan --storage onsite-usb homes
+sudo duplicacy-backup restore list-revisions --storage onsite-usb homes
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/Documents/tax.pdf" \
   --yes \
@@ -214,7 +214,7 @@ sudo duplicacy-backup restore run \
 
 # Restore a directory subtree into the drill workspace
 sudo duplicacy-backup restore run \
-  --target onsite-usb \
+  --storage onsite-usb \
   --revision 2403 \
   --path "phillipmcmahon/code/*" \
   --yes \
@@ -223,16 +223,16 @@ sudo duplicacy-backup restore run \
 
 ### Notifications and Secrets
 
-- Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple targets under that label.
+- Each label has one backup config file and, when needed, one matching secrets file. Those files can contain settings for multiple storage entries under that label.
 - S3-compatible storage uses `s3_id` and `s3_secret` under
-  `[targets.<name>.keys]`; native `storj://` storage uses `storj_key` and
+  `[storage.<name>.keys]`; native `storj://` storage uses `storj_key` and
   `storj_passphrase`.
 - `[health.notify]` can opt runtime failure notifications in with `send_for = ["backup", "prune", "cleanup-storage"]`.
-- `notify test` validates provider delivery and auth for the selected target; it does not prove that a real backup or health event occurred.
+- `notify test` validates provider delivery and auth for the selected storage; it does not prove that a real backup or health event occurred.
 - `notify test update` validates the global update notification route without running a real update.
 - Configure native `ntfy` delivery under `[health.notify.ntfy]`; generic webhook output remains available for future providers and bridges.
-- Configure update failure alerts under `[update.notify]` in `<config-dir>/duplicacy-backup.toml`; this is separate from label and target notification settings.
-- Authenticated webhook and `ntfy` tokens are target-scoped in the secrets file, so repeat them under each notifying target that needs auth.
+- Configure update failure alerts under `[update.notify]` in `<config-dir>/duplicacy-backup.toml`; this is separate from label and storage notification settings.
+- Authenticated webhook and `ntfy` tokens are storage-scoped in the secrets file, so repeat them under each notifying storage entry that needs auth.
 - If notification config cannot be read, fall back to Synology scheduled-task alerts.
 
 ## Updates

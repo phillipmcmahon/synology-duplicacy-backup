@@ -129,15 +129,15 @@ type sharedFlagOptions struct {
 
 func consumeSharedFlag(args []string, index *int, req *workflowcore.Request, opts sharedFlagOptions) (bool, error) {
 	switch args[*index] {
-	case "--target":
+	case "--storage":
 		if !opts.target {
 			return false, nil
 		}
-		value, err := consumeRequiredValue(args, index, "--target")
+		value, err := consumeRequiredValue(args, index, args[*index])
 		if err != nil {
 			return false, err
 		}
-		req.RequestedTarget = value
+		req.RequestedStorageName = value
 		return true, nil
 	case "--dry-run":
 		if !opts.dryRun {
@@ -223,10 +223,10 @@ func parsePositiveInt(value string, flag string) (int, error) {
 }
 
 func validateTargetAndLabel(req *workflowcore.Request) error {
-	if req.RequestedTarget == "" {
-		return workflowcore.NewRequestError("--target is required")
+	if req.Target() == "" {
+		return workflowcore.NewRequestError("--storage is required")
 	}
-	if err := workflow.ValidateTargetName(req.RequestedTarget); err != nil {
+	if err := workflow.ValidateTargetName(req.Target()); err != nil {
 		return err
 	}
 	return validateLabel(req.Source)

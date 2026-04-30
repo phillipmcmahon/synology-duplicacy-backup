@@ -38,7 +38,7 @@ func NewRuntimeRequest(req *Request) RuntimeRequest {
 	return RuntimeRequest{
 		Mode:          mode,
 		Label:         req.Source,
-		TargetName:    req.RequestedTarget,
+		TargetName:    req.Target(),
 		ConfigDir:     req.ConfigDir,
 		SecretsDir:    req.SecretsDir,
 		DryRun:        req.DryRun,

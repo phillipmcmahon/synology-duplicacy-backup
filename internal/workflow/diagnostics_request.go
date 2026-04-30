@@ -21,7 +21,7 @@ func NewDiagnosticsRequest(req *Request) DiagnosticsRequest {
 	return DiagnosticsRequest{
 		Command:     req.DiagnosticsCommand,
 		Label:       req.Source,
-		TargetName:  req.RequestedTarget,
+		TargetName:  req.Target(),
 		ConfigDir:   req.ConfigDir,
 		SecretsDir:  req.SecretsDir,
 		JSONSummary: req.JSONSummary,

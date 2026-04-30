@@ -1,6 +1,6 @@
 # Release Mirror
 
-This note documents the repository's current NAS mirror target. It is
+This note documents the repository's current NAS mirror destination. It is
 site-specific release infrastructure, not a general operator requirement.
 
 The public release source of truth is GitHub. After a tag-triggered release
@@ -8,7 +8,7 @@ workflow publishes the GitHub release, the release finalization step mirrors
 the published artefacts to the NAS so installed systems can update from the
 same local release tree used operationally.
 
-## Current Mirror Target
+## Current Mirror Destination
 
 Default mirror settings used by the release scripts:
 

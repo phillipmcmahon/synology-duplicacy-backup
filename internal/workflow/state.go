@@ -14,26 +14,26 @@ var profileChown = os.Chown
 
 type RunState = workflowcore.RunState
 
-func stateFilePath(meta Metadata, label string, target string) string {
-	return workflowcore.StateFilePath(meta, label, target)
+func stateFilePath(meta Metadata, label string, storageName string) string {
+	return workflowcore.StateFilePath(meta, label, storageName)
 }
 
 // StateFilePath returns the profile state file path for report-only command
 // subsystems.
-func StateFilePath(meta Metadata, label string, target string) string {
-	return stateFilePath(meta, label, target)
+func StateFilePath(meta Metadata, label string, storageName string) string {
+	return stateFilePath(meta, label, storageName)
 }
 
-func loadRunState(meta Metadata, label, target string) (*RunState, error) {
-	return workflowcore.LoadRunState(meta, label, target)
+func loadRunState(meta Metadata, label, storageName string) (*RunState, error) {
+	return workflowcore.LoadRunState(meta, label, storageName)
 }
 
 // LoadRunState reads prior run state for report-only command subsystems.
-func LoadRunState(meta Metadata, label, target string) (*RunState, error) {
-	return loadRunState(meta, label, target)
+func LoadRunState(meta Metadata, label, storageName string) (*RunState, error) {
+	return loadRunState(meta, label, storageName)
 }
 
-func saveRunState(meta Metadata, label, target string, state *RunState) error {
+func saveRunState(meta Metadata, label, storageName string, state *RunState) error {
 	if state == nil {
 		return nil
 	}
@@ -47,13 +47,13 @@ func saveRunState(meta Metadata, label, target string, state *RunState) error {
 		return err
 	}
 	state.Label = label
-	state.Target = target
+	state.Storage = storageName
 	body, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to encode state file: %w", err)
 	}
 	body = append(body, '\n')
-	path := stateFilePath(meta, label, target)
+	path := stateFilePath(meta, label, storageName)
 	if err := os.WriteFile(path, body, 0600); err != nil {
 		return fmt.Errorf("failed to write state file %s: %w", path, err)
 	}

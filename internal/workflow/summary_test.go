@@ -20,7 +20,7 @@ func TestSummaryLines_DuplicacyStorageIncludesSecrets(t *testing.T) {
 			SafePruneMaxDeleteCount:     25,
 			SafePruneMinTotalForPercent: 20,
 			BackupLabel:                 "homes",
-			Target:                      "offsite-storj",
+			StorageName:                 "offsite-storj",
 			Location:                    locationRemote,
 		},
 		Secrets: &secrets.Secrets{
@@ -74,7 +74,7 @@ func TestSummaryLines_LocalDuplicacyStorageIncludesNeutralSecretLabels(t *testin
 			SafePruneMaxDeleteCount:     25,
 			SafePruneMinTotalForPercent: 20,
 			BackupLabel:                 "homes",
-			Target:                      "onsite-rustfs",
+			StorageName:                 "onsite-rustfs",
 			Location:                    locationLocal,
 		},
 		Secrets: &secrets.Secrets{
@@ -121,7 +121,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 		},
 		Config: PlanConfig{
 			BackupLabel: "homes",
-			Target:      "onsite-usb",
+			StorageName: "onsite-usb",
 			Location:    locationLocal,
 			Threads:     16,
 			Filter:      "exclude",
@@ -147,7 +147,7 @@ func TestSummaryLines_DefaultOutputIsCompact(t *testing.T) {
 	if !labels["Operation Mode"] || !labels["Config File"] || !labels["Storage"] || !labels["Force Prune"] {
 		t.Fatalf("expected essential summary fields, got %+v", lines)
 	}
-	wantOrder := []string{"Operation Mode", "Target", "Location", "Config File", "Source Path", "Snapshot", "Storage", "Force Prune"}
+	wantOrder := []string{"Operation Mode", "Storage", "Location", "Config File", "Source Path", "Snapshot", "Storage", "Force Prune"}
 	got := make([]string, 0, len(lines))
 	for _, line := range lines {
 		got = append(got, line.Label)

@@ -41,7 +41,7 @@ release notes from memory, or generate release artefacts on the macOS host.
 - Do not build local release tarballs as part of the normal release flow.
 - After the GitHub release is live, run the standard finalization script so
   the published release is mirrored, verified, and tied back to the release
-  issue. The current site-specific mirror target is documented in
+  issue. The current site-specific mirror storage is documented in
   [release-mirror.md](release-mirror.md).
 
 ## Release Tracking Conventions
@@ -230,7 +230,7 @@ in `metadata/build.json`. The operator instructions should start with:
 ```
 
 That setup script extracts the packaged tarball and exports `BIN`, `CFG`,
-`SEC`, `LABEL`, `TARGET`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`, while allowing
+`SEC`, `LABEL`, `STORAGE`, `WORKSPACE_ROOT`, and `RESTORE_ROOT`, while allowing
 operators to override any of those values before sourcing it.
 
 CI smoke coverage:
@@ -251,7 +251,7 @@ NAS UI surface smoke coverage:
 
 - Generate the bundle with `scripts/package-ui-surface-smoke.sh`. For
   restore-sensitive releases, bake the restore smoke path into the bundle with
-  `--default-run-restore 1 --default-restore-target <target>
+  `--default-run-restore 1 --default-restore-storage <storage>
   --default-restore-path '<snapshot-relative-path>'`; the runner auto-selects
   the latest visible revision.
 - Run `CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh` on the NAS before tagging
@@ -388,7 +388,7 @@ This is the standard release closure gate. It runs
 `scripts/mirror-release-assets.sh`, then `scripts/verify-release.sh`, then
 `scripts/project-board-audit.sh`, then prints a concise release-issue comment
 that includes the GitHub release URL, NAS mirror path, verification result, and
-attestation result. The default mirror target is documented in
+attestation result. The default mirror storage is documented in
 [release-mirror.md](release-mirror.md). `--issue` is required so the release
 cannot be finalized as an untracked side quest.
 

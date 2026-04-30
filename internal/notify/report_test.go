@@ -54,6 +54,38 @@ func TestNewTestReportFormatsTextAndJSON(t *testing.T) {
 	}
 }
 
+func TestFormatTestOutputUsesSemanticColourWhenForced(t *testing.T) {
+	t.Setenv("DUPLICACY_BACKUP_FORCE_COLOUR", "1")
+
+	report := NewTestReport(TestReportInput{
+		Scope:    "homes/offsite-storj",
+		Label:    "homes",
+		Target:   "offsite-storj",
+		Provider: ProviderAll,
+		DryRun:   true,
+	}, []Destination{
+		{Provider: ProviderNtfy, Destination: "https://ntfy.sh/test-topic"},
+	}, "preview")
+	report.Providers[0].Result = "preview"
+	report.Providers[0].Message = "Would send a simulated notification"
+
+	text := FormatTestOutput(report, false)
+	for _, token := range []string{
+		"\033[1;33mPreview\033[0m",
+		"\033[1;33mpreview (Would send a simulated notification) -> https://ntfy.sh/test-topic\033[0m",
+	} {
+		if !strings.Contains(text, token) {
+			t.Fatalf("text output missing coloured token %q:\n%s", token, text)
+		}
+	}
+
+	report.Result = "failed"
+	text = FormatTestOutput(report, false)
+	if !strings.Contains(text, "\033[1;31mFailed\033[0m") {
+		t.Fatalf("text output missing red failed result:\n%s", text)
+	}
+}
+
 func TestFailureReportAndCommandOutput(t *testing.T) {
 	report := NewFailureTestReport(TestReportInput{
 		Label:   "homes",

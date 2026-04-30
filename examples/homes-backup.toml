@@ -1,4 +1,4 @@
-# Example config for a single label with multiple named targets.
+# Example config for a single label with multiple named storage.
 # Place in <executable-dir>/.config/homes-backup.toml
 
 label = "homes"
@@ -29,17 +29,17 @@ interactive = false
 url = "https://ntfy.sh"
 topic = "duplicacy-backup-alerts"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volume2/backups/homes"
 
-[targets.offsite-usb]
+[storage.offsite-usb]
 location = "remote"
 storage = "/volume1/duplicacy/duplicacy/homes"
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 
-[targets.offsite-storj.health]
+[storage.offsite-storj.health]
 verify_warn_after_hours = 336

@@ -11,7 +11,7 @@ func TestPlanSectionsReturnsDefensiveCopies(t *testing.T) {
 	plan := &Plan{
 		Request: PlanRequest{DoBackup: true, OperationMode: "Backup"},
 		Config: PlanConfig{
-			Target:       "onsite-usb",
+			StorageName:  "onsite-usb",
 			FilterLines:  []string{"- *.tmp"},
 			PruneArgs:    []string{"-keep", "1:1"},
 			BackupLabel:  "homes",
@@ -31,7 +31,7 @@ func TestPlanSectionsReturnsDefensiveCopies(t *testing.T) {
 		t.Fatalf("PruneArgs was not copied defensively")
 	}
 
-	if got := (*Plan)(nil).Sections(); got.Request != (PlanRequest{}) || got.Config.Target != "" || got.Paths.RunTimestamp != "" {
+	if got := (*Plan)(nil).Sections(); got.Request != (PlanRequest{}) || got.Config.StorageName != "" || got.Paths.RunTimestamp != "" {
 		t.Fatalf("nil Sections = %+v", got)
 	}
 }
@@ -47,7 +47,7 @@ func TestPlanIdentityHelpers(t *testing.T) {
 		t.Fatalf("nil plan detected as remote")
 	}
 
-	if got := (&Plan{Config: PlanConfig{Target: "onsite-usb"}}).ModeLabel(); got != "onsite-usb" {
+	if got := (&Plan{Config: PlanConfig{StorageName: "onsite-usb"}}).ModeLabel(); got != "onsite-usb" {
 		t.Fatalf("ModeLabel = %q", got)
 	}
 	if got := (&Plan{}).ModeLabel(); got != "not supplied" {
@@ -71,7 +71,7 @@ func TestPlanIdentityHelpers(t *testing.T) {
 func TestPlanApplyConfig(t *testing.T) {
 	cfg := &config.Config{
 		Label:                       "homes",
-		Target:                      "onsite-usb",
+		StorageName:                 "onsite-usb",
 		Location:                    LocationLocal,
 		SourcePath:                  "/volume1/homes",
 		Storage:                     "/volumeUSB1/duplicacy/homes",
@@ -93,7 +93,7 @@ func TestPlanApplyConfig(t *testing.T) {
 
 	plan.ApplyConfig(cfg, rt)
 
-	if plan.Config.Target != "onsite-usb" || plan.Config.Location != LocationLocal {
+	if plan.Config.StorageName != "onsite-usb" || plan.Config.Location != LocationLocal {
 		t.Fatalf("config identity not applied: %+v", plan.Config)
 	}
 	if plan.Paths.SnapshotSource != "/volume1/homes" {
@@ -121,7 +121,7 @@ func TestPlanApplyConfig(t *testing.T) {
 }
 
 func TestPlanApplyConfigForMaintenanceUsesSourceRepository(t *testing.T) {
-	cfg := &config.Config{Target: "remote", Location: LocationRemote, SourcePath: "relative/source", Storage: "s3://bucket/path"}
+	cfg := &config.Config{StorageName: "remote", Location: LocationRemote, SourcePath: "relative/source", Storage: "s3://bucket/path"}
 	plan := &Plan{Config: PlanConfig{BackupLabel: "homes"}, Paths: PlanPaths{RunTimestamp: "ts"}}
 
 	plan.ApplyConfig(cfg, Env{Getpid: func() int { return 99 }})
@@ -143,7 +143,7 @@ func TestPlanApplyConfigNilSafe(t *testing.T) {
 	plan.ApplyConfig(nil, Env{})
 	plan.ApplyConfigIdentity(nil)
 
-	if plan.Config.Target != "" {
+	if plan.Config.StorageName != "" {
 		t.Fatalf("nil config changed plan: %+v", plan)
 	}
 }

@@ -58,7 +58,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	plan := planner.derivePlan(req.PlanRequest())
 	resolved := []SummaryLine{
 		{Label: "Label", Value: req.Label},
-		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Storage", Value: plan.TargetName()},
 		{Label: "Config File", Value: plan.Paths.ConfigFile},
 	}
 
@@ -67,7 +67,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 		return "", err
 	}
 	resolved[2].Value = plan.Paths.ConfigFile
-	plan.Config.Target = cfg.Target
+	plan.Config.StorageName = cfg.StorageName
 	plan.Config.Location = cfg.Location
 	plan.Paths.SnapshotSource = cfg.SourcePath
 	plan.Paths.RepositoryPath = cfg.SourcePath
@@ -159,7 +159,7 @@ func handleConfigValidate(req *ConfigRequest, planner *Planner) (string, error) 
 	default:
 		collector.addUnchecked("Repository Access")
 	}
-	collector.addStatus("Target Settings", "Valid", targetSemanticsErr)
+	collector.addStatus("Storage Settings", "Valid", targetSemanticsErr)
 	if !secretsNeeded {
 		collector.addStatic("Secrets", "Not required")
 	} else if secretsChecked {
@@ -190,7 +190,7 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	plan.Config.Target = cfg.Target
+	plan.Config.StorageName = cfg.StorageName
 	plan.Config.Location = cfg.Location
 	plan.Paths.SnapshotSource = cfg.SourcePath
 	plan.Paths.BackupTarget = cfg.Storage
@@ -200,7 +200,7 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Label},
-		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Storage Name", Value: plan.TargetName()},
 		{Label: "Location", Value: cfg.Location},
 		{Label: "Config File", Value: plan.Paths.ConfigFile},
 		{Label: "Source Path", Value: plan.Paths.SnapshotSource},
@@ -235,14 +235,14 @@ func handleConfigExplain(req *ConfigRequest, planner *Planner) (string, error) {
 func handleConfigPaths(req *ConfigRequest, meta Metadata, planner *Planner) string {
 	plan := planner.derivePlan(req.PlanRequest())
 	if cfg, err := planner.loadConfig(plan); err == nil {
-		plan.Config.Target = cfg.Target
+		plan.Config.StorageName = cfg.StorageName
 		plan.Config.Location = cfg.Location
 		plan.Paths.SnapshotSource = cfg.SourcePath
 		plan.Paths.BackupTarget = cfg.Storage
 	}
 	lines := []SummaryLine{
 		{Label: "Label", Value: req.Label},
-		{Label: "Target", Value: plan.TargetName()},
+		{Label: "Storage Name", Value: plan.TargetName()},
 		{Label: "Location", Value: plan.Config.Location},
 		{Label: "Config Dir", Value: plan.Paths.ConfigDir},
 		{Label: "Config File", Value: plan.Paths.ConfigFile},

@@ -73,7 +73,7 @@ Only the runtime backup/prune/cleanup path goes through the full
 `Planner.Build -> Executor.Run` sequence. Config, diagnostics, notify,
 restore, rollback, update, and health commands dispatch to their own narrower
 handlers so they do not inherit runtime requirements such as root access,
-logger setup, or target storage secrets unless that command actually needs
+logger setup, or storage secrets unless that command actually needs
 them.
 
 ## Design Principles
@@ -91,7 +91,7 @@ transition guidance so operators can see the new contract plainly.
 ## Command Boundaries
 
 `internal/command` owns CLI parsing and help text. Its parser and help files are
-split by command family around a shared source/target flag parser, and the
+split by command family around a shared source/storage flag parser, and the
 command registry is the source of truth for public command names, parser
 coverage, help coverage, DSM policy, and profile/root policy. Dispatch then
 routes the typed command by registry family and projects the transitional

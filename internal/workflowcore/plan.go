@@ -41,7 +41,7 @@ type PlanRequest struct {
 }
 
 type PlanConfig struct {
-	Target                      string
+	StorageName                 string
 	Location                    string
 	Notify                      config.HealthNotifyConfig
 	BackupLabel                 string
@@ -113,14 +113,14 @@ func (p *Plan) TargetName() string {
 	if p == nil {
 		return ""
 	}
-	return p.Config.Target
+	return p.Config.StorageName
 }
 
 func (p *Plan) ApplyConfigIdentity(cfg *config.Config) {
 	if p == nil || cfg == nil {
 		return
 	}
-	p.Config.Target = cfg.Target
+	p.Config.StorageName = cfg.StorageName
 	p.Config.Location = cfg.Location
 	p.Config.Notify = cfg.Health.Notify
 }

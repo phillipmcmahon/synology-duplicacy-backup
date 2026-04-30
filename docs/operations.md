@@ -91,7 +91,7 @@ sudo /usr/local/bin/duplicacy-backup rollback --yes
 ```
 
 Use an explicit retained version when incident response calls for a specific
-target:
+retained version:
 
 ```bash
 sudo /usr/local/bin/duplicacy-backup rollback --version v5.1.1 --yes
@@ -117,7 +117,7 @@ do not need to copy TOML files again unless you are intentionally changing
 them. In normal day-to-day use, each label has one backup config file and,
 when needed, one matching secrets file. Storage keys are needed only when the
 selected backend requires them; see
-[Configuration and secrets](configuration.md#secrets) for the target-scoped
+[Configuration and secrets](configuration.md#secrets) for the storage-scoped
 secrets model.
 
 Use `update --force` only when you intentionally want to reinstall the selected
@@ -156,17 +156,17 @@ the result, and copy back manually only after review. For most live operator
 restores, start with:
 
 ```bash
-duplicacy-backup restore select --target offsite-storj homes
+duplicacy-backup restore select --storage offsite-storj homes
 ```
 
-Use `sudo` for restore commands only when the selected target is a
+Use `sudo` for restore commands only when the selected storage is a
 root-protected local filesystem repository, such as an onsite USB repository.
 Object storage and remote mounted filesystem repositories normally restore as
 the operator user.
 
 For scriptable restore primitives such as
-`restore plan --target onsite-usb homes` and
-`restore run --target onsite-usb --revision 2403 --path docs/readme.md --yes homes`,
+`restore plan --storage onsite-usb homes` and
+`restore run --storage onsite-usb --revision 2403 --path docs/readme.md --yes homes`,
 use [Restore drills](restore-drills.md).
 
 ### Runtime locations after install
@@ -225,21 +225,21 @@ The short version is:
 Example scheduled backup:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup backup --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup backup --storage onsite-usb homes
 ```
 
 Example scheduled health check for an object or remote mounted filesystem
 repository:
 
 ```bash
-/usr/local/bin/duplicacy-backup health verify --json-summary --target offsite-storj homes
+/usr/local/bin/duplicacy-backup health verify --json-summary --storage offsite-storj homes
 ```
 
 Example health summary for a root-protected local filesystem repository:
 
 ```bash
-sudo -n /usr/local/bin/duplicacy-backup health status --target onsite-usb homes
-sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --target onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup health status --storage onsite-usb homes
+sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --storage onsite-usb homes
 ```
 
 Use `sudo -n` for local filesystem repositories because repository metadata is

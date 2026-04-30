@@ -41,7 +41,7 @@ func formatRestorePlan(report *restorePlanReport) string {
 	fmt.Fprintf(&b, "Restore plan for %s/%s\n", report.Label, report.Target)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Read Only", Value: "true"},
 		{Label: "Executes Restore", Value: "false"},
@@ -85,7 +85,7 @@ func formatRestoreRevisions(report *restoreRevisionsReport) string {
 	fmt.Fprintf(&b, "Restore revision list for %s/%s\n", report.Label, report.Target)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Read Only", Value: "true"},
 		{Label: "Executes Restore", Value: "false"},
@@ -116,7 +116,7 @@ func formatRestoreRun(report *restoreRunReport) string {
 	fmt.Fprintf(&b, "Restore run for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Executes Restore", Value: fmt.Sprintf("%t", !report.DryRun)},
 		{Label: "Copies Back", Value: "false"},
@@ -150,7 +150,7 @@ func formatRestoreBatchRun(report *restoreBatchRunReport) string {
 	fmt.Fprintf(&b, "Restore run for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Executes Restore", Value: "true"},
 		{Label: "Copies Back", Value: "false"},
@@ -185,7 +185,7 @@ func formatRestoreInspect(report *restoreInspectReport) string {
 	fmt.Fprintf(&b, "Restore inspection for %s/%s revision %d\n", report.Label, report.Target, report.Revision)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Read Only", Value: "true"},
 		{Label: "Executes Restore", Value: "false"},
@@ -209,7 +209,7 @@ func formatRestoreSelect(report *restoreSelectReport) string {
 	fmt.Fprintf(&b, "Restore selection for %s/%s\n", report.Label, report.Target)
 	writeRestoreLines(&b, []SummaryLine{
 		{Label: "Label", Value: report.Label},
-		{Label: "Target", Value: report.Target},
+		{Label: "Storage", Value: report.Target},
 		{Label: "Location", Value: report.Location},
 		{Label: "Executes Restore", Value: "after confirmation"},
 		{Label: "Copies Back", Value: "false"},

@@ -26,7 +26,7 @@ label = "homes"
 threads = 4
 prune = "-keep 0:365"
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/backups/homes"
 `)
@@ -510,7 +510,7 @@ func TestHandleRestoreCommand_RunUsesConfiguredWorkspaceTemplate(t *testing.T) {
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "homes-onsite-usb-rev2403-20260424-070000")
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"{label}-{target}-rev{revision}-{snapshot_timestamp}\"\n", root)
+	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"{label}-{storage}-rev{revision}-{snapshot_timestamp}\"\n", root)
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
 	mock := execpkg.NewMockRunner(
@@ -541,7 +541,7 @@ func TestHandleRestoreCommand_RunCLIWorkspaceTemplateOverridesConfig(t *testing.
 	root := setupRestoreWorkspaceRoot(t)
 	wantWorkspace := filepath.Join(root, "manual-onsite-usb-2403-20260424-070000")
 	meta := MetadataForLogDir("duplicacy-backup", "1.0.0", "now", t.TempDir())
-	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"config-{label}-{target}-{revision}\"\n", root)
+	restoreSection := fmt.Sprintf("[restore]\nworkspace_root = %q\nworkspace_template = \"config-{label}-{storage}-{revision}\"\n", root)
 	writeTargetTestConfig(t, configDir, "homes", "onsite-usb", buildTargetConfig("homes", "onsite-usb", locationLocal, sourcePath, storage, 4, "-keep 0:365", restoreSection))
 
 	mock := execpkg.NewMockRunner(
@@ -552,7 +552,7 @@ func TestHandleRestoreCommand_RunCLIWorkspaceTemplateOverridesConfig(t *testing.
 	newRestoreCommandRunner = func() execpkg.Runner { return mock }
 	defer func() { newRestoreCommandRunner = oldRunner }()
 
-	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceTemplate: "manual-{target}-{revision}-{snapshot_timestamp}", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
+	req := &Request{RestoreCommand: "run", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspaceTemplate: "manual-{storage}-{revision}-{snapshot_timestamp}", RestoreRevision: 2403, RestorePath: "docs/readme.md", RestoreYes: true}
 	out, err := restoreHandleCommand(req, meta, testRuntime())
 	if err != nil {
 		t.Fatalf("restoreHandleCommand() error = %v", err)

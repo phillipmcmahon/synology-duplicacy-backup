@@ -21,8 +21,8 @@ You need:
 - the Duplicacy CLI installed and available on `PATH`
 - the correct release tarball for the NAS architecture
 - the original backup label name, such as `homes`
-- the target name you want to use, such as `offsite-storj`
-- the complete Duplicacy storage value for that target
+- the storage name you want to use, such as `offsite-storj`
+- the complete Duplicacy storage value for that storage entry
 - any storage credentials needed by that backend
 
 Do not point restore commands directly at live data. This tool restores into a
@@ -146,7 +146,7 @@ freshness_fail_hours = 48
 doctor_warn_after_hours = 48
 verify_warn_after_hours = 168
 
-[targets.offsite-storj]
+[storage.offsite-storj]
 location = "remote"
 storage = "s3://gateway.storjshare.io/my-backup-bucket/homes"
 ```
@@ -155,7 +155,7 @@ For Duplicacy `minio://` or `minios://`, keep the same shape and place the
 complete Duplicacy storage value in `storage`:
 
 ```toml
-[targets.offsite-minio]
+[storage.offsite-minio]
 location = "remote"
 storage = "minios://minio.example.net:9000/my-backup-bucket/homes"
 ```
@@ -186,7 +186,7 @@ freshness_fail_hours = 48
 doctor_warn_after_hours = 48
 verify_warn_after_hours = 168
 
-[targets.onsite-usb]
+[storage.onsite-usb]
 location = "local"
 storage = "/volumeUSB1/usbshare/duplicacy/homes"
 ```
@@ -200,7 +200,7 @@ chmod 600 "$HOME/.config/duplicacy-backup/homes-backup.toml"
 
 ## 4. Create The Secrets File
 
-Create one secrets file per label only when the selected target needs storage
+Create one secrets file per label only when the selected storage needs storage
 credentials or notification tokens:
 
 ```text
@@ -210,7 +210,7 @@ $HOME/.config/duplicacy-backup/secrets/<label>-secrets.toml
 For S3-compatible storage, use Duplicacy's generic key names:
 
 ```toml
-[targets.offsite-storj.keys]
+[storage.offsite-storj.keys]
 s3_id = "your-access-key-id"
 s3_secret = "your-secret-access-key"
 ```
@@ -225,12 +225,12 @@ s3_secret = "..."
 For native Duplicacy `storj://` storage, use:
 
 ```toml
-[targets.offsite-storj-native.keys]
+[storage.offsite-storj-native.keys]
 storj_key = "your-storj-access-grant"
 storj_passphrase = "your-storj-passphrase"
 ```
 
-Path-based storage usually does not need storage secrets. If no target needs
+Path-based storage usually does not need storage secrets. If no storage entry needs
 credentials or notification tokens, you can skip the label secrets file.
 
 Set safe permissions if you created a secrets file:
@@ -243,17 +243,17 @@ chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 
 ## 5. Check The Config Shape
 
-First confirm the tool resolves the target you expect:
+First confirm the tool resolves the storage entry you expect:
 
 ```bash
-duplicacy-backup config explain --target offsite-storj homes
+duplicacy-backup config explain --storage offsite-storj homes
 ```
 
 If you configured `source_path` and created that future live source root, you
 can also run full backup-readiness validation:
 
 ```bash
-duplicacy-backup config validate --target offsite-storj homes
+duplicacy-backup config validate --storage offsite-storj homes
 ```
 
 You want to see:
@@ -261,7 +261,7 @@ You want to see:
 ```text
 Config             : Valid
 Repository Access  : Valid
-Target Settings    : Valid
+Storage Settings    : Valid
 Result             : Passed
 ```
 
@@ -277,8 +277,8 @@ creating a new empty one.
 If secrets are invalid, check that:
 
 - the secrets file name matches the label
-- the target name matches the config
-- keys are under `[targets.<name>.keys]`
+- the storage name matches the config
+- keys are under `[storage.<name>.keys]`
 - S3-compatible backends use `s3_id` and `s3_secret`
 - native `storj://` storage uses `storj_key` and `storj_passphrase`
 
@@ -286,11 +286,11 @@ Print a redacted diagnostics bundle before the first restore or backup on the
 new NAS:
 
 ```bash
-duplicacy-backup diagnostics --target offsite-storj homes
+duplicacy-backup diagnostics --storage offsite-storj homes
 ```
 
 Use this as a final sanity check that the new NAS is reading the intended
-config file, target, storage value, secrets file, state directory, and runtime
+config file, storage name, storage value, secrets file, state directory, and runtime
 paths. It is non-mutating and safe to paste into a support conversation because
 secret values are redacted.
 
@@ -299,7 +299,7 @@ secret values are redacted.
 List available revisions without restoring data:
 
 ```bash
-duplicacy-backup restore list-revisions --target offsite-storj homes
+duplicacy-backup restore list-revisions --storage offsite-storj homes
 ```
 
 This proves the new NAS can initialise a temporary Duplicacy workspace and read
@@ -308,7 +308,7 @@ the existing backup history.
 You can also print the read-only restore plan:
 
 ```bash
-duplicacy-backup restore plan --target offsite-storj homes
+duplicacy-backup restore plan --storage offsite-storj homes
 ```
 
 The plan should show:
@@ -324,7 +324,7 @@ The plan should show:
 Start the guided restore flow:
 
 ```bash
-duplicacy-backup restore select --target offsite-storj homes
+duplicacy-backup restore select --storage offsite-storj homes
 ```
 
 Choose a restore point, then choose inspect-only first. This lets you browse
@@ -338,7 +338,7 @@ For very large repositories, start under a known subtree:
 
 ```bash
 duplicacy-backup restore select \
-  --target offsite-storj \
+  --storage offsite-storj \
   --path-prefix phillipmcmahon/code \
   homes
 ```
@@ -348,7 +348,7 @@ primitive:
 
 ```bash
 duplicacy-backup restore run \
-  --target offsite-storj \
+  --storage offsite-storj \
   --revision <revision> \
   --path "relative/path/or/pattern" \
   --yes \

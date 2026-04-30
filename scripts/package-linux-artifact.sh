@@ -20,9 +20,9 @@ environment.
 Options:
   --version <value>      Version string embedded into the binary
   --build-time <value>   Build timestamp in UTC RFC3339 form
-  --goos <value>         Target GOOS
-  --goarch <value>       Target GOARCH
-  --goarm <value>        Target GOARM (for GOARCH=arm)
+  --goos <value>         Output GOOS
+  --goarch <value>       Output GOARCH
+  --goarm <value>        Output GOARM (for GOARCH=arm)
   --output-dir <path>    Directory for the final tarball and checksum
   --repo-root <path>     Repository root (default: script parent directory)
   --help                 Show this help text
@@ -92,7 +92,7 @@ expected_file_pattern() {
             printf 'ELF 32-bit LSB executable, ARM\n'
             ;;
         *)
-            fail "no file(1) expectation defined for target $1/$2"
+            fail "no file(1) expectation defined for platform $1/$2"
             ;;
     esac
 }
@@ -233,7 +233,7 @@ if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "$NATIVE_GOARCH" ] && [ "$GOARCH" != "
     "$EXTRACTED_BINARY" --version | grep -F "$VERSION" >/dev/null || fail "binary --version output did not include $VERSION"
     "$EXTRACTED_BINARY" --help >/dev/null
 else
-    echo "Skipping binary execution smoke test for non-native target $GOOS/$GOARCH" >&2
+    echo "Skipping binary execution smoke test for non-native platform $GOOS/$GOARCH" >&2
 fi
 
 sh "$EXTRACTED_INSTALLER" --help >/dev/null

@@ -20,7 +20,7 @@ func NewHealthRequest(req *Request) HealthRequest {
 	return HealthRequest{
 		Command:     req.HealthCommand,
 		Label:       req.Source,
-		TargetName:  req.RequestedTarget,
+		TargetName:  req.Target(),
 		ConfigDir:   req.ConfigDir,
 		SecretsDir:  req.SecretsDir,
 		JSONSummary: req.JSONSummary,

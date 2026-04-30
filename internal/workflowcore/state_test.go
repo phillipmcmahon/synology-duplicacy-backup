@@ -23,8 +23,8 @@ func TestStateFilePathAndLoadRunState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadRunState returned error: %v", err)
 	}
-	if state.Label != "homes" || state.Target != "onsite-usb" {
-		t.Fatalf("state identity = %q/%q", state.Label, state.Target)
+	if state.Label != "homes" || state.Storage != "onsite-usb" {
+		t.Fatalf("state identity = %q/%q", state.Label, state.Storage)
 	}
 	if state.LastRunResult != "success" || state.LastSuccessfulBackupRevision != 42 {
 		t.Fatalf("state body = %+v", state)
@@ -34,7 +34,7 @@ func TestStateFilePathAndLoadRunState(t *testing.T) {
 func TestLoadRunStatePreservesStoredIdentity(t *testing.T) {
 	stateDir := t.TempDir()
 	path := StateFilePath(Metadata{StateDir: stateDir}, "homes", "onsite-usb")
-	if err := os.WriteFile(path, []byte(`{"label":"stored","target":"remote"}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"label":"stored","storage":"remote"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,7 +42,7 @@ func TestLoadRunStatePreservesStoredIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadRunState returned error: %v", err)
 	}
-	if state.Label != "stored" || state.Target != "remote" {
+	if state.Label != "stored" || state.Storage != "remote" {
 		t.Fatalf("state identity overwritten: %+v", state)
 	}
 }

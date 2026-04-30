@@ -4,16 +4,16 @@ import "testing"
 
 func TestNewConfigPlanRequestProjectsOnlyPlannerInputs(t *testing.T) {
 	req := &Request{
-		Source:          "homes",
-		RequestedTarget: "onsite-usb",
-		ConfigDir:       "/home/operator/.config/duplicacy-backup",
-		SecretsDir:      "/home/operator/.config/duplicacy-backup/secrets",
-		DoBackup:        true,
-		DryRun:          true,
-		JSONSummary:     true,
-		NotifyCommand:   "test",
-		RestoreCommand:  "run",
-		UpdateCommand:   "update",
+		Source:               "homes",
+		RequestedStorageName: "onsite-usb",
+		ConfigDir:            "/home/operator/.config/duplicacy-backup",
+		SecretsDir:           "/home/operator/.config/duplicacy-backup/secrets",
+		DoBackup:             true,
+		DryRun:               true,
+		JSONSummary:          true,
+		NotifyCommand:        "test",
+		RestoreCommand:       "run",
+		UpdateCommand:        "update",
 	}
 
 	got := NewConfigPlanRequest(req)
