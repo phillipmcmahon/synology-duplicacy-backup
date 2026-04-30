@@ -12,6 +12,40 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Breaking
+- **Hard break: target terminology has been renamed to storage everywhere**.
+  No compatibility aliases are retained; operators pulling `main` must update
+  local command lines, TOML files, secrets files, restore templates, and any
+  automation before running this build. The public CLI now uses
+  `--storage <name>` instead of `--target <name>`; backup config uses
+  `[storage.<name>]` instead of `[targets.<name>]`; secrets use
+  `[storage.<name>]` and `[storage.<name>.keys]` instead of target tables;
+  restore workspace templates use `{storage}` instead of `{target}`; and
+  runtime, health, notification, diagnostics, restore, and state JSON now use
+  storage-oriented names such as `storage` and `storage_name`.
+
+  Minimal migration recipe:
+
+  ```sh
+  # Update CLI and scheduler invocations.
+  # Example:
+  #   duplicacy-backup backup --target onsite-usb homes
+  # becomes:
+  #   duplicacy-backup backup --storage onsite-usb homes
+
+  # Update backup and secrets TOML files.
+  perl -0pi -e 's/\[targets\./[storage./g; s/\{target\}/\{storage\}/g' \
+    "$HOME/.config/duplicacy-backup"/*-backup.toml \
+    "$HOME/.config/duplicacy-backup/secrets"/*-secrets.toml
+
+  # Then validate each label/storage pair before scheduled jobs resume.
+  duplicacy-backup config validate --storage <storage-name> <label>
+  ```
+
+  Review any downstream scripts that parse JSON or state files for
+  `target`-named fields and update them to the new storage fields before
+  consuming output from this build.
+
 ### Added
 - Local validation now enforces the `85.0%` coverage floor with
   `scripts/check-coverage-floor.sh`, checking both every coverable package and
@@ -40,6 +74,8 @@ coverage floor and package-level baseline.
 - Release verification now has fixture coverage for the new operator-impact
   section gate so historical releases remain verifiable while future releases
   enforce the strengthened note contract.
+- The v10.0.0 changelog entry now describes the removed legacy schema as
+  `[storage.<name>]`, matching the hard-break rename.
 
 ## [v10.0.3] - 2026-04-30
 
@@ -204,7 +240,7 @@ coverage floor and package-level baseline.
 ### Removed
 - Removed retired config-schema parsing for the old `[local]`, `[remote]`,
   `[target]`, `[storage]`, `[capture]`, and `[retention]` layouts. Config files
-  now use only the current `[targets.<name>]` model.
+  now use only the current `[storage.<name>]` model.
 - Removed the v8 runtime-profile migration helper, migration smoke job,
   release-package migration asset, and operator migration guide.
 

@@ -3,6 +3,8 @@
 The root [`CHANGELOG.md`](../../CHANGELOG.md) tracks `Unreleased` and the
 current major release line. Older major-version release notes live here so the
 history remains easy to search without making the active release file noisy.
+When active terminology changes, historical entries may be mechanically updated
+only to keep current operator-facing concepts searchable and unambiguous.
 
 - [v9](v9.md)
 - [v8](v8.md)
