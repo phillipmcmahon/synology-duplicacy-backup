@@ -12,6 +12,8 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.0] - 2026-04-30
+
 ### Breaking
 - **Hard break: target terminology has been renamed to storage everywhere**.
   No compatibility aliases are retained; operators pulling `main` must update
@@ -83,6 +85,28 @@ coverage floor and package-level baseline.
   enforce the strengthened note contract.
 - The v10.0.0 changelog entry now describes the removed legacy schema as
   `[storage.<name>]`, matching the hard-break rename.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local UI smoke packaging**: `make validate-full`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **NAS UI surface smoke**: `84` captures, `0` unexpected outcomes, colour
+  capture enabled, storage terminology reviewed, and converted NAS TOML files
+  exercised with `offsite-storj`, `onsite-garage`, and root-protected
+  `onsite-usb`.
+
+### Coverage snapshot
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.8%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `85.9%`
+- `internal/health`: `88.2%`
+- `internal/operator`: `89.4%`
 
 ## [v10.0.3] - 2026-04-30
 
