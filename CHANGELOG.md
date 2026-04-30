@@ -23,6 +23,8 @@ coverage floor and package-level baseline.
   restore workspace templates use `{storage}` instead of `{target}`; and
   runtime, health, notification, diagnostics, restore, and state JSON now use
   storage-oriented names such as `storage` and `storage_name`.
+  Existing `<label>.<target>.json` state files are ignored and regenerated at
+  the new `<label>.<storage>.json` path on the next run.
 
   Minimal migration recipe:
 
@@ -37,6 +39,11 @@ coverage floor and package-level baseline.
   perl -0pi -e 's/\[targets\./[storage./g; s/\{target\}/\{storage\}/g' \
     "$HOME/.config/duplicacy-backup"/*-backup.toml \
     "$HOME/.config/duplicacy-backup/secrets"/*-secrets.toml
+
+  # If you keep restore workspace templates outside those TOML files, update
+  # those template files too.
+  find /path/to/custom-restore-templates -type f -exec \
+    perl -0pi -e 's/\{target\}/\{storage\}/g' {} +
 
   # Then validate each label/storage pair before scheduled jobs resume.
   duplicacy-backup config validate --storage <storage-name> <label>
