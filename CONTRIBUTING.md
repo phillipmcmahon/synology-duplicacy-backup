@@ -65,3 +65,6 @@ automatically use tabs for Go files and LF line endings.
 - [ ] For project workflow changes, prefer
       `scripts/project-transition.sh --issue <number> --stage <stage>` over
       manual label and board edits
+- [ ] For multiline GitHub issue bodies, use a Markdown body file with
+      `gh issue create --body-file` or `gh issue edit --body-file`; do not use
+      inline strings with escaped `\n`, because they render as literal text

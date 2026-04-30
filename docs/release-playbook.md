@@ -57,6 +57,11 @@ Use the project board and release issues in a lightweight, repeatable way:
 - Use `scripts/project-transition.sh` for issue workflow changes where
   possible, and use `scripts/project-board-audit.sh` as the objective board
   consistency gate.
+- When creating or editing multiline GitHub issue bodies, write the body to a
+  temporary Markdown file and pass it with `gh issue create --body-file` or
+  `gh issue edit --body-file`. Do not pass escaped `\n` sequences in an inline
+  shell string; they render literally in GitHub issues and make the board
+  harder to scan.
 - Close each release child with a short comment that includes:
   - landed commit
   - validation run
