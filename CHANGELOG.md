@@ -12,6 +12,32 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.1] - 2026-05-01
+
+### Changed
+- Republish the v11 migration guidance with a DSM-safe TOML update recipe that
+  uses `sed` and temporary files instead of relying on `perl`.
+- Clarify that storage state file paths keep the same
+  `<label>.<storage-name>.json` filename when the storage name is unchanged;
+  only the JSON field names inside refreshed state move from target-oriented
+  names to storage-oriented names.
+
+### Validation
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.8%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `85.9%`
+- `internal/health`: `88.2%`
+- `internal/operator`: `89.4%`
+
 ## [v11.0.0] - 2026-04-30
 
 ### Breaking
