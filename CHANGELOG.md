@@ -12,6 +12,36 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.2] - 2026-05-04
+
+### Changed
+- Improve the guided restore-point picker so choice numbers and Duplicacy
+  revision IDs no longer share the same bare integer input. Plain numbers now
+  select the displayed choice, while explicit revisions use `r<id>` or
+  `rev <id>`.
+- Present restore points in a stable table with separate choice, timestamp, and
+  revision columns. The choice column reserves four digits by default so longer
+  restore histories do not shift the table layout.
+- Document the guided restore-point input convention in the restore drill guide.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Local Go**: `go test ./...`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.8%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `86.0%`
+- `internal/health`: `88.2%`
+- `internal/operator`: `89.4%`
+
 ## [v11.0.1] - 2026-05-01
 
 ### Changed
