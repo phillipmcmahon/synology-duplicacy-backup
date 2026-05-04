@@ -110,21 +110,22 @@ func TestPromptRestoreRevisionAndIntent(t *testing.T) {
 	}
 }
 
-func TestWriteRestorePointChoicesReservesStableChoiceColumn(t *testing.T) {
+func TestWriteRestorePointChoicesReservesStableEightDigitChoiceColumn(t *testing.T) {
 	created := time.Date(2026, 5, 4, 8, 0, 0, 0, time.UTC)
 	revisions := make([]duplicacy.RevisionInfo, 1001)
 	revisions[0] = duplicacy.RevisionInfo{Revision: 21, CreatedAt: created}
-	revisions[999] = duplicacy.RevisionInfo{Revision: 10020, CreatedAt: created}
-	revisions[1000] = duplicacy.RevisionInfo{Revision: 10021, CreatedAt: created}
+	revisions[999] = duplicacy.RevisionInfo{Revision: 10000020, CreatedAt: created}
+	revisions[1000] = duplicacy.RevisionInfo{Revision: 10000021, CreatedAt: created}
 
 	var output strings.Builder
 	writeRestorePointChoices(&output, revisions)
 	text := output.String()
 	for _, want := range []string{
-		"     #  Created              Revision",
-		"     1  2026-05-04 08:00:00  rev 21",
-		"  1000  2026-05-04 08:00:00  rev 10020",
-		"  1001  2026-05-04 08:00:00  rev 10021",
+		"         #  Created              Revision",
+		"  --------  -------------------  ------------",
+		"         1  2026-05-04 08:00:00  rev 21",
+		"      1000  2026-05-04 08:00:00  rev 10000020",
+		"      1001  2026-05-04 08:00:00  rev 10000021",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("restore point table missing %q:\n%s", want, text)

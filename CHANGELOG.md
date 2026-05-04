@@ -12,6 +12,32 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.3] - 2026-05-04
+
+### Changed
+- Reserve an eight-digit choice-number column in the guided restore-point
+  picker so long restore histories keep a consistent table layout.
+- Keep the restore revision column sized from the actual displayed revision
+  values, so normal histories remain compact while larger revision IDs still
+  align cleanly.
+
+### Validation
+- **Local Go**: `go test ./internal/restore`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+
+### Coverage snapshot
+- overall coverage: `87.6%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.8%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `86.0%`
+- `internal/health`: `88.2%`
+- `internal/operator`: `89.4%`
+
 ## [v11.0.2] - 2026-05-04
 
 ### Changed

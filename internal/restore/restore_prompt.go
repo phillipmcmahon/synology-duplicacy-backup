@@ -95,7 +95,7 @@ func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionI
 }
 
 func writeRestorePointChoices(output io.Writer, revisions []duplicacy.RevisionInfo) {
-	choiceWidth := max(4, len(strconv.Itoa(len(revisions))))
+	choiceWidth := max(8, len(strconv.Itoa(len(revisions))))
 	revisionWidth := len("Revision")
 	for _, revision := range revisions {
 		revisionWidth = max(revisionWidth, len(formatRestorePointRevision(revision)))
