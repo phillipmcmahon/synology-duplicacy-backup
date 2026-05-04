@@ -44,8 +44,9 @@ func TestHandleRestoreCommand_SelectShowsRestorePointPrompt(t *testing.T) {
 	output := prompts.String()
 	for _, token := range []string{
 		"Available restore points:",
-		"2026-04-20 02:30:00 | rev 2403",
-		"Select restore point by list number or revision id (q to cancel):",
+		"#  Created              Revision",
+		"1  2026-04-20 02:30:00  rev 2403",
+		"Select choice number, or revision as r<id> (q to cancel):",
 		"Choose what you want to do next:",
 		"Inspect revision contents only",
 		"q. Cancel and exit without restoring",
@@ -221,7 +222,7 @@ func TestHandleRestoreCommand_SelectGeneratesSelectiveRestoreCommand(t *testing.
 	})
 
 	req := &Request{RestoreCommand: "select", Source: "homes", ConfigDir: configDir, RequestedTarget: "onsite-usb", RestoreWorkspace: workspace}
-	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "2403\n3\nn\n"))
+	out, err := restoreHandleCommand(req, meta, restoreSelectRuntime(t, "r2403\n3\nn\n"))
 	if err != nil {
 		t.Fatalf("restoreHandleCommand() error = %v", err)
 	}

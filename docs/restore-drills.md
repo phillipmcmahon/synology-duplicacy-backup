@@ -275,7 +275,8 @@ sudo duplicacy-backup restore select --storage onsite-usb homes
 
 The picker prints the exact primitive command or commands that will be used for
 restore actions. It still asks for confirmation before any restore is
-performed. In the tree picker:
+performed. At the restore-point prompt, enter the displayed choice number, or
+type a revision ID with an `r` prefix such as `r21`. In the tree picker:
 
 - use the arrow keys to move through the snapshot tree
 - use `Right` to expand directories

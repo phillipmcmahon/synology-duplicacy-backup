@@ -73,12 +73,15 @@ func TestPromptRestoreRevisionAndIntent(t *testing.T) {
 	if revision.Revision != 7 {
 		t.Fatalf("revision = %d", revision.Revision)
 	}
-	revision, err = promptRestoreRevision(bufio.NewReader(strings.NewReader("6\n")), revisions, 2, deps)
+	revision, err = promptRestoreRevision(bufio.NewReader(strings.NewReader("r6\n")), revisions, 2, deps)
 	if err != nil {
 		t.Fatalf("promptRestoreRevision(id choice) error = %v", err)
 	}
 	if revision.Revision != 6 {
 		t.Fatalf("revision = %d", revision.Revision)
+	}
+	if _, err := promptRestoreRevision(bufio.NewReader(strings.NewReader("6\n")), revisions, 2, deps); err == nil {
+		t.Fatal("expected plain number outside visible choices to fail")
 	}
 	if _, err := promptRestoreRevision(bufio.NewReader(strings.NewReader("q\n")), revisions, 2, deps); err != ErrRestoreCancelled {
 		t.Fatalf("cancel err = %v", err)
@@ -104,6 +107,28 @@ func TestPromptRestoreRevisionAndIntent(t *testing.T) {
 	}
 	if _, err := promptRestoreSelectIntent(bufio.NewReader(strings.NewReader("9\n")), "", deps); err == nil {
 		t.Fatal("expected invalid intent")
+	}
+}
+
+func TestWriteRestorePointChoicesReservesStableChoiceColumn(t *testing.T) {
+	created := time.Date(2026, 5, 4, 8, 0, 0, 0, time.UTC)
+	revisions := make([]duplicacy.RevisionInfo, 1001)
+	revisions[0] = duplicacy.RevisionInfo{Revision: 21, CreatedAt: created}
+	revisions[999] = duplicacy.RevisionInfo{Revision: 10020, CreatedAt: created}
+	revisions[1000] = duplicacy.RevisionInfo{Revision: 10021, CreatedAt: created}
+
+	var output strings.Builder
+	writeRestorePointChoices(&output, revisions)
+	text := output.String()
+	for _, want := range []string{
+		"     #  Created              Revision",
+		"     1  2026-05-04 08:00:00  rev 21",
+		"  1000  2026-05-04 08:00:00  rev 10020",
+		"  1001  2026-05-04 08:00:00  rev 10021",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("restore point table missing %q:\n%s", want, text)
+		}
 	}
 }
 

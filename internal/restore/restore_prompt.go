@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -65,29 +66,52 @@ func promptRestoreRevision(reader *bufio.Reader, revisions []duplicacy.RevisionI
 		shown = shown[:limit]
 	}
 	fmt.Fprintln(deps.PromptOutput, "Available restore points:")
-	for i, revision := range shown {
-		fmt.Fprintf(deps.PromptOutput, "  %d. %s\n", i+1, formatRestorePointChoice(revision))
-	}
-	answer, err := promptRestoreLine(reader, "Select restore point by list number or revision id (q to cancel): ", deps)
+	fmt.Fprintln(deps.PromptOutput)
+	writeRestorePointChoices(deps.PromptOutput, shown)
+	fmt.Fprintln(deps.PromptOutput)
+	answer, err := promptRestoreLine(reader, "Select choice number, or revision as r<id> (q to cancel): ", deps)
 	if err != nil {
 		return duplicacy.RevisionInfo{}, err
 	}
 	if restoreAnswerCancels(answer) {
 		return duplicacy.RevisionInfo{}, ErrRestoreCancelled
 	}
-	choice, err := strconv.Atoi(strings.TrimSpace(answer))
+	choice, revisionID, err := parseRestoreRevisionSelection(answer)
 	if err != nil || choice <= 0 {
-		return duplicacy.RevisionInfo{}, NewRequestError("restore select requires a positive revision selection")
+		return duplicacy.RevisionInfo{}, NewRequestError("restore select requires a positive choice number or revision as r<id>")
+	}
+	if revisionID {
+		for _, revision := range revisions {
+			if revision.Revision == choice {
+				return revision, nil
+			}
+		}
+		return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found", choice)
 	}
 	if choice <= len(shown) {
 		return shown[choice-1], nil
 	}
+	return duplicacy.RevisionInfo{}, NewRequestError("restore point choice %d was not found in the visible list", choice)
+}
+
+func writeRestorePointChoices(output io.Writer, revisions []duplicacy.RevisionInfo) {
+	choiceWidth := max(4, len(strconv.Itoa(len(revisions))))
+	revisionWidth := len("Revision")
 	for _, revision := range revisions {
-		if revision.Revision == choice {
-			return revision, nil
-		}
+		revisionWidth = max(revisionWidth, len(formatRestorePointRevision(revision)))
 	}
-	return duplicacy.RevisionInfo{}, NewRequestError("revision %d was not found in the visible revision list", choice)
+	fmt.Fprintf(output, "  %*s  %-19s  %-*s\n", choiceWidth, "#", "Created", revisionWidth, "Revision")
+	fmt.Fprintf(output, "  %*s  %-19s  %-*s\n", choiceWidth, strings.Repeat("-", choiceWidth), strings.Repeat("-", 19), revisionWidth, strings.Repeat("-", revisionWidth))
+	for i, revision := range revisions {
+		fmt.Fprintf(output, "  %*d  %-19s  %-*s\n", choiceWidth, i+1, formatRestorePointCreatedAt(revision), revisionWidth, formatRestorePointRevision(revision))
+	}
+}
+
+func formatRestorePointCreatedAt(revision duplicacy.RevisionInfo) string {
+	if createdAt := formatRevisionCreatedAt(revision); createdAt != "" {
+		return createdAt
+	}
+	return "-"
 }
 
 func formatRestorePointChoice(revision duplicacy.RevisionInfo) string {
@@ -95,6 +119,28 @@ func formatRestorePointChoice(revision duplicacy.RevisionInfo) string {
 		return fmt.Sprintf("%s | rev %d", createdAt, revision.Revision)
 	}
 	return fmt.Sprintf("rev %d", revision.Revision)
+}
+
+func formatRestorePointRevision(revision duplicacy.RevisionInfo) string {
+	return fmt.Sprintf("rev %d", revision.Revision)
+}
+
+func parseRestoreRevisionSelection(answer string) (int, bool, error) {
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if strings.HasPrefix(answer, "rev ") {
+		answer = strings.TrimSpace(strings.TrimPrefix(answer, "rev "))
+	} else if strings.HasPrefix(answer, "rev") {
+		answer = strings.TrimSpace(strings.TrimPrefix(answer, "rev"))
+	} else if strings.HasPrefix(answer, "r ") {
+		answer = strings.TrimSpace(strings.TrimPrefix(answer, "r "))
+	} else if strings.HasPrefix(answer, "r") {
+		answer = strings.TrimSpace(strings.TrimPrefix(answer, "r"))
+	} else {
+		choice, err := strconv.Atoi(answer)
+		return choice, false, err
+	}
+	revision, err := strconv.Atoi(answer)
+	return revision, true, err
 }
 
 func promptRestoreSelectIntent(reader *bufio.Reader, pathPrefix string, deps RestoreDeps) (restoreSelectIntent, error) {
