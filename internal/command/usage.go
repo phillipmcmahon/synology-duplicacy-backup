@@ -10,15 +10,15 @@ import (
 )
 
 func UsageText(meta workflow.Metadata, rt workflow.Env) string {
-	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
-       {{script}} backup [OPTIONS] <source>
-       {{script}} prune [OPTIONS] <source>
-       {{script}} cleanup-storage [OPTIONS] <source>
-       {{script}} config <validate|explain|paths> [OPTIONS] <source>
-       {{script}} diagnostics [OPTIONS] <source>
-       {{script}} health <status|doctor|verify> [OPTIONS] <source>
-       {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <label>
+       {{script}} backup [OPTIONS] <label>
+       {{script}} prune [OPTIONS] <label>
+       {{script}} cleanup-storage [OPTIONS] <label>
+       {{script}} config <validate|explain|paths> [OPTIONS] <label>
+       {{script}} diagnostics [OPTIONS] <label>
+       {{script}} health <status|doctor|verify> [OPTIONS] <label>
+       {{script}} notify <test> [OPTIONS] <label|update>
+       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <label>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -90,15 +90,15 @@ func defaultSecretsDirDisplay(rt workflow.Env) string {
 
 func FullUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <source>
-       {{script}} backup [OPTIONS] <source>
-       {{script}} prune [OPTIONS] <source>
-       {{script}} cleanup-storage [OPTIONS] <source>
-       {{script}} config <validate|explain|paths> [OPTIONS] <source>
-       {{script}} diagnostics [OPTIONS] <source>
-       {{script}} health <status|doctor|verify> [OPTIONS] <source>
-       {{script}} notify <test> [OPTIONS] <source|update>
-       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} <command> [OPTIONS] <label>
+       {{script}} backup [OPTIONS] <label>
+       {{script}} prune [OPTIONS] <label>
+       {{script}} cleanup-storage [OPTIONS] <label>
+       {{script}} config <validate|explain|paths> [OPTIONS] <label>
+       {{script}} diagnostics [OPTIONS] <label>
+       {{script}} health <status|doctor|verify> [OPTIONS] <label>
+       {{script}} notify <test> [OPTIONS] <label|update>
+       {{script}} restore <plan|list-revisions|run|select> [OPTIONS] <label>
        {{script}} update [OPTIONS]
        {{script}} rollback [OPTIONS]
 
@@ -199,7 +199,7 @@ CONFIG STRUCTURE:
       location = "local" | "remote"
       storage = "<duplicacy storage value>"
 
-    TARGET SECRETS:
+    STORAGE SECRETS:
       Duplicacy storage entries load runtime preference keys from:
         {{default_secrets_dir}}/<label>-secrets.toml
       Path-based Duplicacy storage entries do not use storage credentials
@@ -258,7 +258,7 @@ UPDATE NOTIFY CONFIG:
     Update notifications are not label/storage scoped and do not read storage secrets.
 
 ARGUMENTS:
-    source                   Backup label
+    label                    Backup label
 
 INTERACTIVE SAFETY RAILS:
     Interactive terminal runs ask for confirmation before:

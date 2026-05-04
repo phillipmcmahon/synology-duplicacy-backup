@@ -327,8 +327,9 @@ Start the guided restore flow:
 duplicacy-backup restore select --storage offsite-storj homes
 ```
 
-Choose a restore point, then choose inspect-only first. This lets you browse
-the revision contents without restoring data.
+Choose a restore point by entering the displayed choice number, or type a
+revision ID with `r<id>` or `rev <id>`. Then choose inspect-only first. This
+lets you browse the revision contents without restoring data.
 Use `q` at restore-select prompts or inside the tree picker to cancel before
 execution. During an active restore, `Ctrl-C` cancels the running Duplicacy
 process, keeps the drill workspace, does not delete restored files, and reports

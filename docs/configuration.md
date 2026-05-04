@@ -207,7 +207,7 @@ therefore work without a `<label>-secrets.toml` file.
 
 ### Notification Signal Expectations
 
-The v1 notification model keeps signal tight by default:
+The notification model keeps signal tight by default:
 
 - `notify_on` defaults to `["degraded", "unhealthy"]`
 - `send_for` defaults to `["doctor", "verify"]`
@@ -217,8 +217,8 @@ The v1 notification model keeps signal tight by default:
 - success events do not notify unless an update outcome such as `succeeded` is
   explicitly listed in `[update.notify].notify_on`
 
-There is no built-in deduplication, reminder cadence, or escalation policy in
-v1. If a scheduled run fails repeatedly and still matches your notification
+There is currently no built-in deduplication, reminder cadence, or escalation
+policy. If a scheduled run fails repeatedly and still matches your notification
 policy, it will notify on each matching run. Keep scheduler frequency sensible
 and use the receiving system's own suppression or grouping features if you
 need more noise control.

@@ -9,16 +9,16 @@ and rollback workflows. For routine copyable commands, start with the
 ## Usage
 
 ```text
-duplicacy-backup backup [OPTIONS] <source>
-duplicacy-backup prune [OPTIONS] <source>
-duplicacy-backup cleanup-storage [OPTIONS] <source>
-duplicacy-backup config <validate|explain|paths> [OPTIONS] <source>
-duplicacy-backup diagnostics [OPTIONS] <source>
-duplicacy-backup notify <test> [OPTIONS] <source|update>
+duplicacy-backup backup [OPTIONS] <label>
+duplicacy-backup prune [OPTIONS] <label>
+duplicacy-backup cleanup-storage [OPTIONS] <label>
+duplicacy-backup config <validate|explain|paths> [OPTIONS] <label>
+duplicacy-backup diagnostics [OPTIONS] <label>
+duplicacy-backup notify <test> [OPTIONS] <label|update>
 duplicacy-backup rollback [OPTIONS]
-duplicacy-backup restore <plan|list-revisions|run|select> [OPTIONS] <source>
+duplicacy-backup restore <plan|list-revisions|run|select> [OPTIONS] <label>
 duplicacy-backup update [OPTIONS]
-duplicacy-backup health <status|doctor|verify> [OPTIONS] <source>
+duplicacy-backup health <status|doctor|verify> [OPTIONS] <label>
 ```
 
 Backup is one workflow among several. `backup`, `prune`, `cleanup-storage`,
@@ -224,9 +224,10 @@ duplicacy-backup notify test update --provider ntfy --dry-run
   `source_path` is only live-source and copy-back context.
 - `restore select` is the primary operator restore path. It first presents
   restore points, then offers inspect-only, full restore, or tree-based
-  selective restore. For restore actions, it previews the explicit commands,
-  asks for confirmation, and delegates each selected path or pattern to
-  `restore run`. The picker uses an
+  selective restore. At the restore-point prompt, enter the displayed choice
+  number, or type a revision ID with `r<id>` or `rev <id>`. For restore
+  actions, it previews the explicit commands, asks for confirmation, and
+  delegates each selected path or pattern to `restore run`. The picker uses an
   interactive tree: use the arrow keys to move, `Right` to expand, `Left` to
   collapse, `Space` to select or clear the current file or subtree, `Tab` to
   inspect the primitive detail pane, `g` to continue, and `q` to cancel. The

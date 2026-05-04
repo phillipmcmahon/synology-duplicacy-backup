@@ -262,7 +262,7 @@ func TestRunWithArgs_HelpReturnsZero(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "config <validate|explain|paths>") ||
-		!strings.Contains(stdout, "diagnostics [OPTIONS] <source>") ||
+		!strings.Contains(stdout, "diagnostics [OPTIONS] <label>") ||
 		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "rollback [OPTIONS]") ||
 		!strings.Contains(stdout, "restore <plan|list-revisions|run|select>") ||
@@ -296,7 +296,7 @@ func TestRunWithArgs_NoArgsReturnsHelp(t *testing.T) {
 	if !strings.Contains(stdout, "health <status|doctor|verify>") ||
 		!strings.Contains(stdout, "update [OPTIONS]") ||
 		!strings.Contains(stdout, "rollback [OPTIONS]") ||
-		!strings.Contains(stdout, "diagnostics [OPTIONS] <source>") ||
+		!strings.Contains(stdout, "diagnostics [OPTIONS] <label>") ||
 		!strings.Contains(stdout, "notify <test>") ||
 		!strings.Contains(stdout, "restore <plan|list-revisions|run|select>") ||
 		!strings.Contains(stdout, "Use --help-full for the detailed reference.") {

@@ -183,7 +183,7 @@ Installer behaviour:
 - On an existing NAS, start every drill with `config explain`, `config validate`, and `health status` for the exact label and storage.
 - On a replacement NAS where `source_path` is not known yet, use `config explain` and `restore list-revisions` to prove restore access first.
 - Use snapshot ID `data` for repositories created by this tool.
-- `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation.
+- `restore select` is the primary operator restore flow. It presents restore points first, supports inspect-only, full restore, or selective restore, then previews the matching explicit commands before asking for confirmation. At the restore-point prompt, enter the displayed choice number, or type a revision ID with `r<id>` or `rev <id>`.
 - Use `q` at restore-select text prompts or inside the tree picker to cancel before execution. During an active restore, `Ctrl-C` cancels Duplicacy, keeps the drill workspace, does not delete restored files, and reports progress.
 - `restore run` prints progress/status to stderr during execution and writes the final restore report to stdout.
 - Restore into the drill workspace first, inspect the data, then copy back deliberately with `rsync --dry-run` first.

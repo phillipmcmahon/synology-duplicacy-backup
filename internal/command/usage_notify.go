@@ -6,7 +6,7 @@ import (
 )
 
 func NotifyUsageText(meta workflow.Metadata, rt workflow.Env) string {
-	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
+	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <label|update>
 
 Notify commands:
     test
@@ -38,7 +38,7 @@ Use --help-full for the detailed notify reference.
 }
 
 func FullNotifyUsageText(meta workflow.Metadata, rt workflow.Env) string {
-	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <source|update>
+	return scriptTemplate(meta, `Usage: {{script}} notify <test> [OPTIONS] <label|update>
 
 NOTIFY COMMANDS:
     test                    Send a synthetic test notification through the configured providers for the selected label and storage

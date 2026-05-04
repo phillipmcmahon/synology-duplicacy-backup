@@ -5,7 +5,7 @@ import (
 )
 
 func ConfigUsageText(meta workflow.Metadata, rt workflow.Env) string {
-	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <label>
 
 Config commands:
     validate
@@ -32,7 +32,7 @@ Use --help-full for the detailed config reference.
 
 func FullConfigUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} config <validate|explain|paths> [OPTIONS] <label>
 
 CONFIG COMMANDS:
     validate                Validate the resolved config and configured secrets

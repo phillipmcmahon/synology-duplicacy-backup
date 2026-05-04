@@ -5,7 +5,7 @@ import (
 )
 
 func DiagnosticsUsageText(meta workflow.Metadata, rt workflow.Env) string {
-	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <label>
 
 Diagnostics options:
     --storage <name>
@@ -27,7 +27,7 @@ Use --help-full for the detailed diagnostics reference.
 
 func FullDiagnosticsUsageText(meta workflow.Metadata, rt workflow.Env) string {
 	cfgDir := workflow.EffectiveConfigDir(rt)
-	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <source>
+	return scriptTemplate(meta, `Usage: {{script}} diagnostics [OPTIONS] <label>
 
 DIAGNOSTICS COMMAND:
     diagnostics             Print a redacted support bundle for one label and storage

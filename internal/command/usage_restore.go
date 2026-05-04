@@ -6,7 +6,7 @@ import (
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/workflow"
 )
 
-const restoreUsageLine = "{{script}} restore <plan|list-revisions|run|select> [OPTIONS] <source>"
+const restoreUsageLine = "{{script}} restore <plan|list-revisions|run|select> [OPTIONS] <label>"
 
 var restoreCommandHelpLines = []string{
 	"    select                 Choose a restore point, inspect it, or build a tree-based restore selection; confirm to restore into a drill workspace",
@@ -141,6 +141,7 @@ BEHAVIOUR:
       - requires an interactive terminal
       - is the primary operator restore flow
       - guides restore-point selection before offering inspect-only, full restore, or tree-based selective restore
+      - at the restore-point prompt, enter the displayed choice number, or type a revision ID with r<id> or rev <id>
       - uses arrow keys to move through the snapshot tree
       - uses Right to expand directories and Left to collapse them
       - uses Space to select or clear the current file or subtree

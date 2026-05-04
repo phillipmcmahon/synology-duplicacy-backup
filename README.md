@@ -253,7 +253,8 @@ Core operating rules:
   points first, then supports inspect-only, full restore, or tree-based
   selective restore. It previews the exact commands, asks for confirmation,
   and delegates to `restore run`, which prepares the drill workspace when
-  needed.
+  needed. At the restore-point prompt, enter the displayed choice number, or
+  type a revision ID with `r<id>` or `rev <id>`.
 - `restore plan` is read-only. It prints the resolved context and Duplicacy
   commands for a safe drill workspace, but it does not execute restores.
 - `restore list-revisions` is read-only. It lists visible backup revisions

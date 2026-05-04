@@ -301,14 +301,14 @@ func TestUsageText_TargetHelpMatchesCurrentModel(t *testing.T) {
 	usage := command.FullUsageText(meta, rt)
 
 	expected := []string{
-		"backup [OPTIONS] <source>",
-		"prune [OPTIONS] <source>",
-		"cleanup-storage [OPTIONS] <source>",
+		"backup [OPTIONS] <label>",
+		"prune [OPTIONS] <label>",
+		"cleanup-storage [OPTIONS] <label>",
 		"config <validate|explain|paths>",
-		"diagnostics [OPTIONS] <source>",
-		"notify <test> [OPTIONS] <source|update>",
+		"diagnostics [OPTIONS] <label>",
+		"notify <test> [OPTIONS] <label|update>",
 		"rollback [OPTIONS]",
-		"restore <plan|list-revisions|run|select> [OPTIONS] <source>",
+		"restore <plan|list-revisions|run|select> [OPTIONS] <label>",
 		"update [OPTIONS]",
 		"health <status|doctor|verify>",
 		"--storage <name>        Select the named storage config where the command uses label storage",
