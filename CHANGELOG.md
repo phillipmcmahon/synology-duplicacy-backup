@@ -36,6 +36,11 @@ coverage floor and package-level baseline.
 - **Local Go**: `go test ./internal/command ./cmd/duplicacy-backup`
 - **Local Go**: `go test ./internal/notify ./internal/workflow`
 - **Local Git**: `git diff --check`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
 - **NAS UI surface smoke**:
   `RUN_NOTIFY=1 RUN_RESTORE=0 CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh`
   on `homestorage`, with `72 CAPTURED`, `6 EXPECTED_FAIL`, `3 PASS`,
@@ -43,7 +48,14 @@ coverage floor and package-level baseline.
 - **Project board audit**: `scripts/project-board-audit.sh`
 
 ### Coverage snapshot
-- To be refreshed by release prep.
+- overall coverage: `87.7%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.9%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `86.0%`
+- `internal/health`: `87.8%`
+- `internal/notify`: `91.0%`
+- `internal/operator`: `89.4%`
 
 ## [v11.0.3] - 2026-05-04
 
