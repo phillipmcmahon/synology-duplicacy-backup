@@ -86,17 +86,24 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 	if gotPriority != "3" {
 		t.Fatalf("Priority = %q", gotPriority)
 	}
-	if gotTags != "duplicacy,warning,maintenance,safe-prune-blocked,blocked" {
+	if gotTags != "duplicacy,maintenance,prune-blocked" {
 		t.Fatalf("Tags = %q", gotTags)
 	}
 	if gotAuth != "Bearer ntfy-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
-	if !strings.Contains(gotBody, "Location: remote") ||
-		!strings.Contains(gotBody, "Reason: Safe prune blocked because deletion threshold would be exceeded") ||
+	if !strings.Contains(gotBody, "What: Safe prune blocked for homes/offsite-storj") ||
+		!strings.Contains(gotBody, "Affected: homes / offsite-storj (remote)") ||
+		!strings.Contains(gotBody, "Why: Safe prune blocked because deletion threshold would be exceeded") ||
+		!strings.Contains(gotBody, "Action: Review the prune preview before changing policy or using force.") ||
 		!strings.Contains(gotBody, "Prune preview: would delete 12 of 20 revisions (60%)") ||
 		!strings.Contains(gotBody, "Prune limits: max 30% or 5 revisions") {
 		t.Fatalf("Body = %q", gotBody)
+	}
+	for _, unwanted := range []string{"Severity:", "Category:", "Event:", "Status:", "Reason:"} {
+		if strings.Contains(gotBody, unwanted) {
+			t.Fatalf("Body contains payload-shaped field %q:\n%s", unwanted, gotBody)
+		}
 	}
 }
 
@@ -115,15 +122,65 @@ func TestNtfyMessageBodyIncludesStructuredVerifyDetails(t *testing.T) {
 
 	body := ntfyMessageBody(payload)
 	for _, want := range []string{
-		"Reason: Integrity check: 2 failed; 1 returned no result",
-		"Failure code: integrity_check_failed",
-		"Failure codes: integrity_check_failed, integrity_result_missing",
-		"Recommended actions: check_storage_access, rerun_verify",
+		"What: Health unhealthy for homes/onsite-usb",
+		"Affected: homes / onsite-usb (local)",
+		"Why: Integrity check: 2 failed; 1 returned no result",
+		"Action: check storage access; rerun verify",
 		"Failed revisions: 2 (41, 39)",
+		"Context:",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("Body missing %q:\n%s", want, body)
 		}
+	}
+	for _, unwanted := range []string{"Failure code:", "Failure codes:", "Recommended actions:", "Severity:", "Event:", "Status:"} {
+		if strings.Contains(body, unwanted) {
+			t.Fatalf("Body contains noisy field %q:\n%s", unwanted, body)
+		}
+	}
+	if got := ntfyTags(payload); got != "duplicacy,health,verify-failed" {
+		t.Fatalf("ntfyTags() = %q", got)
+	}
+}
+
+func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
+	payload := NewPayload(time.Date(2026, 5, 7, 15, 48, 50, 0, time.UTC), 1234, "critical", "health", "health_unhealthy",
+		"Health unhealthy for homes/onsite-usb",
+		"homes", "onsite-usb", "local", "", "verify", "unhealthy", map[string]any{
+			"message":                  "Repository access: Requires sudo: local filesystem repository is root-protected",
+			"failure_code":             "verify_access_failed",
+			"failure_codes":            []string{"verify_access_failed"},
+			"recommended_action_codes": []string{"check_storage_access", "recheck_repository_state"},
+		},
+	)
+
+	body := ntfyMessageBody(payload)
+	for _, want := range []string{
+		"What: Health unhealthy for homes/onsite-usb",
+		"Affected: homes / onsite-usb (local)",
+		"Why: Local repository is root-protected.",
+		"Action: Run this check with sudo or review storage permissions.",
+		"Context:",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("Body missing %q:\n%s", want, body)
+		}
+	}
+	for _, unwanted := range []string{"Failure code:", "Failure codes:", "Recommended actions:", "Repository access: Requires sudo"} {
+		if strings.Contains(body, unwanted) {
+			t.Fatalf("Body contains noisy field %q:\n%s", unwanted, body)
+		}
+	}
+	if got := ntfyTags(payload); got != "duplicacy,health,needs-sudo" {
+		t.Fatalf("ntfyTags() = %q", got)
+	}
+}
+
+func TestNtfyTagsStayCompactForTests(t *testing.T) {
+	payload := BuildTestPayload(time.Date(2026, 5, 7, 15, 49, 38, 0, time.UTC), 1234, "homes", "offsite-storj", "remote", "", "", "")
+
+	if got := ntfyTags(payload); got != "duplicacy,test" {
+		t.Fatalf("ntfyTags() = %q", got)
 	}
 }
 

@@ -424,15 +424,58 @@ func ntfyPriority(severity string) string {
 }
 
 func ntfyTags(payload *Payload) string {
-	tags := []string{"duplicacy"}
-	for _, value := range []string{payload.Severity, payload.Category, payload.Event, payload.Status} {
+	return strings.Join(compactTags(
+		"duplicacy",
+		payload.Category,
+		ntfyStateTag(payload),
+	), ",")
+}
+
+func ntfyStateTag(payload *Payload) string {
+	if payload == nil {
+		return ""
+	}
+	if ntfyNeedsSudo(payload) {
+		return "needs-sudo"
+	}
+	switch payload.Event {
+	case string(EventNotificationTest):
+		return ""
+	case string(EventSafePruneBlocked):
+		return "prune-blocked"
+	case string(EventVerifyFailedRevisions):
+		return "verify-failed"
+	case string(EventFreshnessFailed):
+		return "freshness-failed"
+	case string(EventHealthDegraded):
+		return "degraded"
+	case string(EventHealthUnhealthy):
+		return "unhealthy"
+	case string(EventUpdateInstallSucceeded):
+		return "update-installed"
+	case string(EventUpdateAlreadyCurrent):
+		return "current"
+	case string(EventUpdateReinstallRequested):
+		return "reinstall-requested"
+	case string(EventUpdateCheckFailed), string(EventUpdateDownloadFailed), string(EventUpdateChecksumFailed),
+		string(EventUpdateAttestationFailed), string(EventUpdateInstallFailed):
+		return "update-failed"
+	}
+	return payload.Status
+}
+
+func compactTags(values ...string) []string {
+	seen := make(map[string]bool)
+	tags := make([]string, 0, len(values))
+	for _, value := range values {
 		tag := sanitizeTag(value)
-		if tag == "" {
+		if tag == "" || seen[tag] {
 			continue
 		}
+		seen[tag] = true
 		tags = append(tags, tag)
 	}
-	return strings.Join(tags, ",")
+	return tags
 }
 
 func sanitizeTag(value string) string {
@@ -444,54 +487,111 @@ func sanitizeTag(value string) string {
 }
 
 func ntfyMessageBody(payload *Payload) string {
-	lines := []string{
-		fmt.Sprintf("Host: %s", fallbackValue(payload.Host, "unknown")),
-		fmt.Sprintf("Severity: %s", payload.Severity),
-		fmt.Sprintf("Category: %s", payload.Category),
-		fmt.Sprintf("Event: %s", payload.Event),
+	lines := []string{fmt.Sprintf("What: %s", payload.Summary)}
+	if affected := ntfyAffectedLine(payload); affected != "" {
+		lines = append(lines, "Affected: "+affected)
 	}
-	if payload.Label != "" {
-		lines = append(lines, fmt.Sprintf("Label: %s", payload.Label))
+	if reason := ntfyReason(payload); reason != "" {
+		lines = append(lines, "Why: "+reason)
 	}
-	if payload.Target != "" {
-		lines = append(lines, fmt.Sprintf("Storage: %s", payload.Target))
+	if action := ntfyAction(payload); action != "" {
+		lines = append(lines, "Action: "+action)
 	}
-	if payload.Location != "" {
-		lines = append(lines, fmt.Sprintf("Location: %s", payload.Location))
+	if details := ntfyOperatorDetailLines(payload.Details); len(details) > 0 {
+		lines = append(lines, details...)
 	}
-	if payload.Operation != "" {
-		lines = append(lines, fmt.Sprintf("Operation: %s", payload.Operation))
-	}
-	if payload.Check != "" {
-		lines = append(lines, fmt.Sprintf("Check: %s", payload.Check))
-	}
-	if payload.Status != "" {
-		lines = append(lines, fmt.Sprintf("Status: %s", payload.Status))
-	}
-	if payload.Timestamp != "" {
-		lines = append(lines, fmt.Sprintf("Timestamp: %s", payload.Timestamp))
-	}
-	if message := DetailsMessage(payload.Details); message != "" {
-		lines = append(lines, "", "Reason: "+message)
-		lines = append(lines, ntfyStructuredDetailLines(payload.Details)...)
-	}
+	lines = append(lines, "Context: "+ntfyContextLine(payload))
 	return strings.Join(lines, "\n")
 }
 
-func ntfyStructuredDetailLines(details map[string]any) []string {
+func ntfyAffectedLine(payload *Payload) string {
+	switch {
+	case payload.Label != "" && payload.Target != "" && payload.Location != "":
+		return fmt.Sprintf("%s / %s (%s)", payload.Label, payload.Target, payload.Location)
+	case payload.Label != "" && payload.Target != "":
+		return fmt.Sprintf("%s / %s", payload.Label, payload.Target)
+	case payload.Operation != "":
+		return payload.Operation
+	default:
+		return ""
+	}
+}
+
+func ntfyReason(payload *Payload) string {
+	message := DetailsMessage(payload.Details)
+	switch {
+	case ntfyNeedsSudo(payload):
+		return "Local repository is root-protected."
+	case isManagedPathFailure(message):
+		return "Update must be run through the managed command."
+	default:
+		return message
+	}
+}
+
+func ntfyAction(payload *Payload) string {
+	if action := stringDetail(payload.Details, "action"); action != "" {
+		return action
+	}
+	if ntfyNeedsSudo(payload) {
+		return "Run this check with sudo or review storage permissions."
+	}
+	if isManagedPathFailure(DetailsMessage(payload.Details)) {
+		return "Run update using the managed duplicacy-backup command."
+	}
+	if actions := ntfyRecommendedActions(payload.Details); actions != "" {
+		return actions
+	}
+	if payload.Event == string(EventSafePruneBlocked) {
+		return "Review the prune preview before changing policy or using force."
+	}
+	if payload.Event == string(EventNotificationTest) {
+		return "No action needed; this is a notification test."
+	}
+	return ""
+}
+
+func ntfyContextLine(payload *Payload) string {
+	var parts []string
+	if payload.Host != "" {
+		parts = append(parts, payload.Host)
+	}
+	if payload.Check != "" {
+		parts = append(parts, "check "+payload.Check)
+	}
+	if payload.Operation != "" {
+		parts = append(parts, "operation "+payload.Operation)
+	}
+	if payload.Timestamp != "" {
+		parts = append(parts, payload.Timestamp)
+	}
+	if len(parts) == 0 {
+		return "unknown"
+	}
+	return strings.Join(parts, ", ")
+}
+
+func ntfyNeedsSudo(payload *Payload) bool {
+	if payload == nil {
+		return false
+	}
+	message := strings.ToLower(DetailsMessage(payload.Details))
+	return strings.Contains(message, "requires sudo") ||
+		strings.Contains(message, "root-protected") ||
+		stringDetail(payload.Details, "failure_code") == "verify_access_failed"
+}
+
+func isManagedPathFailure(message string) bool {
+	message = strings.ToLower(message)
+	return strings.Contains(message, "requires the managed stable command path") &&
+		strings.Contains(message, "current executable is")
+}
+
+func ntfyOperatorDetailLines(details map[string]any) []string {
 	if len(details) == 0 {
 		return nil
 	}
 	var lines []string
-	if value := stringDetail(details, "failure_code"); value != "" {
-		lines = append(lines, "Failure code: "+value)
-	}
-	if value := stringSliceDetail(details, "failure_codes"); value != "" {
-		lines = append(lines, "Failure codes: "+value)
-	}
-	if value := stringSliceDetail(details, "recommended_action_codes"); value != "" {
-		lines = append(lines, "Recommended actions: "+value)
-	}
 	if value := failedRevisionsDetail(details); value != "" {
 		lines = append(lines, "Failed revisions: "+value)
 	}
@@ -504,23 +604,60 @@ func ntfyStructuredDetailLines(details map[string]any) []string {
 	return lines
 }
 
+func ntfyRecommendedActions(details map[string]any) string {
+	codes := stringSliceDetails(details, "recommended_action_codes")
+	if len(codes) == 0 {
+		return ""
+	}
+	actions := make([]string, 0, len(codes))
+	for _, code := range codes {
+		switch code {
+		case "check_storage_access":
+			actions = append(actions, "check storage access")
+		case "recheck_repository_state":
+			actions = append(actions, "recheck repository state")
+		case "rerun_verify":
+			actions = append(actions, "rerun verify")
+		case "run_backup":
+			actions = append(actions, "run a backup")
+		default:
+			actions = append(actions, strings.ReplaceAll(code, "_", " "))
+		}
+	}
+	return strings.Join(compactStrings(actions...), "; ")
+}
+
+func compactStrings(values ...string) []string {
+	seen := make(map[string]bool)
+	compacted := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		compacted = append(compacted, value)
+	}
+	return compacted
+}
+
 func stringDetail(details map[string]any, key string) string {
 	value, _ := details[key].(string)
 	return strings.TrimSpace(value)
 }
 
-func stringSliceDetail(details map[string]any, key string) string {
+func stringSliceDetails(details map[string]any, key string) []string {
 	switch values := details[key].(type) {
 	case []string:
-		return strings.Join(values, ", ")
+		return values
 	case []any:
 		parts := make([]string, 0, len(values))
 		for _, value := range values {
 			parts = append(parts, fmt.Sprint(value))
 		}
-		return strings.Join(parts, ", ")
+		return parts
 	default:
-		return ""
+		return nil
 	}
 }
 

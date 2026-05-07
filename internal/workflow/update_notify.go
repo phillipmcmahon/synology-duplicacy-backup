@@ -43,12 +43,8 @@ func MaybeSendUpdateFailureNotification(req *UpdateRequest, meta Metadata, rt En
 	if status == UpdateStatusUnknown {
 		status = UpdateStatusFailed
 	}
-	return maybeSendUpdateNotification(req, rt, string(status), classifyUpdateFailureEvent(updateErr), "warning", updateFailureSummary(updateErr), map[string]any{
-		"message":         OperatorMessage(updateErr),
-		"current_version": meta.Version,
-		"check_only":      updateCheckOnly(req),
-		"force":           updateForce(req),
-	})
+	details := updateFailureNotificationDetails(updateErr, meta, req)
+	return maybeSendUpdateNotification(req, rt, string(status), classifyUpdateFailureEvent(updateErr), "warning", updateFailureSummary(updateErr), details)
 }
 
 func MaybeSendUpdateSuccessNotification(req *UpdateRequest, meta Metadata, rt Env, updateStatus UpdateStatus) error {
@@ -112,6 +108,27 @@ func updateCheckOnly(req *UpdateRequest) bool {
 
 func updateForce(req *UpdateRequest) bool {
 	return req != nil && req.Force
+}
+
+func updateFailureNotificationDetails(err error, meta Metadata, req *UpdateRequest) map[string]any {
+	message := OperatorMessage(err)
+	details := map[string]any{
+		"message":         message,
+		"current_version": meta.Version,
+		"check_only":      updateCheckOnly(req),
+		"force":           updateForce(req),
+	}
+	if isManagedCommandPathError(message) {
+		details["message"] = "Update must be run through the managed command."
+		details["action"] = "Run update using the managed duplicacy-backup command."
+	}
+	return details
+}
+
+func isManagedCommandPathError(message string) bool {
+	message = strings.ToLower(message)
+	return strings.Contains(message, "requires the managed stable command path") &&
+		strings.Contains(message, "current executable is")
 }
 
 func shouldSendUpdateNotification(rt Env, cfg config.HealthNotifyConfig, status string) bool {

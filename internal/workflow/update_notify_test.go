@@ -43,8 +43,10 @@ func TestMaybeSendUpdateFailureNotification(t *testing.T) {
 	if gotTitle != "WARNING: Duplicacy Backup update install failed" {
 		t.Fatalf("Title = %q", gotTitle)
 	}
-	if !strings.Contains(gotBody, "Event: update_install_failed") ||
-		!strings.Contains(gotBody, "Operation: update") ||
+	if !strings.Contains(gotBody, "What: Duplicacy Backup update install failed") ||
+		!strings.Contains(gotBody, "Affected: update") ||
+		!strings.Contains(gotBody, "Why: update install failed: exit status 1") ||
+		!strings.Contains(gotBody, "Context:") ||
 		strings.Contains(gotBody, "Label:") ||
 		strings.Contains(gotBody, "StorageName:") {
 		t.Fatalf("Body = %q", gotBody)
@@ -246,6 +248,50 @@ func TestUpdateFailureEventMappingContract(t *testing.T) {
 				t.Fatalf("classifyUpdateFailureEvent(%v) = %q, want %q", tt.err, got, tt.wantEvent)
 			}
 		})
+	}
+}
+
+func TestMaybeSendUpdateFailureNotificationSimplifiesManagedPathErrors(t *testing.T) {
+	configDir := t.TempDir()
+	var gotBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("ReadAll() error = %v", err)
+		}
+		gotBody = string(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	writeUpdateNotifyConfig(t, configDir, strings.Join([]string{
+		`[update.notify]`,
+		`notify_on = ["failed"]`,
+		`[update.notify.ntfy]`,
+		`url = "` + server.URL + `"`,
+		`topic = "duplicacy-updates"`,
+	}, "\n"))
+
+	rt := testRuntime()
+	rt.StdinIsTTY = func() bool { return false }
+	req := &UpdateRequest{Command: "update", ConfigDir: configDir, Yes: true}
+	meta := MetadataForLogDir("duplicacy-backup", "4.2.2", "now", t.TempDir())
+	err := errors.New(`update requires the managed stable command path "duplicacy-backup"; current executable is /volume1/homes/phillipmcmahon/exclude/testing/ui-surface-smoke/bundle/extracted/duplicacy-backup_linux_amd64/duplicacy-backup_linux_amd64`)
+
+	if err := MaybeSendUpdateFailureNotification(req, meta, rt, UpdateStatusFailed, err); err != nil {
+		t.Fatalf("MaybeSendUpdateFailureNotification() error = %v", err)
+	}
+	for _, want := range []string{
+		"Why: Update must be run through the managed command.",
+		"Action: Run update using the managed duplicacy-backup command.",
+	} {
+		if !strings.Contains(gotBody, want) {
+			t.Fatalf("Body missing %q:\n%s", want, gotBody)
+		}
+	}
+	for _, unwanted := range []string{"/volume1/homes/phillipmcmahon/exclude/testing", "current executable is"} {
+		if strings.Contains(gotBody, unwanted) {
+			t.Fatalf("Body leaked managed-path detail %q:\n%s", unwanted, gotBody)
+		}
 	}
 }
 

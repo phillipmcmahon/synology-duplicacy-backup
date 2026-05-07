@@ -111,7 +111,10 @@ func TestHandleNotifyCommand_SendAllProviders(t *testing.T) {
 	if ntfyTitle != "CRITICAL: Notification test for homes/onsite-usb" {
 		t.Fatalf("Title = %q", ntfyTitle)
 	}
-	if !strings.Contains(ntfyBody, "Category: test") || !strings.Contains(ntfyBody, "simulated operator-initiated test notification") {
+	if !strings.Contains(ntfyBody, "What: Notification test for homes/onsite-usb") ||
+		!strings.Contains(ntfyBody, "Why: This is a simulated operator-initiated test notification.") ||
+		!strings.Contains(ntfyBody, "Action: No action needed; this is a notification test.") ||
+		strings.Contains(ntfyBody, "Category:") {
 		t.Fatalf("ntfyBody = %q", ntfyBody)
 	}
 }
@@ -390,7 +393,10 @@ func TestHandleNotifyCommand_UpdateSendNtfyWithoutTargetSecrets(t *testing.T) {
 	if gotTitle != "WARNING: Duplicacy Backup simulated update install failed" {
 		t.Fatalf("Title = %q", gotTitle)
 	}
-	if strings.Contains(gotBody, "Label:") || strings.Contains(gotBody, "StorageName:") || !strings.Contains(gotBody, "Operation: update") {
+	if strings.Contains(gotBody, "Label:") ||
+		strings.Contains(gotBody, "StorageName:") ||
+		strings.Contains(gotBody, "Operation: update") ||
+		!strings.Contains(gotBody, "Affected: update") {
 		t.Fatalf("Body = %q", gotBody)
 	}
 }
