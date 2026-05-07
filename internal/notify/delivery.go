@@ -472,9 +472,137 @@ func ntfyMessageBody(payload *Payload) string {
 		lines = append(lines, fmt.Sprintf("Timestamp: %s", payload.Timestamp))
 	}
 	if message := DetailsMessage(payload.Details); message != "" {
-		lines = append(lines, "", message)
+		lines = append(lines, "", "Reason: "+message)
+		lines = append(lines, ntfyStructuredDetailLines(payload.Details)...)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func ntfyStructuredDetailLines(details map[string]any) []string {
+	if len(details) == 0 {
+		return nil
+	}
+	var lines []string
+	if value := stringDetail(details, "failure_code"); value != "" {
+		lines = append(lines, "Failure code: "+value)
+	}
+	if value := stringSliceDetail(details, "failure_codes"); value != "" {
+		lines = append(lines, "Failure codes: "+value)
+	}
+	if value := stringSliceDetail(details, "recommended_action_codes"); value != "" {
+		lines = append(lines, "Recommended actions: "+value)
+	}
+	if value := failedRevisionsDetail(details); value != "" {
+		lines = append(lines, "Failed revisions: "+value)
+	}
+	if value := prunePreviewDetail(details); value != "" {
+		lines = append(lines, "Prune preview: "+value)
+	}
+	if value := pruneLimitsDetail(details); value != "" {
+		lines = append(lines, "Prune limits: "+value)
+	}
+	return lines
+}
+
+func stringDetail(details map[string]any, key string) string {
+	value, _ := details[key].(string)
+	return strings.TrimSpace(value)
+}
+
+func stringSliceDetail(details map[string]any, key string) string {
+	switch values := details[key].(type) {
+	case []string:
+		return strings.Join(values, ", ")
+	case []any:
+		parts := make([]string, 0, len(values))
+		for _, value := range values {
+			parts = append(parts, fmt.Sprint(value))
+		}
+		return strings.Join(parts, ", ")
+	default:
+		return ""
+	}
+}
+
+func intDetail(details map[string]any, key string) (int, bool) {
+	switch value := details[key].(type) {
+	case int:
+		return value, true
+	case int64:
+		return int(value), true
+	case float64:
+		return int(value), true
+	default:
+		return 0, false
+	}
+}
+
+func intSliceDetail(details map[string]any, key string) []int {
+	switch values := details[key].(type) {
+	case []int:
+		return values
+	case []any:
+		converted := make([]int, 0, len(values))
+		for _, value := range values {
+			switch v := value.(type) {
+			case int:
+				converted = append(converted, v)
+			case float64:
+				converted = append(converted, int(v))
+			}
+		}
+		return converted
+	default:
+		return nil
+	}
+}
+
+func failedRevisionsDetail(details map[string]any) string {
+	count, ok := intDetail(details, "failed_revision_count")
+	if !ok || count <= 0 {
+		return ""
+	}
+	revisions := intSliceDetail(details, "failed_revisions")
+	if len(revisions) == 0 {
+		return fmt.Sprintf("%d", count)
+	}
+	parts := make([]string, 0, len(revisions))
+	for _, revision := range revisions {
+		parts = append(parts, fmt.Sprintf("%d", revision))
+	}
+	return fmt.Sprintf("%d (%s)", count, strings.Join(parts, ", "))
+}
+
+func prunePreviewDetail(details map[string]any) string {
+	deletes, ok := intDetail(details, "preview_deletes")
+	if !ok {
+		return ""
+	}
+	total, hasTotal := intDetail(details, "preview_total_revisions")
+	percent, hasPercent := intDetail(details, "delete_percent")
+	switch {
+	case hasTotal && hasPercent:
+		return fmt.Sprintf("would delete %d of %d revisions (%d%%)", deletes, total, percent)
+	case hasTotal:
+		return fmt.Sprintf("would delete %d of %d revisions", deletes, total)
+	default:
+		return fmt.Sprintf("would delete %d revisions", deletes)
+	}
+}
+
+func pruneLimitsDetail(details map[string]any) string {
+	maxPercent, hasPercent := intDetail(details, "max_delete_percent")
+	maxCount, hasCount := intDetail(details, "max_delete_count")
+	switch {
+	case hasPercent && hasCount:
+		return fmt.Sprintf("max %d%% or %d revisions", maxPercent, maxCount)
+	case hasPercent:
+		return fmt.Sprintf("max %d%%", maxPercent)
+	case hasCount:
+		return fmt.Sprintf("max %d revisions", maxCount)
+	default:
+		return ""
+	}
 }
 
 func fallbackValue(value, fallback string) string {

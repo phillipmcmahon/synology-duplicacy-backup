@@ -201,6 +201,28 @@ func FirstIssueMessage(report *Report) string {
 	return ""
 }
 
+func PrimaryIssueMessage(report *Report) string {
+	if report == nil {
+		return ""
+	}
+	for _, check := range report.Checks {
+		if check.Result != "warn" && check.Result != "fail" {
+			continue
+		}
+		message := strings.TrimSpace(check.Message)
+		if message == "" {
+			continue
+		}
+		if strings.HasPrefix(message, "Health check cadence warning:") ||
+			strings.HasPrefix(message, "Backup freshness warning:") ||
+			strings.HasPrefix(message, "Backup freshness failure:") {
+			return message
+		}
+		return fmt.Sprintf("%s: %s", check.Name, message)
+	}
+	return FirstIssueMessage(report)
+}
+
 func SectionForCheck(name string) string {
 	switch name {
 	case "Notification":

@@ -88,6 +88,9 @@ func TestReportFinalizeAndVerifyFailureCodes(t *testing.T) {
 	if got := FirstIssueMessage(report); got != "Older than expected" {
 		t.Fatalf("FirstIssueMessage() = %q", got)
 	}
+	if got := PrimaryIssueMessage(report); got != "Backup freshness: Older than expected" {
+		t.Fatalf("PrimaryIssueMessage() = %q", got)
+	}
 
 	report.AddVerifyFailureCode(VerifyFailureNoRevisionsFound)
 	report.AddVerifyFailureCode(VerifyFailureNoRevisionsFound)
@@ -240,6 +243,10 @@ func TestReportNilAndMissingHelpers(t *testing.T) {
 	}
 	if got := FirstIssueMessage(report); got != " useful message " {
 		t.Fatalf("FirstIssueMessage() = %q", got)
+	}
+	report.Checks = []Check{{Name: "Last doctor run", Result: "warn", Message: "Health check cadence warning: last doctor run was 2d3h ago; policy doctor_warn_after_hours=48 (2d)"}}
+	if got := PrimaryIssueMessage(report); got != "Health check cadence warning: last doctor run was 2d3h ago; policy doctor_warn_after_hours=48 (2d)" {
+		t.Fatalf("PrimaryIssueMessage() = %q", got)
 	}
 	if result, message, ok := CheckResult(report, "missing"); result != "" || message != "" || ok {
 		t.Fatalf("missing CheckResult() = %q, %q, %t", result, message, ok)

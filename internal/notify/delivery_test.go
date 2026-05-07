@@ -62,7 +62,14 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 
 	payload := NewPayload(time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC), 1234, "warning", "maintenance", "safe_prune_blocked",
 		"Safe prune blocked for homes/offsite-storj",
-		"homes", "offsite-storj", "remote", "prune", "", "blocked", map[string]any{"message": "Safe prune blocked because deletion threshold would be exceeded"},
+		"homes", "offsite-storj", "remote", "prune", "", "blocked", map[string]any{
+			"message":                 "Safe prune blocked because deletion threshold would be exceeded",
+			"preview_deletes":         12,
+			"preview_total_revisions": 20,
+			"delete_percent":          60,
+			"max_delete_percent":      30,
+			"max_delete_count":        5,
+		},
 	)
 	cfg := config.HealthNotifyConfig{
 		Ntfy: config.HealthNotifyNtfyConfig{
@@ -85,8 +92,38 @@ func TestSendConfigured_Ntfy(t *testing.T) {
 	if gotAuth != "Bearer ntfy-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
-	if !strings.Contains(gotBody, "Location: remote") || !strings.Contains(gotBody, "Safe prune blocked because deletion threshold would be exceeded") {
+	if !strings.Contains(gotBody, "Location: remote") ||
+		!strings.Contains(gotBody, "Reason: Safe prune blocked because deletion threshold would be exceeded") ||
+		!strings.Contains(gotBody, "Prune preview: would delete 12 of 20 revisions (60%)") ||
+		!strings.Contains(gotBody, "Prune limits: max 30% or 5 revisions") {
 		t.Fatalf("Body = %q", gotBody)
+	}
+}
+
+func TestNtfyMessageBodyIncludesStructuredVerifyDetails(t *testing.T) {
+	payload := NewPayload(time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC), 1234, "critical", "health", "verify_failed_revisions",
+		"Health unhealthy for homes/onsite-usb",
+		"homes", "onsite-usb", "local", "", "verify", "unhealthy", map[string]any{
+			"message":                  "Integrity check: 2 failed; 1 returned no result",
+			"failure_code":             "integrity_check_failed",
+			"failure_codes":            []string{"integrity_check_failed", "integrity_result_missing"},
+			"recommended_action_codes": []string{"check_storage_access", "rerun_verify"},
+			"failed_revision_count":    2,
+			"failed_revisions":         []int{41, 39},
+		},
+	)
+
+	body := ntfyMessageBody(payload)
+	for _, want := range []string{
+		"Reason: Integrity check: 2 failed; 1 returned no result",
+		"Failure code: integrity_check_failed",
+		"Failure codes: integrity_check_failed, integrity_result_missing",
+		"Recommended actions: check_storage_access, rerun_verify",
+		"Failed revisions: 2 (41, 39)",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("Body missing %q:\n%s", want, body)
+		}
 	}
 }
 

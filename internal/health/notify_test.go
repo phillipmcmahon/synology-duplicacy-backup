@@ -125,7 +125,10 @@ func TestBuildHealthNotificationPayload_Degraded(t *testing.T) {
 		Target:    "onsite-usb",
 		Location:  "local",
 		Issues: []Issue{
-			{Severity: "warning", Message: "Last doctor run is overdue"},
+			{Severity: "warning", Message: "Health check cadence warning: last doctor run was 2d3h ago; policy doctor_warn_after_hours=48 (2d)"},
+		},
+		Checks: []Check{
+			{Name: "Last doctor run", Result: "warn", Message: "Health check cadence warning: last doctor run was 2d3h ago; policy doctor_warn_after_hours=48 (2d)"},
 		},
 	}
 
@@ -135,5 +138,8 @@ func TestBuildHealthNotificationPayload_Degraded(t *testing.T) {
 	}
 	if payload.Event != "health_degraded" || payload.Severity != "warning" || payload.Check != "doctor" {
 		t.Fatalf("payload = %+v", payload)
+	}
+	if got := payload.Details["message"]; got != "Health check cadence warning: last doctor run was 2d3h ago; policy doctor_warn_after_hours=48 (2d)" {
+		t.Fatalf("message = %#v", got)
 	}
 }

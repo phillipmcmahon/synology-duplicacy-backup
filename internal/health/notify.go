@@ -109,7 +109,7 @@ func buildHealthNotificationPayload(rt Env, report *Report) *notify.Payload {
 			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
-				"message": FirstIssueMessage(report),
+				"message": PrimaryIssueMessage(report),
 			}),
 		)
 	case "unhealthy":
@@ -118,7 +118,7 @@ func buildHealthNotificationPayload(rt Env, report *Report) *notify.Payload {
 			report.Label, report.Target, report.Location,
 			"", report.CheckType, report.Status,
 			healthNotificationDetails(report, map[string]any{
-				"message": FirstIssueMessage(report),
+				"message": PrimaryIssueMessage(report),
 			}),
 		)
 	default:

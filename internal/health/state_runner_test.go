@@ -49,7 +49,7 @@ func TestHealthRunnerEvaluateHealthRecencyWarnsForMissingOrStaleState(t *testing
 	runner.evaluateHealthRecency(missingReport, cfg, "verify", "Last verify run")
 	if len(missingReport.Checks) != 1 ||
 		missingReport.Checks[0].Result != "warn" ||
-		missingReport.Checks[0].Message != "No prior health state is available" ||
+		missingReport.Checks[0].Message != "Health check cadence warning: no prior verify run is recorded; policy verify_warn_after_hours=24 (1d)" ||
 		missingReport.LastVerifyRunAt != "" {
 		t.Fatalf("missing state report = %+v", missingReport)
 	}
@@ -62,7 +62,7 @@ func TestHealthRunnerEvaluateHealthRecencyWarnsForMissingOrStaleState(t *testing
 	runner.evaluateHealthRecency(staleReport, cfg, "verify", "Last verify run")
 	if len(staleReport.Checks) != 1 ||
 		staleReport.Checks[0].Result != "warn" ||
-		staleReport.Checks[0].Message != "1d1h ago" ||
+		staleReport.Checks[0].Message != "Health check cadence warning: last verify run was 1d1h ago; policy verify_warn_after_hours=24 (1d)" ||
 		staleReport.LastVerifyRunAt != "2026-04-16T08:00:00Z" {
 		t.Fatalf("stale state report = %+v", staleReport)
 	}
