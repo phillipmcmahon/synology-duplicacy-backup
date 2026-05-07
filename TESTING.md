@@ -35,7 +35,7 @@ For the full release process, use [`docs/release-playbook.md`](docs/release-play
 
 ## Current Release Baseline
 
-Current public release baseline: `v9.1.2`
+Current public release baseline: `v11.0.5`
 
 Active release-prep target: none
 

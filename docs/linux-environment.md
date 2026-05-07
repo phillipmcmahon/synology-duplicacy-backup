@@ -33,7 +33,7 @@ as normal dependency PRs.
 For normal release work, prefer:
 
 ```bash
-make release-prep RELEASE_VERSION=4.x.y
+make release-prep RELEASE_VERSION=v11.x.y
 ```
 
 That command wraps the standard Linux validation flow for the requested release

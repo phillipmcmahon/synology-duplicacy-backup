@@ -12,12 +12,38 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.5] - 2026-05-08
+
 ### Changed
 - Enforce package-specific coverage floors for high-signal packages on top of
   the default `85.0%` package and aggregate floor. The initial stricter floors
   snapshot current coverage for `internal/secrets`, `internal/exec`, and
   `internal/duplicacy`, and stale package-specific floor entries now fail the
   coverage guard.
+- Clean up release-prep documentation so current release examples and testing
+  guidance use v11 storage terminology instead of stale target-era wording.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.7%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.9%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `86.0%`
+- `internal/health`: `87.8%`
+- `internal/notify`: `91.1%`
+- `internal/operator`: `89.4%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v11.0.4] - 2026-05-07
 
