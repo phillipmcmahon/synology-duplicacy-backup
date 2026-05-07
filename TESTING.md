@@ -56,25 +56,29 @@ Current Linux Go 1.26 development validation snapshot:
 - `go run honnef.co/go/tools/cmd/staticcheck ./...`
 - `go test -cover ./...`
 - `scripts/check-coverage-floor.sh`
-- package coverage floor: `85.0%`
-- overall coverage: `87.6%`
+- default package coverage floor: `85.0%`
+- package-specific floors:
+  - `internal/secrets`: `93.1%`
+  - `internal/exec`: `95.2%`
+  - `internal/duplicacy`: `89.7%`
+- overall coverage: `87.7%`
 - `cmd/duplicacy-backup`: `86.4%`
 - `internal/command`: `85.8%`
 - `internal/config`: `88.3%`
 - `internal/duplicacy`: `89.7%`
 - `internal/exec`: `95.2%`
-- `internal/health`: `88.2%`
+- `internal/health`: `87.8%`
 - `internal/lock`: `87.2%`
 - `internal/logger`: `89.5%`
-- `internal/notify`: `89.3%`
+- `internal/notify`: `91.1%`
 - `internal/operator`: `89.4%`
 - `internal/presentation`: `92.1%`
-- `internal/restore`: `85.9%`
+- `internal/restore`: `86.0%`
 - `internal/restorepicker`: `88.9%`
 - `internal/secrets`: `93.1%`
 - `internal/update`: `85.3%`
-- `internal/workflow`: `85.8%`
-- `internal/workflowcore`: `91.1%`
+- `internal/workflow`: `85.9%`
+- `internal/workflowcore`: `90.7%`
 
 Additional #294 validation:
 
@@ -89,14 +93,37 @@ Additional #294 validation:
 - Coverage is enforced on the canonical Ubuntu Go 1.26 test job. If future CI
   adds OS or Go-version test matrices, review whether the coverage guard should
   stay on the canonical Linux leg or run on every matrix entry.
-- Package-specific floors above the shared `85.0%` baseline are tracked as
-  follow-up issue `#295`.
 - Coverage guard fixture tests pin package failures, aggregate failures,
   package lines without a leading `ok` status field, and no-test package
   handling.
 - Direct `internal/workflowcore` tests now cover the neutral metadata,
   environment, request, plan, and run-state primitives introduced during the
   architecture cleanup.
+
+Additional #295 validation:
+
+- `scripts/check-coverage-floor.sh` now applies package-specific floors for
+  high-signal packages on top of the default `85.0%` package and aggregate
+  floor.
+- Initial package-specific floors snapshot current measured coverage for:
+  `internal/secrets` at `93.1%`, `internal/exec` at `95.2%`, and
+  `internal/duplicacy` at `89.7%`.
+- Packages without explicit package-specific floors continue to use the
+  default `85.0%` floor. New packages do not need an explicit entry unless a
+  reviewer deliberately adds a stricter floor.
+- A package-specific floor entry for a package that no longer appears in
+  coverage output fails the guard. Treat that as config drift: fix the floor
+  entry in the same change as the package rename, removal, or policy decision.
+- The guard reports all violations in one pass: packages below their
+  applicable floor, stale package-specific floor entries, and aggregate
+  coverage below the default floor.
+- To change a package-specific floor, update
+  `scripts/check-coverage-floor.sh`, this guide, and release notes in the same
+  commit. Keep floor changes grounded in measured coverage, and document any
+  intentional slack in that commit.
+- Coverage guard fixture tests pin default floors, stricter package floors,
+  stale floor entries, new-package fallback to the default floor, and
+  aggregated failure output.
 
 Additional v9.1.1 validation:
 

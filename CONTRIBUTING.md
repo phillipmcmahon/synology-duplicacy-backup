@@ -41,11 +41,13 @@ protect intentional design boundaries:
   `Plan.<field-name-from-the-guard>`. Prefer phrases like "the previous flat
   Plan shape" so historical prose does not look like a live code regression to
   the lint.
-- `scripts/check-coverage-floor.sh` enforces the current `85.0%` floor for
-  every package with coverable statements and for aggregate coverage. It runs
-  through `make validate` and GitHub Actions. If a change legitimately moves
-  the target, update the script, `TESTING.md`, and release notes in the same
-  commit so the quality bar stays explicit.
+- `scripts/check-coverage-floor.sh` enforces the current `85.0%` default floor
+  for every package with coverable statements and for aggregate coverage. It
+  also enforces stricter package-specific floors for high-signal packages such
+  as credential, execution, and repository-access code. It runs through
+  `make validate` and GitHub Actions. If a change legitimately moves a default
+  or package-specific target, update the script, `TESTING.md`, and release
+  notes in the same commit so the quality bar stays explicit.
 
 Coverage guard review decisions:
 
@@ -57,9 +59,16 @@ Coverage guard review decisions:
   macOS, Windows, or multiple Go-version test matrices, decide explicitly
   whether coverage should run on every matrix entry or only on the canonical
   Linux release-validation leg.
-- The current floor is a single `85.0%` baseline. Package-specific floors for
-  security-sensitive or historically higher-coverage packages are tracked as a
-  deliberate follow-up in issue `#295`, not hidden inside the baseline guard.
+- Packages without a package-specific floor fall back to the default `85.0%`
+  floor. New packages do not need an explicit stricter floor unless reviewers
+  deliberately add one.
+- Stale package-specific floor entries fail the guard when a configured package
+  no longer appears in coverage output. Treat that as configuration drift, and
+  update the guard, `TESTING.md`, and release notes with the package rename,
+  removal, or policy change.
+- Package-specific floor changes should snapshot measured coverage rather than
+  invent aspirational targets. Add slack only when repeated runs show real
+  fluctuation, and document that reason in the same commit.
 
 ## Pre-commit Hook (recommended)
 

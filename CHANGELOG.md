@@ -12,6 +12,13 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Enforce package-specific coverage floors for high-signal packages on top of
+  the default `85.0%` package and aggregate floor. The initial stricter floors
+  snapshot current coverage for `internal/secrets`, `internal/exec`, and
+  `internal/duplicacy`, and stale package-specific floor entries now fail the
+  coverage guard.
+
 ## [v11.0.4] - 2026-05-07
 
 ### Changed
