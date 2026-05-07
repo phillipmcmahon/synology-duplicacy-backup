@@ -145,6 +145,7 @@ func TestNtfyMessageBodyIncludesStructuredVerifyDetails(t *testing.T) {
 
 func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
 	withLocalTimeZone(t, time.FixedZone("BST", 3600))
+	withNoLocaltimeLink(t)
 	payload := NewPayload(time.Date(2026, 5, 7, 15, 48, 50, 0, time.UTC), 1234, "critical", "health", "health_unhealthy",
 		"Health unhealthy for homes/onsite-usb",
 		"homes", "onsite-usb", "local", "", "verify", "unhealthy", map[string]any{
@@ -242,6 +243,129 @@ func TestNtfyTagsStayCompactForTests(t *testing.T) {
 	if got := ntfyTags(payload); got != "duplicacy,test" {
 		t.Fatalf("ntfyTags() = %q", got)
 	}
+}
+
+func TestNtfyStateTagsCoverOperatorRoutes(t *testing.T) {
+	tests := []struct {
+		name    string
+		event   EventID
+		status  string
+		wantTag string
+	}{
+		{name: "safe prune", event: EventSafePruneBlocked, status: "blocked", wantTag: "prune-blocked"},
+		{name: "verify", event: EventVerifyFailedRevisions, status: "unhealthy", wantTag: "verify-failed"},
+		{name: "freshness", event: EventFreshnessFailed, status: "failed", wantTag: "freshness-failed"},
+		{name: "health degraded", event: EventHealthDegraded, status: "degraded", wantTag: "degraded"},
+		{name: "health unhealthy", event: EventHealthUnhealthy, status: "unhealthy", wantTag: "unhealthy"},
+		{name: "update installed", event: EventUpdateInstallSucceeded, status: "installed", wantTag: "update-installed"},
+		{name: "already current", event: EventUpdateAlreadyCurrent, status: "current", wantTag: "current"},
+		{name: "reinstall requested", event: EventUpdateReinstallRequested, status: "requested", wantTag: "reinstall-requested"},
+		{name: "download failed", event: EventUpdateDownloadFailed, status: "failed", wantTag: "update-failed"},
+		{name: "fallback status", event: EventID("unknown_event"), status: "blocked", wantTag: "blocked"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := NewPayload(time.Date(2026, 5, 7, 15, 0, 0, 0, time.UTC), 1234, "warning", "health", string(tt.event),
+				"summary", "", "", "", "", "", tt.status, nil)
+
+			if got := ntfyStateTag(payload); got != tt.wantTag {
+				t.Fatalf("ntfyStateTag() = %q, want %q", got, tt.wantTag)
+			}
+		})
+	}
+
+	if got := ntfyStateTag(nil); got != "" {
+		t.Fatalf("ntfyStateTag(nil) = %q", got)
+	}
+}
+
+func TestNtfyBodyHelperFallbacks(t *testing.T) {
+	managedPathMessage := `update requires the managed stable command path "duplicacy-backup"; current executable is /tmp/smoke/duplicacy-backup`
+	updatePayload := NewPayload(time.Date(2026, 5, 7, 15, 0, 0, 0, time.UTC), 1234, "warning", "maintenance", string(EventUpdateInstallFailed),
+		"Duplicacy Backup update install failed", "", "", "", "update", "", "failed", map[string]any{"message": managedPathMessage})
+
+	if got := ntfyAffectedLine(updatePayload); got != "update" {
+		t.Fatalf("ntfyAffectedLine(update) = %q", got)
+	}
+	if got := ntfyReason(updatePayload); got != "Update must be run through the managed command." {
+		t.Fatalf("ntfyReason(update) = %q", got)
+	}
+	if got := ntfyAction(updatePayload); got != "Run update using the managed duplicacy-backup command." {
+		t.Fatalf("ntfyAction(update) = %q", got)
+	}
+
+	storagePayload := NewPayload(time.Date(2026, 5, 7, 15, 0, 0, 0, time.UTC), 1234, "warning", "health", string(EventHealthDegraded),
+		"Health degraded for homes/onsite-usb", "homes", "onsite-usb", "", "", "", "degraded", nil)
+	if got := ntfyAffectedLine(storagePayload); got != "homes / onsite-usb" {
+		t.Fatalf("ntfyAffectedLine(storage) = %q", got)
+	}
+
+	minimalPayload := &Payload{Summary: "summary"}
+	if got := ntfyAffectedLine(minimalPayload); got != "" {
+		t.Fatalf("ntfyAffectedLine(minimal) = %q", got)
+	}
+	if got := ntfyContextLine(minimalPayload); got != "unknown" {
+		t.Fatalf("ntfyContextLine(minimal) = %q", got)
+	}
+}
+
+func TestNtfyStructuredDetailHelpersHandleJSONShapes(t *testing.T) {
+	details := map[string]any{
+		"recommended_action_codes": []any{"run_backup", "unknown_action", "run_backup"},
+		"failed_revision_count":    float64(2),
+		"failed_revisions":         []any{float64(41), "ignored", float64(39)},
+		"preview_deletes":          float64(4),
+		"preview_total_revisions":  float64(10),
+		"delete_percent":           float64(40),
+		"max_delete_percent":       float64(25),
+	}
+
+	if got := ntfyRecommendedActions(details); got != "run a backup; unknown action" {
+		t.Fatalf("ntfyRecommendedActions() = %q", got)
+	}
+	if got := failedRevisionsDetail(details); got != "2 (41, 39)" {
+		t.Fatalf("failedRevisionsDetail() = %q", got)
+	}
+	if got := prunePreviewDetail(details); got != "would delete 4 of 10 revisions (40%)" {
+		t.Fatalf("prunePreviewDetail() = %q", got)
+	}
+	if got := pruneLimitsDetail(details); got != "max 25%" {
+		t.Fatalf("pruneLimitsDetail() = %q", got)
+	}
+}
+
+func TestNtfySystemLocaltimeFallbacks(t *testing.T) {
+	tests := []string{
+		"/not/zoneinfo/path",
+		"/usr/share/zoneinfo/Europe/Missing",
+	}
+	for _, target := range tests {
+		t.Run(target, func(t *testing.T) {
+			withLocalTimeZone(t, time.FixedZone("LOCAL", 2*3600))
+			withBrokenLocaltimeLocation(t, target)
+
+			got := ntfyLocalTimestamp("2026-05-07T10:00:00Z")
+			if got != "2026-05-07 12:00:00 LOCAL" {
+				t.Fatalf("ntfyLocalTimestamp() = %q", got)
+			}
+		})
+	}
+}
+
+func withBrokenLocaltimeLocation(t *testing.T, target string) {
+	t.Helper()
+	originalReadlink := readLocaltimeLink
+	originalLoadLocation := loadTimeLocation
+	readLocaltimeLink = func(path string) (string, error) {
+		return target, nil
+	}
+	loadTimeLocation = func(name string) (*time.Location, error) {
+		return nil, errors.New("missing zone")
+	}
+	t.Cleanup(func() {
+		readLocaltimeLink = originalReadlink
+		loadTimeLocation = originalLoadLocation
+	})
 }
 
 func TestConfiguredDestinationsAndHasDestination(t *testing.T) {
