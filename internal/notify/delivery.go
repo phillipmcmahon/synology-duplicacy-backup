@@ -562,13 +562,25 @@ func ntfyContextLine(payload *Payload) string {
 	if payload.Operation != "" {
 		parts = append(parts, "operation "+payload.Operation)
 	}
-	if payload.Timestamp != "" {
-		parts = append(parts, payload.Timestamp)
+	if timestamp := ntfyLocalTimestamp(payload.Timestamp); timestamp != "" {
+		parts = append(parts, timestamp)
 	}
 	if len(parts) == 0 {
 		return "unknown"
 	}
 	return strings.Join(parts, ", ")
+}
+
+func ntfyLocalTimestamp(timestamp string) string {
+	timestamp = strings.TrimSpace(timestamp)
+	if timestamp == "" {
+		return ""
+	}
+	parsed, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		return timestamp
+	}
+	return parsed.Local().Format("2006-01-02 15:04:05 MST")
 }
 
 func ntfyNeedsSudo(payload *Payload) bool {

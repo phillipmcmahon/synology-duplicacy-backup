@@ -144,6 +144,7 @@ func TestNtfyMessageBodyIncludesStructuredVerifyDetails(t *testing.T) {
 }
 
 func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
+	withLocalTimeZone(t, time.FixedZone("BST", 3600))
 	payload := NewPayload(time.Date(2026, 5, 7, 15, 48, 50, 0, time.UTC), 1234, "critical", "health", "health_unhealthy",
 		"Health unhealthy for homes/onsite-usb",
 		"homes", "onsite-usb", "local", "", "verify", "unhealthy", map[string]any{
@@ -160,7 +161,8 @@ func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
 		"Affected: homes / onsite-usb (local)",
 		"Why: Local repository is root-protected.",
 		"Action: Run this check with sudo or review storage permissions.",
-		"Context:",
+		"Context: ",
+		"2026-05-07 16:48:50 BST",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("Body missing %q:\n%s", want, body)
@@ -174,6 +176,28 @@ func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
 	if got := ntfyTags(payload); got != "duplicacy,health,needs-sudo" {
 		t.Fatalf("ntfyTags() = %q", got)
 	}
+}
+
+func TestNtfyLocalTimestampUsesDeviceTimezone(t *testing.T) {
+	withLocalTimeZone(t, time.FixedZone("BST", 3600))
+
+	got := ntfyLocalTimestamp("2026-05-07T16:05:25Z")
+	if got != "2026-05-07 17:05:25 BST" {
+		t.Fatalf("ntfyLocalTimestamp() = %q", got)
+	}
+
+	if got := ntfyLocalTimestamp("not-a-timestamp"); got != "not-a-timestamp" {
+		t.Fatalf("ntfyLocalTimestamp(invalid) = %q", got)
+	}
+}
+
+func withLocalTimeZone(t *testing.T, location *time.Location) {
+	t.Helper()
+	original := time.Local
+	time.Local = location
+	t.Cleanup(func() {
+		time.Local = original
+	})
 }
 
 func TestNtfyTagsStayCompactForTests(t *testing.T) {
