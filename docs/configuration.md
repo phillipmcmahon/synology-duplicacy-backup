@@ -179,6 +179,25 @@ That keeps the built-in generic output suitable for future providers such as
 Discord, Slack, Node-RED, or `n8n` without hard-coding each one up front,
 while native `ntfy` support covers the low-cost Synology path directly.
 
+Native `ntfy` renders the same event as an operator-facing text alert rather
+than dumping every payload field. The message body uses a small, predictable
+shape:
+
+```text
+What: <summary>
+Affected: <label> / <storage> (<location>)
+Why: <operator reason>
+Action: <next step, when available>
+Context: <host>, <check or operation>, <local timestamp>
+```
+
+`ntfy` tags stay intentionally small: `duplicacy`, the broad category, and one
+routing tag such as `needs-sudo`, `update-failed`, or `prune-blocked`.
+Severity is carried by the `ntfy` title and priority instead of duplicated as a
+tag. The context timestamp is rendered in the NAS system timezone from
+`/etc/localtime` when available, so alerts from sudo/root health checks match
+operator-user alerts on the same device.
+
 ### Update Notifications
 
 Self-update notifications are global application settings, not label or storage
@@ -249,7 +268,8 @@ Provider-specific expectations:
 - native `ntfy` sends a real message to the configured topic using the same
   storage-scoped token handling as live notifications; public topics can be
   tested without reading the label secrets file, but token-protected topics
-  still need readable token access
+  still need readable token access. The delivered alert uses the compact
+  `What` / `Affected` / `Why` / `Action` / `Context` body described above.
 - generic webhook sends the same generic JSON payload shape used by live
   notifications, leaving rendering and translation to the receiver
 

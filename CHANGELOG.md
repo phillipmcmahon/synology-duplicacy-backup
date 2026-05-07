@@ -12,6 +12,39 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.4] - 2026-05-07
+
+### Changed
+- Render native `ntfy` alerts as concise operator messages with `What`,
+  `Affected`, `Why`, optional `Action`, and `Context` lines instead of a raw
+  payload-shaped field dump.
+- Keep `ntfy` tags compact and predictable: `duplicacy`, the broad category,
+  and one routing tag such as `needs-sudo`, `update-failed`, or
+  `prune-blocked`.
+- Make health notifications preserve the check context and configured health
+  policy when reporting stale backup freshness or health-check cadence.
+- Normalize managed-update path failures into a short operator reason and
+  action instead of sending the full smoke-bundle executable path.
+- Render native `ntfy` context timestamps in the NAS system timezone resolved
+  from `/etc/localtime` when available, keeping sudo/root health alerts aligned
+  with operator-user alerts.
+- Document the finalized native `ntfy` output contract in the configuration
+  guide, CLI reference, and generated notify help.
+
+### Validation
+- **Local Go**: `go test ./...`
+- **Local Go**: `go test ./internal/command ./cmd/duplicacy-backup`
+- **Local Go**: `go test ./internal/notify ./internal/workflow`
+- **Local Git**: `git diff --check`
+- **NAS UI surface smoke**:
+  `RUN_NOTIFY=1 RUN_RESTORE=0 CAPTURE_COLOUR=1 ./run-ui-surface-smoke.sh`
+  on `homestorage`, with `72 CAPTURED`, `6 EXPECTED_FAIL`, `3 PASS`,
+  `3 SKIPPED`, and no unexpected outcomes.
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- To be refreshed by release prep.
+
 ## [v11.0.3] - 2026-05-04
 
 ### Changed

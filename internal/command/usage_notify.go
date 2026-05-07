@@ -77,6 +77,12 @@ PROVIDER SELECTION:
     --provider webhook      Test only the configured webhook destination
     --provider ntfy         Test only the configured ntfy destination
 
+NTFY OUTPUT:
+    Native ntfy alerts are rendered for operators, not as raw JSON. The message
+    body uses What, Affected, Why, optional Action, and Context lines. Context
+    timestamps use the NAS system timezone from /etc/localtime when available.
+    Tags stay compact: duplicacy, broad category, and one routing tag.
+
 EXAMPLES:
     {{script}} notify test --storage onsite-usb homes
     {{script}} notify test --storage offsite-storj --provider ntfy homes

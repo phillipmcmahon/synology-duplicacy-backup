@@ -84,6 +84,11 @@ Runtime operations are first-class commands with their own command names.
 | `notify test --storage <storage> <label>` | Send a simulated notification through the configured destinations for the selected storage |
 | `notify test update` | Send a simulated update notification through the global update notification config |
 
+Native `ntfy` alerts use an operator-facing body with `What`, `Affected`,
+`Why`, optional `Action`, and `Context` lines. The context timestamp is rendered
+in the NAS system timezone from `/etc/localtime` when available. Webhook
+delivery keeps the generic JSON payload for external receivers to render.
+
 ## Restore Commands
 
 | Command | Description |
