@@ -243,7 +243,7 @@ Additional v7.1.0 validation:
   `source_path`, while backup/full `config validate` still requires source
   readiness.
 - Restore workspace coverage now pins the default
-  `/volume1/restore-drills/<label>-<target>-<restore-point-timestamp>-rev<id>`
+  `/volume1/restore-drills/<label>-<storage>-<restore-point-timestamp>-rev<id>`
   naming model independently of `source_path`.
 - Restore help and documentation now consistently describe `source_path` as
   live-source and copy-back context, not a prerequisite for reading backup
@@ -255,7 +255,7 @@ Additional v7.0.0 validation:
   `restore prepare`, `restore files`, and the hidden `restore select
   --execute` path are removed from the public command surface.
 - Restore execution coverage now includes self-prepared drill workspaces using
-  the deterministic `<label>-<target>-<restore-point-timestamp>-rev<id>`
+  the deterministic `<label>-<storage>-<restore-point-timestamp>-rev<id>`
   workspace naming model.
 - Restore help and documentation checks pin the current operator flow:
   `restore select`, `restore plan`, `restore list-revisions`, and
@@ -344,12 +344,12 @@ Additional v5.1.0 validation:
   selected backend needs them while remaining operationally local or remote
   according to `location`.
 - Runtime failure, config command, summary, and notification tests confirm
-  targets preserve `Location` in operator-facing output and webhook payloads
-  without exposing a redundant target type.
+  storage entries preserve `Location` in operator-facing output and webhook
+  payloads without exposing a redundant storage type.
 - Config tests confirm the retired `type`, `destination`, and `repository`
   schema is rejected with clear current-model messages.
-- Required-value validation now points operators at modern `common.*` and
-  `targets.<name>.*` keys instead of the retired single-target key names.
+- Required-value validation now points operators at current `common.*` and
+  `storage.<name>.*` keys instead of the retired single-storage key names.
 
 Additional #114, #115, and #128 validation:
 
@@ -519,9 +519,9 @@ Planner tests cover:
 
 - path derivation
 - config loading
-- target-model resolution (`storage` + `location`)
+- storage-model resolution (`storage` + `location`)
 - operation-mode derivation
-- backup-target derivation
+- backup storage derivation
 - summary precomputation
 - execution-ready plan fields
 - execution-ready command strings
@@ -534,7 +534,7 @@ Executor tests cover:
 - lock lifecycle during execution
 - cleanup and prune-policy behaviour through focused workflow helpers
 
-Acceptance coverage for the current target model should always include:
+Acceptance coverage for the current storage model should always include:
 
 - path-based storage with `location = "local"`
 - path-based storage with `location = "remote"`
@@ -543,18 +543,18 @@ Acceptance coverage for the current target model should always include:
 
 That includes both behaviour and output:
 
-- path-based storage targets do not load storage keys
-- URL-like storage targets load storage keys only when the selected backend requires them
+- path-based storage entries do not load storage keys
+- URL-like storage entries load storage keys only when the selected backend requires them
 - path-based filesystem repository mutation requires root
 - URL-like storage mutation is governed by storage credentials
 - runtime and health headers include `Location`
-- `config validate` keeps `Resolved` identity-only and checks target settings
-  under `Target Settings`
+- `config validate` keeps `Resolved` identity-only and checks storage settings
+  under `Storage Settings`
 
 Workflow tests also cover:
 
 - operator-message translation
-- summary layout for runtime and offsite-target flows
+- summary layout for runtime and offsite-storage flows
 - logger activity rendering for interactive TTY runs
 
 ### `internal/btrfs`

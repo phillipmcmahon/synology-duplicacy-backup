@@ -160,7 +160,7 @@ Use the standard Linux environment described in
 Default command:
 
 ```bash
-make release-prep RELEASE_VERSION=4.x.y
+make release-prep RELEASE_VERSION=v11.x.y
 ```
 
 This command is the standard release-prep automation. It:
