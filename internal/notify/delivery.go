@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/config"
+	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/displaytime"
 	apperrors "github.com/phillipmcmahon/synology-duplicacy-backup/internal/errors"
 	"github.com/phillipmcmahon/synology-duplicacy-backup/internal/secrets"
 )
 
 var loadOptionalHealthWebhookToken = secrets.LoadOptionalHealthWebhookToken
 var loadOptionalHealthNtfyToken = secrets.LoadOptionalHealthNtfyToken
-var readLocaltimeLink = os.Readlink
-var loadTimeLocation = time.LoadLocation
+var ntfyDisplayLocation = displaytime.Location
 
 func SetTokenLoadersForTesting(webhookLoader, ntfyLoader func(string, string) (string, error)) func() {
 	oldWebhook := loadOptionalHealthWebhookToken
@@ -584,34 +583,6 @@ func ntfyLocalTimestamp(timestamp string) string {
 		return timestamp
 	}
 	return parsed.In(ntfyDisplayLocation()).Format("2006-01-02 15:04:05 MST")
-}
-
-func ntfyDisplayLocation() *time.Location {
-	if location := systemLocaltimeLocation(); location != nil {
-		return location
-	}
-	return time.Local
-}
-
-func systemLocaltimeLocation() *time.Location {
-	target, err := readLocaltimeLink("/etc/localtime")
-	if err != nil {
-		return nil
-	}
-	const marker = "/zoneinfo/"
-	index := strings.LastIndex(target, marker)
-	if index < 0 {
-		return nil
-	}
-	name := filepath.ToSlash(target[index+len(marker):])
-	if name == "" {
-		return nil
-	}
-	location, err := loadTimeLocation(name)
-	if err != nil {
-		return nil
-	}
-	return location
 }
 
 func ntfyNeedsSudo(payload *Payload) bool {

@@ -144,8 +144,7 @@ func TestNtfyMessageBodyIncludesStructuredVerifyDetails(t *testing.T) {
 }
 
 func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
-	withLocalTimeZone(t, time.FixedZone("BST", 3600))
-	withNoLocaltimeLink(t)
+	withNtfyDisplayLocation(t, time.FixedZone("BST", 3600))
 	payload := NewPayload(time.Date(2026, 5, 7, 15, 48, 50, 0, time.UTC), 1234, "critical", "health", "health_unhealthy",
 		"Health unhealthy for homes/onsite-usb",
 		"homes", "onsite-usb", "local", "", "verify", "unhealthy", map[string]any{
@@ -179,9 +178,8 @@ func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
 	}
 }
 
-func TestNtfyLocalTimestampUsesDeviceTimezone(t *testing.T) {
-	withLocalTimeZone(t, time.FixedZone("BST", 3600))
-	withNoLocaltimeLink(t)
+func TestNtfyLocalTimestampUsesDisplayLocation(t *testing.T) {
+	withNtfyDisplayLocation(t, time.FixedZone("BST", 3600))
 
 	got := ntfyLocalTimestamp("2026-05-07T16:05:25Z")
 	if got != "2026-05-07 17:05:25 BST" {
@@ -193,47 +191,14 @@ func TestNtfyLocalTimestampUsesDeviceTimezone(t *testing.T) {
 	}
 }
 
-func TestNtfyLocalTimestampPrefersSystemLocaltimeLink(t *testing.T) {
-	withLocalTimeZone(t, time.FixedZone("IST", 3600))
-	withLocaltimeLink(t, "/usr/share/zoneinfo/Europe/London")
-
-	got := ntfyLocalTimestamp("2026-05-07T16:05:25Z")
-	if got != "2026-05-07 17:05:25 BST" {
-		t.Fatalf("ntfyLocalTimestamp() = %q", got)
-	}
-}
-
-func withLocalTimeZone(t *testing.T, location *time.Location) {
+func withNtfyDisplayLocation(t *testing.T, location *time.Location) {
 	t.Helper()
-	original := time.Local
-	time.Local = location
-	t.Cleanup(func() {
-		time.Local = original
-	})
-}
-
-func withLocaltimeLink(t *testing.T, target string) {
-	t.Helper()
-	originalReadlink := readLocaltimeLink
-	originalLoadLocation := loadTimeLocation
-	readLocaltimeLink = func(path string) (string, error) {
-		return target, nil
-	}
-	loadTimeLocation = time.LoadLocation
-	t.Cleanup(func() {
-		readLocaltimeLink = originalReadlink
-		loadTimeLocation = originalLoadLocation
-	})
-}
-
-func withNoLocaltimeLink(t *testing.T) {
-	t.Helper()
-	originalReadlink := readLocaltimeLink
-	readLocaltimeLink = func(path string) (string, error) {
-		return "", errors.New("no localtime link")
+	original := ntfyDisplayLocation
+	ntfyDisplayLocation = func() *time.Location {
+		return location
 	}
 	t.Cleanup(func() {
-		readLocaltimeLink = originalReadlink
+		ntfyDisplayLocation = original
 	})
 }
 
@@ -332,40 +297,6 @@ func TestNtfyStructuredDetailHelpersHandleJSONShapes(t *testing.T) {
 	if got := pruneLimitsDetail(details); got != "max 25%" {
 		t.Fatalf("pruneLimitsDetail() = %q", got)
 	}
-}
-
-func TestNtfySystemLocaltimeFallbacks(t *testing.T) {
-	tests := []string{
-		"/not/zoneinfo/path",
-		"/usr/share/zoneinfo/Europe/Missing",
-	}
-	for _, target := range tests {
-		t.Run(target, func(t *testing.T) {
-			withLocalTimeZone(t, time.FixedZone("LOCAL", 2*3600))
-			withBrokenLocaltimeLocation(t, target)
-
-			got := ntfyLocalTimestamp("2026-05-07T10:00:00Z")
-			if got != "2026-05-07 12:00:00 LOCAL" {
-				t.Fatalf("ntfyLocalTimestamp() = %q", got)
-			}
-		})
-	}
-}
-
-func withBrokenLocaltimeLocation(t *testing.T, target string) {
-	t.Helper()
-	originalReadlink := readLocaltimeLink
-	originalLoadLocation := loadTimeLocation
-	readLocaltimeLink = func(path string) (string, error) {
-		return target, nil
-	}
-	loadTimeLocation = func(name string) (*time.Location, error) {
-		return nil, errors.New("missing zone")
-	}
-	t.Cleanup(func() {
-		readLocaltimeLink = originalReadlink
-		loadTimeLocation = originalLoadLocation
-	})
 }
 
 func TestConfiguredDestinationsAndHasDestination(t *testing.T) {
