@@ -180,6 +180,7 @@ func TestNtfyMessageBodySimplifiesSudoHealthAlert(t *testing.T) {
 
 func TestNtfyLocalTimestampUsesDeviceTimezone(t *testing.T) {
 	withLocalTimeZone(t, time.FixedZone("BST", 3600))
+	withNoLocaltimeLink(t)
 
 	got := ntfyLocalTimestamp("2026-05-07T16:05:25Z")
 	if got != "2026-05-07 17:05:25 BST" {
@@ -191,12 +192,47 @@ func TestNtfyLocalTimestampUsesDeviceTimezone(t *testing.T) {
 	}
 }
 
+func TestNtfyLocalTimestampPrefersSystemLocaltimeLink(t *testing.T) {
+	withLocalTimeZone(t, time.FixedZone("IST", 3600))
+	withLocaltimeLink(t, "/usr/share/zoneinfo/Europe/London")
+
+	got := ntfyLocalTimestamp("2026-05-07T16:05:25Z")
+	if got != "2026-05-07 17:05:25 BST" {
+		t.Fatalf("ntfyLocalTimestamp() = %q", got)
+	}
+}
+
 func withLocalTimeZone(t *testing.T, location *time.Location) {
 	t.Helper()
 	original := time.Local
 	time.Local = location
 	t.Cleanup(func() {
 		time.Local = original
+	})
+}
+
+func withLocaltimeLink(t *testing.T, target string) {
+	t.Helper()
+	originalReadlink := readLocaltimeLink
+	originalLoadLocation := loadTimeLocation
+	readLocaltimeLink = func(path string) (string, error) {
+		return target, nil
+	}
+	loadTimeLocation = time.LoadLocation
+	t.Cleanup(func() {
+		readLocaltimeLink = originalReadlink
+		loadTimeLocation = originalLoadLocation
+	})
+}
+
+func withNoLocaltimeLink(t *testing.T) {
+	t.Helper()
+	originalReadlink := readLocaltimeLink
+	readLocaltimeLink = func(path string) (string, error) {
+		return "", errors.New("no localtime link")
+	}
+	t.Cleanup(func() {
+		readLocaltimeLink = originalReadlink
 	})
 }
 
