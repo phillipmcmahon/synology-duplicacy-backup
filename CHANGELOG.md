@@ -12,11 +12,41 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+## [v11.0.6] - 2026-05-08
+
 ### Changed
 - Clarify the operator documentation and generated help around two setup
   boundaries: production use is Synology DSM only, and Duplicacy repositories
   must be initialized with the Duplicacy CLI before this tool validates or uses
   them.
+- Simplify the Synology setup flow so operators are directed toward published
+  Synology release tarballs, existing Duplicacy repositories, and focused
+  operational docs instead of generic platform build paths.
+- Document an on-demand DSM Task Scheduler pattern for managed updates, with
+  checksum-only validation as the default and release attestations as the
+  stricter option when GitHub CLI is installed and authenticated on the NAS.
+
+### Validation
+- **Local pre-push**: `make validate`
+- **Linux Go 1.26**: `go test ./...`
+- **Linux Go 1.26**: `go vet ./...`
+- **Linux Go 1.26**:
+  `go run honnef.co/go/tools/cmd/staticcheck ./...`
+- **Linux Go 1.26**: `go test -cover ./...`
+- **Project board audit**: `scripts/project-board-audit.sh`
+
+### Coverage snapshot
+- overall coverage: `87.7%`
+- `cmd/duplicacy-backup`: `86.4%`
+- `internal/workflow`: `85.9%`
+- `internal/workflowcore`: `90.7%`
+- `internal/restore`: `86.0%`
+- `internal/health`: `87.8%`
+- `internal/notify`: `91.1%`
+- `internal/operator`: `89.4%`
+- `internal/duplicacy`: `89.7%`
+- `internal/exec`: `95.2%`
+- `internal/secrets`: `93.1%`
 
 ## [v11.0.5] - 2026-05-08
 
