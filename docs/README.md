@@ -36,9 +36,10 @@ clear path without reading internals first.
 
 ## Suggested First-Time Flow
 
-1. Read [Requirements](requirements.md) to confirm the NAS and storage model.
+1. Read [Requirements](requirements.md) to confirm the Synology NAS and storage model.
 2. Install the binary using [Operations](operations.md).
-3. Create and validate the first label with [Quickstart](quickstart.md).
-4. Expand the config with [Configuration and secrets](configuration.md).
-5. Add scheduled tasks with [Workflow and scheduling](workflow-scheduling.md).
-6. Prove recovery with [Restore drills](restore-drills.md).
+3. Initialize the selected Duplicacy storage with the Duplicacy CLI.
+4. Create and validate the first label with [Quickstart](quickstart.md).
+5. Expand the config with [Configuration and secrets](configuration.md).
+6. Add scheduled tasks with [Workflow and scheduling](workflow-scheduling.md).
+7. Prove recovery with [Restore drills](restore-drills.md).

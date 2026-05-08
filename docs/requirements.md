@@ -17,6 +17,16 @@ Production use requires:
 The application performs an early DSM platform check for operational commands.
 If it does not detect DSM, it exits before running command handlers.
 
+## Existing Duplicacy Repository Required
+
+The selected storage must already be initialized with the Duplicacy CLI before
+`duplicacy-backup` can validate or use it. Repository creation is currently
+outside this tool's scope.
+
+`config validate` is deliberately read-only: it reports `Repository Access :
+Not initialized` for reachable storage that does not yet contain a Duplicacy
+repository for the selected label and storage entry.
+
 ## Btrfs Is Required For Backups
 
 Backups are snapshot-based by design. The configured `source_path` must be a

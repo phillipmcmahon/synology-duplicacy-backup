@@ -6,6 +6,10 @@ backups, but it also provides first-class restore, health, diagnostics, update,
 and rollback workflows. For routine copyable commands, start with the
 [operator cheat sheet](cheatsheet.md).
 
+Production use is Synology DSM only. Operational commands intentionally refuse
+non-Synology hosts. The selected storage must already be initialized with the
+Duplicacy CLI; this tool does not create new Duplicacy repositories.
+
 ## Usage
 
 ```text

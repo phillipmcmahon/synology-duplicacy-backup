@@ -2,7 +2,7 @@
 
 [![Build Synology Binaries](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml/badge.svg)](https://github.com/phillipmcmahon/synology-duplicacy-backup/actions/workflows/build.yml)
 
-A Synology-focused operations wrapper around [Duplicacy](https://duplicacy.com/).
+A Synology DSM operations wrapper around [Duplicacy](https://duplicacy.com/).
 The name is historical: backup is still the core scheduled workload, but the
 application now also owns restore drills, health checks, diagnostics, managed
 updates, and rollback workflows.
@@ -13,7 +13,9 @@ locking. The same command surface also gives
 operators safe restore workflows, read-only repository health checks, redacted
 support bundles, and managed install maintenance.
 
-The project builds as a single static binary for Synology-targeted Linux architectures.
+This project is written and tested for Synology DSM only. Linux containers and
+non-NAS binaries are used for validation and packaging; they are not a supported
+production runtime.
 
 ## Production Requirements
 
@@ -26,6 +28,11 @@ Operational commands refuse to run on non-Synology systems. The Linux container
 workflow in [`docs/linux-environment.md`](docs/linux-environment.md) is for
 development, validation, and packaging only; it is not a generic-Linux
 production support statement.
+
+The selected Duplicacy storage must already be initialized with the Duplicacy
+CLI. This tool validates, backs up to, prunes, checks, and restores from
+existing Duplicacy repositories; creating the repository is currently outside
+its scope.
 
 ## Storage Model
 
@@ -78,20 +85,15 @@ For the shortest copyable path from one TOML file to one validated backup, use
 [`docs/quickstart.md`](docs/quickstart.md). The steps below give the broader
 project setup context.
 
-### 1. Build or download
+### 1. Download a Synology release
 
-```bash
-# Current platform
-make build
+Use a packaged Synology release tarball from GitHub releases. Maintainers can
+build Synology packages with `make synology`, but normal operators should start
+from a published release.
 
-# Synology builds
-make synology
-```
-
-Build outputs are written to `build/`, and GitHub releases publish packaged
-Synology tarballs. Before release, CI smoke-tests each packaged tarball by
-checking the archive contents, checksum validation, binary `--version` and
-`--help`, and installer `--help`.
+Before release, CI smoke-tests each packaged tarball by checking the archive
+contents, checksum validation, binary `--version` and `--help`, and installer
+`--help`.
 
 Release preparation should follow [`docs/release-playbook.md`](docs/release-playbook.md).
 The standard Linux validation and packaging environment is documented in
@@ -166,6 +168,10 @@ storage = "s3://rustfs.local/my-backup-bucket/homes"
 ```
 
 ### 4. Validate and run
+
+Before validating, initialize the selected storage with the Duplicacy CLI using
+the same label and storage value. `duplicacy-backup` does not create new
+Duplicacy repositories.
 
 Start with validation and a dry run before scheduling anything:
 

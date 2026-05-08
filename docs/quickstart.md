@@ -1,8 +1,12 @@
 # Quickstart
 
 This is the shortest useful path from an installed binary to one validated
-backup. It assumes a Synology DSM NAS, a Btrfs-backed source, and a storage entry that
-uses S3-compatible Duplicacy credentials.
+backup on Synology DSM. It assumes a Btrfs-backed source and a storage entry
+that uses S3-compatible Duplicacy credentials.
+
+`duplicacy-backup` does not initialize new Duplicacy repositories. Before the
+validation step below, the selected storage must already be initialized with the
+Duplicacy CLI using the same label and storage value.
 
 ## 1. Create One Config File
 
@@ -54,16 +58,31 @@ chmod 700 "$HOME/.config/duplicacy-backup/secrets"
 chmod 600 "$HOME/.config/duplicacy-backup/secrets/homes-secrets.toml"
 ```
 
-## 3. Validate
+## 3. Initialize Storage With Duplicacy
+
+Run this once with the Duplicacy CLI, outside `duplicacy-backup`, for the same
+label and storage value:
+
+```sh
+mkdir -p "$HOME/duplicacy-init/homes"
+cd "$HOME/duplicacy-init/homes"
+duplicacy init homes s3://s3.example.com/my-backup-bucket/homes
+```
+
+Use the credential setup required by your Duplicacy backend. After the
+repository exists, return to your normal working directory and continue.
+
+## 4. Validate
 
 ```sh
 duplicacy-backup config validate --storage offsite-s3 homes
 ```
 
 Validation should report `Result : Passed`. If it fails, fix that before
-running a backup.
+running a backup. `Repository Access : Not initialized` means the storage is
+reachable but the Duplicacy repository still needs to be created with Duplicacy.
 
-## 4. Dry Run
+## 5. Dry Run
 
 ```sh
 sudo duplicacy-backup backup --storage offsite-s3 --dry-run homes
@@ -73,7 +92,7 @@ Backup uses `sudo` because it creates a Btrfs snapshot and reads the full source
 tree. Normal sudo metadata keeps config, secrets, logs, state, and locks rooted
 under the operator profile rather than `/root`.
 
-## 5. Real Backup
+## 6. Real Backup
 
 ```sh
 sudo duplicacy-backup backup --storage offsite-s3 homes

@@ -23,6 +23,10 @@ This is the primary home for copyable operator command examples. Use
 `health`, restore commands, and label-scoped `notify test` commands need an
 explicit `--storage <name>`.
 
+The selected storage must already be initialized with the Duplicacy CLI.
+`duplicacy-backup` validates and uses existing repositories; it does not create
+new ones.
+
 Use [Configuration and secrets](configuration.md) for storage model and secrets
 setup.
 
@@ -162,6 +166,7 @@ layout and runtime path details.
 ## Rules Of Thumb
 
 - Start with `--dry-run` for destructive or unfamiliar commands.
+- Initialize new storage with Duplicacy before validating it here.
 - Schedule backup, prune, health, and diagnostics as separate DSM tasks.
 - Use `sudo -n` only for root-required scheduled commands.
 - Use `--json-summary` when automation needs machine-readable output.

@@ -71,6 +71,7 @@ Examples:
     {{script}} update --check-only
     {{script}} rollback --check-only
 
+Synology DSM only. Storage must already be initialized with Duplicacy.
 Use --help-full for the detailed reference.
 `)
 }
@@ -140,6 +141,14 @@ COMMAND OVERVIEW:
     Managed install         Manage the installed application binary
       update                Check GitHub for a newer published release and install it through the packaged installer
       rollback              Inspect or activate a retained managed-install version
+
+PLATFORM AND SETUP BOUNDARIES:
+    Production use is Synology DSM only. Operational commands refuse to run on
+    non-Synology hosts.
+
+    The selected storage must already be initialized with the Duplicacy CLI.
+    {{script}} validates, backs up to, prunes, checks, and restores from
+    existing Duplicacy repositories; it does not create new repositories.
 
 COMMON OPTIONS:
     --storage <name>        Select the named storage config where the command uses label storage

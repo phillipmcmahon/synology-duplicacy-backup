@@ -12,6 +12,12 @@ coverage floor and package-level baseline.
 
 ## [Unreleased]
 
+### Changed
+- Clarify the operator documentation and generated help around two setup
+  boundaries: production use is Synology DSM only, and Duplicacy repositories
+  must be initialized with the Duplicacy CLI before this tool validates or uses
+  them.
+
 ## [v11.0.5] - 2026-05-08
 
 ### Changed

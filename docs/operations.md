@@ -2,6 +2,14 @@
 
 ## Installing on Synology
 
+Install published release tarballs on Synology DSM. This project is written and
+tested for Synology DSM only. Linux builds are used for Synology package
+generation and validation, but operational use is not supported on generic
+Linux hosts.
+
+Before first use, the selected storage must already be initialized with the
+Duplicacy CLI. Repository creation is outside the installer and update flow.
+
 The recommended install layout keeps the real binary versioned while exposing a
 stable command path for Synology Task Scheduler.
 
@@ -83,8 +91,7 @@ Inspect retained rollback candidates before changing anything:
 /usr/local/bin/duplicacy-backup rollback --check-only
 ```
 
-Activate the newest previous retained version when you need to back out a
-managed update:
+To undo the last managed update, activate the newest previous retained version:
 
 ```bash
 sudo /usr/local/bin/duplicacy-backup rollback --yes
@@ -241,6 +248,32 @@ Example health summary for a root-protected local filesystem repository:
 sudo -n /usr/local/bin/duplicacy-backup health status --storage onsite-usb homes
 sudo -n /usr/local/bin/duplicacy-backup health verify --json-summary --storage onsite-usb homes
 ```
+
+An operator-friendly update pattern is a disabled DSM scheduled task that you
+run manually from the Synology UI after checking the release notes. This gives
+you a controlled update button without SSH, manual archive downloads, or
+extract-and-install steps.
+
+Example on-demand managed update task using the default checksum verification:
+
+```bash
+sudo -n /usr/local/bin/duplicacy-backup update --yes --force
+```
+
+That is enough for most operators and does not require GitHub CLI to be
+installed and authenticated on the NAS. If you want the stronger release
+attestation check as well, use:
+
+```bash
+sudo -n /usr/local/bin/duplicacy-backup update \
+  --attestations required --yes --force
+```
+
+Keep the task disabled by default and run it only when you intend to update or
+repair the managed install. `--force` is useful for a repair/reinstall task; omit
+it if you want the task to install only newer published releases. See
+[Update Trust Model](update-trust-model.md) for checksum and attestation
+behaviour.
 
 Use `sudo -n` for local filesystem repositories because repository metadata is
 root-protected. Object repositories and remote mounted filesystem repositories
